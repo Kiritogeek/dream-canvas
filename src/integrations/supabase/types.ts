@@ -20,6 +20,9 @@ export type Database = {
           created_at: string
           id: string
           image_url: string | null
+          image_url_back: string | null
+          image_url_profile_left: string | null
+          image_url_profile_right: string | null
           metadata: Json | null
           name: string
           project_id: string
@@ -31,6 +34,9 @@ export type Database = {
           created_at?: string
           id?: string
           image_url?: string | null
+          image_url_back?: string | null
+          image_url_profile_left?: string | null
+          image_url_profile_right?: string | null
           metadata?: Json | null
           name: string
           project_id: string
@@ -42,6 +48,9 @@ export type Database = {
           created_at?: string
           id?: string
           image_url?: string | null
+          image_url_back?: string | null
+          image_url_profile_left?: string | null
+          image_url_profile_right?: string | null
           metadata?: Json | null
           name?: string
           project_id?: string
@@ -179,6 +188,7 @@ export type Database = {
           created_at: string
           description: string | null
           id: string
+          style_image_urls: string[]
           style_template: string | null
           title: string
           updated_at: string
@@ -189,6 +199,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          style_image_urls?: string[]
           style_template?: string | null
           title: string
           updated_at?: string
@@ -199,6 +210,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          style_image_urls?: string[]
           style_template?: string | null
           title?: string
           updated_at?: string

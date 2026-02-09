@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Users, MapPin, Box, Palette, BookOpen, Plus, Sparkles, ArrowLeft, Trash2 } from "lucide-react";
+import { Users, MapPin, Box, Palette, BookOpen, Plus, Sparkles, ArrowLeft, Trash2, ImagePlus, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,6 +23,9 @@ interface Asset {
   asset_type: AssetType;
   prompt: string | null;
   image_url: string | null;
+  image_url_profile_left?: string | null;
+  image_url_profile_right?: string | null;
+  image_url_back?: string | null;
   created_at: string;
 }
 
@@ -39,6 +42,7 @@ interface Project {
   title: string;
   description: string | null;
   style_template: string | null;
+  style_image_urls: string[];
 }
 
 const assetTabs: { type: AssetType; icon: typeof Users; label: string }[] = [
@@ -57,6 +61,8 @@ export default function ProjectDetail() {
   const [loading, setLoading] = useState(true);
   const [styleTemplate, setStyleTemplate] = useState("");
   const [savingStyle, setSavingStyle] = useState(false);
+  const [styleImageUploading, setStyleImageUploading] = useState(false);
+  const styleFileInputRef = useRef<HTMLInputElement>(null);
 
   // New asset dialog
   const [assetDialogOpen, setAssetDialogOpen] = useState(false);
@@ -64,6 +70,7 @@ export default function ProjectDetail() {
   const [newAssetName, setNewAssetName] = useState("");
   const [newAssetPrompt, setNewAssetPrompt] = useState("");
   const [creatingAsset, setCreatingAsset] = useState(false);
+  const [generatingAssetId, setGeneratingAssetId] = useState<string | null>(null);
 
   // New chapter dialog
   const [chapterDialogOpen, setChapterDialogOpen] = useState(false);
@@ -90,14 +97,55 @@ export default function ProjectDetail() {
     if (!id) return;
     setSavingStyle(true);
     await supabase.from("projects").update({ style_template: styleTemplate }).eq("id", id);
+    if (project) setProject({ ...project, style_template: styleTemplate });
     toast({ title: "Style sauvegardé !" });
     setSavingStyle(false);
+  };
+
+  const styleImageUrls = project?.style_image_urls ?? [];
+
+  const addStyleImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file?.type.startsWith("image/") || !user || !id || !project) return;
+    e.target.value = "";
+    setStyleImageUploading(true);
+    const path = `${user.id}/projects/${id}/style/${crypto.randomUUID()}.${file.name.split(".").pop() || "png"}`;
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from("dreamweave")
+      .upload(path, file, { contentType: file.type, upsert: true });
+    if (uploadError) {
+      toast({ title: "Erreur", description: uploadError.message, variant: "destructive" });
+      setStyleImageUploading(false);
+      return;
+    }
+    const { data: urlData } = supabase.storage.from("dreamweave").getPublicUrl(uploadData.path);
+    const newUrls = [...styleImageUrls, urlData.publicUrl];
+    const { error: updateError } = await supabase.from("projects").update({ style_image_urls: newUrls }).eq("id", id);
+    if (updateError) {
+      toast({ title: "Erreur", description: updateError.message, variant: "destructive" });
+    } else {
+      setProject({ ...project, style_image_urls: newUrls });
+      toast({ title: "Image de référence ajoutée" });
+    }
+    setStyleImageUploading(false);
+  };
+
+  const removeStyleImage = async (url: string) => {
+    if (!id || !project) return;
+    const newUrls = styleImageUrls.filter((u) => u !== url);
+    const { error } = await supabase.from("projects").update({ style_image_urls: newUrls }).eq("id", id);
+    if (error) {
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    } else {
+      setProject({ ...project, style_image_urls: newUrls });
+    }
   };
 
   const createAsset = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !id) return;
     setCreatingAsset(true);
+    const promptText = newAssetPrompt.trim() || null;
     const { data, error } = await supabase
       .from("assets")
       .insert({
@@ -105,19 +153,76 @@ export default function ProjectDetail() {
         project_id: id,
         name: newAssetName.trim(),
         asset_type: newAssetType,
-        prompt: newAssetPrompt.trim() || null,
+        prompt: promptText,
       })
       .select()
       .single();
     if (error) {
       toast({ title: "Erreur", description: error.message, variant: "destructive" });
-    } else if (data) {
-      setAssets((prev) => [data as Asset, ...prev]);
-      setAssetDialogOpen(false);
-      setNewAssetName("");
-      setNewAssetPrompt("");
+      setCreatingAsset(false);
+      return;
     }
+    const newAsset = data as Asset;
+    setAssets((prev) => [newAsset, ...prev]);
+    setAssetDialogOpen(false);
+    setNewAssetName("");
+    setNewAssetPrompt("");
     setCreatingAsset(false);
+
+    if (promptText) {
+      const currentStyleText = styleTemplate?.trim() || project?.style_template?.trim();
+      const hasStyleText = !!currentStyleText;
+      const hasStyleImages = Array.isArray(project?.style_image_urls) && project.style_image_urls.length > 0;
+      if (!hasStyleText && !hasStyleImages) {
+        toast({
+          title: "Style requis",
+          description: "Définissez un style dans l’onglet Style du projet (texte et/ou images de référence) avant de générer.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setGeneratingAssetId(newAsset.id);
+      toast({ title: "Génération en cours…", description: "L'image est créée par l'IA." });
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-asset-image`;
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: session?.access_token ? `Bearer ${session.access_token}` : "",
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? "",
+        },
+        body: JSON.stringify({
+          asset_id: newAsset.id,
+          prompt: promptText,
+          style_template: currentStyleText || undefined,
+          style_image_urls: (project?.style_image_urls?.length ? project.style_image_urls : undefined),
+          asset_type: newAssetType,
+        }),
+      });
+      const resBody = await res.json().catch(() => ({}));
+      setGeneratingAssetId(null);
+      if (!res.ok) {
+        const msg = resBody?.details ?? resBody?.error ?? res.statusText;
+        toast({
+          title: "Génération échouée",
+          description: typeof msg === "string" ? msg : JSON.stringify(msg),
+          variant: "destructive",
+        });
+        return;
+      }
+      const imageUrl = resBody?.image_url;
+      const updateField = resBody?.update_field ?? "image_url";
+      if (imageUrl) {
+        setAssets((prev) =>
+          prev.map((a) => (a.id === newAsset.id ? { ...a, [updateField]: imageUrl } : a))
+        );
+        toast({ title: "Image générée !" });
+      }
+    }
   };
 
   const createChapter = async (e: React.FormEvent) => {
@@ -150,6 +255,123 @@ export default function ProjectDetail() {
   const deleteAsset = async (assetId: string) => {
     await supabase.from("assets").delete().eq("id", assetId);
     setAssets((prev) => prev.filter((a) => a.id !== assetId));
+  };
+
+  const regenerateAssetImage = async (asset: Asset) => {
+    const promptText = asset.prompt?.trim();
+    if (!promptText) {
+      toast({ title: "Impossible", description: "Cet asset n’a pas de prompt.", variant: "destructive" });
+      return;
+    }
+    const currentStyleText = styleTemplate?.trim() || project?.style_template?.trim();
+    const hasStyleText = !!currentStyleText;
+    const hasStyleImages = Array.isArray(project?.style_image_urls) && (project?.style_image_urls?.length > 0);
+    if (!hasStyleText && !hasStyleImages) {
+      toast({
+        title: "Style requis",
+        description: "Définissez un style dans l’onglet Style (texte et/ou images) avant de régénérer.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setGeneratingAssetId(asset.id);
+    toast({ title: "Régénération…", description: "L’image est recréée avec le style du projet." });
+    const { data: { session } } = await supabase.auth.getSession();
+    const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-asset-image`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: session?.access_token ? `Bearer ${session.access_token}` : "",
+        apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? "",
+      },
+      body: JSON.stringify({
+        asset_id: asset.id,
+        prompt: promptText,
+        style_template: currentStyleText || undefined,
+        style_image_urls: (project?.style_image_urls?.length ? project.style_image_urls : undefined),
+        asset_type: asset.asset_type,
+      }),
+    });
+    const resBody = await res.json().catch(() => ({}));
+    setGeneratingAssetId(null);
+    if (!res.ok) {
+      const msg = resBody?.details ?? resBody?.error ?? res.statusText;
+      toast({
+        title: "Régénération échouée",
+        description: typeof msg === "string" ? msg : JSON.stringify(msg),
+        variant: "destructive",
+      });
+      return;
+    }
+    const imageUrl = resBody?.image_url;
+    const updateField = resBody?.update_field ?? "image_url";
+    if (imageUrl) {
+      setAssets((prev) =>
+        prev.map((a) => (a.id === asset.id ? { ...a, [updateField]: imageUrl } : a))
+      );
+      toast({ title: "Image régénérée avec le style du projet !" });
+    }
+  };
+
+  const [characterViewDialogOpen, setCharacterViewDialogOpen] = useState(false);
+  const [selectedCharacter, setSelectedCharacter] = useState<Asset | null>(null);
+  const [generatingView, setGeneratingView] = useState<"profile_left" | "profile_right" | "back" | null>(null);
+
+  const generateCharacterView = async (asset: Asset, view: "profile_left" | "profile_right" | "back") => {
+    const promptText = asset.prompt?.trim();
+    if (!promptText) {
+      toast({ title: "Impossible", description: "Cet asset n’a pas de prompt.", variant: "destructive" });
+      return;
+    }
+    const currentStyleText = styleTemplate?.trim() || project?.style_template?.trim();
+    const hasStyleText = !!currentStyleText;
+    const hasStyleImages = Array.isArray(project?.style_image_urls) && (project?.style_image_urls?.length > 0);
+    if (!hasStyleText && !hasStyleImages) {
+      toast({
+        title: "Style requis",
+        description: "Définissez un style dans l’onglet Style avant de générer une vue.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setGeneratingView(view);
+    const { data: { session } } = await supabase.auth.getSession();
+    const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-asset-image`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: session?.access_token ? `Bearer ${session.access_token}` : "",
+        apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? "",
+      },
+      body: JSON.stringify({
+        asset_id: asset.id,
+        prompt: promptText,
+        style_template: currentStyleText || undefined,
+        style_image_urls: (project?.style_image_urls?.length ? project.style_image_urls : undefined),
+        asset_type: "character",
+        image_view: view,
+      }),
+    });
+    const resBody = await res.json().catch(() => ({}));
+    setGeneratingView(null);
+    if (!res.ok) {
+      const msg = resBody?.details ?? resBody?.error ?? res.statusText;
+      toast({
+        title: "Génération échouée",
+        description: typeof msg === "string" ? msg : JSON.stringify(msg),
+        variant: "destructive",
+      });
+      return;
+    }
+    const imageUrl = resBody?.image_url;
+    const updateField = resBody?.update_field ?? `image_url_${view}`;
+    if (imageUrl) {
+      setAssets((prev) =>
+        prev.map((a) => (a.id === asset.id ? { ...a, [updateField]: imageUrl } : a))
+      );
+      setSelectedCharacter((prev) => (prev?.id === asset.id ? { ...prev!, [updateField]: imageUrl } : prev));
+      toast({ title: "Vue générée !" });
+    }
   };
 
   if (loading) {
@@ -201,11 +423,27 @@ export default function ProjectDetail() {
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-display font-semibold">Bibliothèque d'assets</h2>
               <Dialog open={assetDialogOpen} onOpenChange={setAssetDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button size="sm" className="gradient-primary text-primary-foreground">
-                    <Plus className="h-4 w-4 mr-1" /> Ajouter
-                  </Button>
-                </DialogTrigger>
+                <Button
+                  size="sm"
+                  type="button"
+                  className="gradient-primary text-primary-foreground"
+                  onClick={() => {
+                    const currentStyleText = styleTemplate?.trim() || project?.style_template?.trim();
+                    const hasStyleText = !!currentStyleText;
+                    const hasStyleImages = Array.isArray(project?.style_image_urls) && (project?.style_image_urls?.length > 0);
+                    if (!hasStyleText && !hasStyleImages) {
+                      toast({
+                        title: "Style requis",
+                        description: "Définissez un style dans l’onglet Style du projet (texte et/ou images de référence) avant d’ajouter un asset.",
+                        variant: "destructive",
+                      });
+                      return;
+                    }
+                    setAssetDialogOpen(true);
+                  }}
+                >
+                  <Plus className="h-4 w-4 mr-1" /> Ajouter
+                </Button>
                 <DialogContent className="glass">
                   <DialogHeader>
                     <DialogTitle className="font-display">Nouvel asset</DialogTitle>
@@ -266,23 +504,45 @@ export default function ProjectDetail() {
                           key={asset.id}
                           initial={{ opacity: 0, scale: 0.95 }}
                           animate={{ opacity: 1, scale: 1 }}
-                          className="glass rounded-xl p-4 group relative"
+                          className={`glass rounded-xl p-4 group relative ${t.type === "character" ? "cursor-pointer" : ""}`}
+                          onClick={t.type === "character" ? () => { setSelectedCharacter(asset); setCharacterViewDialogOpen(true); } : undefined}
+                          role={t.type === "character" ? "button" : undefined}
                         >
                           {asset.image_url ? (
                             <img src={asset.image_url} alt={asset.name} className="w-full aspect-[2/3] object-cover rounded-lg mb-3" />
                           ) : (
-                            <div className="w-full aspect-[2/3] rounded-lg mb-3 gradient-dream flex items-center justify-center">
-                              <Sparkles className="h-8 w-8 text-primary opacity-40" />
+                            <div className="w-full aspect-[2/3] rounded-lg mb-3 gradient-dream flex items-center justify-center relative">
+                              {generatingAssetId === asset.id ? (
+                                <>
+                                  <Sparkles className="h-8 w-8 text-primary animate-pulse" />
+                                  <span className="absolute bottom-2 text-xs text-muted-foreground">Génération…</span>
+                                </>
+                              ) : (
+                                <Sparkles className="h-8 w-8 text-primary opacity-40" />
+                              )}
                             </div>
                           )}
                           <h4 className="font-display font-semibold text-sm">{asset.name}</h4>
                           {asset.prompt && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{asset.prompt}</p>}
-                          <button
-                            onClick={() => deleteAsset(asset.id)}
-                            className="absolute top-2 right-2 p-1 rounded-full bg-background/80 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
+                          {t.type === "character" && <p className="text-xs text-primary mt-1">Cliquer pour gérer les vues (profil, dos)</p>}
+                          <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+                            {asset.prompt && (
+                              <button
+                                onClick={() => regenerateAssetImage(asset)}
+                                disabled={generatingAssetId === asset.id}
+                                className="p-1 rounded-full bg-background/80 text-muted-foreground hover:text-primary disabled:opacity-50"
+                                title="Régénérer l’image avec le style du projet"
+                              >
+                                <RefreshCw className="h-3.5 w-3.5" />
+                              </button>
+                            )}
+                            <button
+                              onClick={() => deleteAsset(asset.id)}
+                              className="p-1 rounded-full bg-background/80 text-muted-foreground hover:text-destructive"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
                         </motion.div>
                       ))}
                     </div>
@@ -290,6 +550,65 @@ export default function ProjectDetail() {
                 </TabsContent>
               ))}
             </Tabs>
+
+            {/* Dialog Vues du personnage (profil gauche/droite, dos) */}
+            <Dialog open={characterViewDialogOpen} onOpenChange={(open) => { setCharacterViewDialogOpen(open); if (!open) setSelectedCharacter(null); }}>
+              <DialogContent className="glass max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle className="font-display">Vues du personnage — {selectedCharacter?.name ?? ""}</DialogTitle>
+                </DialogHeader>
+                {selectedCharacter && (
+                  <div className="space-y-4">
+                    <p className="text-sm text-muted-foreground">Vue de face (principale). Générez les vues profil et dos pour utiliser le personnage sous tous les angles.</p>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                      <div className="space-y-2">
+                        <p className="text-xs font-medium text-muted-foreground">Face</p>
+                        {selectedCharacter.image_url ? (
+                          <img src={selectedCharacter.image_url} alt="Face" className="w-full aspect-[2/3] object-cover rounded-lg border" />
+                        ) : (
+                          <div className="w-full aspect-[2/3] rounded-lg border border-dashed flex items-center justify-center text-xs text-muted-foreground">Vue principale</div>
+                        )}
+                      </div>
+                      {(["profile_left", "profile_right", "back"] as const).map((view) => {
+                        const url = selectedCharacter[view === "profile_left" ? "image_url_profile_left" : view === "profile_right" ? "image_url_profile_right" : "image_url_back"];
+                        const label = view === "profile_left" ? "Profil gauche" : view === "profile_right" ? "Profil droite" : "Dos";
+                                return (
+                                  <div key={view} className="space-y-2">
+                                    <p className="text-xs font-medium text-muted-foreground">{label}</p>
+                                    {url ? (
+                                      <>
+                                        <img src={url} alt={label} className="w-full aspect-[2/3] object-cover rounded-lg border" />
+                                        <Button
+                                          size="sm"
+                                          variant="ghost"
+                                          className="w-full text-xs"
+                                          disabled={generatingView === view}
+                                          onClick={() => generateCharacterView(selectedCharacter, view)}
+                                        >
+                                          {generatingView === view ? "Génération…" : "Régénérer"}
+                                        </Button>
+                                      </>
+                                    ) : (
+                                      <div className="w-full aspect-[2/3] rounded-lg border border-dashed flex flex-col items-center justify-center gap-2 p-2">
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          disabled={generatingView === view}
+                                          onClick={() => generateCharacterView(selectedCharacter, view)}
+                                          className="text-xs"
+                                        >
+                                          {generatingView === view ? "Génération…" : "Générer"}
+                                        </Button>
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </DialogContent>
+            </Dialog>
           </TabsContent>
 
           {/* Style Tab */}
@@ -300,7 +619,7 @@ export default function ProjectDetail() {
                 <h2 className="text-lg font-display font-semibold">Template de style</h2>
               </div>
               <p className="text-sm text-muted-foreground">
-                Définissez un style visuel qui sera appliqué à toutes vos générations d'images pour garder un look cohérent.
+                Définissez un style visuel (texte et/ou images de référence) pour toutes vos générations. Au moins l’un des deux est requis.
               </p>
               <Textarea
                 value={styleTemplate}
@@ -308,6 +627,42 @@ export default function ProjectDetail() {
                 placeholder="Ex: style manga shonen, couleurs vives, traits fins, ombres douces, palette pastel..."
                 rows={4}
               />
+              <div>
+                <p className="text-sm font-medium mb-2">Images de référence</p>
+                <div className="flex flex-wrap gap-3">
+                  {styleImageUrls.map((url) => (
+                    <div key={url} className="relative group">
+                      <img src={url} alt="Style" className="h-20 w-20 object-cover rounded-lg border border-border" />
+                      <button
+                        type="button"
+                        onClick={() => removeStyleImage(url)}
+                        className="absolute -top-1 -right-1 p-1 rounded-full bg-destructive text-destructive-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+                  <input
+                    ref={styleFileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={addStyleImage}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => styleFileInputRef.current?.click()}
+                    disabled={styleImageUploading}
+                    className="h-20 w-20 rounded-lg border border-dashed border-border flex items-center justify-center text-muted-foreground hover:bg-muted/50 transition-colors disabled:opacity-50"
+                  >
+                    {styleImageUploading ? (
+                      <span className="text-xs">...</span>
+                    ) : (
+                      <ImagePlus className="h-6 w-6" />
+                    )}
+                  </button>
+                </div>
+              </div>
               <Button onClick={saveStyle} disabled={savingStyle} className="gradient-primary text-primary-foreground">
                 {savingStyle ? "Sauvegarde..." : "Sauvegarder le style"}
               </Button>

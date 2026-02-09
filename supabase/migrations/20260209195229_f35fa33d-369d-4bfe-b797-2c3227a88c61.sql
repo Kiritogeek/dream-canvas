@@ -40,6 +40,7 @@ CREATE TABLE public.projects (
   title TEXT NOT NULL,
   description TEXT,
   style_template TEXT,
+  style_image_urls JSONB NOT NULL DEFAULT '[]'::jsonb,
   cover_url TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -63,6 +64,9 @@ CREATE TABLE public.assets (
   asset_type public.asset_type NOT NULL,
   prompt TEXT,
   image_url TEXT,
+  image_url_profile_left TEXT,
+  image_url_profile_right TEXT,
+  image_url_back TEXT,
   metadata JSONB DEFAULT '{}',
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );

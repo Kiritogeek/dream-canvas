@@ -1,1 +1,6 @@
 project_id = "lbiqsodnvrnxdprcucmb"
+
+# Permet d'appeler la fonction sans que la passerelle rejette le JWT (connexion Google / clés asymétriques).
+# La fonction vérifie elle-même que l'utilisateur possède l'asset via le client authentifié.
+[functions.generate-asset-image]
+verify_jwt = false

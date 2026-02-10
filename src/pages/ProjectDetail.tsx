@@ -70,6 +70,7 @@ export default function ProjectDetail() {
   const [newAssetName, setNewAssetName] = useState("");
   const [newAssetPrompt, setNewAssetPrompt] = useState("");
   const [creatingAsset, setCreatingAsset] = useState(false);
+  const canCreateAsset = newAssetName.trim().length > 0 && newAssetPrompt.trim().length > 0;
   const [generatingAssetId, setGeneratingAssetId] = useState<string | null>(null);
 
   // New chapter dialog
@@ -472,10 +473,27 @@ export default function ProjectDetail() {
                     </div>
                     <div className="space-y-2">
                       <Label>Description / Prompt</Label>
-                      <Textarea value={newAssetPrompt} onChange={(e) => setNewAssetPrompt(e.target.value)} placeholder="Décrivez l'asset pour la génération IA..." rows={3} />
+                      <Textarea
+                        value={newAssetPrompt}
+                        onChange={(e) => setNewAssetPrompt(e.target.value)}
+                        placeholder="Décrivez l'asset pour la génération IA..."
+                        rows={3}
+                      />
                     </div>
-                    <Button type="submit" disabled={creatingAsset} className="w-full gradient-primary text-primary-foreground">
-                      {creatingAsset ? "Création..." : "Créer l'asset"}
+                    <Button
+                      type="submit"
+                      disabled={creatingAsset || !canCreateAsset}
+                      className={`w-full text-primary-foreground ${
+                        canCreateAsset ? "gradient-primary" : "bg-muted/60 cursor-not-allowed"
+                      }`}
+                    >
+                      {creatingAsset
+                        ? "Création..."
+                        : newAssetType === "character"
+                          ? "Créer le personnage"
+                          : newAssetType === "background"
+                            ? "Créer le décor"
+                            : "Créer l'objet"}
                     </Button>
                   </form>
                 </DialogContent>

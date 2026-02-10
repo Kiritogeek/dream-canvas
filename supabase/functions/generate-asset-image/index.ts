@@ -5,6 +5,27 @@ const NEBIUS_BASE = "https://api.tokenfactory.nebius.com/v1";
 const BUCKET = "dreamweave";
 // Modèle image Nebius (si 404 "model not found", voir la liste : GET https://api.tokenfactory.nebius.com/v1/models avec ta clé API)
 const MODEL = "black-forest-labs/flux-schnell";
+// Sécurité : la doc Nebius limite le prompt à ~2000 caractères
+// On garde une marge pour éviter les erreurs de dépassement.
+const MAX_PROMPT_CHARS = 1900;
+
+// Prompts système centralisés (à modifier dans system-prompts/* pour changer le comportement global)
+import {
+  CHARACTER_BASE_PROMPT,
+  CHARACTER_STYLE_TEXT_INSTRUCTION,
+  CHARACTER_STYLE_IMAGES_INSTRUCTION,
+  CHARACTER_VIEW_PROMPTS,
+} from "./system-prompts/characters.ts";
+import {
+  BACKGROUND_BASE_PROMPT,
+  BACKGROUND_STYLE_TEXT_INSTRUCTION,
+  BACKGROUND_STYLE_IMAGES_INSTRUCTION,
+} from "./system-prompts/backgrounds.ts";
+import {
+  OBJECT_BASE_PROMPT,
+  OBJECT_STYLE_TEXT_INSTRUCTION,
+  OBJECT_STYLE_IMAGES_INSTRUCTION,
+} from "./system-prompts/objects.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -99,45 +120,91 @@ Deno.serve(async (req) => {
       );
     }
 
-    const defaultStyle = "Anime, Webtoon, dessin. ";
     const userStyleText = style_template?.trim() ?? "";
     const type_ = asset_type ?? "character";
 
-    const typeInstructions: Record<string, string> = {
-      character:
-        "Personnage en PNG, fond transparent. Le personnage doit être entièrement visible de la tête aux pieds. Vue de FACE. Uniquement le personnage, pas de décor ni d'autres éléments. Pas de fond.",
-      background:
-        "Décor uniquement : environnement, lieu, paysage ou intérieur. Aucun personnage visible. Uniquement le décor.",
-      object:
-        "Objet seul en PNG, fond transparent. Uniquement l'objet, pas de personnage ni décor. Pas de fond.",
-    };
-
-    const viewInstructions: Record<string, string> = {
-      profile_left:
-        "Même personnage, vue de PROFIL GAUCHE (côté gauche du personnage visible). Entier de la tête aux pieds. PNG fond transparent. Uniquement le personnage.",
-      profile_right:
-        "Même personnage, vue de PROFIL DROITE (côté droit du personnage visible). Entier de la tête aux pieds. PNG fond transparent. Uniquement le personnage.",
-      back: "Même personnage, vue de DOS. Entier de la tête aux pieds. PNG fond transparent. Uniquement le personnage.",
-    };
-
-    const parts: string[] = [defaultStyle, typeInstructions[type_] ?? typeInstructions.character];
-    if (type_ === "character" && image_view && image_view !== "front" && viewInstructions[image_view]) {
-      parts.push(viewInstructions[image_view]);
+    const parts: string[] = [];
+    // 1) Instructions de base par type (centralisées dans system-prompts)
+    if (type_ === "character") {
+      // Style principal = texte utilisateur (obligatoire) + prompt de base personnage
+      if (hasStyleText) {
+        parts.push(userStyleText.trim() + ", ");
+      }
+      parts.push(CHARACTER_BASE_PROMPT);
+      if (image_view && image_view !== "front") {
+        const viewKey = image_view as keyof typeof CHARACTER_VIEW_PROMPTS;
+        const viewText = CHARACTER_VIEW_PROMPTS[viewKey];
+        if (viewText) {
+          parts.push(viewText);
+        }
+      }
+    } else if (type_ === "background") {
+      parts.push(BACKGROUND_BASE_PROMPT);
+    } else if (type_ === "object") {
+      parts.push(OBJECT_BASE_PROMPT);
+    } else {
+      // Type inconnu : on ne force aucun style par défaut
+      parts.push(" ");
     }
+
+    // 2) Texte de style (si défini)
     if (hasStyleText) {
-      parts.push(`Style obligatoire à respecter : ${userStyleText}.`);
+      if (type_ === "character") {
+        parts.push(CHARACTER_STYLE_TEXT_INSTRUCTION(userStyleText));
+      } else if (type_ === "background") {
+        parts.push(BACKGROUND_STYLE_TEXT_INSTRUCTION(userStyleText));
+      } else if (type_ === "object") {
+        parts.push(OBJECT_STYLE_TEXT_INSTRUCTION(userStyleText));
+      }
     }
+
+    // 3) Images de style (si présentes)
     if (hasStyleImages) {
-      parts.push(
-        "Des images de référence définissent le STYLE visuel à utiliser (trait du dessin, palette de couleurs, ambiance, rendu). " +
-          "Tu dois UNIQUEMENT t'inspirer de ce STYLE : extraire et appliquer le style (façon de dessiner, couleurs, lumière), sans copier le contenu, les personnages ou la composition des références. " +
-          "Génère une image NOUVELLE qui correspond à la description ci-dessous, mais dessinée dans ce même style."
-      );
+      if (type_ === "character") {
+        parts.push(CHARACTER_STYLE_IMAGES_INSTRUCTION);
+      } else if (type_ === "background") {
+        parts.push(BACKGROUND_STYLE_IMAGES_INSTRUCTION);
+      } else if (type_ === "object") {
+        parts.push(OBJECT_STYLE_IMAGES_INSTRUCTION);
+      }
     }
-    parts.push("\n\nDescription de l'asset : ");
-    const stylePrefix = parts.join(" ");
-    const fullPrompt = stylePrefix + prompt.trim();
-    console.log("[generate-asset-image] asset_id:", asset_id, "asset_type:", type_, "image_view:", image_view ?? "front");
+
+    // Log détaillé du système de prompt utilisé (pour debug)
+    console.log("[generate-asset-image] system_prompt_parts", {
+      type: type_,
+      image_view: image_view ?? "front",
+      hasStyleText,
+      hasStyleImages,
+      styleText: userStyleText?.slice(0, 300) ?? "",
+      partsPreview: parts.map((p) => p.slice(0, 120)),
+    });
+
+    // IMPORTANT : on donne la priorité absolue au prompt de l'utilisateur.
+    // On place donc sa description en premier, puis les contraintes système et de style.
+    const systemPrompt = parts.join(" ");
+    let fullPrompt = `${prompt.trim()}\n\n${systemPrompt}`;
+
+    if (fullPrompt.length > MAX_PROMPT_CHARS) {
+      console.log(
+        "[generate-asset-image] Prompt trop long, truncation",
+        "len=",
+        fullPrompt.length,
+        "max=",
+        MAX_PROMPT_CHARS
+      );
+      fullPrompt = fullPrompt.slice(0, MAX_PROMPT_CHARS);
+    }
+
+    console.log(
+      "[generate-asset-image] asset_id:",
+      asset_id,
+      "asset_type:",
+      type_,
+      "image_view:",
+      image_view ?? "front",
+      "prompt_len=",
+      fullPrompt.length
+    );
 
     console.log("[generate-asset-image] 4. Env Supabase");
     const supabaseUrl = Deno.env.get("SUPABASE_URL");

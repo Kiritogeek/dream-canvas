@@ -1,6 +1,14 @@
 // Edge Function: génération d'image via Nebius (sans dépendance supabase-js)
 // Secret requis : NEBIUS_API_KEY (Supabase → Edge Functions → Secrets)
 
+// Déclaration de types pour l'environnement Deno (Supabase Edge Functions)
+declare const Deno: {
+  serve: (handler: (req: Request) => Promise<Response> | Response) => void;
+  env: {
+    get: (key: string) => string | undefined;
+  };
+};
+
 const NEBIUS_BASE = "https://api.tokenfactory.nebius.com/v1";
 const BUCKET = "dreamweave";
 // Modèle image Nebius (si 404 "model not found", voir la liste : GET https://api.tokenfactory.nebius.com/v1/models avec ta clé API)
@@ -11,17 +19,20 @@ const MAX_PROMPT_CHARS = 1900;
 
 // Prompts système centralisés (à modifier dans system-prompts/* pour changer le comportement global)
 import {
+  buildCharacterPrompt,
   CHARACTER_BASE_PROMPT,
   CHARACTER_STYLE_TEXT_INSTRUCTION,
   CHARACTER_STYLE_IMAGES_INSTRUCTION,
   CHARACTER_VIEW_PROMPTS,
 } from "./system-prompts/characters.ts";
 import {
+  buildBackgroundPrompt,
   BACKGROUND_BASE_PROMPT,
   BACKGROUND_STYLE_TEXT_INSTRUCTION,
   BACKGROUND_STYLE_IMAGES_INSTRUCTION,
 } from "./system-prompts/backgrounds.ts";
 import {
+  buildObjectPrompt,
   OBJECT_BASE_PROMPT,
   OBJECT_STYLE_TEXT_INSTRUCTION,
   OBJECT_STYLE_IMAGES_INSTRUCTION,
@@ -123,66 +134,80 @@ Deno.serve(async (req) => {
     const userStyleText = style_template?.trim() ?? "";
     const type_ = asset_type ?? "character";
 
-    const parts: string[] = [];
-    // 1) Instructions de base par type (centralisées dans system-prompts)
+    // Utiliser les nouvelles fonctions build*Prompt pour construire le prompt de manière claire et structurée
+    let fullPrompt = "";
+    
     if (type_ === "character") {
-      // Style principal = texte utilisateur (obligatoire) + prompt de base personnage
-      if (hasStyleText) {
-        parts.push(userStyleText.trim() + ", ");
-      }
-      parts.push(CHARACTER_BASE_PROMPT);
+      // Pour les vues additionnelles (profil, dos), on utilise l'ancien système avec les instructions détaillées
       if (image_view && image_view !== "front") {
+        // Vue additionnelle : utiliser l'ancien système pour garder la référence à l'image principale
+        const basePrompt = CHARACTER_BASE_PROMPT;
         const viewKey = image_view as keyof typeof CHARACTER_VIEW_PROMPTS;
-        const viewText = CHARACTER_VIEW_PROMPTS[viewKey];
-        if (viewText) {
-          parts.push(viewText);
+        const viewPrompt = CHARACTER_VIEW_PROMPTS[viewKey] || "";
+        let styleTextInstruction = "";
+        let styleImagesInstruction = "";
+
+        if (hasStyleText) {
+          styleTextInstruction = CHARACTER_STYLE_TEXT_INSTRUCTION(userStyleText);
         }
+        if (hasStyleImages && style_image_urls && style_image_urls.length > 0) {
+          styleImagesInstruction = CHARACTER_STYLE_IMAGES_INSTRUCTION(style_image_urls);
+        }
+
+        fullPrompt = prompt.trim();
+        if (hasStyleText) {
+          fullPrompt += `\n\nSTYLE À APPLIQUER (OBLIGATOIRE) : ${userStyleText}`;
+        }
+        fullPrompt += `\n\n═══════════════════════════════════════════════════════════\n`;
+        fullPrompt += `⚠️ INSTRUCTIONS TECHNIQUES OBLIGATOIRES (FORMAT ET CADRAGE) ⚠️\n`;
+        fullPrompt += `═══════════════════════════════════════════════════════════\n`;
+        fullPrompt += `${basePrompt}\n\n${viewPrompt}\n`;
+        fullPrompt += `═══════════════════════════════════════════════════════════\n`;
+        if (styleTextInstruction) fullPrompt += `\n${styleTextInstruction}\n`;
+        if (styleImagesInstruction) fullPrompt += `\n${styleImagesInstruction}\n`;
+      } else {
+        // Vue principale (front) : utiliser la nouvelle fonction buildCharacterPrompt
+        fullPrompt = buildCharacterPrompt(
+          prompt.trim(),
+          hasStyleText ? userStyleText : undefined,
+          hasStyleImages && style_image_urls ? style_image_urls : undefined
+        );
       }
     } else if (type_ === "background") {
-      parts.push(BACKGROUND_BASE_PROMPT);
+      fullPrompt = buildBackgroundPrompt(
+        prompt.trim(),
+        hasStyleText ? userStyleText : undefined,
+        hasStyleImages && style_image_urls ? style_image_urls : undefined
+      );
     } else if (type_ === "object") {
-      parts.push(OBJECT_BASE_PROMPT);
+      fullPrompt = buildObjectPrompt(
+        prompt.trim(),
+        hasStyleText ? userStyleText : undefined,
+        hasStyleImages && style_image_urls ? style_image_urls : undefined
+      );
     } else {
-      // Type inconnu : on ne force aucun style par défaut
-      parts.push(" ");
-    }
-
-    // 2) Texte de style (si défini)
-    if (hasStyleText) {
-      if (type_ === "character") {
-        parts.push(CHARACTER_STYLE_TEXT_INSTRUCTION(userStyleText));
-      } else if (type_ === "background") {
-        parts.push(BACKGROUND_STYLE_TEXT_INSTRUCTION(userStyleText));
-      } else if (type_ === "object") {
-        parts.push(OBJECT_STYLE_TEXT_INSTRUCTION(userStyleText));
-      }
-    }
-
-    // 3) Images de style (si présentes)
-    if (hasStyleImages) {
-      if (type_ === "character") {
-        parts.push(CHARACTER_STYLE_IMAGES_INSTRUCTION);
-      } else if (type_ === "background") {
-        parts.push(BACKGROUND_STYLE_IMAGES_INSTRUCTION);
-      } else if (type_ === "object") {
-        parts.push(OBJECT_STYLE_IMAGES_INSTRUCTION);
-      }
+      fullPrompt = prompt.trim();
     }
 
     // Log détaillé du système de prompt utilisé (pour debug)
-    console.log("[generate-asset-image] system_prompt_parts", {
-      type: type_,
-      image_view: image_view ?? "front",
-      hasStyleText,
-      hasStyleImages,
-      styleText: userStyleText?.slice(0, 300) ?? "",
-      partsPreview: parts.map((p) => p.slice(0, 120)),
-    });
-
-    // IMPORTANT : on donne la priorité absolue au prompt de l'utilisateur.
-    // On place donc sa description en premier, puis les contraintes système et de style.
-    const systemPrompt = parts.join(" ");
-    let fullPrompt = `${prompt.trim()}\n\n${systemPrompt}`;
+    console.log("[generate-asset-image] ===== DÉBUT LOG GÉNÉRATION =====");
+    console.log("[generate-asset-image] Type d'asset:", type_);
+    console.log("[generate-asset-image] Vue:", image_view ?? "front");
+    console.log("[generate-asset-image] Style texte présent:", hasStyleText);
+    console.log("[generate-asset-image] Style texte:", userStyleText?.slice(0, 200) ?? "(aucun)");
+    console.log("[generate-asset-image] Images de référence présentes:", hasStyleImages);
+    if (hasStyleImages && style_image_urls) {
+      console.log("[generate-asset-image] Nombre d'images de référence:", style_image_urls.length);
+      console.log("[generate-asset-image] URLs des images de référence:");
+      style_image_urls.forEach((url, index) => {
+        console.log(`[generate-asset-image]   Image ${index + 1}: ${url}`);
+      });
+    } else {
+      console.log("[generate-asset-image] Aucune image de référence fournie");
+    }
+    console.log("[generate-asset-image] Longueur du prompt:", fullPrompt.length);
+    console.log("[generate-asset-image] Aperçu du prompt:", fullPrompt.slice(0, 300) + "...");
+    console.log("[generate-asset-image] ===== FIN LOG GÉNÉRATION =====");
 
     if (fullPrompt.length > MAX_PROMPT_CHARS) {
       console.log(
@@ -205,6 +230,22 @@ Deno.serve(async (req) => {
       "prompt_len=",
       fullPrompt.length
     );
+    
+    // Log final du prompt complet (premières lignes pour vérifier les URLs)
+    if (hasStyleImages && style_image_urls) {
+      const promptContainsUrls = style_image_urls.some(url => fullPrompt.includes(url));
+      console.log("[generate-asset-image] ✅ Vérification: Les URLs des images sont-elles dans le prompt?", promptContainsUrls);
+      if (!promptContainsUrls) {
+        console.warn("[generate-asset-image] ⚠️ ATTENTION: Les URLs des images ne semblent pas être dans le prompt final!");
+      }
+      // Afficher un extrait du prompt contenant les URLs
+      const urlMatch = fullPrompt.match(/URLS DES IMAGES DE RÉFÉRENCE À ANALYSER :[\s\S]*?(?=\n\n|$)/);
+      if (urlMatch) {
+        console.log("[generate-asset-image] 📋 Extrait du prompt avec URLs:", urlMatch[0].slice(0, 500));
+      } else {
+        console.warn("[generate-asset-image] ⚠️ Impossible de trouver la section URLs dans le prompt");
+      }
+    }
 
     console.log("[generate-asset-image] 4. Env Supabase");
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
@@ -237,6 +278,7 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "Asset introuvable ou accès refusé" }, 403);
     }
     console.log("[generate-asset-image] 6. Appel API Nebius");
+    // Les URLs des images de référence sont maintenant incluses directement dans le prompt texte
     const nebiusRes = await fetch(`${NEBIUS_BASE}/images/generations`, {
       method: "POST",
       headers: {

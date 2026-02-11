@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import DashboardLayout from "@/components/DashboardLayout";
+import { ImageWithFallback } from "@/components/ui/ImageWithFallback";
 
 interface Panel {
   id: string;
@@ -116,21 +117,13 @@ export default function ChapterDetail() {
                     setEditPrompt(panel.prompt || "");
                   }}
                 >
-                  {panel.image_url ? (
-                    <img
-                      src={panel.image_url}
-                      alt={`Panel ${panel.panel_number}`}
-                      className="w-full rounded-lg"
-                      style={{ aspectRatio: "800/1200" }}
-                    />
-                  ) : (
-                    <div
-                      className="w-full rounded-lg gradient-dream flex items-center justify-center"
-                      style={{ aspectRatio: "800/1200" }}
-                    >
-                      <span className="text-muted-foreground font-display">Panel {panel.panel_number}</span>
-                    </div>
-                  )}
+                  <ImageWithFallback
+                    src={panel.image_url}
+                    alt={`Panel ${panel.panel_number}`}
+                    className="w-full rounded-lg"
+                    fallbackClassName="w-full rounded-lg gradient-dream flex items-center justify-center"
+                    style={{ aspectRatio: "800/1200" }}
+                  />
                   <div className="absolute inset-0 rounded-lg bg-foreground/0 group-hover:bg-foreground/10 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
                     <RefreshCw className="h-8 w-8 text-primary-foreground drop-shadow-lg" />
                   </div>

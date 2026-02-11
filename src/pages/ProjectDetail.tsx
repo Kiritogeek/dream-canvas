@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import DashboardLayout from "@/components/DashboardLayout";
+import { ImageWithFallback } from "@/components/ui/ImageWithFallback";
 
 type AssetType = "character" | "background" | "object";
 
@@ -63,6 +64,7 @@ export default function ProjectDetail() {
   const [savingStyle, setSavingStyle] = useState(false);
   const [styleImageUploading, setStyleImageUploading] = useState(false);
   const styleFileInputRef = useRef<HTMLInputElement>(null);
+  const [selectedStyleImage, setSelectedStyleImage] = useState<string | null>(null);
 
   // New asset dialog
   const [assetDialogOpen, setAssetDialogOpen] = useState(false);
@@ -72,6 +74,7 @@ export default function ProjectDetail() {
   const [creatingAsset, setCreatingAsset] = useState(false);
   const canCreateAsset = newAssetName.trim().length > 0 && newAssetPrompt.trim().length > 0;
   const [generatingAssetId, setGeneratingAssetId] = useState<string | null>(null);
+  const [activeAssetTab, setActiveAssetTab] = useState<AssetType>("character");
 
   // New chapter dialog
   const [chapterDialogOpen, setChapterDialogOpen] = useState(false);
@@ -171,20 +174,38 @@ export default function ProjectDetail() {
     setCreatingAsset(false);
 
     if (promptText) {
-      const currentStyleText = styleTemplate?.trim() || project?.style_template?.trim();
-      const hasStyleText = !!currentStyleText;
+      // Utiliser le style du textarea s'il est rempli, sinon celui sauvegardé dans le projet
+      const currentStyleText = (styleTemplate?.trim() || project?.style_template?.trim() || "").trim();
+      const hasStyleText = currentStyleText.length > 0;
       const hasStyleImages = Array.isArray(project?.style_image_urls) && project.style_image_urls.length > 0;
       if (!hasStyleText && !hasStyleImages) {
         toast({
           title: "Style requis",
-          description: "Définissez un style dans l’onglet Style du projet (texte et/ou images de référence) avant de générer.",
+          description: "Définissez un style dans l'onglet Style du projet (texte et/ou images de référence) avant de générer.",
           variant: "destructive",
         });
         return;
       }
 
       setGeneratingAssetId(newAsset.id);
-      toast({ title: "Génération en cours…", description: "L'image est créée par l'IA." });
+      
+      // Log pour debug : afficher ce qui est envoyé
+      const styleImageUrlsToSend = project?.style_image_urls?.length ? project.style_image_urls : undefined;
+      console.log("[Frontend] Génération d'asset - Données envoyées:", {
+        asset_type: newAssetType,
+        hasStyleText,
+        styleTextLength: currentStyleText.length,
+        hasStyleImages: !!styleImageUrlsToSend,
+        numberOfImages: styleImageUrlsToSend?.length ?? 0,
+        imageUrls: styleImageUrlsToSend,
+      });
+      
+      toast({ 
+        title: "Génération en cours…", 
+        description: styleImageUrlsToSend 
+          ? `Utilisation de ${styleImageUrlsToSend.length} image${styleImageUrlsToSend.length > 1 ? 's' : ''} de référence` 
+          : "L'image est créée par l'IA." 
+      });
       const {
         data: { session },
       } = await supabase.auth.getSession();
@@ -199,8 +220,8 @@ export default function ProjectDetail() {
         body: JSON.stringify({
           asset_id: newAsset.id,
           prompt: promptText,
-          style_template: currentStyleText || undefined,
-          style_image_urls: (project?.style_image_urls?.length ? project.style_image_urls : undefined),
+          style_template: hasStyleText ? currentStyleText : undefined,
+          style_image_urls: styleImageUrlsToSend,
           asset_type: newAssetType,
         }),
       });
@@ -261,22 +282,23 @@ export default function ProjectDetail() {
   const regenerateAssetImage = async (asset: Asset) => {
     const promptText = asset.prompt?.trim();
     if (!promptText) {
-      toast({ title: "Impossible", description: "Cet asset n’a pas de prompt.", variant: "destructive" });
+      toast({ title: "Impossible", description: "Cet asset n'a pas de prompt.", variant: "destructive" });
       return;
     }
-    const currentStyleText = styleTemplate?.trim() || project?.style_template?.trim();
-    const hasStyleText = !!currentStyleText;
+    // Utiliser le style du textarea s'il est rempli, sinon celui sauvegardé dans le projet
+    const currentStyleText = (styleTemplate?.trim() || project?.style_template?.trim() || "").trim();
+    const hasStyleText = currentStyleText.length > 0;
     const hasStyleImages = Array.isArray(project?.style_image_urls) && (project?.style_image_urls?.length > 0);
     if (!hasStyleText && !hasStyleImages) {
       toast({
         title: "Style requis",
-        description: "Définissez un style dans l’onglet Style (texte et/ou images) avant de régénérer.",
+        description: "Définissez un style dans l'onglet Style (texte et/ou images) avant de régénérer.",
         variant: "destructive",
       });
       return;
     }
     setGeneratingAssetId(asset.id);
-    toast({ title: "Régénération…", description: "L’image est recréée avec le style du projet." });
+    toast({ title: "Régénération…", description: "L'image est recréée avec le style du projet." });
     const { data: { session } } = await supabase.auth.getSession();
     const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-asset-image`, {
       method: "POST",
@@ -288,7 +310,7 @@ export default function ProjectDetail() {
       body: JSON.stringify({
         asset_id: asset.id,
         prompt: promptText,
-        style_template: currentStyleText || undefined,
+        style_template: hasStyleText ? currentStyleText : undefined,
         style_image_urls: (project?.style_image_urls?.length ? project.style_image_urls : undefined),
         asset_type: asset.asset_type,
       }),
@@ -321,16 +343,17 @@ export default function ProjectDetail() {
   const generateCharacterView = async (asset: Asset, view: "profile_left" | "profile_right" | "back") => {
     const promptText = asset.prompt?.trim();
     if (!promptText) {
-      toast({ title: "Impossible", description: "Cet asset n’a pas de prompt.", variant: "destructive" });
+      toast({ title: "Impossible", description: "Cet asset n'a pas de prompt.", variant: "destructive" });
       return;
     }
-    const currentStyleText = styleTemplate?.trim() || project?.style_template?.trim();
-    const hasStyleText = !!currentStyleText;
+    // Utiliser le style du textarea s'il est rempli, sinon celui sauvegardé dans le projet
+    const currentStyleText = (styleTemplate?.trim() || project?.style_template?.trim() || "").trim();
+    const hasStyleText = currentStyleText.length > 0;
     const hasStyleImages = Array.isArray(project?.style_image_urls) && (project?.style_image_urls?.length > 0);
     if (!hasStyleText && !hasStyleImages) {
       toast({
         title: "Style requis",
-        description: "Définissez un style dans l’onglet Style avant de générer une vue.",
+        description: "Définissez un style dans l'onglet Style avant de générer une vue.",
         variant: "destructive",
       });
       return;
@@ -347,7 +370,7 @@ export default function ProjectDetail() {
       body: JSON.stringify({
         asset_id: asset.id,
         prompt: promptText,
-        style_template: currentStyleText || undefined,
+        style_template: hasStyleText ? currentStyleText : undefined,
         style_image_urls: (project?.style_image_urls?.length ? project.style_image_urls : undefined),
         asset_type: "character",
         image_view: view,
@@ -429,13 +452,14 @@ export default function ProjectDetail() {
                   type="button"
                   className="gradient-primary text-primary-foreground"
                   onClick={() => {
-                    const currentStyleText = styleTemplate?.trim() || project?.style_template?.trim();
-                    const hasStyleText = !!currentStyleText;
+                    // Utiliser le style du textarea s'il est rempli, sinon celui sauvegardé dans le projet
+                    const currentStyleText = (styleTemplate?.trim() || project?.style_template?.trim() || "").trim();
+                    const hasStyleText = currentStyleText.length > 0;
                     const hasStyleImages = Array.isArray(project?.style_image_urls) && (project?.style_image_urls?.length > 0);
                     if (!hasStyleText && !hasStyleImages) {
                       toast({
                         title: "Style requis",
-                        description: "Définissez un style dans l’onglet Style du projet (texte et/ou images de référence) avant d’ajouter un asset.",
+                        description: "Définissez un style dans l'onglet Style du projet (texte et/ou images de référence) avant d'ajouter un asset.",
                         variant: "destructive",
                       });
                       return;
@@ -500,7 +524,7 @@ export default function ProjectDetail() {
               </Dialog>
             </div>
 
-            <Tabs defaultValue="character">
+            <Tabs defaultValue="character" value={activeAssetTab} onValueChange={(value) => setActiveAssetTab(value as AssetType)}>
               <TabsList className="glass">
                 {assetTabs.map((t) => (
                   <TabsTrigger key={t.type} value={t.type}>
@@ -510,59 +534,67 @@ export default function ProjectDetail() {
               </TabsList>
               {assetTabs.map((t) => (
                 <TabsContent key={t.type} value={t.type}>
-                  {assets.filter((a) => a.asset_type === t.type).length === 0 ? (
-                    <div className="glass rounded-xl p-8 text-center">
-                      <t.icon className="h-8 w-8 mx-auto mb-3 text-primary opacity-40" />
-                      <p className="text-muted-foreground text-sm">Aucun {t.label.toLowerCase()} pour l'instant</p>
-                    </div>
-                  ) : (
-                    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
-                      {assets.filter((a) => a.asset_type === t.type).map((asset) => (
-                        <motion.div
-                          key={asset.id}
-                          initial={{ opacity: 0, scale: 0.95 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          className={`glass rounded-xl p-4 group relative ${t.type === "character" ? "cursor-pointer" : ""}`}
-                          onClick={t.type === "character" ? () => { setSelectedCharacter(asset); setCharacterViewDialogOpen(true); } : undefined}
-                          role={t.type === "character" ? "button" : undefined}
-                        >
-                          {asset.image_url ? (
-                            <img src={asset.image_url} alt={asset.name} className="w-full aspect-[2/3] object-cover rounded-lg mb-3" />
-                          ) : (
-                            <div className="w-full aspect-[2/3] rounded-lg mb-3 gradient-dream flex items-center justify-center relative">
-                              {generatingAssetId === asset.id ? (
-                                <>
-                                  <Sparkles className="h-8 w-8 text-primary animate-pulse" />
-                                  <span className="absolute bottom-2 text-xs text-muted-foreground">Génération…</span>
-                                </>
-                              ) : (
-                                <Sparkles className="h-8 w-8 text-primary opacity-40" />
-                              )}
-                            </div>
-                          )}
-                          <h4 className="font-display font-semibold text-sm">{asset.name}</h4>
-                          {asset.prompt && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{asset.prompt}</p>}
-                          {t.type === "character" && <p className="text-xs text-primary mt-1">Cliquer pour gérer les vues (profil, dos)</p>}
-                          <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
-                            {asset.prompt && (
-                              <button
-                                onClick={() => regenerateAssetImage(asset)}
-                                disabled={generatingAssetId === asset.id}
-                                className="p-1 rounded-full bg-background/80 text-muted-foreground hover:text-primary disabled:opacity-50"
-                                title="Régénérer l’image avec le style du projet"
-                              >
-                                <RefreshCw className="h-3.5 w-3.5" />
-                              </button>
+                  {/* Rendu conditionnel strict : ne rendre le contenu que si l'onglet est actif */}
+                  {activeAssetTab === t.type ? (
+                    assets.filter((a) => a.asset_type === t.type).length === 0 ? (
+                      <div className="glass rounded-xl p-8 text-center">
+                        <t.icon className="h-8 w-8 mx-auto mb-3 text-primary opacity-40" />
+                        <p className="text-muted-foreground text-sm">Aucun {t.label.toLowerCase()} pour l'instant</p>
+                      </div>
+                    ) : (
+                      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
+                        {assets.filter((a) => a.asset_type === t.type).map((asset) => (
+                          <motion.div
+                            key={asset.id}
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            className={`glass rounded-xl p-4 group relative ${t.type === "character" ? "cursor-pointer" : ""}`}
+                            onClick={t.type === "character" ? () => { setSelectedCharacter(asset); setCharacterViewDialogOpen(true); } : undefined}
+                            role={t.type === "character" ? "button" : undefined}
+                          >
+                            {generatingAssetId === asset.id ? (
+                              <div className="w-full aspect-[2/3] rounded-lg mb-3 gradient-dream flex items-center justify-center relative">
+                                <Sparkles className="h-8 w-8 text-primary animate-pulse" />
+                                <span className="absolute bottom-2 text-xs text-muted-foreground">Génération…</span>
+                              </div>
+                            ) : (
+                              <ImageWithFallback
+                                src={asset.image_url}
+                                alt={asset.name}
+                                className="w-full aspect-[2/3] object-cover rounded-lg mb-3"
+                                fallbackClassName="w-full aspect-[2/3] rounded-lg mb-3"
+                              />
                             )}
-                            <button
-                              onClick={() => deleteAsset(asset.id)}
-                              className="p-1 rounded-full bg-background/80 text-muted-foreground hover:text-destructive"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
-                          </div>
-                        </motion.div>
-                      ))}
+                            <h4 className="font-display font-semibold text-sm">{asset.name}</h4>
+                            {asset.prompt && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{asset.prompt}</p>}
+                            {t.type === "character" && <p className="text-xs text-primary mt-1">Cliquer pour gérer les vues (profil, dos)</p>}
+                            <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+                              {asset.prompt && (
+                                <button
+                                  onClick={() => regenerateAssetImage(asset)}
+                                  disabled={generatingAssetId === asset.id}
+                                  className="p-1 rounded-full bg-background/80 text-muted-foreground hover:text-primary disabled:opacity-50"
+                                  title="Régénérer l'image avec le style du projet"
+                                >
+                                  <RefreshCw className="h-3.5 w-3.5" />
+                                </button>
+                              )}
+                              <button
+                                onClick={() => deleteAsset(asset.id)}
+                                className="p-1 rounded-full bg-background/80 text-muted-foreground hover:text-destructive"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          </motion.div>
+                        ))}
+                      </div>
+                    )
+                  ) : (
+                    // Placeholder pour les onglets non actifs (évite le flash lors du changement)
+                    <div className="glass rounded-xl p-8 text-center">
+                      <t.icon className="h-8 w-8 mx-auto mb-3 text-primary opacity-20" />
+                      <p className="text-muted-foreground text-sm opacity-50">Chargement...</p>
                     </div>
                   )}
                 </TabsContent>
@@ -581,11 +613,12 @@ export default function ProjectDetail() {
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                       <div className="space-y-2">
                         <p className="text-xs font-medium text-muted-foreground">Face</p>
-                        {selectedCharacter.image_url ? (
-                          <img src={selectedCharacter.image_url} alt="Face" className="w-full aspect-[2/3] object-cover rounded-lg border" />
-                        ) : (
-                          <div className="w-full aspect-[2/3] rounded-lg border border-dashed flex items-center justify-center text-xs text-muted-foreground">Vue principale</div>
-                        )}
+                        <ImageWithFallback
+                          src={selectedCharacter.image_url}
+                          alt="Face"
+                          className="w-full aspect-[2/3] object-cover rounded-lg border"
+                          fallbackClassName="w-full aspect-[2/3] rounded-lg border border-dashed flex items-center justify-center text-xs text-muted-foreground"
+                        />
                       </div>
                       {(["profile_left", "profile_right", "back"] as const).map((view) => {
                         const url = selectedCharacter[view === "profile_left" ? "image_url_profile_left" : view === "profile_right" ? "image_url_profile_right" : "image_url_back"];
@@ -593,31 +626,40 @@ export default function ProjectDetail() {
                                 return (
                                   <div key={view} className="space-y-2">
                                     <p className="text-xs font-medium text-muted-foreground">{label}</p>
-                                    {url ? (
-                                      <>
-                                        <img src={url} alt={label} className="w-full aspect-[2/3] object-cover rounded-lg border" />
-                                        <Button
-                                          size="sm"
-                                          variant="ghost"
-                                          className="w-full text-xs"
-                                          disabled={generatingView === view}
-                                          onClick={() => generateCharacterView(selectedCharacter, view)}
-                                        >
-                                          {generatingView === view ? "Génération…" : "Régénérer"}
-                                        </Button>
-                                      </>
-                                    ) : (
+                                    {generatingView === view ? (
                                       <div className="w-full aspect-[2/3] rounded-lg border border-dashed flex flex-col items-center justify-center gap-2 p-2">
-                                        <Button
-                                          size="sm"
-                                          variant="outline"
-                                          disabled={generatingView === view}
-                                          onClick={() => generateCharacterView(selectedCharacter, view)}
-                                          className="text-xs"
-                                        >
-                                          {generatingView === view ? "Génération…" : "Générer"}
-                                        </Button>
+                                        <Sparkles className="h-8 w-8 text-primary animate-pulse" />
+                                        <span className="text-xs text-muted-foreground">Génération…</span>
                                       </div>
+                                    ) : (
+                                      <>
+                                        <ImageWithFallback
+                                          src={url}
+                                          alt={label}
+                                          className="w-full aspect-[2/3] object-cover rounded-lg border"
+                                          fallbackClassName="w-full aspect-[2/3] rounded-lg border border-dashed flex flex-col items-center justify-center gap-2 p-2"
+                                        />
+                                        {url && (
+                                          <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            className="w-full text-xs"
+                                            onClick={() => generateCharacterView(selectedCharacter, view)}
+                                          >
+                                            Régénérer
+                                          </Button>
+                                        )}
+                                        {!url && (
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => generateCharacterView(selectedCharacter, view)}
+                                            className="text-xs"
+                                          >
+                                            Générer
+                                          </Button>
+                                        )}
+                                      </>
                                     )}
                                   </div>
                                 );
@@ -662,28 +704,56 @@ export default function ProjectDetail() {
             <div className="glass rounded-xl p-6 space-y-4">
               <div className="flex items-center justify-between gap-2 mb-2">
                 <div>
-                  <h2 className="text-lg font-display font-semibold">Images de référence</h2>
+                  <div className="flex items-center gap-2 mb-1">
+                    <h2 className="text-lg font-display font-semibold">Images de référence</h2>
+                    {styleImageUrls.length > 0 && (
+                      <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-medium">
+                        {styleImageUrls.length} image{styleImageUrls.length > 1 ? 's' : ''}
+                      </span>
+                    )}
+                  </div>
                   <p className="text-xs text-muted-foreground">
-                    Ajoutez plusieurs images pour que l’IA comprenne le style exact (design des personnages, couleurs, ambiance, etc.).
+                    Ajoutez plusieurs images pour que l'IA comprenne le style exact (design des personnages, couleurs, ambiance, etc.).
+                    {styleImageUrls.length > 0 && (
+                      <span className="block mt-1 text-primary font-medium">
+                        ✓ {styleImageUrls.length} image{styleImageUrls.length > 1 ? 's' : ''} sera{styleImageUrls.length > 1 ? 'nt' : ''} utilisée{styleImageUrls.length > 1 ? 's' : ''} lors des générations
+                      </span>
+                    )}
                   </p>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {styleImageUrls.map((url) => (
-                  <div key={url} className="relative group">
-                    <img
-                      src={url}
-                      alt="Style"
-                      className="h-64 w-full object-cover rounded-2xl border border-border shadow-dream"
-                    />
+                  <div 
+                    key={url} 
+                    className="relative group cursor-pointer"
+                    onClick={() => setSelectedStyleImage(url)}
+                  >
+                    <div className="relative overflow-hidden rounded-2xl border border-border shadow-dream bg-muted/20">
+                      <ImageWithFallback
+                        src={url}
+                        alt="Image de référence de style"
+                        className="h-64 w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        fallbackClassName="h-64 w-full flex items-center justify-center"
+                      />
+                      {/* Overlay au survol avec indication */}
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors duration-300 flex items-center justify-center">
+                        <span className="text-white opacity-0 group-hover:opacity-100 transition-opacity text-sm font-medium px-3 py-1.5 bg-black/50 rounded-lg backdrop-blur-sm">
+                          Cliquer pour voir en grand
+                        </span>
+                      </div>
+                    </div>
                     <button
                       type="button"
-                      onClick={() => removeStyleImage(url)}
-                      className="absolute -top-1 -right-1 p-1 rounded-full bg-destructive text-destructive-foreground opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        removeStyleImage(url);
+                      }}
+                      className="absolute -top-1 -right-1 p-1.5 rounded-full bg-destructive text-destructive-foreground opacity-0 group-hover:opacity-100 transition-opacity shadow-md hover:bg-destructive/90 z-10"
                       title="Supprimer cette image"
                     >
-                      <Trash2 className="h-3 w-3" />
+                      <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </div>
                 ))}
@@ -712,9 +782,34 @@ export default function ProjectDetail() {
               </p>
             </div>
 
-            <p className="text-xs text-muted-foreground text-right">
-              Au moins un champ (texte ou images de référence) est requis pour lancer les générations.
-            </p>
+              <p className="text-xs text-muted-foreground text-right">
+                Au moins un champ (texte ou images de référence) est requis pour lancer les générations.
+              </p>
+
+            {/* Dialog pour voir l'image en grand */}
+            <Dialog open={!!selectedStyleImage} onOpenChange={(open) => !open && setSelectedStyleImage(null)}>
+              <DialogContent className="glass max-w-6xl p-0 overflow-hidden">
+                <DialogHeader className="sr-only">
+                  <DialogTitle>Image de référence de style</DialogTitle>
+                </DialogHeader>
+                {selectedStyleImage && (
+                  <div className="relative bg-muted/20">
+                    <img
+                      src={selectedStyleImage}
+                      alt="Image de référence de style - vue complète"
+                      className="w-full h-auto max-h-[85vh] object-contain"
+                    />
+                    <button
+                      onClick={() => setSelectedStyleImage(null)}
+                      className="absolute top-4 right-4 p-2.5 rounded-full bg-background/95 backdrop-blur-sm text-foreground hover:bg-background shadow-lg transition-all hover:scale-110 z-10"
+                      title="Fermer (Échap)"
+                    >
+                      <ArrowLeft className="h-5 w-5 rotate-90" />
+                    </button>
+                  </div>
+                )}
+              </DialogContent>
+            </Dialog>
           </TabsContent>
 
           {/* Chapters Tab */}

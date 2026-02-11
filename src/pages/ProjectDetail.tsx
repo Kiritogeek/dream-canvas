@@ -631,60 +631,90 @@ export default function ProjectDetail() {
 
           {/* Style Tab */}
           <TabsContent value="style" className="space-y-4">
+            {/* Template de style (texte) */}
             <div className="glass rounded-xl p-6 space-y-4">
               <div className="flex items-center gap-2 mb-2">
                 <Palette className="h-5 w-5 text-primary" />
                 <h2 className="text-lg font-display font-semibold">Template de style</h2>
               </div>
               <p className="text-sm text-muted-foreground">
-                Définissez un style visuel (texte et/ou images de référence) pour toutes vos générations. Au moins l’un des deux est requis.
+                Définissez un style visuel texte qui sera appliqué à toutes vos générations. Combinez-le avec des images pour un rendu encore plus précis.
               </p>
               <Textarea
                 value={styleTemplate}
                 onChange={(e) => setStyleTemplate(e.target.value)}
-                placeholder="Ex: style manga shonen, couleurs vives, traits fins, ombres douces, palette pastel..."
-                rows={4}
+                placeholder="Ex: style webtoon sombre, ambiance urbaine nocturne, lumières néon, détails réalistes, palette violets / bleus..."
+                rows={6}
               />
-              <div>
-                <p className="text-sm font-medium mb-2">Images de référence</p>
-                <div className="flex flex-wrap gap-3">
-                  {styleImageUrls.map((url) => (
-                    <div key={url} className="relative group">
-                      <img src={url} alt="Style" className="h-20 w-20 object-cover rounded-lg border border-border" />
-                      <button
-                        type="button"
-                        onClick={() => removeStyleImage(url)}
-                        className="absolute -top-1 -right-1 p-1 rounded-full bg-destructive text-destructive-foreground opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </button>
-                    </div>
-                  ))}
-                  <input
-                    ref={styleFileInputRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={addStyleImage}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => styleFileInputRef.current?.click()}
-                    disabled={styleImageUploading}
-                    className="h-20 w-20 rounded-lg border border-dashed border-border flex items-center justify-center text-muted-foreground hover:bg-muted/50 transition-colors disabled:opacity-50"
-                  >
-                    {styleImageUploading ? (
-                      <span className="text-xs">...</span>
-                    ) : (
-                      <ImagePlus className="h-6 w-6" />
-                    )}
-                  </button>
+              <Button
+                onClick={saveStyle}
+                disabled={savingStyle}
+                className="gradient-primary text-primary-foreground"
+              >
+                {savingStyle ? "Sauvegarde..." : "Sauvegarder le style texte"}
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                Astuce : décrivez le niveau de détail, l’ambiance, les couleurs et le type de traits pour aider l’IA.
+              </p>
+            </div>
+
+            {/* Images de référence (en dessous du texte) */}
+            <div className="glass rounded-xl p-6 space-y-4">
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <div>
+                  <h2 className="text-lg font-display font-semibold">Images de référence</h2>
+                  <p className="text-xs text-muted-foreground">
+                    Ajoutez plusieurs images pour que l’IA comprenne le style exact (design des personnages, couleurs, ambiance, etc.).
+                  </p>
                 </div>
               </div>
-              <Button onClick={saveStyle} disabled={savingStyle} className="gradient-primary text-primary-foreground">
-                {savingStyle ? "Sauvegarde..." : "Sauvegarder le style"}
-              </Button>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {styleImageUrls.map((url) => (
+                  <div key={url} className="relative group">
+                    <img
+                      src={url}
+                      alt="Style"
+                      className="h-64 w-full object-cover rounded-2xl border border-border shadow-dream"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeStyleImage(url)}
+                      className="absolute -top-1 -right-1 p-1 rounded-full bg-destructive text-destructive-foreground opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
+                      title="Supprimer cette image"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+
+                <button
+                  type="button"
+                  onClick={() => styleFileInputRef.current?.click()}
+                  disabled={styleImageUploading}
+                  className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-border bg-muted/40 hover:bg-muted/70 transition-colors text-muted-foreground py-6 px-3 text-center text-xs sm:text-sm disabled:opacity-50"
+                >
+                  <ImagePlus className="h-7 w-7" />
+                  <span>{styleImageUploading ? "Import en cours..." : "Ajouter des images de référence"}</span>
+                </button>
+              </div>
+
+              <input
+                ref={styleFileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={addStyleImage}
+              />
+
+              <p className="text-xs text-muted-foreground">
+                Conseil : utilisez des visuels au format portrait ou webtoon pour mieux prévisualiser le rendu final.
+              </p>
             </div>
+
+            <p className="text-xs text-muted-foreground text-right">
+              Au moins un champ (texte ou images de référence) est requis pour lancer les générations.
+            </p>
           </TabsContent>
 
           {/* Chapters Tab */}

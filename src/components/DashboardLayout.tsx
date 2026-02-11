@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Sparkles, LayoutDashboard, FolderOpen, LogOut, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 const navItems = [
   { to: "/dashboard", icon: LayoutDashboard, label: "Tableau de bord" },
@@ -24,10 +25,13 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       {/* Top bar */}
       <header className="sticky top-0 z-50 glass border-b border-border/50">
         <div className="container flex h-16 items-center justify-between">
-          <Link to="/dashboard" className="flex items-center gap-2">
-            <Sparkles className="h-6 w-6 text-primary" />
-            <span className="font-display text-xl font-bold text-gradient">DreamWeave</span>
-          </Link>
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <Link to="/dashboard" className="flex items-center gap-2">
+              <Sparkles className="h-6 w-6 text-primary" />
+              <span className="font-display text-xl font-bold text-gradient">DreamWeave</span>
+            </Link>
+          </div>
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-2 text-sm text-muted-foreground mr-2">
               <User className="h-4 w-4" />

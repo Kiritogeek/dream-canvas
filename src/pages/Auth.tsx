@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 function GoogleIcon() {
   return (
@@ -96,10 +97,13 @@ export default function Auth() {
         className="w-full max-w-md"
       >
         <div className="text-center mb-8">
-          <Link to="/" className="inline-flex items-center gap-2 mb-6">
-            <Sparkles className="h-8 w-8 text-primary" />
-            <span className="font-display text-2xl font-bold text-gradient">DreamWeave</span>
-          </Link>
+          <div className="inline-flex items-center gap-2 mb-6">
+            <ThemeToggle />
+            <Link to="/" className="inline-flex items-center gap-2">
+              <Sparkles className="h-8 w-8 text-primary" />
+              <span className="font-display text-2xl font-bold text-gradient">DreamWeave</span>
+            </Link>
+          </div>
           <h1 className="text-2xl font-display font-bold">
             {isSignUp ? "Créer un compte" : "Bon retour !"}
           </h1>

@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Sparkles, Wand2, BookOpen, Palette } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import heroBg from "@/assets/hero-bg.jpg";
 
 const features = [
@@ -33,10 +34,13 @@ export default function Landing() {
       {/* Nav */}
       <nav className="fixed top-0 inset-x-0 z-50 glass">
         <div className="container flex h-16 items-center justify-between">
-          <Link to="/" className="flex items-center gap-2">
-            <Sparkles className="h-6 w-6 text-primary" />
-            <span className="font-display text-xl font-bold text-gradient">DreamWeave</span>
-          </Link>
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <Link to="/" className="flex items-center gap-2">
+              <Sparkles className="h-6 w-6 text-primary" />
+              <span className="font-display text-xl font-bold text-gradient">DreamWeave</span>
+            </Link>
+          </div>
           <div className="flex items-center gap-3">
             <Button variant="ghost" asChild>
               <Link to="/auth">Connexion</Link>

@@ -51,10 +51,11 @@ export default function Auth() {
         title: "Redirection…",
         description: "Vous allez être redirigé vers Google.",
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Connexion Google impossible";
       toast({
         title: "Erreur",
-        description: err.message || "Connexion Google impossible",
+        description: message,
         variant: "destructive",
       });
     } finally {
@@ -77,8 +78,8 @@ export default function Auth() {
         await signIn(email, password);
         navigate("/dashboard");
       }
-    } catch (err: any) {
-      const msg = err?.message || err?.error_description || "Une erreur est survenue";
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Une erreur est survenue";
       toast({
         title: "Erreur",
         description: msg,

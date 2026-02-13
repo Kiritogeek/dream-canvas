@@ -161,6 +161,7 @@ export type Database = {
           created_at: string
           display_name: string | null
           id: string
+          plan: string
           updated_at: string
           user_id: string
         }
@@ -169,6 +170,7 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           id?: string
+          plan?: string
           updated_at?: string
           user_id: string
         }
@@ -177,8 +179,30 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           id?: string
+          plan?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      usage: {
+        Row: {
+          id: string
+          user_id: string
+          action: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          action?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          action?: string
+          created_at?: string
         }
         Relationships: []
       }

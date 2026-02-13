@@ -1,7 +1,11 @@
-// Edge Function: génération d'image via Nebius (sans dépendance supabase-js)
-// Secret requis : NEBIUS_API_KEY (Supabase → Edge Functions → Secrets)
+// Edge Function: génération d'image via FAL.ai
+// Secrets requis :
+//   - FAL_API_KEY (Supabase → Edge Functions → Secrets)
+//
+// Trois modes selon le tier utilisateur :
+//   Free → FLUX.1 Schnell (text-to-image uniquement, pas d'images de référence)
+//   Pro  → FLUX.2 Pro (text-to-image) ou FLUX.2 Pro Edit (multi-référence)
 
-// Déclaration de types pour l'environnement Deno (Supabase Edge Functions)
 declare const Deno: {
   serve: (handler: (req: Request) => Promise<Response> | Response) => void;
   env: {
@@ -9,93 +13,442 @@ declare const Deno: {
   };
 };
 
-const NEBIUS_BASE = "https://api.tokenfactory.nebius.com/v1";
-const BUCKET = "dreamweave";
-// Modèle image Nebius (si 404 "model not found", voir la liste : GET https://api.tokenfactory.nebius.com/v1/models avec ta clé API)
-const MODEL = "black-forest-labs/flux-schnell";
-// Sécurité : la doc Nebius limite le prompt à ~2000 caractères
-// On garde une marge pour éviter les erreurs de dépassement.
-const MAX_PROMPT_CHARS = 1900;
+// ═══════════════════════════════════════════════════════════════
+// CONFIGURATION
+// ═══════════════════════════════════════════════════════════════
 
-// Prompts système centralisés (à modifier dans system-prompts/* pour changer le comportement global)
+const FAL_SCHNELL = "https://fal.run/fal-ai/flux/schnell";     // Free tier
+const FAL_TEXT_TO_IMAGE = "https://fal.run/fal-ai/flux-2-pro"; // Pro tier
+const FAL_IMAGE_EDIT = "https://fal.run/fal-ai/flux-2-pro/edit"; // Pro + refs
+const BUCKET = "dreamweave";
+const FAL_TIMEOUT_MS = 120_000; // 120 secondes
+
+// ── Limites par tier ──────────────────────────────────────────
+type UserPlan = "free" | "pro";
+
+interface TierLimits {
+  maxGenerationsPerMonth: number;
+  allowReferenceImages: boolean;
+  allowMultipleViews: boolean;
+  model: string;
+}
+
+const TIER_LIMITS: Record<UserPlan, TierLimits> = {
+  free: {
+    maxGenerationsPerMonth: 20,
+    allowReferenceImages: false,
+    allowMultipleViews: false,
+    model: "schnell",
+  },
+  pro: {
+    maxGenerationsPerMonth: 300,
+    allowReferenceImages: true,
+    allowMultipleViews: true,
+    model: "flux-2-pro",
+  },
+};
+
 import {
   buildCharacterPrompt,
   CHARACTER_BASE_PROMPT,
-  CHARACTER_STYLE_TEXT_INSTRUCTION,
-  CHARACTER_STYLE_IMAGES_INSTRUCTION,
   CHARACTER_VIEW_PROMPTS,
 } from "./system-prompts/characters.ts";
-import {
-  buildBackgroundPrompt,
-  BACKGROUND_BASE_PROMPT,
-  BACKGROUND_STYLE_TEXT_INSTRUCTION,
-  BACKGROUND_STYLE_IMAGES_INSTRUCTION,
-} from "./system-prompts/backgrounds.ts";
-import {
-  buildObjectPrompt,
-  OBJECT_BASE_PROMPT,
-  OBJECT_STYLE_TEXT_INSTRUCTION,
-  OBJECT_STYLE_IMAGES_INSTRUCTION,
-} from "./system-prompts/objects.ts";
+import { buildBackgroundPrompt } from "./system-prompts/backgrounds.ts";
+import { buildObjectPrompt } from "./system-prompts/objects.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+// CORS — Restreindre en production via ALLOWED_ORIGIN
+function getCorsHeaders(): Record<string, string> {
+  const allowedOrigin = Deno.env.get("ALLOWED_ORIGIN") || "*";
+  return {
+    "Access-Control-Allow-Origin": allowedOrigin,
+    "Access-Control-Allow-Headers":
+      "authorization, x-client-info, apikey, content-type",
+  };
+}
 
 function jsonResponse(body: object, status: number) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
+    headers: { ...getCorsHeaders(), "Content-Type": "application/json" },
   });
 }
 
-function getSubFromJwt(authHeader: string): string | null {
+// ═══════════════════════════════════════════════════════════════
+// VÉRIFICATION JWT SÉCURISÉE (via Supabase Auth)
+// ═══════════════════════════════════════════════════════════════
+
+async function verifyUserFromToken(
+  authHeader: string,
+  supabaseUrl: string,
+  serviceKey: string
+): Promise<string | null> {
   try {
     const token = authHeader.replace(/^Bearer\s+/i, "").trim();
     if (!token) return null;
-    const parts = token.split(".");
-    if (parts.length !== 3) return null;
-    const payload = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")));
-    return typeof payload.sub === "string" ? payload.sub : null;
+
+    // Appeler l'endpoint Supabase Auth pour vérifier le token
+    const res = await fetch(`${supabaseUrl}/auth/v1/user`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        apikey: serviceKey,
+      },
+    });
+
+    if (!res.ok) return null;
+
+    const user = await res.json();
+    return typeof user?.id === "string" ? user.id : null;
   } catch {
     return null;
   }
 }
 
-Deno.serve(async (req) => {
-  console.log("[generate-asset-image] requête reçue, method:", req.method);
+// ═══════════════════════════════════════════════════════════════
+// FETCH AVEC TIMEOUT
+// ═══════════════════════════════════════════════════════════════
 
+async function fetchWithTimeout(
+  url: string,
+  options: RequestInit,
+  timeoutMs: number
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// RETRY AVEC BACKOFF
+// ═══════════════════════════════════════════════════════════════
+
+async function fetchWithRetry(
+  url: string,
+  options: RequestInit,
+  maxRetries = 2
+): Promise<Response> {
+  let lastError: Error | null = null;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const res = await fetchWithTimeout(url, options, FAL_TIMEOUT_MS);
+      // Ne retrier que sur erreur serveur (5xx)
+      if (res.ok || res.status < 500) return res;
+      if (attempt < maxRetries) {
+        console.warn(
+          `[generate-asset-image] Retry ${attempt + 1}/${maxRetries} après erreur ${res.status}`
+        );
+        await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+        continue;
+      }
+      return res;
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+      if (lastError.name === "AbortError") {
+        throw new Error(
+          "La génération a pris trop de temps (timeout). Réessayez."
+        );
+      }
+      if (attempt < maxRetries) {
+        console.warn(
+          `[generate-asset-image] Retry ${attempt + 1}/${maxRetries} après erreur réseau`
+        );
+        await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+      }
+    }
+  }
+  throw lastError || new Error("Échec après retries");
+}
+
+// ═══════════════════════════════════════════════════════════════
+// GÉNÉRATION VIA FAL.ai
+// ═══════════════════════════════════════════════════════════════
+
+async function generateTextToImage(
+  prompt: string,
+  falKey: string,
+  width: number,
+  height: number
+): Promise<{ url: string } | { error: string }> {
+  const res = await fetchWithRetry(FAL_TEXT_TO_IMAGE, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Key ${falKey}`,
+    },
+    body: JSON.stringify({
+      prompt,
+      image_size: { width, height },
+      num_images: 1,
+      output_format: "png",
+      safety_tolerance: "3",
+      enable_safety_checker: true,
+    }),
+  });
+
+  const text = await res.text();
+  if (!res.ok) {
+    console.error("[generate-asset-image] FAL.ai erreur:", res.status);
+    return { error: `FAL.ai erreur ${res.status}: ${text.slice(0, 200)}` };
+  }
+
+  let json: { images?: Array<{ url: string }> };
+  try {
+    json = JSON.parse(text);
+  } catch {
+    return { error: "Réponse invalide de l'API de génération" };
+  }
+
+  const imageUrl = json.images?.[0]?.url;
+  if (!imageUrl) return { error: "FAL.ai n'a pas retourné d'image" };
+
+  return { url: imageUrl };
+}
+
+async function generateWithReferences(
+  prompt: string,
+  referenceImageUrls: string[],
+  falKey: string,
+  width: number,
+  height: number
+): Promise<{ url: string } | { error: string }> {
+  const res = await fetchWithRetry(FAL_IMAGE_EDIT, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Key ${falKey}`,
+    },
+    body: JSON.stringify({
+      prompt,
+      image_urls: referenceImageUrls,
+      image_size: { width, height },
+      num_images: 1,
+      output_format: "png",
+      safety_tolerance: "3",
+      enable_safety_checker: true,
+    }),
+  });
+
+  const text = await res.text();
+  if (!res.ok) {
+    console.error("[generate-asset-image] FAL.ai erreur:", res.status);
+    return { error: `FAL.ai erreur ${res.status}: ${text.slice(0, 200)}` };
+  }
+
+  let json: { images?: Array<{ url: string }> };
+  try {
+    json = JSON.parse(text);
+  } catch {
+    return { error: "Réponse invalide de l'API de génération" };
+  }
+
+  const imageUrl = json.images?.[0]?.url;
+  if (!imageUrl) return { error: "FAL.ai n'a pas retourné d'image" };
+
+  return { url: imageUrl };
+}
+
+async function generateSchnell(
+  prompt: string,
+  falKey: string,
+  width: number,
+  height: number
+): Promise<{ url: string } | { error: string }> {
+  const res = await fetchWithRetry(FAL_SCHNELL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Key ${falKey}`,
+    },
+    body: JSON.stringify({
+      prompt,
+      image_size: { width, height },
+      num_images: 1,
+      num_inference_steps: 4,
+      output_format: "png",
+      enable_safety_checker: true,
+    }),
+  });
+
+  const text = await res.text();
+  if (!res.ok) {
+    console.error("[generate-asset-image] FAL.ai Schnell erreur:", res.status);
+    return { error: `FAL.ai erreur ${res.status}: ${text.slice(0, 200)}` };
+  }
+
+  let json: { images?: Array<{ url: string }> };
+  try {
+    json = JSON.parse(text);
+  } catch {
+    return { error: "Réponse invalide de l'API de génération" };
+  }
+
+  const imageUrl = json.images?.[0]?.url;
+  if (!imageUrl) return { error: "FAL.ai n'a pas retourné d'image" };
+
+  return { url: imageUrl };
+}
+
+async function downloadAndUploadToStorage(
+  imageUrl: string,
+  storagePath: string,
+  supabaseUrl: string,
+  serviceKey: string
+): Promise<string | null> {
+  try {
+    const downloadRes = await fetchWithTimeout(imageUrl, {}, 30_000);
+    if (!downloadRes.ok) return null;
+    const imageBlob = await downloadRes.blob();
+
+    const form = new FormData();
+    form.append("file", imageBlob, "image.png");
+
+    const uploadRes = await fetch(
+      `${supabaseUrl}/storage/v1/object/${BUCKET}/${storagePath}`,
+      {
+        method: "POST",
+        headers: {
+          apikey: serviceKey,
+          Authorization: `Bearer ${serviceKey}`,
+          "x-upsert": "true",
+        },
+        body: form,
+      }
+    );
+
+    if (!uploadRes.ok) {
+      const errText = await uploadRes.text();
+      console.error("[generate-asset-image] Upload Storage erreur:", errText.slice(0, 200));
+      return null;
+    }
+
+    // Ajouter un cache-buster pour forcer le rechargement navigateur
+    const ts = Date.now();
+    return `${supabaseUrl}/storage/v1/object/public/${BUCKET}/${storagePath}?v=${ts}`;
+  } catch (err) {
+    console.error("[generate-asset-image] Exception download/upload:", err);
+    return null;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// HANDLER PRINCIPAL
+// ═══════════════════════════════════════════════════════════════
+
+Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return new Response("ok", { headers: getCorsHeaders() });
   }
 
   try {
-    console.log("[generate-asset-image] 1. Vérification NEBIUS_API_KEY");
-    const apiKey = Deno.env.get("NEBIUS_API_KEY");
-    if (!apiKey) {
-      console.log("[generate-asset-image] NEBIUS_API_KEY absente");
+    // 1. Vérification FAL_API_KEY
+    const falKey = Deno.env.get("FAL_API_KEY");
+    if (!falKey) {
       return jsonResponse(
-        { error: "NEBIUS_API_KEY non configurée. Supabase → Edge Functions → Secrets." },
+        {
+          error:
+            "FAL_API_KEY non configurée. Supabase → Edge Functions → Secrets → ajouter FAL_API_KEY.",
+        },
         500
       );
     }
 
-    console.log("[generate-asset-image] 2. Vérification Authorization");
+    // 2. Vérification Supabase config
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!supabaseUrl || !serviceKey) {
+      return jsonResponse({ error: "Config Supabase manquante" }, 500);
+    }
+
+    // 3. Vérification JWT sécurisée
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
-      console.log("[generate-asset-image] Authorization manquante");
       return jsonResponse({ error: "Authorization manquante" }, 401);
     }
 
-    const userId = getSubFromJwt(authHeader);
+    const userId = await verifyUserFromToken(
+      authHeader,
+      supabaseUrl,
+      serviceKey
+    );
     if (!userId) {
-      console.log("[generate-asset-image] JWT invalide (sub manquant)");
       return jsonResponse({ error: "JWT invalide ou expiré" }, 401);
     }
-    console.log("[generate-asset-image] userId:", userId);
 
-    console.log("[generate-asset-image] 3. Parse body JSON");
+    // 3b. Récupérer le plan de l'utilisateur
+    let userPlan: UserPlan = "free";
+    try {
+      const profileRes = await fetch(
+        `${supabaseUrl}/rest/v1/profiles?user_id=eq.${userId}&select=plan`,
+        {
+          headers: {
+            apikey: serviceKey,
+            Authorization: `Bearer ${serviceKey}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+      if (profileRes.ok) {
+        const profiles = (await profileRes.json()) as { plan?: string }[];
+        if (
+          profiles?.[0]?.plan === "pro"
+        ) {
+          userPlan = "pro";
+        }
+      }
+    } catch {
+      // En cas d'erreur, on reste sur "free" par sécurité
+      console.warn("[generate-asset-image] Impossible de lire le plan utilisateur, défaut: free");
+    }
+
+    const limits = TIER_LIMITS[userPlan];
+
+    // 3c. Vérifier le quota de générations mensuelles
+    try {
+      const now = new Date();
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+      const usageRes = await fetch(
+        `${supabaseUrl}/rest/v1/usage?user_id=eq.${userId}&action=eq.image_generation&created_at=gte.${startOfMonth}&select=id`,
+        {
+          headers: {
+            apikey: serviceKey,
+            Authorization: `Bearer ${serviceKey}`,
+            "Content-Type": "application/json",
+            Prefer: "count=exact",
+          },
+        }
+      );
+      if (usageRes.ok) {
+        const countHeader = usageRes.headers.get("content-range");
+        // Format: "0-9/42" ou "*/0"
+        let usageCount = 0;
+        if (countHeader) {
+          const match = countHeader.match(/\/(\d+)$/);
+          if (match) usageCount = parseInt(match[1], 10);
+        }
+
+        if (usageCount >= limits.maxGenerationsPerMonth) {
+          return jsonResponse(
+            {
+              error: "Limite de générations atteinte",
+              details: `Vous avez utilisé ${usageCount}/${limits.maxGenerationsPerMonth} générations ce mois-ci. ${userPlan === "free" ? "Passez au plan Pro pour plus de générations." : "Votre quota mensuel sera réinitialisé le 1er du mois prochain."}`,
+              quota_exceeded: true,
+              current_usage: usageCount,
+              max_usage: limits.maxGenerationsPerMonth,
+              plan: userPlan,
+            },
+            429
+          );
+        }
+      }
+    } catch {
+      console.warn("[generate-asset-image] Impossible de vérifier l'usage, on continue");
+    }
+
+    // 4. Parse body JSON
     let body: {
       asset_id?: string;
       prompt?: string;
@@ -106,26 +459,46 @@ Deno.serve(async (req) => {
     };
     try {
       body = (await req.json()) as typeof body;
-    } catch (parseErr) {
-      console.log("[generate-asset-image] Body JSON invalide:", parseErr);
+    } catch {
       return jsonResponse({ error: "Body JSON invalide" }, 400);
     }
 
-    const { asset_id, prompt, style_template, style_image_urls, asset_type, image_view } = body;
+    const {
+      asset_id,
+      prompt,
+      style_template,
+      style_image_urls,
+      asset_type,
+      image_view,
+    } = body;
     if (!asset_id || !prompt?.trim()) {
-      console.log("[generate-asset-image] asset_id ou prompt manquant");
       return jsonResponse({ error: "asset_id et prompt requis" }, 400);
     }
 
+    // Limiter les images de référence à 2 max (sécurité côté serveur)
+    const MAX_STYLE_IMAGES = 2;
+    if (
+      Array.isArray(style_image_urls) &&
+      style_image_urls.length > MAX_STYLE_IMAGES
+    ) {
+      return jsonResponse(
+        {
+          error: `Maximum ${MAX_STYLE_IMAGES} images de référence autorisées`,
+          details: `Vous avez envoyé ${style_image_urls.length} images. Limitez à ${MAX_STYLE_IMAGES}.`,
+        },
+        400
+      );
+    }
+
     const hasStyleText = !!style_template?.trim();
-    const hasStyleImages = Array.isArray(style_image_urls) && style_image_urls.length > 0;
+    const hasStyleImages =
+      Array.isArray(style_image_urls) && style_image_urls.length > 0;
     if (!hasStyleText && !hasStyleImages) {
-      console.log("[generate-asset-image] Aucun style défini (ni texte ni images)");
       return jsonResponse(
         {
           error: "Style requis",
           details:
-            "Définissez un style dans l’onglet Style du projet : remplissez le champ « Template de style » et/ou ajoutez des images de référence, puis réessayez.",
+            "Définissez un style dans l'onglet Style du projet : remplissez le champ « Template de style » et/ou ajoutez des images de référence.",
         },
         400
       );
@@ -134,128 +507,52 @@ Deno.serve(async (req) => {
     const userStyleText = style_template?.trim() ?? "";
     const type_ = asset_type ?? "character";
 
-    // Utiliser les nouvelles fonctions build*Prompt pour construire le prompt de manière claire et structurée
+    // ═══════════════════════════════════════════════════════════
+    // CONSTRUCTION DU PROMPT
+    // ═══════════════════════════════════════════════════════════
+
     let fullPrompt = "";
-    
+
     if (type_ === "character") {
-      // Pour les vues additionnelles (profil, dos), on utilise l'ancien système avec les instructions détaillées
       if (image_view && image_view !== "front") {
-        // Vue additionnelle : utiliser l'ancien système pour garder la référence à l'image principale
         const basePrompt = CHARACTER_BASE_PROMPT;
         const viewKey = image_view as keyof typeof CHARACTER_VIEW_PROMPTS;
         const viewPrompt = CHARACTER_VIEW_PROMPTS[viewKey] || "";
-        let styleTextInstruction = "";
-        let styleImagesInstruction = "";
-
-        if (hasStyleText) {
-          styleTextInstruction = CHARACTER_STYLE_TEXT_INSTRUCTION(userStyleText);
-        }
-        if (hasStyleImages && style_image_urls && style_image_urls.length > 0) {
-          styleImagesInstruction = CHARACTER_STYLE_IMAGES_INSTRUCTION(style_image_urls);
-        }
 
         fullPrompt = prompt.trim();
         if (hasStyleText) {
           fullPrompt += `\n\nSTYLE À APPLIQUER (OBLIGATOIRE) : ${userStyleText}`;
         }
-        fullPrompt += `\n\n═══════════════════════════════════════════════════════════\n`;
-        fullPrompt += `⚠️ INSTRUCTIONS TECHNIQUES OBLIGATOIRES (FORMAT ET CADRAGE) ⚠️\n`;
-        fullPrompt += `═══════════════════════════════════════════════════════════\n`;
-        fullPrompt += `${basePrompt}\n\n${viewPrompt}\n`;
-        fullPrompt += `═══════════════════════════════════════════════════════════\n`;
-        if (styleTextInstruction) fullPrompt += `\n${styleTextInstruction}\n`;
-        if (styleImagesInstruction) fullPrompt += `\n${styleImagesInstruction}\n`;
+        fullPrompt += `\n\n${basePrompt}\n\n${viewPrompt}`;
       } else {
-        // Vue principale (front) : utiliser la nouvelle fonction buildCharacterPrompt
         fullPrompt = buildCharacterPrompt(
           prompt.trim(),
           hasStyleText ? userStyleText : undefined,
-          hasStyleImages && style_image_urls ? style_image_urls : undefined
+          undefined
         );
       }
     } else if (type_ === "background") {
       fullPrompt = buildBackgroundPrompt(
         prompt.trim(),
         hasStyleText ? userStyleText : undefined,
-        hasStyleImages && style_image_urls ? style_image_urls : undefined
+        undefined
       );
     } else if (type_ === "object") {
       fullPrompt = buildObjectPrompt(
         prompt.trim(),
         hasStyleText ? userStyleText : undefined,
-        hasStyleImages && style_image_urls ? style_image_urls : undefined
+        undefined
       );
     } else {
       fullPrompt = prompt.trim();
     }
 
-    // Log détaillé du système de prompt utilisé (pour debug)
-    console.log("[generate-asset-image] ===== DÉBUT LOG GÉNÉRATION =====");
-    console.log("[generate-asset-image] Type d'asset:", type_);
-    console.log("[generate-asset-image] Vue:", image_view ?? "front");
-    console.log("[generate-asset-image] Style texte présent:", hasStyleText);
-    console.log("[generate-asset-image] Style texte:", userStyleText?.slice(0, 200) ?? "(aucun)");
-    console.log("[generate-asset-image] Images de référence présentes:", hasStyleImages);
-    if (hasStyleImages && style_image_urls) {
-      console.log("[generate-asset-image] Nombre d'images de référence:", style_image_urls.length);
-      console.log("[generate-asset-image] URLs des images de référence:");
-      style_image_urls.forEach((url, index) => {
-        console.log(`[generate-asset-image]   Image ${index + 1}: ${url}`);
-      });
-    } else {
-      console.log("[generate-asset-image] Aucune image de référence fournie");
-    }
-    console.log("[generate-asset-image] Longueur du prompt:", fullPrompt.length);
-    console.log("[generate-asset-image] Aperçu du prompt:", fullPrompt.slice(0, 300) + "...");
-    console.log("[generate-asset-image] ===== FIN LOG GÉNÉRATION =====");
-
-    if (fullPrompt.length > MAX_PROMPT_CHARS) {
-      console.log(
-        "[generate-asset-image] Prompt trop long, truncation",
-        "len=",
-        fullPrompt.length,
-        "max=",
-        MAX_PROMPT_CHARS
-      );
-      fullPrompt = fullPrompt.slice(0, MAX_PROMPT_CHARS);
+    if (hasStyleImages) {
+      fullPrompt +=
+        "\n\nIMPORTANT : Reproduis EXACTEMENT le style graphique des images de référence fournies (traits, ombrage, couleurs, proportions, rendu). Crée un contenu 100% original dans ce style.";
     }
 
-    console.log(
-      "[generate-asset-image] asset_id:",
-      asset_id,
-      "asset_type:",
-      type_,
-      "image_view:",
-      image_view ?? "front",
-      "prompt_len=",
-      fullPrompt.length
-    );
-    
-    // Log final du prompt complet (premières lignes pour vérifier les URLs)
-    if (hasStyleImages && style_image_urls) {
-      const promptContainsUrls = style_image_urls.some(url => fullPrompt.includes(url));
-      console.log("[generate-asset-image] ✅ Vérification: Les URLs des images sont-elles dans le prompt?", promptContainsUrls);
-      if (!promptContainsUrls) {
-        console.warn("[generate-asset-image] ⚠️ ATTENTION: Les URLs des images ne semblent pas être dans le prompt final!");
-      }
-      // Afficher un extrait du prompt contenant les URLs
-      const urlMatch = fullPrompt.match(/URLS DES IMAGES DE RÉFÉRENCE À ANALYSER :[\s\S]*?(?=\n\n|$)/);
-      if (urlMatch) {
-        console.log("[generate-asset-image] 📋 Extrait du prompt avec URLs:", urlMatch[0].slice(0, 500));
-      } else {
-        console.warn("[generate-asset-image] ⚠️ Impossible de trouver la section URLs dans le prompt");
-      }
-    }
-
-    console.log("[generate-asset-image] 4. Env Supabase");
-    const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    if (!supabaseUrl || !serviceKey) {
-      console.log("[generate-asset-image] SUPABASE_URL ou SERVICE_ROLE_KEY manquant");
-      return jsonResponse({ error: "Config Supabase manquante" }, 500);
-    }
-
-    console.log("[generate-asset-image] 5. Fetch asset en BDD");
+    // 5. Vérifier que l'asset appartient à l'utilisateur
     const assetRes = await fetch(
       `${supabaseUrl}/rest/v1/assets?id=eq.${asset_id}&select=id,user_id`,
       {
@@ -268,81 +565,111 @@ Deno.serve(async (req) => {
     );
     if (!assetRes.ok) {
       const errT = await assetRes.text();
-      console.log("[generate-asset-image] Erreur fetch asset:", assetRes.status, errT);
-      return jsonResponse({ error: "Erreur lecture asset", details: errT.slice(0, 200) }, 502);
+      return jsonResponse(
+        { error: "Erreur lecture asset", details: errT.slice(0, 200) },
+        502
+      );
     }
-    const assets = (await assetRes.json()) as { id: string; user_id: string }[];
+    const assets = (await assetRes.json()) as {
+      id: string;
+      user_id: string;
+    }[];
     const asset = assets?.[0];
     if (!asset || asset.user_id !== userId) {
-      console.log("[generate-asset-image] Asset introuvable ou user_id différent");
-      return jsonResponse({ error: "Asset introuvable ou accès refusé" }, 403);
-    }
-    console.log("[generate-asset-image] 6. Appel API Nebius");
-    // Les URLs des images de référence sont maintenant incluses directement dans le prompt texte
-    const nebiusRes = await fetch(`${NEBIUS_BASE}/images/generations`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        prompt: fullPrompt,
-        n: 1,
-        response_format: "b64_json",
-        width: 512,
-        height: 512,
-      }),
-    });
-
-    const nebiusText = await nebiusRes.text();
-    if (!nebiusRes.ok) {
-      console.log("[generate-asset-image] Nebius erreur:", nebiusRes.status, nebiusText.slice(0, 300));
       return jsonResponse(
-        { error: "Échec génération image", details: nebiusText.slice(0, 300) },
+        { error: "Asset introuvable ou accès refusé" },
+        403
+      );
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // 6. APPEL FAL.ai (sélection modèle selon tier)
+    // ═══════════════════════════════════════════════════════════
+
+    const width = 1024;
+    const height = 1024;
+
+    // Vérifier les restrictions du tier
+    if (
+      image_view &&
+      image_view !== "front" &&
+      !limits.allowMultipleViews
+    ) {
+      return jsonResponse(
+        {
+          error: "Fonctionnalité réservée au plan Pro",
+          details:
+            "Les vues multiples (profil, dos) ne sont disponibles qu'avec le plan Pro.",
+          upgrade_required: true,
+        },
+        403
+      );
+    }
+
+    if (hasStyleImages && !limits.allowReferenceImages) {
+      // Free tier: ignorer les images de référence, utiliser Schnell text-only
+      console.warn(
+        "[generate-asset-image] Free tier: images de référence ignorées, utilisation de Schnell"
+      );
+    }
+
+    let result: { url: string } | { error: string };
+    let modelUsed: string;
+
+    if (userPlan === "free") {
+      // Free tier → FLUX.1 Schnell (text-to-image uniquement)
+      result = await generateSchnell(fullPrompt, falKey, width, height);
+      modelUsed = "schnell";
+    } else if (
+      hasStyleImages &&
+      style_image_urls &&
+      style_image_urls.length > 0
+    ) {
+      // Pro tier + images de référence → FLUX.2 Pro Edit
+      result = await generateWithReferences(
+        fullPrompt,
+        style_image_urls,
+        falKey,
+        width,
+        height
+      );
+      modelUsed = "flux-2-pro-edit";
+    } else {
+      // Pro tier sans images → FLUX.2 Pro
+      result = await generateTextToImage(fullPrompt, falKey, width, height);
+      modelUsed = "flux-2-pro";
+    }
+
+    if ("error" in result) {
+      return jsonResponse(
+        { error: "Échec génération image", details: result.error },
         502
       );
     }
-    console.log("[generate-asset-image] 7. Parse réponse Nebius, upload Storage");
-    let nebiusJson: { data?: { b64_json?: string }[] };
-    try {
-      nebiusJson = JSON.parse(nebiusText) as { data?: { b64_json?: string }[] };
-    } catch {
-      return jsonResponse({ error: "Réponse Nebius invalide" }, 502);
-    }
 
-    const b64 = nebiusJson.data?.[0]?.b64_json;
-    if (!b64) {
-      return jsonResponse({ error: "Réponse Nebius sans image" }, 502);
-    }
+    // 7. Télécharger et uploader dans Storage
+    const pathSuffix =
+      image_view && image_view !== "front" ? `_${image_view}` : "";
+    const storagePath = `${asset.user_id}/assets/${asset_id}${pathSuffix}.png`;
 
-    const binary = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
-    const pathSuffix = image_view && image_view !== "front" ? `_${image_view}` : "";
-    const path = `${asset.user_id}/assets/${asset_id}${pathSuffix}.png`;
+    const publicUrl = await downloadAndUploadToStorage(
+      result.url,
+      storagePath,
+      supabaseUrl,
+      serviceKey
+    );
 
-    const form = new FormData();
-    form.append("file", new Blob([binary], { type: "image/png" }), "image.png");
-
-    const uploadRes = await fetch(`${supabaseUrl}/storage/v1/object/${BUCKET}/${path}`, {
-      method: "POST",
-      headers: {
-        apikey: serviceKey,
-        Authorization: `Bearer ${serviceKey}`,
-        "x-upsert": "true",
-      },
-      body: form,
-    });
-
-    if (!uploadRes.ok) {
-      const errText = await uploadRes.text();
-      console.log("[generate-asset-image] Erreur upload Storage:", uploadRes.status, errText);
+    if (!publicUrl) {
       return jsonResponse(
-        { error: "Échec upload image", details: errText.slice(0, 200) },
+        {
+          error:
+            "Image générée par FAL.ai mais échec du transfert vers Storage",
+        },
         502
       );
     }
-    const imageUrl = `${supabaseUrl}/storage/v1/object/public/${BUCKET}/${path}`;
 
+    // 8. Mise à jour BDD
     const updateField =
       image_view === "profile_left"
         ? "image_url_profile_left"
@@ -351,37 +678,64 @@ Deno.serve(async (req) => {
           : image_view === "back"
             ? "image_url_back"
             : "image_url";
-    const updatePayload = { [updateField]: imageUrl };
 
-    console.log("[generate-asset-image] 8. Mise à jour BDD", updateField);
-    const updateRes = await fetch(`${supabaseUrl}/rest/v1/assets?id=eq.${asset_id}`, {
-      method: "PATCH",
-      headers: {
-        apikey: serviceKey,
-        Authorization: `Bearer ${serviceKey}`,
-        "Content-Type": "application/json",
-        Prefer: "return=minimal",
-      },
-      body: JSON.stringify(updatePayload),
-    });
+    const updateRes = await fetch(
+      `${supabaseUrl}/rest/v1/assets?id=eq.${asset_id}`,
+      {
+        method: "PATCH",
+        headers: {
+          apikey: serviceKey,
+          Authorization: `Bearer ${serviceKey}`,
+          "Content-Type": "application/json",
+          Prefer: "return=minimal",
+        },
+        body: JSON.stringify({ [updateField]: publicUrl }),
+      }
+    );
 
     if (!updateRes.ok) {
       const errT = await updateRes.text();
-      console.log("[generate-asset-image] Erreur PATCH assets:", updateRes.status, errT);
       return jsonResponse(
-        { error: "Image générée mais mise à jour BDD échouée", details: errT.slice(0, 200) },
+        {
+          error: "Image générée mais mise à jour BDD échouée",
+          details: errT.slice(0, 200),
+        },
         502
       );
     }
-    console.log("[generate-asset-image] OK,", updateField, ":", imageUrl);
-    return jsonResponse({ image_url: imageUrl, image_view: image_view ?? "front", update_field: updateField }, 200);
+
+    // 9. Enregistrer l'utilisation dans la table usage
+    try {
+      await fetch(`${supabaseUrl}/rest/v1/usage`, {
+        method: "POST",
+        headers: {
+          apikey: serviceKey,
+          Authorization: `Bearer ${serviceKey}`,
+          "Content-Type": "application/json",
+          Prefer: "return=minimal",
+        },
+        body: JSON.stringify({
+          user_id: userId,
+          action: "image_generation",
+        }),
+      });
+    } catch {
+      console.warn("[generate-asset-image] Impossible d'enregistrer l'usage");
+    }
+
+    return jsonResponse(
+      {
+        image_url: publicUrl,
+        image_view: image_view ?? "front",
+        update_field: updateField,
+        model: modelUsed,
+        plan: userPlan,
+      },
+      200
+    );
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    const stack = e instanceof Error ? e.stack : "";
-    console.error("[generate-asset-image] Exception:", msg, stack);
-    return jsonResponse(
-      { error: "Erreur serveur", details: msg },
-      500
-    );
+    console.error("[generate-asset-image] Exception:", msg);
+    return jsonResponse({ error: "Erreur serveur", details: msg }, 500);
   }
 });

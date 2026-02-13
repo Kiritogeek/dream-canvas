@@ -18,9 +18,11 @@ ${userDescription}
 CADRAGE ET COMPOSITION :
 - Environnement, lieu ou paysage uniquement
 - AUCUN personnage ni créature visible
-- Format vertical adapté aux webtoons
+- L'image doit REMPLIR ENTIÈREMENT le cadre, sans espace blanc, sans bande vide, sans marge
+- Le décor couvre 100% de la surface de l'image, bord à bord
 - Composition lisible avec profondeur de champ
-- Lumière claire et bien définie`;
+- Lumière claire et bien définie
+- PAS de bordures, PAS de format "carte postale", l'illustration va d'un bord à l'autre`;
 
   // Ajout du style textuel
   if (styleText) {
@@ -58,7 +60,8 @@ ATTENTION :
 export const BACKGROUND_BASE_PROMPT =
   "Décor uniquement : environnement, lieu, paysage ou intérieur. Aucun personnage ni créature visible. " +
   "La scène doit être exploitable comme décor de bande dessinée / webtoon (composition lisible, profondeur, lumière claire). " +
-  "Format vertical adapté aux webtoons, avec une composition équilibrée et une profondeur de champ bien définie.";
+  "L'illustration doit REMPLIR ENTIÈREMENT le cadre de l'image, bord à bord, sans espace blanc ni bande vide. " +
+  "Composition équilibrée avec une profondeur de champ bien définie.";
 
 export const BACKGROUND_STYLE_TEXT_INSTRUCTION = (styleText: string) =>
   `STYLE ARTISTIQUE OBLIGATOIRE : ${styleText || "aucun style texte fourni"}. ` +

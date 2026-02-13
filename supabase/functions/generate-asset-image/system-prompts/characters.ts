@@ -17,8 +17,9 @@ ${userDescription}
 
 CADRAGE ET COMPOSITION :
 - Vue de face, pose neutre, regard vers le spectateur
-- Personnage centré, occupant 80% de la hauteur
+- Personnage centré, occupant 80% de la hauteur de l'image
 - Aucune partie coupée (tête, mains, pieds tous visibles)
+- L'image doit REMPLIR le cadre sans espaces blancs ni bandes vides sur les côtés
 - Fond 100% transparent, sans décor, ombre, texte ou watermark
 - Très haute qualité de détails (visage, yeux, cheveux, vêtements)`;
 

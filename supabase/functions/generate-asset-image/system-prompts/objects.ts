@@ -17,9 +17,12 @@ ${userDescription}
 
 CADRAGE ET COMPOSITION :
 - Objet seul, bien centré et lisible
-- Objet complet (aucune partie coupée)
+- L'INTÉGRALITÉ de l'objet doit être visible : aucune partie coupée par les bords de l'image
+- L'objet doit occuper environ 70-80% de l'image, avec des marges suffisantes tout autour
+- Cadrage serré mais complet : on voit l'objet EN ENTIER sous tous ses angles
 - Fond 100% transparent, sans décor, personnage, texte ou watermark
-- Très haute qualité de détails (contours, volumes, textures)`;
+- L'image doit remplir tout le cadre sans espaces blancs ni bandes vides
+- Très haute qualité de détails (contours, volumes, textures, matériaux)`;
 
   // Ajout du style textuel
   if (styleText) {
@@ -55,7 +58,9 @@ ATTENTION :
 
 export const OBJECT_BASE_PROMPT =
   "Objet seul en PNG, fond entièrement transparent. Uniquement l'objet principal, bien centré et lisible, sans décor ni personnage. " +
-  "L'objet doit être complet (aucune partie coupée par le cadre) et facilement réutilisable dans une mise en page. " +
+  "L'INTÉGRALITÉ de l'objet doit être visible : aucune partie coupée par les bords de l'image. " +
+  "L'objet occupe environ 70-80% du cadre avec des marges suffisantes tout autour. " +
+  "L'image remplit le cadre sans espaces blancs ni bandes vides. " +
   "Très haut niveau de détail sur les contours, les volumes et les textures de l'objet.";
 
 export const OBJECT_STYLE_TEXT_INSTRUCTION = (styleText: string) =>

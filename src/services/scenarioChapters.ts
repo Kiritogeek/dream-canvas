@@ -9,6 +9,37 @@ import type {
   ScenarioVersionUpdate,
 } from "@/types";
 
+// ── Remplacement nom d'asset (frontières de mot, comme ScenarioTextHighlighter) ─
+
+const LETTER_CHARS =
+  "a-zA-ZàáâãäéèêëïîôùûüÿçÀÁÂÃÄÉÈÊËÏÎÔÙÛÜŸÇœŒæÆ";
+
+/** Indique si le contenu contient le nom donné comme mot entier (frontières de mot). */
+export function contentContainsAssetName(content: string, name: string): boolean {
+  if (!name.trim()) return false;
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const regex = new RegExp(
+    `(?<![${LETTER_CHARS}\\-])${escaped}(?![${LETTER_CHARS}\\-])`,
+    "i"
+  );
+  return regex.test(content);
+}
+
+/** Remplace toutes les occurrences du nom (mot entier) par le nouveau nom dans le contenu. */
+export function replaceAssetNameInContent(
+  content: string,
+  oldName: string,
+  newName: string
+): string {
+  if (!oldName.trim()) return content;
+  const escaped = oldName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const regex = new RegExp(
+    `(?<![${LETTER_CHARS}\\-])${escaped}(?![${LETTER_CHARS}\\-])`,
+    "gi"
+  );
+  return content.replace(regex, newName);
+}
+
 // ── Scenario chapters ────────────────────────────────────────
 
 /** Récupère tous les chapitres de scénario d'un projet, triés par numéro */

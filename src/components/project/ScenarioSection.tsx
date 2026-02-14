@@ -195,6 +195,11 @@ export function ScenarioSection({ projectId, project, onNavigateToCreateAsset }:
   const [openChapterId, setOpenChapterId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ScenarioChapter | null>(null);
   const [showChapitreType, setShowChapitreType] = useState(false);
+  /** Noms exclus de la liste « éléments non créés » (après « Ne pas créer ») */
+  const [dismissedMissingNames, setDismissedMissingNames] = useState<Set<string>>(new Set());
+  const handleDismissMissing = useCallback((name: string) => {
+    setDismissedMissingNames((prev) => new Set(prev).add(name.toLowerCase()));
+  }, []);
 
   // IA Scénario state
   const [aiPrompt, setAiPrompt] = useState("");
@@ -617,6 +622,8 @@ export function ScenarioSection({ projectId, project, onNavigateToCreateAsset }:
                 updateChapter={updateChapter}
                 assets={assets}
                 onCreateAsset={onNavigateToCreateAsset}
+                dismissedMissingNames={dismissedMissingNames}
+                onDismissMissing={handleDismissMissing}
               />
             ))}
           </div>
@@ -727,6 +734,8 @@ interface ChapterCardProps {
   updateChapter: ReturnType<typeof useUpdateScenarioChapter>;
   assets: Asset[];
   onCreateAsset?: (name: string, type: AssetType) => void;
+  dismissedMissingNames?: Set<string>;
+  onDismissMissing?: (name: string) => void;
 }
 
 function ChapterCard({
@@ -741,6 +750,8 @@ function ChapterCard({
   updateChapter,
   assets,
   onCreateAsset,
+  dismissedMissingNames,
+  onDismissMissing,
 }: ChapterCardProps) {
   const { toast } = useToast();
   const chapterAI = useScenarioAI();
@@ -1096,6 +1107,8 @@ function ChapterCard({
                 text={content}
                 assets={assets}
                 onCreateAsset={onCreateAsset}
+                dismissedMissingNames={dismissedMissingNames}
+                onDismiss={onDismissMissing}
               />
             )}
 
@@ -1134,6 +1147,8 @@ function ChapterCard({
                     text={content}
                     assets={assets}
                     onCreateAsset={onCreateAsset}
+                    dismissedMissingNames={dismissedMissingNames}
+                    onDismissMissing={onDismissMissing}
                   />
                 ) : (
                   <p className="text-muted-foreground italic">

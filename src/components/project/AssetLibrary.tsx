@@ -25,9 +25,11 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useCreateAsset, useDeleteAsset, useUpdateAsset } from "@/hooks/useAssets";
+import { useUpdateScenarioChapter } from "@/hooks/useScenarioChapters";
+import * as scenarioService from "@/services/scenarioChapters";
 import { AssetCard } from "./AssetCard";
 import { CharacterViewDialog } from "./CharacterViewDialog";
-import type { Asset, AssetType, AssetTabConfig, Project } from "@/types";
+import type { Asset, AssetType, AssetTabConfig, Project, ScenarioChapter } from "@/types";
 
 const assetTabs: AssetTabConfig[] = [
   { type: "character", icon: Users, label: "Personnages" },
@@ -67,6 +69,7 @@ export function AssetLibrary({
   const createAssetMutation = useCreateAsset();
   const deleteAssetMutation = useDeleteAsset();
   const updateAssetMutation = useUpdateAsset();
+  const updateChapterMutation = useUpdateScenarioChapter();
 
   // Dialog nouvel asset
   const [assetDialogOpen, setAssetDialogOpen] = useState(false);
@@ -101,6 +104,14 @@ export function AssetLibrary({
   const [editTarget, setEditTarget] = useState<Asset | null>(null);
   const [editName, setEditName] = useState("");
   const [editPrompt, setEditPrompt] = useState("");
+
+  // Après renommage d'asset : proposer de mettre à jour le texte des chapitres
+  const [renameChaptersState, setRenameChaptersState] = useState<{
+    oldName: string;
+    newName: string;
+    chapters: ScenarioChapter[];
+  } | null>(null);
+  const [isUpdatingChapters, setIsUpdatingChapters] = useState(false);
 
   // Pré-remplir le dialog d'édition quand on sélectionne un asset
   useEffect(() => {
@@ -160,17 +171,29 @@ export function AssetLibrary({
   /** Sauvegarder uniquement le nom (pas de régénération) */
   const handleSaveNameOnly = async () => {
     if (!editTarget) return;
+    const oldName = editTarget.name.trim();
+    const newName = editName.trim();
     try {
       await updateAssetMutation.mutateAsync({
         id: editTarget.id,
         projectId,
         updates: {
-          name: editName.trim(),
+          name: newName,
           ...(promptChanged ? { prompt: editPrompt.trim() || null } : {}),
         },
       });
       toast({ title: "Asset mis à jour", description: "Les modifications ont été sauvegardées." });
       setEditTarget(null);
+
+      if (oldName !== newName) {
+        const chapters = await scenarioService.fetchScenarioChapters(projectId);
+        const affected = chapters.filter((ch) =>
+          scenarioService.contentContainsAssetName(ch.content ?? "", oldName)
+        );
+        if (affected.length > 0) {
+          setRenameChaptersState({ oldName, newName, chapters: affected });
+        }
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Erreur";
       toast({ title: "Erreur", description: msg, variant: "destructive" });
@@ -180,20 +203,21 @@ export function AssetLibrary({
   /** Sauvegarder le prompt et générer une nouvelle image (remplace l'existante) */
   const handleSaveAndRegenerate = async () => {
     if (!editTarget) return;
+    const oldName = editTarget.name.trim();
+    const newName = editName.trim();
     try {
       await updateAssetMutation.mutateAsync({
         id: editTarget.id,
         projectId,
         updates: {
-          name: editName.trim(),
+          name: newName,
           prompt: editPrompt.trim() || null,
         },
       });
 
-      // On récupère l'asset mis à jour pour la génération
       const updatedAsset: Asset = {
         ...editTarget,
-        name: editName.trim(),
+        name: newName,
         prompt: editPrompt.trim() || null,
       };
 
@@ -203,6 +227,16 @@ export function AssetLibrary({
       });
       setEditTarget(null);
       onGenerate(updatedAsset);
+
+      if (oldName !== newName) {
+        const chapters = await scenarioService.fetchScenarioChapters(projectId);
+        const affected = chapters.filter((ch) =>
+          scenarioService.contentContainsAssetName(ch.content ?? "", oldName)
+        );
+        if (affected.length > 0) {
+          setRenameChaptersState({ oldName, newName, chapters: affected });
+        }
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Erreur";
       toast({ title: "Erreur", description: msg, variant: "destructive" });
@@ -510,6 +544,62 @@ export function AssetLibrary({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Après renommage : proposer de mettre à jour le scénario */}
+      <AlertDialog
+        open={!!renameChaptersState}
+        onOpenChange={(open) => !open && setRenameChaptersState(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Mettre à jour le scénario ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              L&apos;ancien nom <strong>« {renameChaptersState?.oldName} »</strong> apparaît dans{" "}
+              {renameChaptersState?.chapters.length} chapitre(s). Souhaitez-vous le remplacer par{" "}
+              <strong>« {renameChaptersState?.newName} »</strong> dans le texte de ces chapitres ?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setRenameChaptersState(null)}>
+              Plus tard
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={isUpdatingChapters}
+              onClick={async () => {
+                if (!renameChaptersState) return;
+                const { oldName, newName, chapters } = renameChaptersState;
+                setIsUpdatingChapters(true);
+                try {
+                  for (const ch of chapters) {
+                    const newContent = scenarioService.replaceAssetNameInContent(
+                      ch.content ?? "",
+                      oldName,
+                      newName
+                    );
+                    await updateChapterMutation.mutateAsync({
+                      id: ch.id,
+                      projectId,
+                      updates: { content: newContent },
+                    });
+                  }
+                  toast({
+                    title: "Scénario mis à jour",
+                    description: `« ${oldName} » remplacé par « ${newName} » dans ${chapters.length} chapitre(s).`,
+                  });
+                } catch (err: unknown) {
+                  const msg = err instanceof Error ? err.message : "Erreur";
+                  toast({ title: "Erreur", description: msg, variant: "destructive" });
+                } finally {
+                  setIsUpdatingChapters(false);
+                  setRenameChaptersState(null);
+                }
+              }}
+            >
+              {isUpdatingChapters ? "Mise à jour…" : "Appliquer"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

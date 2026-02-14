@@ -5,7 +5,7 @@
 // ═══════════════════════════════════════════════════════════════
 
 import { useMemo, useState, useCallback, useRef, useEffect } from "react";
-import { Plus, UserRound, Image, Package } from "lucide-react";
+import { Plus, UserRound, Image, Package, Ban } from "lucide-react";
 import {
   HoverCard,
   HoverCardTrigger,
@@ -28,6 +28,10 @@ interface ScenarioTextHighlighterProps {
   className?: string;
   /** Appelé quand l'utilisateur clique « Créer comme asset » */
   onCreateAsset?: (name: string, type: AssetType) => void;
+  /** Noms exclus de la liste « éléments non créés » (ex. après « Ne pas créer ») */
+  dismissedMissingNames?: Set<string>;
+  /** Appelé quand l'utilisateur clique « Ne pas créer » sur un élément non créé */
+  onDismissMissing?: (name: string) => void;
 }
 
 // ── Couleurs par type d'asset (charte DreamWeave) ─────────────
@@ -51,11 +55,11 @@ const ASSET_COLORS: Record<
     tagText: "hsl(170 40% 35%)",
   },
   object: {
-    bg: "hsl(var(--peach) / 0.4)",
-    border: "hsl(var(--peach-deep) / 0.6)",
+    bg: "hsl(230 55% 88% / 0.5)",
+    border: "hsl(230 50% 55% / 0.65)",
     label: "Objet",
-    tagBg: "hsl(var(--peach) / 0.25)",
-    tagText: "hsl(20 60% 40%)",
+    tagBg: "hsl(230 45% 85% / 0.4)",
+    tagText: "hsl(230 45% 35%)",
   },
 };
 
@@ -98,7 +102,8 @@ const STRUCTURAL = new Set([
 const STOP_WORDS = new Set([
   "le", "la", "les", "un", "une", "des", "du", "de", "en", "et", "ou",
   "mais", "donc", "or", "ni", "car", "que", "qui", "quoi", "dont", "où",
-  "il", "elle", "ils", "elles", "nous", "vous", "je", "tu", "on", "ce",
+  "il", "elle", "ils", "elles", "lui", "eux", "nous", "vous", "je", "tu", "on", "ce",
+  "moi", "toi", "soi", "ça", "cela", "celui", "celle", "ceux", "celles",
   "ces", "cette", "cet", "mon", "ma", "mes", "ton", "ta", "tes", "son",
   "sa", "ses", "notre", "nos", "votre", "vos", "leur", "leurs",
   "au", "aux", "par", "pour", "avec", "sans", "dans", "sur", "sous",
@@ -145,8 +150,24 @@ function capitalizeBigram(bigramLower: string): string {
     .join(" ");
 }
 
+/** Mots qui font partie d'un nom d'asset multi-mot (ex. "Marcus", "Blackwood" pour "Marcus Blackwood") → ne pas proposer comme "non créé" */
+function getAssetNameParts(assets: Asset[]): Set<string> {
+  const parts = new Set<string>();
+  for (const a of assets) {
+    const name = a.name.trim();
+    if (name.includes(" ")) {
+      for (const part of name.split(/\s+/)) {
+        const p = part.trim().toLowerCase();
+        if (p.length >= 2) parts.add(p);
+      }
+    }
+  }
+  return parts;
+}
+
 export function detectMissingNames(text: string, assets: Asset[]): string[] {
   const assetNames = new Set(assets.map((a) => a.name.trim().toLowerCase()));
+  const assetNameParts = getAssetNameParts(assets);
   const candidates = new Set<string>();
 
   // Liste ordonnée des mots (pour les bigrammes)
@@ -169,13 +190,14 @@ export function detectMissingNames(text: string, assets: Asset[]): string[] {
     countByBigram.set(bigram, (countByBigram.get(bigram) ?? 0) + 1);
   }
 
-  // Candidats bigrammes en premier (répétés >= seuil, pas deux stop-words, pas asset existant)
+  // Candidats bigrammes (répétés >= seuil) : on n'ajoute pas si un des deux mots est un stop-word
+  // (ex. "la malette" → on propose "malette" seul, pas "La malette")
   for (const [bigramLower, count] of countByBigram) {
     if (count < MIN_OCCURRENCES_FOR_MISSING_ASSET) continue;
     if (assetNames.has(bigramLower)) continue;
     const [p1, p2] = bigramLower.split(" ");
     if (STRUCTURAL.has(p1) || STRUCTURAL.has(p2)) continue;
-    if (STOP_WORDS.has(p1) && STOP_WORDS.has(p2)) continue;
+    if (STOP_WORDS.has(p1) || STOP_WORDS.has(p2)) continue;
     candidates.add(capitalizeBigram(bigramLower));
   }
 
@@ -183,6 +205,7 @@ export function detectMissingNames(text: string, assets: Asset[]): string[] {
   for (const [wordLower, count] of countByWord) {
     if (count < MIN_OCCURRENCES_FOR_MISSING_ASSET) continue;
     if (assetNames.has(wordLower) || STRUCTURAL.has(wordLower) || STOP_WORDS.has(wordLower)) continue;
+    if (assetNameParts.has(wordLower)) continue; // prénom/nom d'un personnage existant (ex. Marcus Blackwood)
     const parts = wordLower.split("-");
     if (parts.every((p) => STOP_WORDS.has(p) || STRUCTURAL.has(p))) continue;
     candidates.add(capitalizeForDisplay(wordLower));
@@ -197,6 +220,11 @@ export function detectMissingNames(text: string, assets: Asset[]): string[] {
     }
   }
 
+  // Ne pas proposer un mot qui est le prénom ou nom d'un asset (ex. "Marcus" ou "Blackwood" quand on a l'asset "Marcus Blackwood")
+  for (const part of assetNameParts) {
+    candidates.delete(capitalizeForDisplay(part));
+  }
+
   return [...candidates].sort();
 }
 
@@ -208,12 +236,19 @@ interface BuildResult {
   missingNames: string[];
 }
 
-function buildAllFragments(text: string, assets: Asset[]): BuildResult {
+function buildAllFragments(
+  text: string,
+  assets: Asset[],
+  dismissedMissingNames?: Set<string>
+): BuildResult {
   if (!text) {
     return { fragments: [{ type: "plain", text: "" }], detectedAssetCount: 0, missingNames: [] };
   }
 
-  const missingNames = detectMissingNames(text, assets);
+  let missingNames = detectMissingNames(text, assets);
+  if (dismissedMissingNames?.size) {
+    missingNames = missingNames.filter((n) => !dismissedMissingNames!.has(n.toLowerCase()));
+  }
 
   const assetsSorted = [...assets]
     .filter((a) => a.name && a.name.trim().length > 1)
@@ -223,14 +258,37 @@ function buildAllFragments(text: string, assets: Asset[]): BuildResult {
   for (const a of assetsSorted) {
     assetLookup.set(a.name.trim().toLowerCase(), a);
   }
+  // Prénom / nom seul → asset (ex. "Marcus" ou "Blackwood" → personnage "Marcus Blackwood")
+  for (const a of assetsSorted) {
+    const name = a.name.trim();
+    if (name.includes(" ")) {
+      for (const part of name.split(/\s+/)) {
+        const p = part.trim().toLowerCase();
+        if (p && !assetLookup.has(p)) assetLookup.set(p, a);
+      }
+    }
+  }
 
   const missingLookup = new Map<string, string>();
   for (const name of missingNames) {
     missingLookup.set(name.toLowerCase(), name);
   }
 
+  const assetFullNames = assetsSorted.map((a) => a.name.trim());
+  const assetNamePartsForMatch: string[] = [];
+  for (const a of assetsSorted) {
+    const name = a.name.trim();
+    if (name.includes(" ")) {
+      for (const part of name.split(/\s+/)) {
+        const p = part.trim();
+        if (p) assetNamePartsForMatch.push(p);
+      }
+    }
+  }
+
   const allTerms = [
-    ...assetsSorted.map((a) => a.name.trim()),
+    ...assetFullNames,
+    ...assetNamePartsForMatch,
     ...missingNames,
   ];
   const uniqueTerms = [...new Set(allTerms)].sort(
@@ -274,15 +332,17 @@ function buildAllFragments(text: string, assets: Asset[]): BuildResult {
 function CreateAssetHover({
   name,
   onCreateAsset,
+  onDismiss,
   children,
 }: {
   name: string;
   onCreateAsset?: (name: string, type: AssetType) => void;
+  onDismiss?: (name: string) => void;
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
 
-  if (!onCreateAsset) return <>{children}</>;
+  if (!onCreateAsset && !onDismiss) return <>{children}</>;
 
   return (
     <HoverCard open={open} onOpenChange={setOpen} openDelay={150} closeDelay={200}>
@@ -294,47 +354,65 @@ function CreateAssetHover({
       >
         <div className="space-y-2">
           <p className="text-sm font-semibold">{name}</p>
-          <p className="text-xs text-muted-foreground">
-            Créer comme asset :
-          </p>
-          <div className="flex flex-col gap-1">
+          {onCreateAsset && (
+            <>
+              <p className="text-xs text-muted-foreground">
+                Créer comme asset :
+              </p>
+              <div className="flex flex-col gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="justify-start gap-2 h-7 text-xs"
+                  onClick={() => {
+                    onCreateAsset(name, "character");
+                    setOpen(false);
+                  }}
+                >
+                  <UserRound className="h-3 w-3" />
+                  Personnage
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="justify-start gap-2 h-7 text-xs"
+                  onClick={() => {
+                    onCreateAsset(name, "background");
+                    setOpen(false);
+                  }}
+                >
+                  <Image className="h-3 w-3" />
+                  Décor
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="justify-start gap-2 h-7 text-xs"
+                  onClick={() => {
+                    onCreateAsset(name, "object");
+                    setOpen(false);
+                  }}
+                >
+                  <Package className="h-3 w-3" />
+                  Objet
+                </Button>
+              </div>
+            </>
+          )}
+          {onDismiss && (
             <Button
-              variant="outline"
+              variant="ghost"
               size="sm"
-              className="justify-start gap-2 h-7 text-xs"
+              className="justify-start gap-2 h-7 text-xs text-muted-foreground hover:text-muted-foreground border-t mt-1 pt-1.5 w-full"
               onClick={() => {
-                onCreateAsset(name, "character");
+                onDismiss(name);
                 setOpen(false);
               }}
             >
-              <UserRound className="h-3 w-3" />
-              Personnage
+              <Ban className="h-3 w-3" />
+              Ne pas créer
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="justify-start gap-2 h-7 text-xs"
-              onClick={() => {
-                onCreateAsset(name, "background");
-                setOpen(false);
-              }}
-            >
-              <Image className="h-3 w-3" />
-              Décor
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="justify-start gap-2 h-7 text-xs"
-              onClick={() => {
-                onCreateAsset(name, "object");
-                setOpen(false);
-              }}
-            >
-              <Package className="h-3 w-3" />
-              Objet
-            </Button>
-          </div>
+          )}
         </div>
       </HoverCardContent>
     </HoverCard>
@@ -347,16 +425,29 @@ interface MissingAssetsPanelProps {
   text: string;
   assets: Asset[];
   onCreateAsset?: (name: string, type: AssetType) => void;
+  /** Noms exclus de la liste (ex. après « Ne pas créer ») */
+  dismissedMissingNames?: Set<string>;
+  /** Appelé quand l'utilisateur clique « Ne pas créer » */
+  onDismiss?: (name: string) => void;
 }
 
 export function MissingAssetsPanel({
   text,
   assets,
   onCreateAsset,
+  dismissedMissingNames,
+  onDismiss,
 }: MissingAssetsPanelProps) {
-  const missing = useMemo(
+  const allMissing = useMemo(
     () => detectMissingNames(text, assets),
     [text, assets]
+  );
+  const missing = useMemo(
+    () =>
+      dismissedMissingNames?.size
+        ? allMissing.filter((n) => !dismissedMissingNames.has(n.toLowerCase()))
+        : allMissing,
+    [allMissing, dismissedMissingNames]
   );
 
   if (missing.length === 0) return null;
@@ -368,7 +459,12 @@ export function MissingAssetsPanel({
       </p>
       <div className="flex flex-wrap gap-1.5">
         {missing.map((name) => (
-          <CreateAssetHover key={name} name={name} onCreateAsset={onCreateAsset}>
+          <CreateAssetHover
+            key={name}
+            name={name}
+            onCreateAsset={onCreateAsset}
+            onDismiss={onDismiss}
+          >
             <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/20 font-medium cursor-pointer hover:bg-amber-500/25 transition-colors">
               {name}
               {onCreateAsset && <Plus className="h-2.5 w-2.5 opacity-60" />}
@@ -458,7 +554,7 @@ function TextSelectionMenu({
               onClose();
             }}
           >
-            <Package className="h-3.5 w-3.5 text-[hsl(var(--peach))]" />
+            <Package className="h-3.5 w-3.5 text-[hsl(230_45%_35%)]" />
             Objet
           </button>
         </div>
@@ -474,10 +570,12 @@ export function ScenarioTextHighlighter({
   assets,
   className,
   onCreateAsset,
+  dismissedMissingNames,
+  onDismissMissing,
 }: ScenarioTextHighlighterProps) {
   const { fragments, detectedAssetCount, missingNames } = useMemo(
-    () => buildAllFragments(text, assets),
-    [text, assets]
+    () => buildAllFragments(text, assets, dismissedMissingNames),
+    [text, assets, dismissedMissingNames]
   );
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -549,6 +647,7 @@ export function ScenarioTextHighlighter({
                 key={i}
                 name={frag.name}
                 onCreateAsset={onCreateAsset}
+                onDismiss={onDismissMissing}
               >
                 <span
                   className="cursor-pointer rounded-[4px] font-medium hover:brightness-110 transition-all"

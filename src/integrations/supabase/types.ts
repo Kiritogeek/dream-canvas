@@ -206,6 +206,95 @@ export type Database = {
         }
         Relationships: []
       }
+      scenario_chapters: {
+        Row: {
+          id: string
+          project_id: string
+          user_id: string
+          chapter_number: number
+          title: string
+          content: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          project_id: string
+          user_id: string
+          chapter_number?: number
+          title: string
+          content?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          project_id?: string
+          user_id?: string
+          chapter_number?: number
+          title?: string
+          content?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scenario_chapters_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      scenario_versions: {
+        Row: {
+          id: string
+          project_id: string
+          scenario_chapter_id: string | null
+          user_id: string
+          content: string
+          version_type: string
+          status: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          project_id: string
+          scenario_chapter_id?: string | null
+          user_id: string
+          content: string
+          version_type: string
+          status?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          project_id?: string
+          scenario_chapter_id?: string | null
+          user_id?: string
+          content?: string
+          version_type?: string
+          status?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scenario_versions_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scenario_versions_scenario_chapter_id_fkey"
+            columns: ["scenario_chapter_id"]
+            isOneToOne: false
+            referencedRelation: "scenario_chapters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       projects: {
         Row: {
           cover_url: string | null

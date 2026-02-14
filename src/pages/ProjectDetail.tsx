@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
 import { ArrowLeft, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,7 @@ import { useUserPlan } from "@/hooks/useUserPlan";
 import DashboardLayout from "@/components/DashboardLayout";
 import { AssetLibrary } from "@/components/project/AssetLibrary";
 import { StyleManager } from "@/components/project/StyleManager";
+import { ScenarioSection } from "@/components/project/ScenarioSection";
 
 export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
@@ -41,6 +42,22 @@ export default function ProjectDetail() {
   // Hook de génération d'images
   const { generatingAssetId, generatingView, canGenerate, generate } =
     useAssetGeneration({ styleTemplate, project: project ?? null, userPlan });
+
+  // Onglet actif (contrôlé)
+  const [activeTab, setActiveTab] = useState("style");
+
+  // Pré-remplissage création d'asset depuis le scénario
+  const [pendingAssetName, setPendingAssetName] = useState("");
+  const [pendingAssetType, setPendingAssetType] = useState<"character" | "background" | "object">("character");
+
+  const handleNavigateToCreateAsset = useCallback(
+    (name: string, type: "character" | "background" | "object") => {
+      setPendingAssetName(name);
+      setPendingAssetType(type);
+      setActiveTab("assets");
+    },
+    []
+  );
 
   // Dialog édition de projet
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -138,10 +155,11 @@ export default function ProjectDetail() {
           </div>
         </div>
 
-        <Tabs defaultValue="style" className="space-y-4 sm:space-y-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4 sm:space-y-6">
           <TabsList className="glass w-full sm:w-auto">
             <TabsTrigger value="style" className="flex-1 sm:flex-none">Style</TabsTrigger>
             <TabsTrigger value="assets" className="flex-1 sm:flex-none">Assets</TabsTrigger>
+            <TabsTrigger value="scenario" className="flex-1 sm:flex-none">Scénario</TabsTrigger>
           </TabsList>
 
           {/* Style Tab */}
@@ -164,6 +182,18 @@ export default function ProjectDetail() {
               generatingView={generatingView}
               onCanGenerate={canGenerate}
               onGenerate={(asset, opts) => generate(asset, opts)}
+              pendingAssetName={pendingAssetName}
+              pendingAssetType={pendingAssetType}
+              onPendingAssetConsumed={() => setPendingAssetName("")}
+            />
+          </TabsContent>
+
+          {/* Scénario Tab */}
+          <TabsContent value="scenario">
+            <ScenarioSection
+              projectId={project.id}
+              project={project}
+              onNavigateToCreateAsset={handleNavigateToCreateAsset}
             />
           </TabsContent>
         </Tabs>

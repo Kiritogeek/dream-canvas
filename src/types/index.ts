@@ -43,15 +43,21 @@ export type Asset = Tables<"assets">;
 export type Chapter = Tables<"chapters">;
 export type Panel = Tables<"panels">;
 export type Profile = Tables<"profiles">;
+export type ScenarioChapter = Tables<"scenario_chapters">;
+export type ScenarioVersion = Tables<"scenario_versions">;
 
 // ── Insert types (création) ──────────────────────────────────────
 export type ProjectInsert = TablesInsert<"projects">;
 export type AssetInsert = TablesInsert<"assets">;
 export type ChapterInsert = TablesInsert<"chapters">;
+export type ScenarioChapterInsert = TablesInsert<"scenario_chapters">;
+export type ScenarioVersionInsert = TablesInsert<"scenario_versions">;
 
 // ── Update types (mise à jour) ───────────────────────────────────
 export type ProjectUpdate = TablesUpdate<"projects">;
 export type AssetUpdate = TablesUpdate<"assets">;
+export type ScenarioChapterUpdate = TablesUpdate<"scenario_chapters">;
+export type ScenarioVersionUpdate = TablesUpdate<"scenario_versions">;
 
 // ── Types métier ─────────────────────────────────────────────────
 

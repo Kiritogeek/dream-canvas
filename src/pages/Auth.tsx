@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Sparkles, Mail, Lock, User } from "lucide-react";
@@ -8,6 +8,10 @@ import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { ThemeToggle } from "@/components/ThemeToggle";
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MIN_PASSWORD_LENGTH = 6;
+const MIN_DISPLAY_NAME_LENGTH = 2;
 
 function GoogleIcon() {
   return (
@@ -39,9 +43,25 @@ export default function Auth() {
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [loading, setLoading] = useState(false);
+  const [triedSubmit, setTriedSubmit] = useState(false);
   const { signIn, signUp, signInWithGoogle } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  const errors = useMemo(() => {
+    const e: { email?: string; password?: string; displayName?: string } = {};
+    if (!email.trim()) e.email = "L'email est requis";
+    else if (!EMAIL_REGEX.test(email.trim())) e.email = "Email invalide";
+    if (!password) e.password = "Le mot de passe est requis";
+    else if (password.length < MIN_PASSWORD_LENGTH) e.password = `Minimum ${MIN_PASSWORD_LENGTH} caractères`;
+    if (isSignUp) {
+      if (!displayName.trim()) e.displayName = "Le nom d'affichage est requis";
+      else if (displayName.trim().length < MIN_DISPLAY_NAME_LENGTH) e.displayName = `Minimum ${MIN_DISPLAY_NAME_LENGTH} caractères`;
+    }
+    return e;
+  }, [email, password, displayName, isSignUp]);
+
+  const isValid = useMemo(() => Object.keys(errors).length === 0, [errors]);
 
   const handleGoogleSignIn = async () => {
     setLoading(true);
@@ -65,6 +85,8 @@ export default function Auth() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setTriedSubmit(true);
+    if (!isValid) return;
     setLoading(true);
     try {
       if (isSignUp) {
@@ -117,49 +139,61 @@ export default function Auth() {
           <form onSubmit={handleSubmit} className="space-y-4">
             {isSignUp && (
               <div className="space-y-2">
-                <Label htmlFor="name">Nom d'affichage</Label>
+                <Label htmlFor="name" className={triedSubmit && errors.displayName ? "text-destructive" : ""}>
+                  Nom d'affichage
+                </Label>
                 <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <User className={`absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 ${triedSubmit && errors.displayName ? "text-destructive" : "text-muted-foreground"}`} />
                   <Input
                     id="name"
                     placeholder="Votre pseudo"
                     value={displayName}
                     onChange={(e) => setDisplayName(e.target.value)}
-                    className="pl-10"
+                    className={`pl-10 ${triedSubmit && errors.displayName ? "border-destructive focus-visible:ring-destructive" : ""}`}
                   />
                 </div>
+                {triedSubmit && errors.displayName && (
+                  <p className="text-sm text-destructive">{errors.displayName}</p>
+                )}
               </div>
             )}
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email" className={triedSubmit && errors.email ? "text-destructive" : ""}>
+                Email
+              </Label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Mail className={`absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 ${triedSubmit && errors.email ? "text-destructive" : "text-muted-foreground"}`} />
                 <Input
                   id="email"
                   type="email"
                   placeholder="vous@exemple.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="pl-10"
-                  required
+                  className={`pl-10 ${triedSubmit && errors.email ? "border-destructive focus-visible:ring-destructive" : ""}`}
                 />
               </div>
+              {triedSubmit && errors.email && (
+                <p className="text-sm text-destructive">{errors.email}</p>
+              )}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Mot de passe</Label>
+              <Label htmlFor="password" className={triedSubmit && errors.password ? "text-destructive" : ""}>
+                Mot de passe
+              </Label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Lock className={`absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 ${triedSubmit && errors.password ? "text-destructive" : "text-muted-foreground"}`} />
                 <Input
                   id="password"
                   type="password"
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="pl-10"
-                  required
-                  minLength={6}
+                  className={`pl-10 ${triedSubmit && errors.password ? "border-destructive focus-visible:ring-destructive" : ""}`}
                 />
               </div>
+              {triedSubmit && errors.password && (
+                <p className="text-sm text-destructive">{errors.password}</p>
+              )}
             </div>
             <Button
               type="submit"
@@ -195,7 +229,11 @@ export default function Auth() {
               {isSignUp ? "Déjà un compte ?" : "Pas encore de compte ?"}
             </span>{" "}
             <button
-              onClick={() => setIsSignUp(!isSignUp)}
+              type="button"
+              onClick={() => {
+                setTriedSubmit(false);
+                setIsSignUp(!isSignUp);
+              }}
               className="text-primary font-medium hover:underline"
             >
               {isSignUp ? "Se connecter" : "S'inscrire"}

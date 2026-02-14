@@ -27,6 +27,7 @@
 |---|----------|-------------|
 | 04 | [User Stories & Parcours](./04_User_Stories_Parcours.md) | Epics, user stories (40+), parcours utilisateur, experience map, priorisation RICE |
 | 07 | [Roadmap Produit](./07_Roadmap_Produit.md) | 4 phases (Q1-Q4 2026), fonctionnalités détaillées, métriques de succès, timeline |
+| — | [Plan d'action Section Scénario](./Plan_Action_Developpement_Scénario.md) | Récapitulatif développement Scénario (phases A–G) + à prévoir (renommage d'assets dans les chapitres) |
 
 ### Architecture Technique
 
@@ -81,6 +82,7 @@ Produit/
 ├── 05_Business_Model_Canvas.md       ← Business model & revenus
 ├── 06_Analyse_Concurrentielle.md     ← Concurrence & SWOT
 ├── 07_Roadmap_Produit.md             ← Roadmap 4 phases (2026)
+├── Plan_Action_Developpement_Scénario.md  ← Section Scénario : réalisé + à prévoir (renommage assets)
 ├── 08_Modele_de_Donnees.md           ← Schéma BDD & Storage
 ├── 09_Specifications_API.md          ← Documentation API
 ├── 10_Securite_Infrastructure.md     ← Sécurité, infra & monitoring
@@ -100,4 +102,4 @@ Produit/
 
 ---
 
-*Dernière mise à jour : 14 février 2026*
+*Dernière mise à jour : 14 février 2026 (Section Scénario implémentée, doc Plan Scénario + Audit Phase 9)*

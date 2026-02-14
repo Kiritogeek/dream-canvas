@@ -43,6 +43,12 @@ interface AssetLibraryProps {
   generatingView: "profile_left" | "profile_right" | "back" | null;
   onCanGenerate: () => boolean;
   onGenerate: (asset: Asset, options?: { view?: "profile_left" | "profile_right" | "back" }) => void;
+  /** Nom pré-rempli venant du scénario */
+  pendingAssetName?: string;
+  /** Type pré-rempli venant du scénario */
+  pendingAssetType?: AssetType;
+  /** Callback une fois le pending consommé */
+  onPendingAssetConsumed?: () => void;
 }
 
 export function AssetLibrary({
@@ -53,6 +59,9 @@ export function AssetLibrary({
   generatingView,
   onCanGenerate,
   onGenerate,
+  pendingAssetName,
+  pendingAssetType,
+  onPendingAssetConsumed,
 }: AssetLibraryProps) {
   const { toast } = useToast();
   const createAssetMutation = useCreateAsset();
@@ -65,6 +74,18 @@ export function AssetLibrary({
   const [newAssetName, setNewAssetName] = useState("");
   const [newAssetPrompt, setNewAssetPrompt] = useState("");
   const [activeAssetTab, setActiveAssetTab] = useState<AssetType>("character");
+
+  // Ouvrir le dialog de création si un asset est demandé depuis le scénario
+  useEffect(() => {
+    if (pendingAssetName) {
+      setNewAssetName(pendingAssetName);
+      setNewAssetType(pendingAssetType || "character");
+      setActiveAssetTab(pendingAssetType || "character");
+      setNewAssetPrompt("");
+      setAssetDialogOpen(true);
+      onPendingAssetConsumed?.();
+    }
+  }, [pendingAssetName, pendingAssetType, onPendingAssetConsumed]);
 
   // Dialog vues personnage
   const [characterViewDialogOpen, setCharacterViewDialogOpen] = useState(false);

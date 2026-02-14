@@ -69,6 +69,25 @@
 
 **Visibilité UX** : l'**IA Scénario** doit être **visible et accessible dès que l'utilisateur entre dans la section Scénario** (onglet Scénario) ; l'**IA Chapitre** doit être **visible et accessible dès que l'utilisateur ouvre un chapitre de scénario créé**. Aucune étape supplémentaire pour accéder à ces aides.
 
+#### Implémenté (février 2026) ✅
+
+| Élément | Détail |
+|--------|--------|
+| **Onglet Scénario** | Onglet dédié dans la page projet (Style / Assets / Scénario). |
+| **Chapitres = scénario** | Table `scenario_chapters` (titre, contenu, ordre) ; pas de scénario monolithique. Création, réorganisation (drag & drop), suppression. |
+| **Versions** | Table `scenario_versions` pour flux accepter/rejeter. |
+| **IA Scénario** | Prompt → génération chapitre par chapitre (structure Lieu/Scène/Dialogue-Action). Sans champ « nombre de chapitres ». |
+| **IA Chapitre** | Par chapitre : prompt → réécriture → accepter/rejeter. |
+| **Diff visuel** | Ancienne vs nouvelle version : texte supprimé (rouge), ajouté (vert). Composant `TextDiff` + légende. |
+| **Détection assets** | Surbrillance des noms d’assets dans le texte (par type). **Hover** : image de l’asset (HoverCard responsive). **Clic** : popup agrandie (Dialog) avec image, nom, type. |
+| **Éléments non créés** | Détection noms mentionnés sans asset ; panneau « Personnages / éléments mentionnés non créés » ; surbrillance ambre. |
+| **Création depuis scénario** | Survol élément non créé ou **sélection de texte** → choix type (Personnage/Décor/Objet) → **navigation onglet Assets** avec dialog de création **pré-rempli** (nom + type), pas de création directe. |
+| **Précision détection** | Frontières de mots (pas « Jean » dans « Jean-Pierre », pas « ile » dans « silencieux »), stop-words (Acte, Merci, etc.). |
+
+Voir `Produit/Plan_Action_Developpement_Scénario.md` pour le détail des phases A à G.
+
+#### Tâches roadmap (à faire ou à prévoir)
+
 | Tâche | Description | Priorité | Effort |
 |-------|------------|----------|--------|
 | **Écrire / importer le scénario** | Zone dédiée : écriture ou import (.txt / copier-coller). | P0 | M |
@@ -81,6 +100,7 @@
 | **Découpage IA (optionnel)** | IA : scénario → chapitres, puis chapitre → panels (courtes descriptions). Structure uniquement ; scénario **jamais** dans les prompts d'image. | P0 | L |
 | **Détection des assets dans le scénario** | Repérer dans le texte les mentions d'assets déjà créés (personnages, décors, objets). **Surbrillance** dans l'éditeur (style par type). **Hover** : affichage de l'image de l'asset (tooltip / popover). | P0 | M |
 | **IA — Éléments non créés** | Détection (règles + LLM si besoin) des **éléments mentionnés dans le scénario** qui ne sont **pas encore** créés comme assets (personnages, décors, objets). Signalement dans le scénario (surbrillance « à créer » ou liste « Éléments mentionnés non créés ») pour inviter à créer les assets manquants. | P0 | L |
+| **À prévoir — Renommage d'assets** | Lors du **changement de nom d'un asset**, détecter toutes les occurrences de l'ancien nom dans le **contenu des chapitres** du projet et **proposer (ou appliquer) le remplacement** partout pour garder la cohérence scénario ↔ assets. Voir `Plan_Action_Developpement_Scénario.md` § 2. | P0 | M |
 
 **Note** : L'IA Panel (suggestions / réécriture des descriptions de panels, accepter-rejeter) est en **2.2.1**. Règle inchangée : réutilisation de cette IA (ou d’un agent dérivé) pour la **rédaction des prompts des panels** (suggestions de descriptions courtes à partir du scénario + assets), sans injecter le scénario brut dans le prompt d’image (règle inchangée : prompt = style + assets + description).
 

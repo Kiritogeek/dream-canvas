@@ -105,7 +105,7 @@ const STOP_WORDS = new Set([
   "entre", "vers", "chez", "comme", "si", "ne", "pas", "plus", "se",
   "est", "sont", "sera", "été", "être", "avoir", "fait", "font", "vont",
   "tout", "tous", "toute", "toutes", "très", "bien", "aussi", "alors",
-  "puis", "quand", "soudain", "pendant", "après", "avant", "depuis",
+  "puis", "quand", "soudain", "pendant", "après", "avant", "depuis", "enfin",
   "encore", "jamais", "toujours", "rien", "personne", "chaque", "autre",
   "même", "peu", "trop", "assez", "beaucoup", "comment", "pourquoi",
   "merci", "bonjour", "bonsoir", "oui", "non", "peut", "doit", "veut",
@@ -113,50 +113,91 @@ const STOP_WORDS = new Set([
   "jour", "nuit", "temps", "fois", "coup", "vie", "mort", "homme",
   "femme", "enfant", "monde", "porte", "maison", "rue", "terre",
   "eau", "air", "feu", "ciel", "iii", "ii", "iv",
+  // Verbes à l'impératif / formes qui ressemblent à des noms (dialogue)
+  "arrêtez", "donnez", "attends", "attend", "regarde", "écoute", "viens", "prenez", "allez", "taisez",
+  // Noms communs souvent en majuscule (début de phrase) — pas des personnages/décors/objets à créer
+  "ombre", "ombres", "lumière", "lumières", "silence", "vent", "bruit", "regard", "sourire",
+  "monsieur", "madame", "mademoiselle", "docteur", "professeur",
+  "un", "deux", "trois", "quatre", "cinq", "six", "sept", "huit", "neuf", "dix",
+  "onze", "douze", "treize", "quatorze", "quinze", "vingt", "trente", "cent", "mille",
 ]);
+
+// Seuil de répétition : un mot doit apparaître au moins autant de fois pour être proposé comme asset non créé
+const MIN_OCCURRENCES_FOR_MISSING_ASSET = 4;
+// Longueur minimale d'un mot pour être candidat (évite les résidus)
+const MIN_WORD_LENGTH = 3;
+
+// Regex : mots (lettres accentuées + noms composés avec tiret)
+const WORD_REGEX =
+  /\b([A-ZÀÁÂÃÄÉÈÊËÏÎÔÙÛÜŸÇa-zàáâãäéèêëïîôùûüÿçœæ]+(?:-[A-ZÀÁÂÃÄÉÈÊËÏÎÔÙÛÜŸÇa-zàáâãäéèêëïîôùûüÿçœæ]+)*)\b/g;
+
+function capitalizeForDisplay(lower: string): string {
+  return lower
+    .split("-")
+    .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
+    .join("-");
+}
+
+function capitalizeBigram(bigramLower: string): string {
+  return bigramLower
+    .split(" ")
+    .map((w) => capitalizeForDisplay(w))
+    .join(" ");
+}
 
 export function detectMissingNames(text: string, assets: Asset[]): string[] {
   const assetNames = new Set(assets.map((a) => a.name.trim().toLowerCase()));
   const candidates = new Set<string>();
 
-  const dialogueRegex =
-    /^\s*([A-ZÀÁÂÃÄÉÈÊËÏÎÔÙÛÜŸÇ][A-ZÀÁÂÃÄÉÈÊËÏÎÔÙÛÜŸÇa-zàáâãäéèêëïîôùûüÿç-]*(?:-[A-ZÀÁÂÃÄÉÈÊËÏÎÔÙÛÜŸÇa-zàáâãäéèêëïîôùûüÿç]+)*)\s*(?:\(|:)/gm;
+  // Liste ordonnée des mots (pour les bigrammes)
+  const words = [...text.matchAll(WORD_REGEX)].map((m) => m[1].toLowerCase());
 
-  for (const m of text.matchAll(dialogueRegex)) {
-    addCandidate(m[1], assetNames, candidates);
+  // Compter les occurrences de chaque mot (normalisé en minuscules)
+  const countByWord = new Map<string, number>();
+  for (const w of words) {
+    if (w.length < MIN_WORD_LENGTH) continue;
+    countByWord.set(w, (countByWord.get(w) ?? 0) + 1);
   }
 
-  const allCapsRegex =
-    /\b([A-ZÀÁÂÃÄÉÈÊËÏÎÔÙÛÜŸÇ]{2,}(?:-[A-ZÀÁÂÃÄÉÈÊËÏÎÔÙÛÜŸÇ]{2,})*)\b/g;
+  // Compter les bigrammes (deux mots consécutifs)
+  const countByBigram = new Map<string, number>();
+  for (let i = 0; i < words.length - 1; i++) {
+    const w1 = words[i];
+    const w2 = words[i + 1];
+    if (w1.length < 2 || w2.length < 2) continue;
+    const bigram = `${w1} ${w2}`;
+    countByBigram.set(bigram, (countByBigram.get(bigram) ?? 0) + 1);
+  }
 
-  for (const m of text.matchAll(allCapsRegex)) {
-    if (m[1].length >= 3) addCandidate(m[1], assetNames, candidates);
+  // Candidats bigrammes en premier (répétés >= seuil, pas deux stop-words, pas asset existant)
+  for (const [bigramLower, count] of countByBigram) {
+    if (count < MIN_OCCURRENCES_FOR_MISSING_ASSET) continue;
+    if (assetNames.has(bigramLower)) continue;
+    const [p1, p2] = bigramLower.split(" ");
+    if (STRUCTURAL.has(p1) || STRUCTURAL.has(p2)) continue;
+    if (STOP_WORDS.has(p1) && STOP_WORDS.has(p2)) continue;
+    candidates.add(capitalizeBigram(bigramLower));
+  }
+
+  // Candidats mots seuls (répétés >= seuil, hors stop-words / structure / assets existants)
+  for (const [wordLower, count] of countByWord) {
+    if (count < MIN_OCCURRENCES_FOR_MISSING_ASSET) continue;
+    if (assetNames.has(wordLower) || STRUCTURAL.has(wordLower) || STOP_WORDS.has(wordLower)) continue;
+    const parts = wordLower.split("-");
+    if (parts.every((p) => STOP_WORDS.has(p) || STRUCTURAL.has(p))) continue;
+    candidates.add(capitalizeForDisplay(wordLower));
+  }
+
+  // Retirer les mots seuls qui sont déjà couverts par un bigramme candidat (ex. "riche" quand on a "Homme riche")
+  for (const c of candidates) {
+    if (c.includes(" ")) {
+      for (const part of c.split(" ")) {
+        candidates.delete(part);
+      }
+    }
   }
 
   return [...candidates].sort();
-}
-
-function addCandidate(
-  raw: string,
-  assetNames: Set<string>,
-  candidates: Set<string>
-) {
-  const trimmed = raw.trim();
-  if (trimmed.length < 2) return;
-
-  const name = trimmed
-    .split("-")
-    .map((p) => p.charAt(0).toUpperCase() + p.slice(1).toLowerCase())
-    .join("-");
-
-  const lower = name.toLowerCase();
-  if (assetNames.has(lower) || STRUCTURAL.has(lower) || STOP_WORDS.has(lower)) {
-    return;
-  }
-  const parts = lower.split("-");
-  if (parts.every((p) => STOP_WORDS.has(p) || STRUCTURAL.has(p))) return;
-
-  candidates.add(name);
 }
 
 // ── Construction des fragments ────────────────────────────────

@@ -2,6 +2,10 @@
 // Pattern identique aux system-prompts image (buildPrompt + constantes)
 // Version Février 2026
 
+// Nombre de chapitres récents fournis dans le contexte (front envoie slice(-N))
+// ~2700 car/chapitre → garder le prompt raisonnable
+export const SCENARIO_RECENT_CHAPTERS_CONTEXT = 5;
+
 // ═══════════════════════════════════════════════════════════════
 // IA SCÉNARIO — Scénariste au service de l'UTILISATEUR (auteur)
 // ═══════════════════════════════════════════════════════════════
@@ -56,7 +60,12 @@ export const SCENARIO_SYSTEM_PROMPT =
   "CE QUE TU NE FAIS PAS :\n" +
   "- Tu ne génères PAS de prompts pour des images ou des illustrations.\n" +
   "- Tu ne donnes PAS de conseils d'écriture non sollicités.\n" +
-  "- Tu n'ajoutes PAS de contenu hors des instructions de l'utilisateur.";
+  "- Tu n'ajoutes PAS de contenu hors des instructions de l'utilisateur.\n\n" +
+
+  "CONTEXTE « SCÉNARIO EXISTANT » :\n" +
+  `Quand un bloc « SCÉNARIO EXISTANT » t'est fourni ci-dessous, il contient uniquement les **${SCENARIO_RECENT_CHAPTERS_CONTEXT} chapitres les plus récents** (contexte limité pour rester sous une taille raisonnable). ` +
+  "Utilise-les pour maintenir la cohérence (personnages, lieux, intrigue) et enchaîner naturellement avec le **prochain chapitre** que tu dois générer. " +
+  "Tu ne reçois pas tout l'historique du projet, seulement le contexte récent.";
 
 // ── Build du prompt utilisateur complet ───────────────────────
 
@@ -74,9 +83,9 @@ export const buildScenarioPrompt = (
     prompt += `CONTEXTE DU PROJET :\n${opts.projectDescription.trim()}\n\n`;
   }
 
-  // Scénario existant (pour modifications / prolongement)
+  // Scénario existant : chapitres les plus récents uniquement (limite taille prompt)
   if (opts?.existingContent?.trim()) {
-    prompt += `SCÉNARIO EXISTANT (à prendre en compte impérativement) :\n\n${opts.existingContent.trim()}\n\n`;
+    prompt += `SCÉNARIO EXISTANT (chapitres les plus récents — contexte pour enchaîner) :\n\n${opts.existingContent.trim()}\n\n`;
   }
 
   // Instruction de l'auteur (toujours en dernier = priorité maximale)

@@ -61,6 +61,9 @@ interface ScenarioSectionProps {
   onNavigateToCreateAsset?: (name: string, type: AssetType) => void;
 }
 
+// Nombre de chapitres les plus récents envoyés à l'IA scénario (~2700 car/chapitre)
+const SCENARIO_RECENT_CHAPTERS_FOR_IA = 5;
+
 // ── Exemple « Chapitre Type » (en dur) ────────────────────────
 
 const CHAPITRE_TYPE_EXEMPLE = `### Chapitre 1 : La routine de Sami
@@ -159,47 +162,18 @@ Dialogue - Action :
     Ils trinquent avec une bière tiède et un verre de jus de pomme douteux, assis par terre, le documentaire muet continuant de défiler devant eux. Pour la première fois depuis des semaines, le silence entre eux n'est pas lourd — il est léger.`;
 
 
-// ── Utilitaire : parser les chapitres depuis le texte IA ──────
+// ── Utilitaire : un prompt IA Scénario = un chapitre ───────────
+// À l'acceptation, le texte généré devient le contenu d'un seul chapitre.
 
-function parseChaptersFromAI(
+function createOneChapterFromAIResult(
   text: string,
-  existingCount: number
-): { number: number; title: string; content: string }[] {
-  // L'IA retourne un texte avec des headers "### Chapitre N : Titre"
-  const chapterRegex =
-    /###\s*Chapitre\s+(\d+)\s*[:：]\s*(.+)/gi;
-
-  const chapters: { number: number; title: string; content: string }[] = [];
-  const matches = [...text.matchAll(chapterRegex)];
-
-  if (matches.length === 0) {
-    // Pas de structure détectée → un seul chapitre avec tout le texte
-    return [
-      {
-        number: existingCount + 1,
-        title: `Chapitre ${existingCount + 1}`,
-        content: text.trim(),
-      },
-    ];
-  }
-
-  for (let i = 0; i < matches.length; i++) {
-    const match = matches[i];
-    const nextMatch = matches[i + 1];
-
-    const title = match[2].trim();
-    const startIdx = match.index! + match[0].length;
-    const endIdx = nextMatch ? nextMatch.index! : text.length;
-    const content = text.slice(startIdx, endIdx).trim();
-
-    chapters.push({
-      number: existingCount + i + 1,
-      title,
-      content,
-    });
-  }
-
-  return chapters;
+  nextChapterNumber: number
+): { number: number; title: string; content: string } {
+  return {
+    number: nextChapterNumber,
+    title: `Chapitre ${nextChapterNumber}`,
+    content: text.trim(),
+  };
 }
 
 // ── Composant principal ───────────────────────────────────────
@@ -361,26 +335,40 @@ export function ScenarioSection({ projectId, project, onNavigateToCreateAsset }:
     <div className="space-y-3 sm:space-y-4">
       {/* ── Bloc IA Scénario (visible dès l'entrée) ──────────── */}
       <div className="glass rounded-lg sm:rounded-xl p-4 sm:p-6 space-y-3 sm:space-y-4">
-        <div className="flex items-center gap-2 mb-1 sm:mb-2">
-          <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
-          <h2 className="text-base sm:text-lg font-display font-semibold">
-            IA Scénario
-          </h2>
-          <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-medium">
-            Scénariste
-          </span>
+        <div className="flex items-center justify-between gap-2 mb-1 sm:mb-2 flex-wrap">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+            <h2 className="text-base sm:text-lg font-display font-semibold">
+              IA Scénario
+            </h2>
+            <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-medium">
+              Scénariste
+            </span>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => fileInputRef.current?.click()}
+            className="gap-1.5"
+          >
+            <FileUp className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Importer .txt</span>
+          </Button>
         </div>
 
         <p className="text-sm sm:text-base text-muted-foreground">
-          Votre scénariste IA au service de <strong>votre vision</strong>.
-          Décrivez votre histoire et laissez l'IA la créer ou la faire avancer.
+          Votre scénariste IA au service de <strong>votre vision</strong>. Il
+          crée votre histoire <strong>chapitre par chapitre</strong> : chaque
+          prompt génère <strong>un chapitre</strong>. Décrivez votre histoire
+          (ou la suite que vous voulez) et laissez l'IA la créer ou la faire
+          avancer.
         </p>
 
         {/* Prompt utilisateur */}
         <Textarea
           value={aiPrompt}
           onChange={(e) => setAiPrompt(e.target.value)}
-          placeholder="Décrivez votre histoire : genre, personnages, univers, intrigue… L'IA créera un scénario complet selon vos indications."
+          placeholder="Décrivez ce chapitre : lieu, personnages, situation, dialogues… Un prompt = un chapitre généré."
           rows={4}
           className="text-base"
         />
@@ -397,10 +385,11 @@ export function ScenarioSection({ projectId, project, onNavigateToCreateAsset }:
               });
               return;
             }
-            // Construire existing_content à partir des chapitres existants
+            // Contexte limité aux N derniers chapitres pour ne pas surcharger le prompt IA
+            const recentChapters = chapters.slice(-SCENARIO_RECENT_CHAPTERS_FOR_IA);
             const existingContent =
-              chapters.length > 0
-                ? chapters
+              recentChapters.length > 0
+                ? recentChapters
                     .map(
                       (c) =>
                         `### Chapitre ${c.chapter_number} : ${c.title}\n\n${c.content ?? "(vide)"}`
@@ -441,71 +430,54 @@ export function ScenarioSection({ projectId, project, onNavigateToCreateAsset }:
             <>
               <Sparkles className="h-4 w-4" />
               {chapters.length > 0
-                ? "Modifier le scénario avec l'IA"
-                : "Générer l'histoire"}
+                ? "Générer le prochain chapitre"
+                : "Générer le premier chapitre"}
             </>
           )}
         </Button>
 
-        {/* Résultat IA — comparaison diff & accepter/rejeter */}
+        {/* Résultat IA Scénario — texte proposé (pas de diff supprimé/ajouté) */}
         {aiResult && (
           <div className="space-y-3 rounded-xl border border-primary/20 bg-primary/5 p-4">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-primary" />
-                <h3 className="text-base font-semibold">
-                  Proposition de l'IA Scénario
-                </h3>
-              </div>
-              <TextDiffLegend />
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-primary" />
+              <h3 className="text-base font-semibold">
+                Proposition de l'IA Scénario
+              </h3>
             </div>
-            <div className="max-h-80 overflow-y-auto rounded-lg bg-background/80 p-4 border border-border/50">
-              <TextDiff
-                oldText={
-                  chapters.length > 0
-                    ? chapters
-                        .map(
-                          (c) =>
-                            `### Chapitre ${c.chapter_number} : ${c.title}\n\n${c.content ?? "(vide)"}`
-                        )
-                        .join("\n\n")
-                    : ""
-                }
-                newText={aiResult}
-              />
+            <div className="max-h-80 overflow-y-auto rounded-lg bg-background/80 p-4 border border-border/50 text-base leading-relaxed whitespace-pre-wrap">
+              {aiResult}
             </div>
             <div className="flex items-center gap-2">
               <Button
                 size="sm"
                 onClick={() => {
-                  // Parser le résultat en chapitres et les créer
-                  const parsed = parseChaptersFromAI(
+                  // Un prompt = un chapitre : le texte généré devient un seul chapitre
+                  const ch = createOneChapterFromAIResult(
                     aiResult,
-                    chapters.length
+                    chapters.length + 1
                   );
-                  let created = 0;
-                  for (const ch of parsed) {
-                    createChapter.mutate(
-                      {
-                        project_id: projectId,
-                        title: ch.title,
-                        chapter_number: ch.number,
-                        content: ch.content,
+                  createChapter.mutate(
+                    {
+                      project_id: projectId,
+                      title: ch.title,
+                      chapter_number: ch.number,
+                      content: ch.content,
+                    },
+                    {
+                      onSuccess: () => {
+                        toast({ title: "Chapitre créé" });
+                        setAiResult(null);
+                        setAiPrompt("");
                       },
-                      {
-                        onSuccess: () => {
-                          created++;
-                          if (created === parsed.length) {
-                            toast({
-                              title: `${created} chapitre${created > 1 ? "s" : ""} créé${created > 1 ? "s" : ""}`,
-                            });
-                          }
-                        },
-                      }
-                    );
-                  }
-                  setAiResult(null);
-                  setAiPrompt("");
+                      onError: (err) =>
+                        toast({
+                          title: "Erreur",
+                          description: err.message,
+                          variant: "destructive",
+                        }),
+                    }
+                  );
                 }}
                 className="gap-1.5 gradient-primary text-primary-foreground"
               >
@@ -553,15 +525,6 @@ export function ScenarioSection({ projectId, project, onNavigateToCreateAsset }:
               <span className="hidden sm:inline">Chapitre Type</span>
             </Button>
             <Button
-              variant="outline"
-              size="sm"
-              onClick={() => fileInputRef.current?.click()}
-              className="gap-1.5"
-            >
-              <FileUp className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Importer .txt</span>
-            </Button>
-            <Button
               size="sm"
               onClick={() => handleCreateChapter()}
               disabled={createChapter.isPending}
@@ -607,20 +570,11 @@ export function ScenarioSection({ projectId, project, onNavigateToCreateAsset }:
                 Aucun chapitre pour le moment
               </p>
               <p className="text-sm text-muted-foreground max-w-sm">
-                Créez votre premier chapitre ou importez un fichier .txt pour
-                commencer votre histoire.
+                Créez votre premier chapitre ou utilisez l'IA Scénario (avec
+                Importer .txt si besoin) pour commencer votre histoire.
               </p>
             </div>
             <div className="flex gap-2 mt-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => fileInputRef.current?.click()}
-                className="gap-1.5"
-              >
-                <FileUp className="h-3.5 w-3.5" />
-                Importer un .txt
-              </Button>
               <Button
                 size="sm"
                 onClick={() => handleCreateChapter()}

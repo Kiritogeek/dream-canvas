@@ -24,14 +24,14 @@
 - Titres et numéros de chapitres.
 
 ### Phase E — IA Scénario et IA Chapitre
-- **IA Scénario** : prompt utilisateur → génération de l’histoire chapitre par chapitre (sans champ « nombre de chapitres » ; structure Lieu / Scène / Dialogue-Action dans les system prompts).
+- **IA Scénario** : scénariste au service de la vision de l’auteur. **Un prompt = un chapitre** généré (structure Lieu / Scène / Dialogue-Action). L’utilisateur construit son histoire chapitre par chapitre ; accepter crée un chapitre avec le texte proposé. Pas de sélection du nombre de chapitres.
 - **IA Chapitre** : sur chaque chapitre, prompt → réécriture du chapitre uniquement.
 - Edge Function `generate-scenario-ai` (Groq / Llama 3.3 70B), system prompts dédiés (`scenario.ts`, `chapter.ts`).
 - Gestion de session (refresh token) et erreurs 401 côté client.
 
 ### Phase F — Diff visuel (accepter / rejeter)
-- Comparaison **ancienne vs nouvelle** version (mot à mot) : texte supprimé (fond rouge), texte ajouté (fond vert), selon la charte graphique.
-- Composant `TextDiff` + `TextDiffLegend`. Appliqué aux résultats IA Scénario et IA Chapitre.
+- **IA Chapitre** : comparaison ancienne vs nouvelle version (mot à mot) avec texte supprimé (fond rouge), texte ajouté (fond vert), selon la charte graphique. Composant `TextDiff` + `TextDiffLegend`.
+- **IA Scénario (scénariste)** : pas de notion de supprimé/ajouté ; la proposition est affichée en **texte simple**. L'utilisateur accepte ou rejette le chapitre proposé tel quel.
 
 ### Phase G — Détection d’assets et création depuis le scénario
 - **Assets détectés** : surbrillance des noms d’assets présents dans le texte (par type : personnage / décor / objet). **Hover** : image de l’asset (HoverCard, image responsive, ne débordant pas). **Clic** : popup (Dialog) avec les mêmes infos en grand pour une meilleure visualisation.

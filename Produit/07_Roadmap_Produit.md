@@ -61,7 +61,7 @@
 
 ## Phase 2 : Panels & Dialogues (Q2 2026) — 🔜 NEXT
 
-> **Objectif** : (1) **Section Scénario** : écriture avec IA (génération complète, nombre de chapitres, accepter/rejeter). (2) **Édition de l'œuvre** : chapitres visuels et panels (**deux flux** (Automatique et Structuré). Les images générées sont toujours des **illustrations pleines** ; elles sont affichées dans les panels ou dans des blocs (conteneurs de mise en page), sans « cases » dessinées dans l’image. Voir `11_Rapport_Chapitres_Flux_Blocs_Scenario.md`. **Règle impérative** : la génération doit s'appuyer sur les **assets sélectionnés par l'utilisateur** (chapitre en mode Auto, par bloc en mode Structuré) pour cadrer la scène et que l'IA comprenne les éléments à mettre dans le chapitre.
+> **Objectif** : (1) **Section Scénario** : écriture avec IA (un prompt = un chapitre généré, accepter/rejeter). (2) **Édition de l'œuvre** : chapitres visuels et panels (**deux flux** (Automatique et Structuré). Les images générées sont toujours des **illustrations pleines** ; elles sont affichées dans les panels ou dans des blocs (conteneurs de mise en page), sans « cases » dessinées dans l’image. Voir `11_Rapport_Chapitres_Flux_Blocs_Scenario.md`. **Règle impérative** : la génération doit s'appuyer sur les **assets sélectionnés par l'utilisateur** (chapitre en mode Auto, par bloc en mode Structuré) pour cadrer la scène et que l'IA comprenne les éléments à mettre dans le chapitre.
 
 ### 2.1 Section Scénario (texte narratif — uniquement scénario)
 
@@ -76,9 +76,9 @@
 | **Onglet Scénario** | Onglet dédié dans la page projet (Style / Assets / Scénario). |
 | **Chapitres = scénario** | Table `scenario_chapters` (titre, contenu, ordre) ; pas de scénario monolithique. Création, réorganisation (drag & drop), suppression. |
 | **Versions** | Table `scenario_versions` pour flux accepter/rejeter. |
-| **IA Scénario** | Prompt → génération chapitre par chapitre (structure Lieu/Scène/Dialogue-Action). Sans champ « nombre de chapitres ». |
+| **IA Scénario** | Scénariste au service de la vision de l’auteur. **Un prompt = un chapitre** généré. L’utilisateur construit son histoire chapitre par chapitre ; accepter crée un chapitre avec le texte proposé. |
 | **IA Chapitre** | Par chapitre : prompt → réécriture → accepter/rejeter. |
-| **Diff visuel** | Ancienne vs nouvelle version : texte supprimé (rouge), ajouté (vert). Composant `TextDiff` + légende. |
+| **Diff visuel** | **IA Chapitre uniquement** : ancienne vs nouvelle version (texte supprimé en rouge, ajouté en vert). **IA Scénario** : pas de diff — texte proposé affiché tel quel, accepter ou rejeter. |
 | **Détection assets** | Surbrillance des noms d’assets dans le texte (par type). **Hover** : image de l’asset (HoverCard responsive). **Clic** : popup agrandie (Dialog) avec image, nom, type. |
 | **Éléments non créés** | Détection noms mentionnés sans asset ; panneau « Personnages / éléments mentionnés non créés » ; surbrillance ambre. |
 | **Création depuis scénario** | Survol élément non créé ou **sélection de texte** → choix type (Personnage/Décor/Objet) → **navigation onglet Assets** avec dialog de création **pré-rempli** (nom + type), pas de création directe. |
@@ -91,7 +91,7 @@ Voir `Produit/Plan_Action_Developpement_Scénario.md` pour le détail des phases
 | Tâche | Description | Priorité | Effort |
 |-------|------------|----------|--------|
 | **Écrire / importer le scénario** | Zone dédiée : écriture ou import (.txt / copier-coller). | P0 | M |
-| **Choix du nombre de chapitres + IA Scénario** | Demander **en combien de chapitres** l'utilisateur veut son histoire (ex. 50). Prompt → **IA Scénario** génère **toute l'histoire** chapitre par chapitre **directement sur le site**. | P0 | L |
+| **IA Scénario (un chapitre par prompt)** | Chaque prompt → l’IA génère **un chapitre** ; l’utilisateur accepte ou rejette. Pas de sélection du nombre de chapitres : l’histoire se construit chapitre par chapitre. | P0 | L |
 | **Modification par prompt (scénario entier)** | Nouveau prompt pour modifier l'histoire → IA **réécrit** directement sur le site. **Comparaison** ancienne vs nouvelle. **Accepter** (garder nouvelle) ou **Rejeter** (revenir à l'ancienne). | P0 | L |
 | **IA Chapitre (par chapitre)** | Sur **chaque chapitre**, IA qui **n'intervient que sur ce chapitre**. Prompt de modification → réécriture du chapitre → **accepter / rejeter**. | P0 | L |
 | **Chapitres (scénario = webtoon)** | Les chapitres créés dans la section Scénario **correspondent** aux chapitres webtoon (1 chapitre écrit = 1 chapitre webtoon). Création / découpage (titres, ordre). | P0 | M |

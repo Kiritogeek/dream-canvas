@@ -107,7 +107,7 @@ async function callGroq(
           { role: "user", content: userPrompt },
         ],
         temperature: 0.8,
-        max_tokens: 8000,
+        max_tokens: 16384,
         top_p: 0.9,
       }),
       signal: controller.signal,
@@ -197,6 +197,7 @@ Deno.serve(async (req) => {
     let body: {
       mode?: "scenario" | "chapter";
       prompt?: string;
+      num_chapters?: number;
       existing_content?: string;
       project_description?: string;
       chapter_title?: string;

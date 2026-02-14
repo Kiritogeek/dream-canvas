@@ -217,10 +217,15 @@ export function AssetLibrary({
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      <div className="flex items-center justify-between gap-2">
-        <h2 className="text-base sm:text-lg font-display font-semibold">
-          {libraryTitle}
-        </h2>
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div>
+          <h2 className="text-base sm:text-lg font-display font-semibold">
+            {libraryTitle}
+          </h2>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Utile surtout pour les éléments récurrents de votre scénario.
+          </p>
+        </div>
         <Dialog open={assetDialogOpen} onOpenChange={setAssetDialogOpen}>
           <Button
             size="sm"

@@ -97,23 +97,23 @@ export default function Auth() {
         animate={{ opacity: 1, y: 0 }}
         className="w-full max-w-md"
       >
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center gap-2 mb-6">
+        <div className="text-center mb-6 sm:mb-8">
+          <div className="inline-flex items-center gap-2 mb-4 sm:mb-6">
             <ThemeToggle />
             <Link to="/" className="inline-flex items-center gap-2">
-              <Sparkles className="h-8 w-8 text-primary" />
-              <span className="font-display text-2xl font-bold text-gradient">DreamWeave</span>
+              <Sparkles className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
+              <span className="font-display text-xl sm:text-2xl font-bold text-gradient">DreamWeave</span>
             </Link>
           </div>
-          <h1 className="text-2xl font-display font-bold">
+          <h1 className="text-xl sm:text-2xl font-display font-bold">
             {isSignUp ? "Créer un compte" : "Bon retour !"}
           </h1>
-          <p className="text-muted-foreground mt-1">
+          <p className="text-sm sm:text-base text-muted-foreground mt-1">
             {isSignUp ? "Commencez à créer vos webtoons" : "Connectez-vous pour continuer"}
           </p>
         </div>
 
-        <div className="glass rounded-2xl p-8 shadow-dream">
+        <div className="glass rounded-xl sm:rounded-2xl p-5 sm:p-8 shadow-dream">
           <form onSubmit={handleSubmit} className="space-y-4">
             {isSignUp && (
               <div className="space-y-2">

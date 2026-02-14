@@ -32,50 +32,54 @@ export default function Landing() {
     <div className="min-h-screen gradient-dream">
       {/* Nav */}
       <nav className="fixed top-0 inset-x-0 z-50 glass">
-        <div className="container flex h-16 items-center justify-between">
-          <div className="flex items-center gap-2">
+        <div className="container px-4 sm:px-6 lg:px-8 flex h-14 sm:h-16 items-center justify-between">
+          <div className="flex items-center gap-1.5 sm:gap-2">
             <ThemeToggle />
-            <Link to="/" className="flex items-center gap-2">
-              <Sparkles className="h-6 w-6 text-primary" />
-              <span className="font-display text-xl font-bold text-gradient">
+            <Link to="/" className="flex items-center gap-1.5 sm:gap-2">
+              <Sparkles className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
+              <span className="font-display text-lg sm:text-xl font-bold text-gradient">
                 DreamWeave
               </span>
             </Link>
           </div>
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" asChild>
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Button variant="ghost" asChild size="sm" className="text-xs sm:text-sm">
               <Link to="/auth">Connexion</Link>
             </Button>
             <Button
               asChild
-              className="gradient-primary text-primary-foreground shadow-dream"
+              size="sm"
+              className="gradient-primary text-primary-foreground shadow-dream text-xs sm:text-sm"
             >
-              <Link to="/auth?tab=signup">Commencer gratuitement</Link>
+              <Link to="/auth?tab=signup">
+                <span className="hidden sm:inline">Commencer gratuitement</span>
+                <span className="sm:hidden">S'inscrire</span>
+              </Link>
             </Button>
           </div>
         </div>
       </nav>
 
       {/* Hero */}
-      <section className="relative pt-32 pb-20 overflow-hidden">
-        <div className="container relative z-10">
+      <section className="relative pt-24 sm:pt-32 pb-12 sm:pb-20 overflow-hidden">
+        <div className="container px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="max-w-3xl mx-auto text-center">
             <motion.div
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.7 }}
-              className="space-y-6"
+              className="space-y-4 sm:space-y-6"
             >
-              <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-4 py-1.5 text-sm font-medium text-primary">
-                <Sparkles className="h-4 w-4" />
+              <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium text-primary">
+                <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 Créez sans savoir dessiner
               </div>
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-display font-bold leading-tight">
+              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-display font-bold leading-tight">
                 Tissez vos{" "}
                 <span className="text-gradient">rêves</span> en
                 webtoons
               </h1>
-              <p className="text-lg text-muted-foreground max-w-lg mx-auto">
+              <p className="text-base sm:text-lg text-muted-foreground max-w-lg mx-auto px-2">
                 DreamWeave transforme vos idées en magnifiques webtoons
                 verticaux grâce à l'intelligence artificielle. Aucun talent
                 artistique requis.
@@ -84,10 +88,10 @@ export default function Landing() {
                 <Button
                   size="lg"
                   asChild
-                  className="gradient-primary text-primary-foreground shadow-dream text-base px-8"
+                  className="gradient-primary text-primary-foreground shadow-dream text-sm sm:text-base px-6 sm:px-8"
                 >
                   <Link to="/auth?tab=signup">
-                    <Wand2 className="mr-2 h-5 w-5" />
+                    <Wand2 className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
                     Créer mon webtoon
                   </Link>
                 </Button>
@@ -98,22 +102,22 @@ export default function Landing() {
       </section>
 
       {/* Features */}
-      <section className="py-20">
-        <div className="container">
+      <section className="py-12 sm:py-20">
+        <div className="container px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="text-center mb-16"
+            className="text-center mb-10 sm:mb-16"
           >
-            <h2 className="text-3xl md:text-4xl font-display font-bold mb-4">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-display font-bold mb-3 sm:mb-4">
               Tout ce qu'il faut pour créer
             </h2>
-            <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+            <p className="text-muted-foreground text-base sm:text-lg max-w-2xl mx-auto px-2">
               Des outils simples et puissants pour donner vie à vos histoires
             </p>
           </motion.div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
             {features.map((f, i) => (
               <motion.div
                 key={f.title}
@@ -121,12 +125,12 @@ export default function Landing() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1 }}
-                className="glass rounded-2xl p-6 hover:shadow-dream transition-shadow duration-300"
+                className="glass rounded-2xl p-5 sm:p-6 hover:shadow-dream transition-shadow duration-300"
               >
-                <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
-                  <f.icon className="h-6 w-6 text-primary" />
+                <div className="mb-3 sm:mb-4 inline-flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-xl bg-primary/10">
+                  <f.icon className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
                 </div>
-                <h3 className="font-display font-semibold text-lg mb-2">
+                <h3 className="font-display font-semibold text-base sm:text-lg mb-1.5 sm:mb-2">
                   {f.title}
                 </h3>
                 <p className="text-muted-foreground text-sm">{f.desc}</p>
@@ -137,15 +141,15 @@ export default function Landing() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-border/50 py-8">
-        <div className="container flex items-center justify-between">
+      <footer className="border-t border-border/50 py-6 sm:py-8">
+        <div className="container px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-primary" />
             <span className="font-display font-bold text-gradient">
               DreamWeave
             </span>
           </div>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-xs sm:text-sm text-muted-foreground">
             © 2026 DreamWeave. Tous droits réservés.
           </p>
         </div>

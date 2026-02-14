@@ -107,16 +107,16 @@ export function StyleManager({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3 sm:space-y-4">
       {/* Template de style (texte) */}
-      <div className="glass rounded-xl p-6 space-y-4">
-        <div className="flex items-center gap-2 mb-2">
-          <Palette className="h-5 w-5 text-primary" />
-          <h2 className="text-lg font-display font-semibold">
+      <div className="glass rounded-lg sm:rounded-xl p-4 sm:p-6 space-y-3 sm:space-y-4">
+        <div className="flex items-center gap-2 mb-1 sm:mb-2">
+          <Palette className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+          <h2 className="text-base sm:text-lg font-display font-semibold">
             Template de style
           </h2>
         </div>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-xs sm:text-sm text-muted-foreground">
           Définissez un style visuel texte qui sera appliqué à toutes vos
           générations. Combinez-le avec des images pour un rendu encore plus
           précis.
@@ -143,11 +143,11 @@ export function StyleManager({
       </div>
 
       {/* Images de référence */}
-      <div className="glass rounded-xl p-6 space-y-4">
-        <div className="flex items-center justify-between gap-2 mb-2">
+      <div className="glass rounded-lg sm:rounded-xl p-4 sm:p-6 space-y-3 sm:space-y-4">
+        <div className="flex items-center justify-between gap-2 mb-1 sm:mb-2">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <h2 className="text-lg font-display font-semibold">
+              <h2 className="text-base sm:text-lg font-display font-semibold">
                 Images de référence
               </h2>
               {userPlan === "pro" && (

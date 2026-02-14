@@ -72,19 +72,38 @@
 
 | ID | User Story | Critères d'acceptation | Statut |
 |----|-----------|----------------------|--------|
-| US-6.1 | En tant qu'utilisateur, je veux créer un chapitre | - Titre + synopsis<br>- Numérotation automatique<br>- Ajout au projet | ✅ Fait |
+| US-6.1 | En tant qu'utilisateur, je veux créer un chapitre | - Titre + synopsis (+ scénario optionnel)<br>- Choix du mode : Automatique ou Structuré<br>- Numérotation automatique<br>- Ajout au projet | ✅ Fait (scénario + mode à ajouter) |
 | US-6.2 | En tant qu'utilisateur, je veux voir la liste des chapitres | - Liste ordonnée par numéro<br>- Titre et synopsis visibles<br>- Lien vers le détail | ✅ Fait |
 | US-6.3 | En tant qu'utilisateur, je veux supprimer un chapitre | - Confirmation<br>- Suppression en cascade (panels)<br>- Mise à jour de la liste | ✅ Fait |
+| US-6.4 | En tant qu'utilisateur, je veux écrire mon histoire dans une section « Scénario » | - Section dédiée (projet ou chapitre)<br>- IA découpe scénario → chapitres, puis chapitre → panels (structure uniquement)<br>- **Scénario jamais utilisé dans le prompt de génération d'image** ; en mode Structuré : référence pour remplir les blocs | 🔜 Planifié |
 
 ### E7 — Panels (à implémenter)
 
+**Principe** : les images générées sont des **illustrations pleines** (pas de cases dessinées dans l’image) ; en mode Structuré, elles sont affichées **dans** des blocs (conteneurs de mise en page). Voir `11_Rapport_Chapitres_Flux_Blocs_Scenario.md`.
+
+#### Mode Automatique
+
 | ID | User Story | Critères d'acceptation | Statut |
 |----|-----------|----------------------|--------|
-| US-7.1 | En tant qu'utilisateur, je veux générer automatiquement les panels d'un chapitre | - 10-20 panels générés à partir du synopsis<br>- Utilisation des assets existants<br>- Format 800×1200px | 🔜 Planifié |
-| US-7.2 | En tant qu'utilisateur, je veux modifier le prompt d'un panel | - Édition inline<br>- Régénération avec le nouveau prompt | 🔜 Planifié |
-| US-7.3 | En tant qu'utilisateur, je veux régénérer un panel individuellement | - Bouton régénérer sur chaque panel<br>- Nouvelle image, même prompt | 🔜 Planifié |
+| US-7.1 | En tant qu'utilisateur, je veux générer les panels (mode Automatique) | - **Sélection des assets du chapitre (impérative)** : personnages, décors, objets<br>- **Génération panel par panel** (minimum) : impossible de générer tout le chapitre d'un coup (limites API/erreurs)<br>- Prompt d'image = **style + assets sélectionnés + courte description du panel** (pas le scénario/synopsis)<br>- 1 **image pleine** par panel | 🔜 Planifié |
+| US-7.2 | En tant qu'utilisateur, je veux modifier le prompt d'un panel | - Édition inline<br>- Régénération → nouvelle image pleine | 🔜 Planifié |
+| US-7.3 | En tant qu'utilisateur, je veux régénérer un panel individuellement | - Bouton régénérer sur chaque panel<br>- Nouvelle image pleine | 🔜 Planifié |
 | US-7.4 | En tant qu'utilisateur, je veux réorganiser l'ordre des panels | - Drag & drop<br>- Mise à jour des numéros | 🔜 Planifié |
-| US-7.5 | En tant qu'utilisateur, je veux lire mon chapitre en défilement vertical | - Affichage vertical continu<br>- Format natif webtoon<br>- Navigation fluide | 🔜 Planifié |
+
+#### Mode Structuré (blocs)
+
+| ID | User Story | Critères d'acceptation | Statut |
+|----|-----------|----------------------|--------|
+| US-7.5 | En tant qu'utilisateur, je veux définir la structure du chapitre avec des blocs | - Création de panels puis de **blocs** (rectangles : position, largeur, hauteur)<br>- Aucune image générée à ce stade | 🔜 Planifié |
+| US-7.6 | En tant qu'utilisateur, je veux remplir chaque bloc (description + assets) | - Champ texte (prompt) par bloc<br>- Sélection d’assets (personnages, décors, objets) par bloc **(impérative** : cadre la génération, l'IA comprend les éléments à mettre dans l'image)<br>- Les refs sont injectées dans le prompt à la génération | 🔜 Planifié |
+| US-7.7 | En tant qu'utilisateur, je veux générer une image pleine par bloc | - Génération à partir du prompt et des **assets sélectionnés** pour ce bloc<br>- 1 image pleine par bloc (pas de cases dans l’image)<br>- L’image est affichée **dans** le bloc<br>- Régénération possible par bloc | 🔜 Planifié |
+| US-7.8 | En tant qu'utilisateur, je veux réorganiser les blocs (drag & drop, redimensionnement) | - Ordre et taille modifiables<br>- Mise à jour du layout | 🔜 Planifié |
+
+#### Lecture
+
+| ID | User Story | Critères d'acceptation | Statut |
+|----|-----------|----------------------|--------|
+| US-7.9 | En tant qu'utilisateur, je veux lire mon chapitre en défilement vertical | - Affichage vertical continu<br>- Images pleines dans les panels/blocs<br>- Format natif webtoon | 🔜 Planifié |
 
 ### E8 — Dialogues (à implémenter)
 

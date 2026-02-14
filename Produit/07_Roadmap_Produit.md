@@ -61,22 +61,32 @@
 
 ## Phase 2 : Panels & Dialogues (Q2 2026) — 🔜 NEXT
 
-> **Objectif** : Permettre la création complète d'un chapitre de webtoon avec panels générés par IA et dialogues.
+> **Objectif** : Permettre la création complète d'un chapitre avec **deux flux** (Automatique et Structuré). Les images générées sont toujours des **illustrations pleines** ; elles sont affichées dans les panels ou dans des blocs (conteneurs de mise en page), sans « cases » dessinées dans l’image. Voir `11_Rapport_Chapitres_Flux_Blocs_Scenario.md`. **Règle impérative** : la génération doit s'appuyer sur les **assets sélectionnés par l'utilisateur** (chapitre en mode Auto, par bloc en mode Structuré) pour cadrer la scène et que l'IA comprenne les éléments à mettre dans le chapitre.
 
-### 2.1 Génération automatique de panels
+### 2.1 Mode Automatique (flux rapide)
 
 | Tâche | Description | Priorité | Effort |
 |-------|------------|----------|--------|
-| **Architecture prompt panels** | Système de prompts pour générer des panels cohérents | P0 | L |
-| **Découpage automatique du synopsis** | IA qui divise le synopsis en 10-20 scènes/panels | P0 | L |
-| **Intégration des assets dans les panels** | Référencer les personnages/décors existants dans les prompts | P0 | M |
-| **Format 800×1200** | Génération en format vertical webtoon | P0 | S |
-| **Régénération individuelle** | Régénérer un seul panel | P0 | S |
-| **Édition du prompt d'un panel** | Modifier la description avant régénération | P1 | S |
-| **Réorganisation drag & drop** | Changer l'ordre des panels | P1 | M |
-| **Ajout/suppression de panels** | Insérer ou retirer des panels manuellement | P1 | S |
+| **Section Scénario** | Zone dédiée pour écrire l'histoire ; IA découpe scénario → chapitres → panels. Scénario non utilisé dans les prompts d'image. | P0 | M |
+| **Découpage automatique** | IA : scénario/synopsis → liste de panels (courtes descriptions). Découpage uniquement, pas dans le prompt d'image. | P0 | L |
+| **Génération panel par panel** | Génération au minimum un panel à la fois (pas tout le chapitre d'un coup : limites API, timeouts). | P0 | M |
+| **Architecture prompt panels** | Prompt par panel = style + **assets sélectionnés** + **courte description du panel** (pas le scénario/synopsis). Génération d’**images pleines** | P0 | L |
+| **Sélection des assets par l'utilisateur** | En mode Auto : sélection des assets du chapitre avant génération. **Impératif** : cadrer la scène, faire comprendre à l'IA les éléments à mettre dans le chapitre. | P0 | M |
+| **Intégration des assets dans les prompts** | Injecter les assets sélectionnés (personnages, décors, objets) dans chaque prompt de panel | P0 | M |
+| **Format vertical 800×1200** | Images pleines, format webtoon | P0 | S |
+| **Régénération / édition** | Régénérer un panel, modifier le prompt, réorganisation | P0–P1 | S–M |
 
-### 2.2 Système de dialogues et narration
+### 2.2 Mode Structuré (flux avec blocs)
+
+| Tâche | Description | Priorité | Effort |
+|-------|------------|----------|--------|
+| **Modèle `panels.layout`** | JSONB blocs (x, y, width, height, prompt, asset_refs, image_url) | P0 | M |
+| **UI structure chapitre** | Chapitre vide → ajout panels → ajout blocs (rectangles) par panel | P0 | L |
+| **Remplissage des blocs** | Texte (prompt) + sélection d’assets par bloc **(impératif** : cadrer la génération, que l'IA comprenne les éléments à mettre dans l'image) | P0 | M |
+| **Génération 1 image par bloc** | Image pleine par bloc à partir du prompt et des **assets sélectionnés** pour ce bloc, stockage URL, affichage dans le bloc | P0 | L |
+| **Régénération / édition** | Régénérer un bloc, modifier prompt ou refs, réorganisation blocs | P1 | M |
+
+### 2.3 Système de dialogues et narration
 
 | Tâche | Description | Priorité | Effort |
 |-------|------------|----------|--------|
@@ -87,7 +97,7 @@
 | **Personnalisation typographique** | Police, taille, couleur du texte | P2 | S |
 | **Génération IA de dialogues** | Suggestion de dialogues à partir du synopsis | P2 | L |
 
-### 2.3 Lecteur webtoon amélioré
+### 2.4 Lecteur webtoon amélioré
 
 | Tâche | Description | Priorité | Effort |
 |-------|------------|----------|--------|

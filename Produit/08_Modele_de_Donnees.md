@@ -56,7 +56,9 @@ Le modèle de données de DreamWeave est construit sur **PostgreSQL** via Supaba
               │  project_id (FK) │  │  project_id (FK) │
               │  name            │  │  title           │
               │  asset_type      │  │  synopsis        │
-              │  prompt          │  │  chapter_number  │
+              │  prompt          │  │  scenario        │
+              │  ...             │  │  creation_mode   │
+              │                  │  │  chapter_number  │
               │  image_url       │  │  created_at      │
               │  image_url_      │  │  updated_at      │
               │   profile_left   │  └────────┬─────────┘
@@ -71,7 +73,8 @@ Le modèle de données de DreamWeave est construit sur **PostgreSQL** via Supaba
                                     │  chapter_id (FK) │
                                     │  panel_number    │
                                     │  prompt          │
-                                    │  image_url       │
+                                    │  image_url       │  (mode Auto) ou images dans layout.blocks
+                                    │  layout          │  JSONB — blocs (mode Structuré)
                                     │  dialogue        │
                                     │  narration       │
                                     │  speech_bubbles  │  JSONB
@@ -202,7 +205,7 @@ CREATE TYPE asset_type AS ENUM ('character', 'background', 'object');
 
 ### 2.4 `chapters`
 
-> Chapitres d'un projet, contenant le synopsis et organisant les panels.
+> Chapitres d'un projet. Contient synopsis et optionnellement scénario. Deux modes de création : `automatic` (découpage IA scénario → panels ; **génération panel par panel**, pas tout le chapitre d'un coup) ou `structured` (blocs définis à la main). Le **scénario/synopsis n'est jamais injecté dans le prompt de génération d'image** : le prompt = style + assets sélectionnés + courte description du panel. La **sélection des assets par l'utilisateur** est impérative dans les deux flux (chapitre en mode Auto, par bloc en mode Structuré).
 
 | Colonne | Type | Contraintes | Description |
 |---------|------|------------|-------------|
@@ -210,7 +213,9 @@ CREATE TYPE asset_type AS ENUM ('character', 'background', 'object');
 | `user_id` | `UUID` | NOT NULL, FK → profiles.id | Propriétaire |
 | `project_id` | `UUID` | NOT NULL, FK → projects.id | Projet parent |
 | `title` | `TEXT` | NOT NULL | Titre du chapitre |
-| `synopsis` | `TEXT` | NULL | Synopsis / description de l'action |
+| `synopsis` | `TEXT` | NULL | Résumé court du chapitre (référence ; découpage IA si pas de scénario). **Non utilisé dans les prompts d'image.** |
+| `scenario` | `TEXT` | NULL | Scénario détaillé (optionnel). Utilisé **uniquement pour le découpage IA** (scénario → chapitres → panels). **Jamais injecté dans le prompt de génération d'image.** |
+| `creation_mode` | `TEXT` | NULL | `'automatic'` \| `'structured'` — mode de création du chapitre |
 | `chapter_number` | `INTEGER` | NOT NULL | Numéro du chapitre (ordonné) |
 | `created_at` | `TIMESTAMPTZ` | NOT NULL, DEFAULT now() | Date de création |
 | `updated_at` | `TIMESTAMPTZ` | NOT NULL, DEFAULT now() | Date de mise à jour |
@@ -228,7 +233,7 @@ CREATE TYPE asset_type AS ENUM ('character', 'background', 'object');
 
 ### 2.5 `panels`
 
-> Panels individuels composant un chapitre (images + dialogues).
+> Panels composant un chapitre. En **mode Automatique** : un panel = une **image pleine** (illustration, pas de cases dans l’image). En **mode Structuré** : un panel contient des **blocs** (layout) ; chaque bloc a sa propre image pleine, affichée dans le bloc.
 
 | Colonne | Type | Contraintes | Description |
 |---------|------|------------|-------------|
@@ -236,12 +241,32 @@ CREATE TYPE asset_type AS ENUM ('character', 'background', 'object');
 | `user_id` | `UUID` | NOT NULL, FK → profiles.id | Propriétaire |
 | `chapter_id` | `UUID` | NOT NULL, FK → chapters.id | Chapitre parent |
 | `panel_number` | `INTEGER` | NOT NULL | Numéro du panel (ordre d'affichage) |
-| `prompt` | `TEXT` | NULL | Description / prompt pour la génération IA |
-| `image_url` | `TEXT` | NULL | URL de l'image du panel |
+| `prompt` | `TEXT` | NULL | Description / prompt pour la génération (mode Auto : 1 prompt par panel) |
+| `image_url` | `TEXT` | NULL | URL de l'image du panel (mode Auto) ; NULL en mode Structuré si les images sont sur les blocs |
+| `layout` | `JSONB` | NULL | En mode Structuré : définition des blocs (position, taille, prompt, refs assets, image_url par bloc). Voir format ci-dessous. |
 | `dialogue` | `TEXT` | NULL | Texte de dialogue (simple) |
 | `narration` | `TEXT` | NULL | Texte de narration |
 | `speech_bubbles` | `JSONB` | NULL | Bulles de dialogue (structure riche) |
 | `created_at` | `TIMESTAMPTZ` | NOT NULL, DEFAULT now() | Date de création |
+
+**Format de `layout`** (mode Structuré — blocs) :
+```json
+{
+  "blocks": [
+    {
+      "id": "uuid_ou_identifiant_stable",
+      "x": 0,
+      "y": 0,
+      "width": 400,
+      "height": 600,
+      "prompt": "Luna entre dans la cafétéria, décor 'ville la nuit'.",
+      "asset_refs": ["asset_uuid_1", "asset_uuid_2"],
+      "image_url": "https://... (image pleine générée pour ce bloc)"
+    }
+  ]
+}
+```
+Chaque image générée pour un bloc est une **illustration pleine** ; elle est affichée **dans** le rectangle du bloc (conteneur de mise en page). **La sélection d'assets par l'utilisateur (asset_refs) est impérative** pour la génération : elle cadre la scène et permet à l'IA de comprendre les éléments (personnages, décors, objets) à mettre dans le chapitre.
 
 **Format de `speech_bubbles`** (prévu) :
 ```json

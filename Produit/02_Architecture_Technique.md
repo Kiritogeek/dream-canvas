@@ -14,7 +14,7 @@ DreamWeave est une application web monopage (SPA) basée sur une architecture **
 ┌─────────────────────────────────────────────────────────────────┐
 │                     FRONTEND (SPA)                              │
 │  React 18 + TypeScript + Vite 7 + Tailwind CSS + shadcn/ui      │
-│  Hébergé sur Vercel / Netlify / Lovable                         │ 
+│  Hébergé sur Vercel / Netlify                                   │ 
 └──────────┬──────────────────────────────────┬───────────────────┘
            │ Supabase Client SDK              │
            ▼                                  ▼
@@ -91,7 +91,7 @@ DreamWeave est une application web monopage (SPA) basée sur une architecture **
 
 | Composant | Détail |
 |-----------|--------|
-| **Hébergement Frontend** | Lovable / Vercel / Netlify (CDN mondial) |
+| **Hébergement Frontend** | Vercel / Netlify (CDN mondial) |
 | **Hébergement Backend** | Supabase Cloud (AWS) |
 | **CDN Images** | Supabase Storage (CDN intégré) |
 | **DNS** | Domaine personnalisable |

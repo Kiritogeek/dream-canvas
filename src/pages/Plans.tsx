@@ -107,30 +107,30 @@ export default function Plans() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-8 max-w-4xl mx-auto">
+      <div className="space-y-6 sm:space-y-8 max-w-4xl mx-auto">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-center space-y-3"
+          className="text-center space-y-2 sm:space-y-3"
         >
-          <h1 className="text-3xl font-display font-bold">
+          <h1 className="text-2xl sm:text-3xl font-display font-bold">
             Choisissez votre plan
           </h1>
-          <p className="text-muted-foreground max-w-lg mx-auto">
+          <p className="text-sm sm:text-base text-muted-foreground max-w-lg mx-auto px-2">
             Commencez gratuitement et passez au Pro quand vous êtes prêt à
             libérer tout le potentiel de DreamWeave.
           </p>
         </motion.div>
 
         {/* Cards */}
-        <div className="grid md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
           {/* Free Plan */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className={`glass rounded-2xl p-6 space-y-6 border-2 transition-colors ${
+            className={`glass rounded-xl sm:rounded-2xl p-5 sm:p-6 space-y-4 sm:space-y-6 border-2 transition-colors ${
               plan === "free"
                 ? "border-primary shadow-dream"
                 : "border-transparent"
@@ -139,7 +139,7 @@ export default function Plans() {
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <Sparkles className="h-5 w-5 text-muted-foreground" />
-                <h2 className="text-xl font-display font-bold">Free</h2>
+                <h2 className="text-lg sm:text-xl font-display font-bold">Free</h2>
                 {plan === "free" && (
                   <span className="ml-auto px-2.5 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-semibold">
                     Plan actuel
@@ -147,7 +147,7 @@ export default function Plans() {
                 )}
               </div>
               <div className="flex items-baseline gap-1">
-                <span className="text-4xl font-display font-bold">0 €</span>
+                <span className="text-3xl sm:text-4xl font-display font-bold">0 €</span>
                 <span className="text-muted-foreground text-sm">/ mois</span>
               </div>
               <p className="text-sm text-muted-foreground">
@@ -197,7 +197,7 @@ export default function Plans() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className={`relative glass rounded-2xl p-6 space-y-6 border-2 transition-colors ${
+            className={`relative glass rounded-xl sm:rounded-2xl p-5 sm:p-6 space-y-4 sm:space-y-6 border-2 transition-colors ${
               plan === "pro"
                 ? "border-amber-500 shadow-dream"
                 : "border-amber-500/30"
@@ -214,7 +214,7 @@ export default function Plans() {
             <div className="space-y-2 pt-2">
               <div className="flex items-center gap-2">
                 <Zap className="h-5 w-5 text-amber-500" />
-                <h2 className="text-xl font-display font-bold">Pro</h2>
+                <h2 className="text-lg sm:text-xl font-display font-bold">Pro</h2>
                 {plan === "pro" && (
                   <span className="ml-auto px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 text-xs font-semibold">
                     Plan actuel
@@ -222,7 +222,7 @@ export default function Plans() {
                 )}
               </div>
               <div className="flex items-baseline gap-1">
-                <span className="text-4xl font-display font-bold">14,99 €</span>
+                <span className="text-3xl sm:text-4xl font-display font-bold">14,99 €</span>
                 <span className="text-muted-foreground text-sm">/ mois</span>
               </div>
               <p className="text-sm text-muted-foreground">
@@ -277,31 +277,31 @@ export default function Plans() {
           </motion.div>
         </div>
 
-        {/* Tableau comparatif */}
+        {/* Tableau comparatif — masqué sur très petit mobile, visible en sm+ */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="glass rounded-2xl overflow-hidden"
+          className="glass rounded-xl sm:rounded-2xl overflow-hidden"
         >
-          <div className="p-6 border-b border-border/50">
-            <h2 className="text-lg font-display font-semibold">
+          <div className="p-4 sm:p-6 border-b border-border/50">
+            <h2 className="text-base sm:text-lg font-display font-semibold">
               Comparaison détaillée
             </h2>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full min-w-[420px]">
               <thead>
                 <tr className="border-b border-border/50">
-                  <th className="text-left px-6 py-3 text-sm font-medium text-muted-foreground">
+                  <th className="text-left px-3 sm:px-6 py-2.5 sm:py-3 text-xs sm:text-sm font-medium text-muted-foreground">
                     Fonctionnalité
                   </th>
-                  <th className="text-center px-6 py-3 text-sm font-medium text-muted-foreground w-36">
+                  <th className="text-center px-3 sm:px-6 py-2.5 sm:py-3 text-xs sm:text-sm font-medium text-muted-foreground w-24 sm:w-36">
                     Free
                   </th>
-                  <th className="text-center px-6 py-3 text-sm font-medium w-36">
+                  <th className="text-center px-3 sm:px-6 py-2.5 sm:py-3 text-xs sm:text-sm font-medium w-24 sm:w-36">
                     <span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400">
-                      <Zap className="h-3.5 w-3.5" />
+                      <Zap className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                       Pro
                     </span>
                   </th>
@@ -315,16 +315,16 @@ export default function Plans() {
                       i % 2 === 0 ? "bg-muted/20" : ""
                     }
                   >
-                    <td className="px-6 py-3 text-sm">
-                      <div className="flex items-center gap-2">
-                        <f.icon className="h-4 w-4 text-muted-foreground shrink-0" />
-                        {f.label}
+                    <td className="px-3 sm:px-6 py-2.5 sm:py-3 text-xs sm:text-sm">
+                      <div className="flex items-center gap-1.5 sm:gap-2">
+                        <f.icon className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground shrink-0" />
+                        <span className="line-clamp-1">{f.label}</span>
                       </div>
                     </td>
-                    <td className="px-6 py-3 text-center">
+                    <td className="px-3 sm:px-6 py-2.5 sm:py-3 text-center">
                       <FeatureValue value={f.free} />
                     </td>
-                    <td className="px-6 py-3 text-center">
+                    <td className="px-3 sm:px-6 py-2.5 sm:py-3 text-center">
                       <FeatureValue value={f.pro} />
                     </td>
                   </tr>
@@ -339,22 +339,22 @@ export default function Plans() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
-          className="glass rounded-2xl p-6 space-y-4"
+          className="glass rounded-xl sm:rounded-2xl p-4 sm:p-6 space-y-3 sm:space-y-4"
         >
-          <h2 className="text-lg font-display font-semibold">
+          <h2 className="text-base sm:text-lg font-display font-semibold">
             Votre utilisation ce mois-ci
           </h2>
           <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">
+            <span className="text-xs sm:text-sm text-muted-foreground">
               Générations d'images
             </span>
-            <span className="text-sm font-medium">
+            <span className="text-xs sm:text-sm font-medium">
               {usageInfo.count} / {usageInfo.limit}
             </span>
           </div>
-          <div className="w-full bg-muted rounded-full h-2.5">
+          <div className="w-full bg-muted rounded-full h-2 sm:h-2.5">
             <div
-              className={`h-2.5 rounded-full transition-all duration-500 ${
+              className={`h-2 sm:h-2.5 rounded-full transition-all duration-500 ${
                 usageInfo.count / usageInfo.limit >= 0.9
                   ? "bg-destructive"
                   : usageInfo.count / usageInfo.limit >= 0.7
@@ -372,7 +372,7 @@ export default function Plans() {
         </motion.div>
 
         {/* Note */}
-        <p className="text-xs text-center text-muted-foreground pb-8">
+        <p className="text-xs text-center text-muted-foreground pb-6 sm:pb-8">
           Le paiement sera bientôt disponible via Stripe. En attendant, vous
           pouvez tester le plan Pro directement.
         </p>

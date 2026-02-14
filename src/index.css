@@ -55,6 +55,13 @@
     --rose: 340 50% 80%;
     --cream: 40 40% 96%;
     --glow: 275 60% 80%;
+
+    /* Glass card tokens — light mode */
+    --glass-bg-alpha: 0.9;
+    --glass-border-alpha: 0.7;
+    --glass-shadow:
+      0 1px 3px hsl(var(--lavender) / 0.08),
+      0 4px 16px -4px hsl(var(--peach) / 0.1);
   }
 
   .dark {
@@ -94,15 +101,24 @@
     --rose: 340 40% 40%;
     --cream: 270 15% 12%;
     --glow: 275 60% 50%;
+
+    /* Glass card tokens — dark mode */
+    --glass-bg-alpha: 0.7;
+    --glass-border-alpha: 0.5;
+    --glass-shadow: none;
   }
 }
 
 @layer base {
+  /* Base agrandie pour une meilleure lisibilité (tout le site scale via rem) */
+  html {
+    font-size: 110%; /* 18px si base 16px */
+  }
   * {
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground font-body antialiased;
+    @apply bg-background text-foreground font-body antialiased leading-relaxed;
   }
   h1, h2, h3, h4, h5, h6 {
     @apply font-display;
@@ -111,7 +127,12 @@
 
 @layer utilities {
   .glass {
-    @apply bg-card/70 backdrop-blur-xl border border-border/50;
+    background: hsl(var(--card) / var(--glass-bg-alpha, 0.7));
+    -webkit-backdrop-filter: blur(24px);
+    backdrop-filter: blur(24px);
+    border: 1px solid hsl(var(--border) / var(--glass-border-alpha, 0.5));
+    box-shadow: var(--glass-shadow, none);
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
   }
   .gradient-dream {
     background: linear-gradient(
@@ -144,5 +165,38 @@
   }
   .shadow-glow {
     box-shadow: 0 0 30px hsl(var(--glow) / 0.3);
+  }
+
+  /* Hide scrollbar but keep scroll functionality */
+  .scrollbar-none {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* ===== Light mode: enhanced card hover & shadow ===== */
+
+/* Hover: subtle border emphasis (border-color only — box-shadow is handled
+   by hover:shadow-dream on interactive cards, or stays at --glass-shadow) */
+:root:not(.dark) .glass:hover {
+  border-color: hsl(var(--lavender) / 0.38);
+}
+
+/* Boost shadow-dream in light mode for better contrast */
+:root:not(.dark) .shadow-dream,
+:root:not(.dark) .hover\:shadow-dream:hover {
+  box-shadow:
+    0 4px 24px -4px hsl(var(--lavender) / 0.28),
+    0 10px 48px -8px hsl(var(--peach) / 0.22);
+}
+
+/* Responsive touch device improvements */
+@media (hover: none) and (pointer: coarse) {
+  /* Increase tap targets on touch devices */
+  button, [role="button"], a {
+    min-height: 36px;
   }
 }

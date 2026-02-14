@@ -109,39 +109,39 @@ export default function ProjectDetail() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         {/* Header */}
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" asChild>
+        <div className="flex items-start sm:items-center gap-2 sm:gap-4">
+          <Button variant="ghost" size="sm" asChild className="shrink-0 mt-1 sm:mt-0">
             <Link to="/dashboard/projects">
               <ArrowLeft className="h-4 w-4" />
             </Link>
           </Button>
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-display font-bold">
+              <h1 className="text-lg sm:text-2xl font-display font-bold truncate">
                 {project.title}
               </h1>
               <button
                 onClick={openEditDialog}
-                className="p-1 rounded-md text-muted-foreground hover:text-primary transition-colors"
+                className="p-1 rounded-md text-muted-foreground hover:text-primary transition-colors shrink-0"
                 title="Modifier le projet"
               >
-                <Pencil className="h-4 w-4" />
+                <Pencil className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               </button>
             </div>
             {project.description && (
-              <p className="text-muted-foreground text-sm">
+              <p className="text-muted-foreground text-xs sm:text-sm line-clamp-2">
                 {project.description}
               </p>
             )}
           </div>
         </div>
 
-        <Tabs defaultValue="assets" className="space-y-6">
-          <TabsList className="glass">
-            <TabsTrigger value="assets">Assets</TabsTrigger>
-            <TabsTrigger value="style">Style</TabsTrigger>
+        <Tabs defaultValue="assets" className="space-y-4 sm:space-y-6">
+          <TabsList className="glass w-full sm:w-auto">
+            <TabsTrigger value="assets" className="flex-1 sm:flex-none">Assets</TabsTrigger>
+            <TabsTrigger value="style" className="flex-1 sm:flex-none">Style</TabsTrigger>
           </TabsList>
 
           {/* Assets Tab */}

@@ -64,19 +64,19 @@ export default function Profile() {
 
   return (
     <DashboardLayout>
-      <div className="max-w-lg space-y-6">
-        <h1 className="text-2xl font-display font-bold">Mon profil</h1>
+      <div className="max-w-lg space-y-4 sm:space-y-6">
+        <h1 className="text-xl sm:text-2xl font-display font-bold">Mon profil</h1>
 
-        <div className="glass rounded-2xl p-6 space-y-6">
-          <div className="flex items-center gap-4">
-            <div className="h-16 w-16 rounded-full gradient-primary flex items-center justify-center">
-              <User className="h-8 w-8 text-primary-foreground" />
+        <div className="glass rounded-xl sm:rounded-2xl p-4 sm:p-6 space-y-4 sm:space-y-6">
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div className="h-12 w-12 sm:h-16 sm:w-16 rounded-full gradient-primary flex items-center justify-center shrink-0">
+              <User className="h-6 w-6 sm:h-8 sm:w-8 text-primary-foreground" />
             </div>
-            <div>
-              <p className="font-display font-semibold">
+            <div className="min-w-0">
+              <p className="font-display font-semibold text-sm sm:text-base">
                 {displayName || "Utilisateur"}
               </p>
-              <p className="text-sm text-muted-foreground">{user?.email}</p>
+              <p className="text-xs sm:text-sm text-muted-foreground truncate">{user?.email}</p>
             </div>
           </div>
 

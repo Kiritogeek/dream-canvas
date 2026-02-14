@@ -78,7 +78,7 @@ Image 3: https://...supabase.co/storage/v1/object/public/dreamweave/.../image3.p
 
 ### 4. **Vérification dans le prompt final**
 
-Le prompt envoyé à l'API Nebius contient une section dédiée aux images :
+Le prompt envoyé à l'API FAL.ai contient une section dédiée aux images :
 
 ```
 URLS DES IMAGES DE RÉFÉRENCE À ANALYSER :

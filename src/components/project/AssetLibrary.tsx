@@ -188,11 +188,17 @@ export function AssetLibrary({
     }
   };
 
+  const currentTabLabel = assetTabs.find((t) => t.type === activeAssetTab)?.label ?? "Assets";
+  const libraryTitle =
+    activeAssetTab === "object"
+      ? "Bibliothèque d'objets"
+      : `Bibliothèque de ${currentTabLabel.toLowerCase()}`;
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-display font-semibold">
-          Bibliothèque d'assets
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="text-base sm:text-lg font-display font-semibold">
+          {libraryTitle}
         </h2>
         <Dialog open={assetDialogOpen} onOpenChange={setAssetDialogOpen}>
           <Button
@@ -201,6 +207,7 @@ export function AssetLibrary({
             className="gradient-primary text-primary-foreground"
             onClick={() => {
               if (!onCanGenerate()) return;
+              setNewAssetType(activeAssetTab);
               setAssetDialogOpen(true);
             }}
           >
@@ -213,7 +220,7 @@ export function AssetLibrary({
             <form onSubmit={handleCreateAsset} className="space-y-4">
               <div className="space-y-2">
                 <Label>Type</Label>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   {assetTabs.map((t) => (
                     <Button
                       key={t.type}
@@ -221,13 +228,13 @@ export function AssetLibrary({
                       size="sm"
                       variant={newAssetType === t.type ? "default" : "outline"}
                       onClick={() => setNewAssetType(t.type)}
-                      className={
+                      className={`text-xs sm:text-sm ${
                         newAssetType === t.type
                           ? "gradient-primary text-primary-foreground"
                           : ""
-                      }
+                      }`}
                     >
-                      <t.icon className="h-4 w-4 mr-1" /> {t.label}
+                      <t.icon className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> {t.label}
                     </Button>
                   ))}
                 </div>
@@ -277,10 +284,10 @@ export function AssetLibrary({
         value={activeAssetTab}
         onValueChange={(value) => setActiveAssetTab(value as AssetType)}
       >
-        <TabsList className="glass">
+        <TabsList className="glass w-full sm:w-auto">
           {assetTabs.map((t) => (
-            <TabsTrigger key={t.type} value={t.type}>
-              <t.icon className="h-4 w-4 mr-1" /> {t.label}
+            <TabsTrigger key={t.type} value={t.type} className="flex-1 sm:flex-none text-xs sm:text-sm">
+              <t.icon className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> {t.label}
             </TabsTrigger>
           ))}
         </TabsList>
@@ -290,14 +297,14 @@ export function AssetLibrary({
           return (
             <TabsContent key={t.type} value={t.type}>
               {filtered.length === 0 ? (
-                <div className="glass rounded-xl p-8 text-center">
-                  <t.icon className="h-8 w-8 mx-auto mb-3 text-primary opacity-40" />
-                  <p className="text-muted-foreground text-sm">
+                <div className="glass rounded-lg sm:rounded-xl p-6 sm:p-8 text-center">
+                  <t.icon className="h-7 w-7 sm:h-8 sm:w-8 mx-auto mb-2 sm:mb-3 text-primary opacity-40" />
+                  <p className="text-muted-foreground text-xs sm:text-sm">
                     Aucun {t.label.toLowerCase()} pour l'instant
                   </p>
                 </div>
               ) : (
-                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
+                <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mt-3 sm:mt-4">
                   {filtered.map((asset) => (
                     <AssetCard
                       key={asset.id}

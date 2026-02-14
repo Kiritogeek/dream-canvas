@@ -26,23 +26,24 @@ export default function Dashboard() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-8">
+      <div className="space-y-6 sm:space-y-8">
         {/* Welcome */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="gradient-dream rounded-2xl p-8 shadow-dream"
+          className="gradient-dream rounded-xl sm:rounded-2xl p-5 sm:p-8 shadow-dream"
         >
-          <h1 className="text-2xl md:text-3xl font-display font-bold mb-2">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-display font-bold mb-2">
             Bienvenue sur DreamWeave
           </h1>
-          <p className="text-muted-foreground mb-4">
+          <p className="text-sm sm:text-base text-muted-foreground mb-4">
             Prêt à tisser de nouvelles histoires ? Créez un projet et commencez
             à générer vos webtoons.
           </p>
           <Button
             asChild
-            className="gradient-primary text-primary-foreground shadow-dream"
+            size="sm"
+            className="gradient-primary text-primary-foreground shadow-dream sm:text-sm"
           >
             <Link to="/dashboard/projects/new">
               <Plus className="h-4 w-4 mr-2" />
@@ -52,20 +53,20 @@ export default function Dashboard() {
         </motion.div>
 
         {/* Stats */}
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-3 gap-2 sm:gap-4">
           {stats.map((s) => (
-            <div key={s.label} className="glass rounded-xl p-4 text-center">
-              <s.icon className="h-5 w-5 mx-auto mb-2 text-primary" />
-              <div className="text-2xl font-display font-bold">{s.value}</div>
-              <div className="text-sm text-muted-foreground">{s.label}</div>
+            <div key={s.label} className="glass rounded-lg sm:rounded-xl p-3 sm:p-4 text-center">
+              <s.icon className="h-4 w-4 sm:h-5 sm:w-5 mx-auto mb-1.5 sm:mb-2 text-primary" />
+              <div className="text-lg sm:text-2xl font-display font-bold">{s.value}</div>
+              <div className="text-xs sm:text-sm text-muted-foreground">{s.label}</div>
             </div>
           ))}
         </div>
 
         {/* Barre de progression usage + info tier */}
-        <div className="glass rounded-xl p-5">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
+        <div className="glass rounded-lg sm:rounded-xl p-4 sm:p-5">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
+            <div className="flex items-center gap-2 flex-wrap">
               <span
                 className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${
                   plan === "pro"
@@ -76,17 +77,17 @@ export default function Dashboard() {
                 {plan === "pro" && <Zap className="h-3 w-3" />}
                 Plan {plan === "pro" ? "Pro" : "Free"}
               </span>
-              <span className="text-sm text-muted-foreground">
-                {plan === "free" ? "Génération rapide (Schnell)" : "Génération haute qualité (FLUX.2 Pro)"}
+              <span className="text-xs sm:text-sm text-muted-foreground">
+                {plan === "free" ? "Schnell" : "FLUX.2 Pro"}
               </span>
             </div>
-            <span className="text-sm font-medium">
+            <span className="text-xs sm:text-sm font-medium">
               {usageInfo.count}/{usageInfo.limit} générations
             </span>
           </div>
-          <div className="w-full bg-muted rounded-full h-2.5">
+          <div className="w-full bg-muted rounded-full h-2 sm:h-2.5">
             <div
-              className={`h-2.5 rounded-full transition-all duration-500 ${
+              className={`h-2 sm:h-2.5 rounded-full transition-all duration-500 ${
                 usagePercent >= 90
                   ? "bg-destructive"
                   : usagePercent >= 70
@@ -98,39 +99,39 @@ export default function Dashboard() {
           </div>
           {plan === "free" && (
             <p className="text-xs text-muted-foreground mt-2">
-              Passez au plan Pro pour accéder aux images de référence, aux vues multiples et à 300 générations/mois en haute qualité.
+              Passez au plan Pro pour les images de référence, vues multiples et 300 générations/mois.
             </p>
           )}
         </div>
 
         {/* Recent projects */}
         <div>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-display font-semibold">
+          <div className="flex items-center justify-between mb-3 sm:mb-4">
+            <h2 className="text-lg sm:text-xl font-display font-semibold">
               Projets récents
             </h2>
-            <Button variant="ghost" size="sm" asChild>
+            <Button variant="ghost" size="sm" asChild className="text-xs sm:text-sm">
               <Link to="/dashboard/projects">Voir tout</Link>
             </Button>
           </div>
           {isLoading ? (
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
               {[1, 2, 3].map((i) => (
                 <div
                   key={i}
-                  className="glass rounded-xl p-6 h-40 animate-pulse"
+                  className="glass rounded-lg sm:rounded-xl p-5 sm:p-6 h-32 sm:h-40 animate-pulse"
                 />
               ))}
             </div>
           ) : projects.length === 0 ? (
-            <div className="glass rounded-xl p-12 text-center">
-              <Sparkles className="h-10 w-10 mx-auto mb-4 text-primary opacity-50" />
-              <p className="text-muted-foreground">
+            <div className="glass rounded-lg sm:rounded-xl p-8 sm:p-12 text-center">
+              <Sparkles className="h-8 w-8 sm:h-10 sm:w-10 mx-auto mb-3 sm:mb-4 text-primary opacity-50" />
+              <p className="text-sm sm:text-base text-muted-foreground">
                 Aucun projet pour l'instant. Créez votre premier webtoon !
               </p>
             </div>
           ) : (
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
               {projects.map((p, i) => (
                 <motion.div
                   key={p.id}
@@ -140,15 +141,15 @@ export default function Dashboard() {
                 >
                   <Link
                     to={`/dashboard/projects/${p.id}`}
-                    className="block glass rounded-xl p-6 hover:shadow-dream transition-shadow duration-300 group"
+                    className="block glass rounded-lg sm:rounded-xl p-4 sm:p-6 hover:shadow-dream transition-shadow duration-300 group"
                   >
-                    <h3 className="font-display font-semibold mb-1 group-hover:text-primary transition-colors">
+                    <h3 className="font-display font-semibold text-sm sm:text-base mb-1 group-hover:text-primary transition-colors">
                       {p.title}
                     </h3>
-                    <p className="text-sm text-muted-foreground line-clamp-2">
+                    <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2">
                       {p.description || "Aucune description"}
                     </p>
-                    <p className="text-xs text-muted-foreground mt-3">
+                    <p className="text-xs text-muted-foreground mt-2 sm:mt-3">
                       {new Date(p.created_at).toLocaleDateString("fr-FR")}
                     </p>
                   </Link>

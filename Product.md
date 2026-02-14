@@ -20,7 +20,7 @@
 ### Solution DreamWeave
 
 DreamWeave résout ces problèmes en :
-- **Automatisant la génération visuelle** via l'IA (modèle Flux Schnell via Nebius)
+- **Automatisant la génération visuelle** via l'IA (FLUX.1 Schnell / FLUX.2 Pro via FAL.ai)
 - **Garantissant la cohérence stylistique** grâce à un système de templates de style
 - **Réduisant drastiquement le temps de production** (de semaines à heures)
 - **Rendant la création accessible** à tous, sans compétences artistiques
@@ -130,12 +130,12 @@ DreamWeave résout ces problèmes en :
 
 ### 5. 🖼️ Génération IA d'images
 
-**Description** : Génération automatique d'images via l'IA (modèle Flux Schnell via Nebius).
+**Description** : Génération automatique d'images via l'IA (FAL.ai, multi-modèles selon le plan).
 
 #### 5.1 Architecture technique
 
 - **Edge Function Supabase** : `generate-asset-image`
-- **Modèle IA** : Flux Schnell (Black Forest Labs) via API Nebius
+- **Modèle IA** : FLUX.1 Schnell (Free) / FLUX.2 Pro / FLUX.2 Pro Edit (Pro) via API FAL.ai
 - **Format** : Images 512×512px en PNG
 - **Stockage** : Supabase Storage (bucket `dreamweave`)
 
@@ -147,7 +147,7 @@ DreamWeave résout ces problèmes en :
    - Ajout des instructions système selon le type d'asset
    - Ajout des instructions pour les images de référence (si présentes)
    - Ajout des instructions pour les vues spécifiques (profil, dos, etc.)
-3. **Appel API Nebius** : Génération de l'image
+3. **Appel API FAL.ai** : Génération de l'image (modèle sélectionné selon le plan)
 4. **Upload Storage** : Sauvegarde dans Supabase Storage
 5. **Mise à jour BDD** : Mise à jour de l'URL de l'image dans la base de données
 
@@ -375,10 +375,10 @@ DreamWeave résout ces problèmes en :
 - **Frontend** : React + TypeScript + Vite
 - **UI** : shadcn/ui + Tailwind CSS + Framer Motion
 - **Backend** : Supabase (PostgreSQL + Auth + Storage + Edge Functions)
-- **IA** : Nebius API (Flux Schnell)
-- **Routing** : React Router
-- **State Management** : React Query (TanStack Query)
-- **Deployment** : Lovable (ou Vercel/Netlify)
+- **IA** : FAL.ai API (FLUX.1 Schnell / FLUX.2 Pro / FLUX.2 Pro Edit)
+- **Routing** : React Router DOM 7 (lazy loading)
+- **State Management** : TanStack React Query 5
+- **Deployment** : Vercel / Netlify
 
 ---
 

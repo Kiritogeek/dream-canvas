@@ -1,5 +1,11 @@
 # Product Market Fit — DreamWeave
 
+## 📋 Vue d'ensemble
+
+**DreamWeave** est une plateforme web innovante permettant de créer des webtoons (bandes dessinées verticales) grâce à l'intelligence artificielle. Le produit démocratise la création de contenu visuel narratif en permettant à quiconque, sans compétences artistiques, de transformer ses idées en webtoons professionnels.
+
+---
+
 ## 1. Le Problème
 
 ### 1.1 Contexte de marché
@@ -37,16 +43,16 @@ Des **millions de créateurs potentiels** (auteurs, scénaristes, conteurs, fans
 
 | Barrière | Solution DreamWeave |
 |----------|-------------------|
-| Compétences artistiques | Génération automatique via IA (FLUX.2 Pro / FAL.ai) |
+| Compétences artistiques | Génération automatique via IA (FLUX.1 Schnell pour Free, FLUX.2 Pro / Pro Edit pour Pro, via FAL.ai) |
 | Coût de production | Coût marginal par image (quelques centimes via API) |
 | Temps de production | Minutes par asset, heures par chapitre |
-| Cohérence visuelle | Système de templates de style + images de référence |
+| Cohérence visuelle | Système de templates de style + images de référence (Pro) |
 | Outils fragmentés | Plateforme tout-en-un : assets → chapitres → panels → lecture |
 
 ### 2.3 Avantage compétitif durable
 
 1. **Système de cohérence stylistique** : Template texte + images de référence appliqués à toutes les générations
-2. **Vues multiples des personnages** : Face, profil gauche, profil droit, dos — unique sur le marché
+2. **Vues multiples des personnages** : Face, profil gauche, profil droit, dos — unique sur le marché (Pro)
 3. **Workflow natif webtoon** : Format vertical, optimisé lecture mobile
 4. **Bibliothèque d'assets réutilisables** : Un personnage créé une fois, utilisé dans tous les panels
 
@@ -188,3 +194,94 @@ Des **millions de créateurs potentiels** (auteurs, scénaristes, conteurs, fans
 - Intégration avec plateformes de publication (Webtoon, Tapas)
 - Programme d'affiliation créateurs
 - Expansion géographique (localisation KR, JP, EN)
+
+---
+
+## 8. Fonctionnalités produit (résumé)
+
+### 8.1 Gestion de projets
+- Création de projets (titre, description), liste, dashboard, statistiques (projets, assets, chapitres).
+
+### 8.2 Système de style visuel
+- **Template de style texte** : description du style (ambiance, couleurs, traits).
+- **Images de référence** (Pro) : jusqu'à 2 images pour guider l'IA (FLUX.2 Pro Edit).
+- Application automatique du style à toutes les générations.
+
+### 8.3 Bibliothèque d'assets
+- **Types** : Personnages, Décors, Objets.
+- **Personnages** : vues multiples (face, profil G/D, dos) en Pro.
+- Création, modification, régénération, suppression ; stockage Supabase.
+
+### 8.4 Chapitres (deux modes)
+- **Mode Automatique** : scénario → découpage IA en panels → sélection des assets → génération panel par panel (prompt = style + assets + description du panel).
+- **Mode Structuré** : chapitre vide → panels et blocs (rectangles) → description + assets par bloc → génération 1 image pleine par bloc.
+- Règle : la génération s'appuie toujours sur les **assets sélectionnés** (chapitre ou bloc).
+
+### 8.5 Génération IA
+- **Free** : FLUX.1 Schnell (~0,003 €/image). **Pro** : FLUX.2 Pro / Pro Edit (refs).
+- Edge Function Supabase, FAL.ai, format 1024×1024, quotas mensuels (20 Free / 300 Pro).
+
+### 8.6 Lecture, auth, UI, dashboard, profil, plans
+- Lecture verticale type webtoon ; auth Supabase (email + Google) ; interface glassmorphism, thème clair/sombre ; dashboard (stats, usage, projets récents) ; plans Free / Pro (14,99 €/mois).
+
+---
+
+## 9. Flux utilisateur typique
+
+1. **Inscription/Connexion** → Dashboard
+2. **Création d'un projet** → Titre + description
+3. **Définition du style** : template texte + images de référence (Pro)
+4. **Création des assets** : personnages, décors, objets ; vues multiples (Pro)
+5. **Création des chapitres** : mode Automatique (scénario → panels → génération) ou Structuré (blocs → descriptions + assets → génération) ; dialogues/narration en overlay
+6. **Prévisualisation** : lecture verticale (images pleines dans panels/blocs)
+
+---
+
+## 10. Points de différenciation
+
+1. **Cohérence stylistique garantie** : Templates de style + images de référence
+2. **Vues multiples des personnages** : Face, profil, dos (Pro)
+3. **Workflow optimisé** : Projet → Assets → Chapitres → Panels
+4. **Format natif webtoon** : Vertical, mobile-first
+5. **Accessibilité** : Aucune compétence artistique requise
+6. **Rapidité** : Génération en quelques secondes
+7. **Plan gratuit généreux** : 20 générations/mois, projets et assets illimités
+8. **Multi-modèles IA** : Schnell (Free) / FLUX.2 Pro & Pro Edit (Pro)
+
+---
+
+## 11. Métriques de succès (produit & business)
+
+### Produit
+- Taux de création de projet, taux de complétion (projet avec chapitre), assets générés par projet, temps de génération.
+
+### Business
+- Taux d'inscription (landing → signup), rétention (MAU), engagement (projets/utilisateur), NPS et feedback.
+
+*(Détails des cibles PMF : voir section 4.2.)*
+
+---
+
+## 12. Stack technique
+
+- **Frontend** : React 18 + TypeScript (strict) + Vite 7
+- **UI** : shadcn/ui + Tailwind CSS 3 + Framer Motion
+- **Backend** : Supabase (PostgreSQL + Auth + Storage + Edge Functions Deno)
+- **IA** : FAL.ai (FLUX.1 Schnell / FLUX.2 Pro / FLUX.2 Pro Edit)
+- **Routing** : React Router DOM 7 (lazy loading)
+- **State** : TanStack React Query 5
+- **Déploiement** : Vercel / Netlify
+
+---
+
+## 13. Conclusion
+
+DreamWeave répond à un besoin réel et croissant : **démocratiser la création de webtoons**. En combinant l'IA générative avec un workflow optimisé et une interface intuitive, le produit permet à quiconque de créer des webtoons professionnels en quelques heures plutôt qu'en plusieurs semaines.
+
+Le product-market fit est solide car :
+- ✅ Le marché est en croissance (webtoons, +35 % CAGR)
+- ✅ La barrière à l'entrée est élevée (compétences artistiques, coût, temps)
+- ✅ La solution est techniquement viable (IA générative mature)
+- ✅ La valeur est immédiate (résultats visuels rapides, cohérence garantie)
+
+**État actuel** : MVP Phase 1 complète (projets, assets, style, plans Free/Pro, multi-modèles IA, profil, Plans). Phase 2 planifiée : panels avancés, dialogues, chapitres (flux Automatique/Structuré), intégration Stripe.

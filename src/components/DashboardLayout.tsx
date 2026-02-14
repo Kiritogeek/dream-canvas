@@ -1,16 +1,17 @@
 import { ReactNode } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Sparkles, LayoutDashboard, FolderOpen, LogOut, User, Zap, Crown } from "lucide-react";
+import { Sparkles, LayoutDashboard, FolderOpen, LogOut, User, Zap, Crown, Menu, X } from "lucide-react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserPlan } from "@/hooks/useUserPlan";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
 const navItems = [
-  { to: "/dashboard", icon: LayoutDashboard, label: "Tableau de bord" },
-  { to: "/dashboard/projects", icon: FolderOpen, label: "Mes projets" },
-  { to: "/dashboard/plans", icon: Crown, label: "Plans" },
-  { to: "/dashboard/profile", icon: User, label: "Profil" },
+  { to: "/dashboard", icon: LayoutDashboard, label: "Tableau de bord", shortLabel: "Accueil" },
+  { to: "/dashboard/projects", icon: FolderOpen, label: "Mes projets", shortLabel: "Projets" },
+  { to: "/dashboard/plans", icon: Crown, label: "Plans", shortLabel: "Plans" },
+  { to: "/dashboard/profile", icon: User, label: "Profil", shortLabel: "Profil" },
 ];
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
@@ -18,6 +19,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   const { plan, usageInfo } = useUserPlan();
   const location = useLocation();
   const navigate = useNavigate();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleSignOut = async () => {
     await signOut();
@@ -28,19 +30,19 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     <div className="min-h-screen bg-background">
       {/* Top bar */}
       <header className="sticky top-0 z-50 glass border-b border-border/50">
-        <div className="container flex h-16 items-center justify-between">
+        <div className="container px-4 sm:px-6 lg:px-8 flex h-14 sm:h-16 items-center justify-between">
           <div className="flex items-center gap-2">
             <ThemeToggle />
-            <Link to="/dashboard" className="flex items-center gap-2">
-              <Sparkles className="h-6 w-6 text-primary" />
-              <span className="font-display text-xl font-bold text-gradient">DreamWeave</span>
+            <Link to="/dashboard" className="flex items-center gap-1.5 sm:gap-2">
+              <Sparkles className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
+              <span className="font-display text-lg sm:text-xl font-bold text-gradient">DreamWeave</span>
             </Link>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2">
             {/* Badge tier — cliquable */}
             <Link
               to="/dashboard/plans"
-              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold transition-opacity hover:opacity-80 ${
+              className={`inline-flex items-center gap-1 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full text-xs font-semibold transition-opacity hover:opacity-80 ${
                 plan === "pro"
                   ? "bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30"
                   : "bg-muted text-muted-foreground border border-border"
@@ -55,21 +57,75 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
               <Sparkles className="h-3 w-3" />
               {usageInfo.count}/{usageInfo.limit}
             </span>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground mr-2">
+            <div className="hidden sm:flex items-center gap-2 text-sm text-muted-foreground mr-2">
               <User className="h-4 w-4" />
-              <span className="hidden sm:inline">{user?.email}</span>
+              <span className="hidden lg:inline">{user?.email}</span>
             </div>
-            <Button variant="ghost" size="sm" onClick={handleSignOut}>
+            <Button variant="ghost" size="sm" onClick={handleSignOut} className="hidden sm:inline-flex">
               <LogOut className="h-4 w-4 mr-1" />
-              <span className="hidden sm:inline">Déconnexion</span>
+              <span className="hidden md:inline">Déconnexion</span>
+            </Button>
+            {/* Burger menu mobile */}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="sm:hidden p-1.5"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            >
+              {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </Button>
           </div>
         </div>
+
+        {/* Menu mobile déroulant */}
+        {mobileMenuOpen && (
+          <div className="sm:hidden border-t border-border/50 bg-background/95 backdrop-blur-xl">
+            <div className="px-4 py-3 space-y-1">
+              {navItems.map((item) => {
+                const active =
+                  item.to === "/dashboard"
+                    ? location.pathname === "/dashboard"
+                    : location.pathname.startsWith(item.to);
+                return (
+                  <Link
+                    key={item.to}
+                    to={item.to}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                      active
+                        ? "gradient-primary text-primary-foreground shadow-dream"
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                    }`}
+                  >
+                    <item.icon className="h-4 w-4" />
+                    {item.label}
+                  </Link>
+                );
+              })}
+              <div className="pt-2 mt-2 border-t border-border/50">
+                <div className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground">
+                  <User className="h-4 w-4" />
+                  <span className="truncate">{user?.email}</span>
+                </div>
+                <button
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    handleSignOut();
+                  }}
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors w-full"
+                >
+                  <LogOut className="h-4 w-4" />
+                  Déconnexion
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </header>
 
-      <div className="container py-6">
-        {/* Sub nav */}
-        <nav className="flex gap-2 mb-8">
+      <div className="container px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+        {/* Sub nav — desktop: inline, mobile: hidden (dans le burger) */}
+        <nav className="hidden sm:flex gap-1.5 mb-6 lg:mb-8 overflow-x-auto pb-1 scrollbar-none">
           {navItems.map((item) => {
             const active =
               item.to === "/dashboard"
@@ -80,12 +136,13 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                 key={item.to}
                 variant={active ? "default" : "ghost"}
                 asChild
-                className={active ? "gradient-primary text-primary-foreground shadow-dream" : ""}
+                className={`shrink-0 ${active ? "gradient-primary text-primary-foreground shadow-dream" : ""}`}
                 size="sm"
               >
                 <Link to={item.to}>
-                  <item.icon className="h-4 w-4 mr-2" />
-                  {item.label}
+                  <item.icon className="h-4 w-4 mr-1.5 lg:mr-2" />
+                  <span className="hidden md:inline">{item.label}</span>
+                  <span className="md:hidden">{item.shortLabel}</span>
                 </Link>
               </Button>
             );

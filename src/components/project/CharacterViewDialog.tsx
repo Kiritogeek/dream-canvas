@@ -52,22 +52,22 @@ export function CharacterViewDialog({
         onOpenChange(o);
       }}
     >
-      <DialogContent className="glass max-w-2xl">
+      <DialogContent className="glass max-w-[95vw] sm:max-w-2xl mx-auto">
         <DialogHeader>
-          <DialogTitle className="font-display">
-            Vues du personnage — {character?.name ?? ""}
+          <DialogTitle className="font-display text-sm sm:text-base">
+            Vues — {character?.name ?? ""}
           </DialogTitle>
         </DialogHeader>
         {character && (
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
+          <div className="space-y-3 sm:space-y-4">
+            <p className="text-xs sm:text-sm text-muted-foreground">
               {viewsAllowed
-                ? "Vue de face (principale). Générez les vues profil et dos pour utiliser le personnage sous tous les angles."
+                ? "Vue de face (principale). Générez les vues profil et dos."
                 : "Vue de face (principale). Les vues multiples sont réservées au plan Pro."}
             </p>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
               {/* Vue Face */}
-              <div className="space-y-2">
+              <div className="space-y-1.5 sm:space-y-2">
                 <p className="text-xs font-medium text-muted-foreground">
                   Face
                 </p>
@@ -83,20 +83,20 @@ export function CharacterViewDialog({
               {VIEWS.map(({ key, label }) => {
                 const url = getViewUrl(character, key);
                 return (
-                  <div key={key} className="space-y-2">
+                  <div key={key} className="space-y-1.5 sm:space-y-2">
                     <p className="text-xs font-medium text-muted-foreground">
                       {label}
                     </p>
                     {!viewsAllowed ? (
-                      <div className="w-full aspect-[2/3] rounded-lg border border-dashed flex flex-col items-center justify-center gap-2 p-2 bg-muted/30">
-                        <Lock className="h-6 w-6 text-muted-foreground/50" />
+                      <div className="w-full aspect-[2/3] rounded-lg border border-dashed flex flex-col items-center justify-center gap-1.5 sm:gap-2 p-1.5 sm:p-2 bg-muted/30">
+                        <Lock className="h-5 w-5 sm:h-6 sm:w-6 text-muted-foreground/50" />
                         <span className="text-xs text-muted-foreground text-center">
                           Pro
                         </span>
                       </div>
                     ) : generatingView === key ? (
-                      <div className="w-full aspect-[2/3] rounded-lg border border-dashed flex flex-col items-center justify-center gap-2 p-2">
-                        <Sparkles className="h-8 w-8 text-primary animate-pulse" />
+                      <div className="w-full aspect-[2/3] rounded-lg border border-dashed flex flex-col items-center justify-center gap-1.5 sm:gap-2 p-1.5 sm:p-2">
+                        <Sparkles className="h-6 w-6 sm:h-8 sm:w-8 text-primary animate-pulse" />
                         <span className="text-xs text-muted-foreground">
                           Génération…
                         </span>
@@ -107,12 +107,12 @@ export function CharacterViewDialog({
                           src={url}
                           alt={label}
                           className="w-full aspect-[2/3] object-cover rounded-lg border"
-                          fallbackClassName="w-full aspect-[2/3] rounded-lg border border-dashed flex flex-col items-center justify-center gap-2 p-2"
+                          fallbackClassName="w-full aspect-[2/3] rounded-lg border border-dashed flex flex-col items-center justify-center gap-1 sm:gap-2 p-1.5 sm:p-2"
                         />
                         <Button
                           size="sm"
                           variant={url ? "ghost" : "outline"}
-                          className={url ? "w-full text-xs" : "text-xs"}
+                          className={`text-xs w-full ${url ? "" : ""}`}
                           onClick={() => onGenerateView(character, key)}
                         >
                           {url ? "Régénérer" : "Générer"}

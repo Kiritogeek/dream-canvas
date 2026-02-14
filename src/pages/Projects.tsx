@@ -93,14 +93,15 @@ export default function Projects() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-display font-bold">Mes projets</h1>
+      <div className="space-y-4 sm:space-y-6">
+        <div className="flex items-center justify-between gap-2">
+          <h1 className="text-xl sm:text-2xl font-display font-bold">Mes projets</h1>
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-              <Button className="gradient-primary text-primary-foreground shadow-dream">
-                <Plus className="h-4 w-4 mr-2" />
-                Nouveau projet
+              <Button size="sm" className="gradient-primary text-primary-foreground shadow-dream text-xs sm:text-sm shrink-0">
+                <Plus className="h-4 w-4 mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">Nouveau projet</span>
+                <span className="sm:hidden">Nouveau</span>
               </Button>
             </DialogTrigger>
             <DialogContent className="glass">
@@ -156,61 +157,61 @@ export default function Projects() {
         )}
 
         {isLoading ? (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
             {[1, 2, 3].map((i) => (
               <div
                 key={i}
-                className="glass rounded-xl p-6 h-40 animate-pulse"
+                className="glass rounded-lg sm:rounded-xl p-5 sm:p-6 h-32 sm:h-40 animate-pulse"
               />
             ))}
           </div>
         ) : projects.length === 0 ? (
-          <div className="glass rounded-2xl p-16 text-center">
-            <Sparkles className="h-12 w-12 mx-auto mb-4 text-primary opacity-50" />
-            <h3 className="font-display font-semibold text-lg mb-2">
+          <div className="glass rounded-xl sm:rounded-2xl p-10 sm:p-16 text-center">
+            <Sparkles className="h-10 w-10 sm:h-12 sm:w-12 mx-auto mb-3 sm:mb-4 text-primary opacity-50" />
+            <h3 className="font-display font-semibold text-base sm:text-lg mb-2">
               Aucun projet
             </h3>
-            <p className="text-muted-foreground mb-4">
+            <p className="text-sm text-muted-foreground mb-4">
               Créez votre premier projet pour commencer !
             </p>
           </div>
         ) : filteredProjects.length === 0 ? (
-          <div className="glass rounded-xl p-12 text-center">
-            <Search className="h-8 w-8 mx-auto mb-3 text-primary opacity-40" />
-            <p className="text-muted-foreground text-sm">
+          <div className="glass rounded-lg sm:rounded-xl p-8 sm:p-12 text-center">
+            <Search className="h-7 w-7 sm:h-8 sm:w-8 mx-auto mb-2 sm:mb-3 text-primary opacity-40" />
+            <p className="text-muted-foreground text-xs sm:text-sm">
               Aucun projet ne correspond à "{searchQuery}"
             </p>
           </div>
         ) : (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
             {filteredProjects.map((p, i) => (
               <motion.div
                 key={p.id}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.05 }}
-                className="glass rounded-xl p-6 hover:shadow-dream transition-shadow group relative"
+                className="glass rounded-lg sm:rounded-xl p-4 sm:p-6 hover:shadow-dream transition-shadow group relative"
               >
                 <Link
                   to={`/dashboard/projects/${p.id}`}
                   className="block"
                 >
-                  <h3 className="font-display font-semibold mb-1 group-hover:text-primary transition-colors">
+                  <h3 className="font-display font-semibold text-sm sm:text-base mb-1 group-hover:text-primary transition-colors pr-6">
                     {p.title}
                   </h3>
-                  <p className="text-sm text-muted-foreground line-clamp-2">
+                  <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2">
                     {p.description || "Aucune description"}
                   </p>
-                  <p className="text-xs text-muted-foreground mt-3">
+                  <p className="text-xs text-muted-foreground mt-2 sm:mt-3">
                     {new Date(p.created_at).toLocaleDateString("fr-FR")}
                   </p>
                 </Link>
                 <button
                   onClick={() => setDeleteTargetId(p.id)}
-                  className="absolute top-4 right-4 text-muted-foreground hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
+                  className="absolute top-3 right-3 sm:top-4 sm:right-4 text-muted-foreground hover:text-destructive transition-colors opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
                   title="Supprimer le projet"
                 >
-                  <Trash2 className="h-4 w-4" />
+                  <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 </button>
               </motion.div>
             ))}

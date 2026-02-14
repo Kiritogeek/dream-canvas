@@ -67,13 +67,16 @@
 
 **Deux types d'IA LLM** : **même modèle** (ex. Groq/Llama, OpenRouter, Mistral), **system prompts différents** — (1) **IA Scénario** (histoire entière), (2) **IA Chapitre** (un chapitre). Options gratuites : **Groq** (Llama 3.3 70B, Mixtral), **OpenRouter**, **Mistral La Plateforme**, **Google AI Studio** (Gemini). Voir rapport section 3.5.
 
+**Visibilité UX** : l'**IA Scénario** doit être **visible et accessible dès que l'utilisateur entre dans la section Scénario** (onglet Scénario) ; l'**IA Chapitre** doit être **visible et accessible dès que l'utilisateur ouvre un chapitre de scénario créé**. Aucune étape supplémentaire pour accéder à ces aides.
+
 | Tâche | Description | Priorité | Effort |
 |-------|------------|----------|--------|
 | **Écrire / importer le scénario** | Zone dédiée : écriture ou import (.txt / copier-coller). | P0 | M |
 | **Choix du nombre de chapitres + IA Scénario** | Demander **en combien de chapitres** l'utilisateur veut son histoire (ex. 50). Prompt → **IA Scénario** génère **toute l'histoire** chapitre par chapitre **directement sur le site**. | P0 | L |
 | **Modification par prompt (scénario entier)** | Nouveau prompt pour modifier l'histoire → IA **réécrit** directement sur le site. **Comparaison** ancienne vs nouvelle. **Accepter** (garder nouvelle) ou **Rejeter** (revenir à l'ancienne). | P0 | L |
 | **IA Chapitre (par chapitre)** | Sur **chaque chapitre**, IA qui **n'intervient que sur ce chapitre**. Prompt de modification → réécriture du chapitre → **accepter / rejeter**. | P0 | L |
-| **Chapitres de scénario** | Création / découpage chapitres de scénario (titres). **Dissociés** des chapitres visuels (Édition de l'œuvre). | P0 | M |
+| **Chapitres (scénario = webtoon)** | Les chapitres créés dans la section Scénario **correspondent** aux chapitres webtoon (1 chapitre écrit = 1 chapitre webtoon). Création / découpage (titres, ordre). | P0 | M |
+| **Découpage Chapitre → Panels (section Scénario)** | Dans chaque chapitre (texte), découpage en **panels** (liste + courte description par panel) directement dans la section Scénario, pour alimenter la génération panel par panel. **Règles de gestion** du découpage (auto/manuel, critères) à **définir plus tard**. | P0 | L |
 | **BDD — Scénarios approuvés & versions** | Persistance des versions approuvées ; conservation ancienne vs nouvelle pour flux accepter/rejeter. | P0 | M |
 | **Découpage IA (optionnel)** | IA : scénario → chapitres, puis chapitre → panels (courtes descriptions). Structure uniquement ; scénario **jamais** dans les prompts d'image. | P0 | L |
 | **Détection des assets dans le scénario** | Repérer dans le texte les mentions d'assets déjà créés (personnages, décors, objets). **Surbrillance** dans l'éditeur (style par type). **Hover** : affichage de l'image de l'asset (tooltip / popover). | P0 | M |
@@ -87,7 +90,7 @@
 
 | Tâche | Description | Priorité | Effort |
 |-------|------------|----------|--------|
-| **Double visualisation** | À l'édition d'un panel : **côté scénario** chapitre de scénario (ou passage) ; **côté assets** assets sélectionnés pour le prompting. | P0 | M |
+| **Double visualisation** | À l'édition d'un panel : **côté scénario** chapitre de scénario (texte) affiché dès l'entrée dans le chapitre visuel (lien optionnel ou sélecteur) ; **côté assets** assets sélectionnés. Voir rapport § 3.4.1 (projection ouverture chapitre texte). | P0 | M |
 | **IA Panel** | Même modèle LLM, system prompt « IA Panel » : suggère ou **réécrit** la description du panel (contexte scénario + assets). Réécriture **directe** dans le champ ; **accepter** ou **rejeter**. Règle : prompt d'image = style + assets + description (jamais le scénario brut). | P0 | L |
 
 #### 2.2.2 Mode Automatique (flux rapide)

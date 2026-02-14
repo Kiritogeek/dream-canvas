@@ -214,9 +214,15 @@ Des **millions de créateurs potentiels** (auteurs, scénaristes, conteurs, fans
 
 ### 8.4 Section « Scénario » (texte narratif)
 - **Contenu** : l'utilisateur écrit le scénario de son histoire **ou** importe un scénario (format texte : fichier .txt ou copier-coller).
-- **Chapitres de scénario** : l'utilisateur peut créer lui-même des **chapitres pour son scénario**. Ces chapitres sont **complètement dissociés** des chapitres visuels du webtoon : ils structurent uniquement le texte narratif (titre, découpage logique de l'histoire).
-- **IA LLM — Scénariste (agent)** : une **IA LLM** est intégrée dans la section Scénario pour aider l'utilisateur à **construire son histoire**. Elle dispose d'un **system prompt** dédié au rôle de scénariste (agent « scénariste IA ») : cohérence narrative, structure, personnages, dialogues, etc. Les scénarios **approuvés** par l'utilisateur sont **persistés en BDD** (voir roadmap).
-- **Réflexion — Rôle étendu de l'IA** : il y a **matière à réflexion** sur l'extension du rôle de cette IA : elle pourrait également servir à la **rédaction des prompts pour les panels** (suggestions de descriptions courtes à partir du scénario + assets), tout en gardant la règle que le prompt d'image final = style + assets sélectionnés + description (jamais le scénario brut dans le prompt d'image).
+- **Chapitres écrits = chapitres webtoon** : les **chapitres** créés dans la section Scénario **correspondent** aux chapitres du webtoon (un chapitre écrit = un chapitre webtoon). Cela permet de générer panel par panel l'histoire à partir du scénario en s'appuyant sur cette structure.
+- **Découpage Chapitre → Panels (dans la section Scénario)** : au sein de chaque chapitre (texte), un **découpage en panels** est possible : l'utilisateur ou l'IA structure le chapitre en **liste de panels** (courtes descriptions par panel), directement dans la section Scénario. Ce découpage sert à la génération panel par panel en Édition de l'œuvre. Les **règles de gestion** de ce découpage (automatique, manuel, critères, etc.) sont à **définir plus tard**.
+- **IA LLM — Deux types (même modèle, system prompts différents)** :
+  - **IA Scénario** (histoire entière) : l'utilisateur **voit et utilise l'IA dès qu'il entre dans la section Scénario**. Choix du nombre de chapitres + prompt → génération de **toute l'histoire** chapitre par chapitre **directement sur le site**. Modification par prompt → réécriture → **comparaison ancienne/nouvelle** → **accepter / rejeter**.
+  - **IA Chapitre** (un chapitre) : l'utilisateur **voit et utilise l'IA dès qu'il entre dans un chapitre de scénario créé**. Prompt de modification → réécriture du chapitre uniquement → **accepter / rejeter**.
+- **Visibilité** : l'IA Scénario est **visible et accessible dès l'entrée** dans l'onglet Scénario ; l'IA Chapitre est **visible et accessible dès l'ouverture** d'un chapitre de scénario (sans étape supplémentaire).
+- Les scénarios **approuvés** sont **persistés en BDD** (versions, voir roadmap).
+- **Réflexion — Rôle étendu** : l'IA pourrait aussi servir à la **rédaction des prompts pour les panels** (suggestions à partir du scénario + assets), en gardant la règle : prompt d'image = style + assets + description (jamais le scénario brut).
+- **Détection dans le scénario** : les mentions d'assets déjà créés (personnages, décors, objets) peuvent être **surlignées** dans l'éditeur, avec affichage de l'image au survol ; les éléments **mentionnés mais non encore créés** comme assets sont signalés (« à créer ») pour inviter à compléter la bibliothèque.
 - **Rôle du scénario** : le scénario sert de référence pour l'adaptation en visuel ; il n'est **jamais** injecté tel quel dans les prompts de génération d'image (découpage IA éventuel en panels, structure uniquement).
 
 ### 8.5 Édition de l'œuvre (chapitres visuels et panels)
@@ -225,9 +231,9 @@ Des **millions de créateurs potentiels** (auteurs, scénaristes, conteurs, fans
   - **Mode Automatique** : découpage IA du scénario en panels → sélection des assets du chapitre → génération panel par panel (prompt = style + assets + description du panel).
   - **Mode Structuré** : chapitre visuel vide → panels et blocs (rectangles) → description + assets par bloc → génération 1 image pleine par bloc.
 - **Interface d'édition des panels** : pendant l'édition d'un panel, l'utilisateur dispose de **deux aides visuelles** :
-  - **Côté scénario** : visualisation du **chapitre de scénario** (ou du passage de scénario) qu'il adapte en visuel, pour garder le contexte narratif.
+  - **Côté scénario** : visualisation du **chapitre de scénario** (texte) qu'il adapte en visuel — affiché **dès l'entrée** dans l'édition du chapitre visuel si un chapitre de scénario est associé (ou choisi via un sélecteur). Voir **11_Rapport_Chapitres_Flux_Blocs_Scenario.md** § 3.4.1 pour la projection détaillée (lien optionnel chapitre visuel ↔ chapitre de scénario, panneau toujours visible ou repliable).
   - **Côté visuel** : visualisation des **assets sélectionnés** pour le prompting du panel (personnages, décors, objets), pour cadrer la génération IA.
-- Règle : la génération s'appuie toujours sur les **assets sélectionnés** (chapitre ou bloc), jamais sur le texte du scénario dans le prompt d'image.
+  - Règle : la génération s'appuie toujours sur les **assets sélectionnés** (chapitre ou bloc), jamais sur le texte du scénario dans le prompt d'image.
 
 ### 8.6 Génération IA
 - **Free** : FLUX.1 Schnell (~0,003 €/image). **Pro** : FLUX.2 Pro / Pro Edit (refs).
@@ -244,8 +250,8 @@ Des **millions de créateurs potentiels** (auteurs, scénaristes, conteurs, fans
 2. **Création d'un projet** → Titre + description
 3. **Définition du style** : template texte + images de référence (Pro)
 4. **Création des assets** : personnages, décors, objets ; vues multiples (Pro)
-5. **Section Scénario** : écrire ou importer le scénario (texte) ; créer des chapitres de scénario (découpage narratif, indépendants du visuel)
-6. **Édition de l'œuvre** : créer les chapitres visuels et panels — mode Automatique (scénario → panels → génération) ou Structuré (blocs → descriptions + assets → génération) ; pendant l'édition des panels : visualisation du chapitre de scénario adapté + visualisation des assets sélectionnés ; dialogues/narration en overlay
+5. **Section Scénario** : écrire ou importer le scénario (texte) ; créer des **chapitres** (correspondant aux chapitres webtoon) ; découper chaque chapitre en **panels** (liste + descriptions) pour permettre la génération panel par panel
+6. **Édition de l'œuvre** : chapitres visuels et panels alignés sur les chapitres écrits — mode Automatique (découpage scénario → panels → génération) ou Structuré (blocs → descriptions + assets → génération) ; pendant l'édition : visualisation du chapitre texte correspondant + assets sélectionnés ; dialogues/narration en overlay
 7. **Prévisualisation** : lecture verticale (images pleines dans panels/blocs)
 
 ---

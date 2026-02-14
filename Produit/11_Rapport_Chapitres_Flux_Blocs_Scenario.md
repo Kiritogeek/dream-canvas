@@ -57,21 +57,23 @@ Dans les deux cas, l'UI doit imposer ou fortement encourager cette sélection av
 
 ---
 
-## 3. Scénario — section dédiée, chapitres de scénario, hors prompts d'image
+## 3. Scénario — section dédiée, chapitres = webtoon, découpage Chapitre → Panels
 
 ### 3.1 Définitions
 
 | Terme | Définition | Usage |
 |-------|------------|--------|
-| **Scénario** | **Section à part entière** du produit : l'utilisateur y **écrit** son histoire ou **importe** un scénario (format texte : fichier .txt ou copier-coller). Texte narratif : actions, lieux, personnages, dialogues. | **Découpage IA** (optionnel) : scénario → chapitres, puis chapitre → panels (liste + courte description). **Jamais** injecté dans le prompt de génération d'image. |
-| **Chapitres de scénario** | Découpage **narratif** du scénario, créés par l'utilisateur (titres, structure logique de l'histoire). | **Complètement dissociés** des chapitres visuels du webtoon (Édition de l'œuvre). Servent de référence pour l'adaptation en visuel. |
-| **Édition de l'œuvre** | Partie **visuelle** du produit : chapitres (visuels) et panels. C'est là que l'utilisateur construit le webtoon à partir du scénario et des assets. | Chapitres visuels = ceux qui contiennent les panels. Lors de l'édition d'un panel : double visualisation (voir 3.4). |
-| **Synopsis** | Résumé court du chapitre visuel (quelques phrases). Présent en BDD (`chapters.synopsis`). | Référence auteur ; peut servir d'entrée au découpage IA. **Pas** utilisé dans le prompt d'image. |
+| **Scénario** | **Section à part entière** du produit : l'utilisateur y **écrit** son histoire ou **importe** un scénario (format texte : fichier .txt ou copier-coller). Texte narratif : actions, lieux, personnages, dialogues. | Découpage en **chapitres** (correspondant aux chapitres webtoon), puis **Chapitre → Panels** (liste + descriptions) dans la section Scénario. **Jamais** le texte brut injecté dans le prompt de génération d'image. |
+| **Chapitres (section Scénario)** | Chapitres **écrits** dans la section Scénario. Ils **correspondent** aux chapitres du webtoon : **un chapitre écrit = un chapitre webtoon**. Titres, ordre, contenu texte. | Permettent de générer panel par panel l'histoire : chaque chapitre (texte) peut être découpé en panels (liste + descriptions) dans la section Scénario ; ce découpage alimente l'Édition de l'œuvre. |
+| **Découpage Chapitre → Panels** | Au sein de la section Scénario, pour **chaque chapitre** (texte), découpage en **panels** : liste de panels avec courte description par panel. | Structure utilisée pour la génération panel par panel en mode Automatique. **Règles de gestion** de ce découpage (automatique, manuel, critères) à **définir plus tard**. |
+| **Édition de l'œuvre** | Partie **visuelle** du produit : chapitres webtoon (alignés sur les chapitres écrits) et panels. C'est là que l'utilisateur construit le webtoon à partir du scénario et des assets. | Lors de l'édition d'un panel : double visualisation (chapitre texte correspondant + assets). Voir 3.4. |
+| **Synopsis** | Résumé court du chapitre (quelques phrases). Présent en BDD (`chapters.synopsis`). | Référence auteur ; peut servir d'entrée au découpage IA. **Pas** utilisé dans le prompt d'image. |
 
 ### 3.2 Contenu de la section Scénario
 
 - **Saisie** : l'utilisateur écrit son scénario dans la section « Scénario » **ou** importe un scénario (fichier texte .txt ou copier-coller).
-- **Chapitres de scénario** : l'utilisateur peut créer lui-même des chapitres pour structurer son scénario. Ces chapitres sont **indépendants** des chapitres de l'œuvre (visuels) : même nombre ou non, même découpage ou non.
+- **Chapitres = chapitres webtoon** : les chapitres créés dans la section Scénario **correspondent** aux chapitres du webtoon (un chapitre écrit = un chapitre webtoon). L'utilisateur crée et structure ces chapitres (titres, ordre, contenu texte) ; cette structure sert directement à l'Édition de l'œuvre et à la génération panel par panel.
+- **Découpage Chapitre → Panels (dans la section Scénario)** : pour chaque chapitre (texte), un **découpage en panels** est réalisé **directement dans la section Scénario** : liste de panels avec courte description par panel. Ce découpage alimente la génération panel par panel en Édition de l'œuvre. Les **règles de gestion** de ce découpage (qui découpe : utilisateur, IA, les deux ; critères ; édition manuelle, etc.) sont à **définir plus tard**.
 - **Détection des assets déjà créés dans le scénario** : le texte du scénario est analysé pour repérer les **mentions d'assets existants** (personnages, décors, objets) de la bibliothèque du projet. Exemple : « Jean est dans la ville principale avec une épée » → **Jean** (asset personnage), **ville principale** (asset décor), **épée** (asset objet) sont détectés s'ils existent. Ces mentions sont **mises en surbrillance** dans l'éditeur de scénario (style distinct selon le type : personnage / décor / objet). **Au survol (hover)** sur une mention, l'**image de l'asset** correspondant s'affiche (tooltip ou popover) pour rappel visuel.
 - **Détection par l'IA des éléments non encore créés** : une **IA** (règles de correspondance noms d'assets + LLM si besoin) détecte dans le scénario les **éléments** (personnages, décors, objets) qui sont **mentionnés mais pas encore créés** comme assets dans la bibliothèque. Ces éléments sont **signalés** dans le scénario (surbrillance distincte, ex. « à créer » ou liste dédiée « Éléments mentionnés non créés ») pour que l'utilisateur puisse créer les assets manquants et garder la cohérence narrative.
 - **IA LLM — Scénariste (agent)** : une **IA LLM** est intégrée pour aider l'utilisateur à **construire son histoire**, avec un **system prompt** dédié au rôle de scénariste (agent « scénariste IA »). Voir roadmap Phase 2.
@@ -95,9 +97,43 @@ Lors de l'édition d'un panel, l'utilisateur dispose de **deux aides visuelles**
 
 Cela suppose qu'un **lien optionnel** entre chapitre visuel et chapitre de scénario (ou passage) soit possible, pour afficher « le bon » extrait de scénario à côté du panel en cours d'édition. Voir section 6 « Points à clarifier ».
 
+#### 3.4.1 Projection : comment fonctionne l’ouverture du chapitre texte lors de l’édition de l’œuvre
+
+**Contexte** : l’utilisateur est dans **Édition de l’œuvre** (chapitre visuel ouvert, en train d’éditer un panel ou un bloc). Il a besoin de **voir le texte du scénario** (chapitre de scénario) correspondant pour s’aider à rédiger la description du panel ou à cadrer la scène.
+
+**Fonctionnement prévu** :
+
+1. **Où s’affiche le chapitre texte**
+   - Dans l’écran d’édition du chapitre visuel (ou du panel/bloc), un **panneau « Scénario »** (ou « Chapitre texte ») affiche le **contenu textuel** d’un chapitre de scénario.
+   - Ce panneau fait partie de la **double visualisation** : à côté (ou en dessous sur mobile) se trouve le panneau **Assets** (assets sélectionnés pour ce panel). L’utilisateur a ainsi **scénario + assets** sous les yeux pendant qu’il remplit le prompt du panel ou lance la génération.
+
+2. **Quel chapitre texte afficher**
+   - **Si un lien existe** : au moment de créer ou d’éditer le **chapitre visuel**, l’utilisateur peut **associer** ce chapitre à un **chapitre de scénario** (ex. « Ce chapitre visuel adapte le chapitre de scénario #3 »). En BDD : un champ optionnel sur le chapitre visuel, ex. `linked_scenario_chapter_id` (FK vers la table des chapitres de scénario).
+   - **Comportement** : dès que l’utilisateur ouvre ce chapitre visuel pour éditer les panels, le système **affiche automatiquement** le texte du chapitre de scénario lié dans le panneau Scénario. L’utilisateur n’a rien à « ouvrir » de plus : le chapitre texte est **déjà visible** à l’entrée dans l’édition du chapitre visuel.
+   - **Si aucun lien n’est défini** : le panneau Scénario peut rester vide avec un message du type « Aucun chapitre de scénario associé » et un **sélecteur** (liste déroulante ou liste des chapitres de scénario du projet) permettant à l’utilisateur de **choisir quel chapitre texte afficher**. Une fois choisi, le texte s’affiche dans le panneau ; optionnellement, l’utilisateur peut **enregistrer** ce choix comme association (lien) pour ce chapitre visuel, afin que ce soit réaffiché aux prochaines visites.
+
+3. **Ouverture / affichage**
+   - **Pas d’« ouverture » séparée** au sens « clic pour ouvrir un fichier » : le chapitre texte est **affiché directement** dans le panneau Scénario dès que l’utilisateur est dans l’édition du chapitre visuel (et que un chapitre de scénario est lié ou sélectionné).
+   - Le panneau peut être **repliable** (accordéon ou bouton « Masquer / Afficher le scénario ») pour gagner de la place, mais par défaut il est **ouvert** pour que l’aide soit immédiate.
+   - Si le projet n’a **aucun chapitre de scénario** : le panneau peut afficher un lien court vers la section Scénario (« Créer votre scénario ») ou le scénario global (texte brut) s’il existe au niveau projet.
+
+4. **Résumé du flux**
+   - Utilisateur **entre dans Édition de l’œuvre** → ouvre un **chapitre visuel** (liste des chapitres du webtoon).
+   - L’écran d’édition du chapitre visuel s’affiche avec **deux zones** : une pour les panels/blocs (édition, génération), une pour les **aides** (Scénario + Assets).
+   - **Panneau Scénario** : le système charge et affiche le texte du chapitre écrit **correspondant** au chapitre visuel (par ordre ou lien en BDD), sinon propose un **sélecteur** pour choisir un chapitre à afficher.
+   - L’utilisateur **lit le texte** dans ce panneau tout en remplissant les descriptions des panels ou en sélectionnant les assets ; il peut **replier** le panneau s’il veut plus d’espace, et le **réafficher** sans avoir à « rouvrir » un fichier.
+
+5. **Données nécessaires**
+   - **Chapitres** (`chapters` ou équivalent) : ajout d’un champ optionnel **`linked_scenario_chapter_id`** (chapitres écrits = chapitres webtoon ; même table ou deux tables liées par ordre). l’ordre.
+   - **Chapitres (texte)** : table ou structure avec `id`, `project_id`, `title`, `content`, ordre. **Découpage Chapitre → Panels** : stockage liste panels (descriptions) par chapitre ; règles de gestion à définir plus tard.
+
+Cette projection peut être implémentée progressivement : d’abord panneau Scénario avec **sélecteur manuel** (sans lien persisté), puis ajout du **lien optionnel** et affichage automatique du chapitre lié à l’entrée dans le chapitre visuel.
+
 ### 3.5 Assistance IA : deux types (Scénario / Chapitre), réécriture directe et accepter-rejeter
 
 **Même modèle LLM, system prompts différents** : le produit utilise **deux rôles IA** (et optionnellement un troisième pour les panels), avec le **même fournisseur LLM** mais des **system prompts** distincts : (1) **IA Scénario** — écrit toute l'histoire, intervient sur le scénario global ; (2) **IA Chapitre** — intervient **uniquement sur le chapitre de scénario** en cours ; (3) **IA Panel** (Édition de l'œuvre) — suggère ou réécrit les descriptions de panels. Voir ci-dessous.
+
+**Visibilité dans l'interface** : l'**IA Scénario** est **visible et utilisable dès que l'utilisateur entre dans la section Scénario** (onglet Scénario) ; l'**IA Chapitre** est **visible et utilisable dès que l'utilisateur entre dans un chapitre de scénario créé** (ouverture du chapitre). L'utilisateur n'a pas à chercher ni à cliquer ailleurs pour accéder à ces aides.
 
 #### IA Scénario (niveau histoire entière)
 
@@ -194,12 +230,13 @@ Alternative : table **panel_blocks** (id, panel_id, block_index, x, y, width, he
 
 ## 6. Points à clarifier / incohérences possibles
 
-Ces points découlent de la dissociation **chapitres de scénario** vs **chapitres de l'œuvre** et de la double visualisation en édition. À trancher en produit / technique.
+Ces points découlent de la **correspondance chapitres écrits = chapitres webtoon**, du **découpage Chapitre → Panels** dans la section Scénario et de la double visualisation en édition. À trancher en produit / technique.
 
 | Point | Évocation | Question / risque d'incohérence |
 |-------|-----------|----------------------------------|
-| **Lien scénario ↔ œuvre** | Chapitres de scénario et chapitres visuels sont « complètement dissociés ». Pendant l'édition d'un panel, on affiche « le chapitre de scénario qu'il adapte ». | **Quel passage afficher ?** Si tout est dissocié, il n'y a pas de lien explicite entre un panel (ou chapitre visuel) et un chapitre de scénario. Faut-il une **association optionnelle** (ex. « Ce chapitre visuel adapte le chapitre de scénario #2 ») pour afficher le bon extrait à côté ? Sinon : afficher tout le scénario, ou le chapitre visuel courant sans lien ? |
-| **Modèle de données « chapitres de scénario »** | L'utilisateur crée des chapitres pour son scénario (texte). | **Où les stocker ?** Nouvelle table `scenario_chapters` (project_id, title, content ou start/end offset dans un blob scénario) ? Ou un seul champ `project.scenario` (TEXT) avec un JSON de découpage (titres + positions) ? Impact sur l'UI (liste des chapitres de scénario, édition). |
+| **Correspondance chapitres écrits ↔ webtoon** | Les chapitres (section Scénario) **correspondent** aux chapitres webtoon (1 = 1). | **Modèle** : une seule table `chapters` avec type (scénario / visuel) ou deux tables (scénario vs visuel) liées par ordre). ou FK ? Gestion de la création : créer le chapitre visuel automatiquement à la création du chapitre écrit, ou l'utilisateur crée les deux côtés ? |
+| **Découpage Chapitre → Panels (section Scénario)** | Dans chaque chapitre (texte), découpage en panels (liste + descriptions) directement dans la section Scénario. | **Règles de gestion** à définir plus tard : qui découpe (utilisateur, IA, les deux) ? Critères du découpage ? Édition manuelle des descriptions de panels ? Stockage : table `scenario_panels` (chapter_id, panel_number, description) ou JSONB sur le chapitre ? |
+| **Modèle de données chapitres (texte)** | Chapitres écrits = chapitres webtoon ; contenu texte + découpage panels. | **Où stocker** : table dédiée (ex. `scenario_chapters` avec `content`, `panels` JSONB ou table `scenario_panels`) ou réutilisation de `chapters` avec champs scénario (content, panels) ? Impact sur l'UI. |
 | **Import scénario** | Import d'un scénario (format texte). | **Format** : .txt uniquement ou aussi .md / docx ? **Chapitres après import** : l'utilisateur doit-il recréer les chapitres de scénario après import, ou l'import peut-il détecter des marqueurs (ex. "## Chapitre 1") pour pré-remplir les chapitres ? |
 | **Ordre des onglets / zones** | « Côté scénario » et « côté assets » pendant l'édition. | **Layout** : deux colonnes (scénario à gauche, assets à droite), panneaux repliables, ou onglets ? À définir en UX. |
 
@@ -218,6 +255,6 @@ Ces points découlent de la dissociation **chapitres de scénario** vs **chapitr
 - **UX en mode Automatique** : Générer panel par panel peut sembler plus lent qu'un « tout en un clic ». Il faudra une UI claire (ex. bouton « Générer ce panel », progression, possibilité de lancer plusieurs panels à la suite sans réinjecter le scénario).
 - **Courte description par panel** : Elle doit être suffisante pour que l'IA produise une image pertinente. Le découpage IA doit donc produire des descriptions courtes mais exploitables ; sinon, l'utilisateur devra les compléter (déjà prévu).
 
-**Conclusion** : La vision (scénario = structure uniquement ; chapitres de scénario dissociés de l'œuvre ; génération panel par panel ; assets impératifs ; double visualisation en édition) est cohérente. Les points de la section 6 restent à trancher pour l'implémentation (lien scénario/œuvre, modèle chapitres de scénario, import, layout). Les .md ont été alignés en conséquence.
+**Conclusion** : La vision (scénario = structure ; **chapitres écrits = chapitres webtoon** ; **découpage Chapitre → Panels** dans la section Scénario, règles à définir ; génération panel par panel ; assets impératifs ; double visualisation en édition) est cohérente. Les points de la section 6 restent à trancher pour l'implémentation (modèle chapitres, règles de gestion du découpage, import, layout). Les .md ont été alignés en conséquence.
 
 Ce rapport sert de référence pour la mise à jour des .md et pour l’implémentation.

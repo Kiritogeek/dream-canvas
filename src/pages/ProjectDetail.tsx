@@ -138,11 +138,21 @@ export default function ProjectDetail() {
           </div>
         </div>
 
-        <Tabs defaultValue="assets" className="space-y-4 sm:space-y-6">
+        <Tabs defaultValue="style" className="space-y-4 sm:space-y-6">
           <TabsList className="glass w-full sm:w-auto">
-            <TabsTrigger value="assets" className="flex-1 sm:flex-none">Assets</TabsTrigger>
             <TabsTrigger value="style" className="flex-1 sm:flex-none">Style</TabsTrigger>
+            <TabsTrigger value="assets" className="flex-1 sm:flex-none">Assets</TabsTrigger>
           </TabsList>
+
+          {/* Style Tab */}
+          <TabsContent value="style">
+            <StyleManager
+              project={project}
+              styleTemplate={styleTemplate}
+              onStyleTemplateChange={setStyleTemplate}
+              userPlan={userPlan}
+            />
+          </TabsContent>
 
           {/* Assets Tab */}
           <TabsContent value="assets">
@@ -154,16 +164,6 @@ export default function ProjectDetail() {
               generatingView={generatingView}
               onCanGenerate={canGenerate}
               onGenerate={(asset, opts) => generate(asset, opts)}
-            />
-          </TabsContent>
-
-          {/* Style Tab */}
-          <TabsContent value="style">
-            <StyleManager
-              project={project}
-              styleTemplate={styleTemplate}
-              onStyleTemplateChange={setStyleTemplate}
-              userPlan={userPlan}
             />
           </TabsContent>
         </Tabs>

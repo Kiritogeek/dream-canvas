@@ -12,7 +12,7 @@
 | **Flux** | Deux modes : **Automatique** (découpage IA → panels, génération **panel par panel**) et **Structuré** (chapitre vide → blocs → texte + assets → génération). |
 | **Images** | Chaque image générée est une **illustration pleine** (pas de “cases” ou blocs dessinés dans l’image). Les blocs sont des **zones de mise en page** dans l’app : on y affiche une image par bloc. |
 | **Blocs** | En mode Structuré : l’utilisateur définit des blocs (position, taille, forme rectangle en v1). Chaque bloc a un contenu texte (prompt) et des refs assets. À la génération : **1 image par bloc** → l’image est ensuite affichée **dans** ce bloc. |
-| **Scénario** | **Section à part entière** : écrire son histoire. IA découpe scénario → chapitres, puis chapitre → panels. **Jamais** utilisé dans le prompt de génération d'image (découpage uniquement). Voir section 3. |
+| **Scénario** | **Section à part entière** : écrire son histoire. **IA Scénario** : prompt + **nombre de chapitres** choisi par l'utilisateur → génération de **toute l'histoire** chapitre par chapitre **directement sur le site**. Modification par prompt → réécriture directe → **comparaison ancienne/nouvelle** → **accepter ou rejeter**. **IA Chapitre** : par chapitre, IA qui n'intervient que sur ce chapitre ; même flux accepter/rejeter. Détection assets (surbrillance + hover) et éléments non créés. Jamais le scénario dans le prompt d'image. Voir section 3. |
 | **Prompts d'image** | Uniquement **assets sélectionnés** + éventuellement **courte description par panel** (issue du découpage ou saisie). Le scénario/synopsis **n'est pas** injecté dans le prompt. |
 | **Génération panel par panel** | Mode Automatique : génération **au minimum panel par panel**. Impossible de générer un chapitre entier sans erreurs ou limites (quota, timeouts, API). |
 | **Assets — impératif (les 2 flux)** | **La génération doit impérativement s'appuyer sur les assets que l'utilisateur sélectionne.** Ces assets cadrent la scène et permettent à l'IA de comprendre quels éléments (personnages, décors, objets) doivent figurer dans le chapitre. Sans sélection d'assets par l'utilisateur, la génération n'est pas cadrée et la cohérence narrative n'est pas garantie. |
@@ -72,6 +72,8 @@ Dans les deux cas, l'UI doit imposer ou fortement encourager cette sélection av
 
 - **Saisie** : l'utilisateur écrit son scénario dans la section « Scénario » **ou** importe un scénario (fichier texte .txt ou copier-coller).
 - **Chapitres de scénario** : l'utilisateur peut créer lui-même des chapitres pour structurer son scénario. Ces chapitres sont **indépendants** des chapitres de l'œuvre (visuels) : même nombre ou non, même découpage ou non.
+- **Détection des assets déjà créés dans le scénario** : le texte du scénario est analysé pour repérer les **mentions d'assets existants** (personnages, décors, objets) de la bibliothèque du projet. Exemple : « Jean est dans la ville principale avec une épée » → **Jean** (asset personnage), **ville principale** (asset décor), **épée** (asset objet) sont détectés s'ils existent. Ces mentions sont **mises en surbrillance** dans l'éditeur de scénario (style distinct selon le type : personnage / décor / objet). **Au survol (hover)** sur une mention, l'**image de l'asset** correspondant s'affiche (tooltip ou popover) pour rappel visuel.
+- **Détection par l'IA des éléments non encore créés** : une **IA** (règles de correspondance noms d'assets + LLM si besoin) détecte dans le scénario les **éléments** (personnages, décors, objets) qui sont **mentionnés mais pas encore créés** comme assets dans la bibliothèque. Ces éléments sont **signalés** dans le scénario (surbrillance distincte, ex. « à créer » ou liste dédiée « Éléments mentionnés non créés ») pour que l'utilisateur puisse créer les assets manquants et garder la cohérence narrative.
 - **IA LLM — Scénariste (agent)** : une **IA LLM** est intégrée pour aider l'utilisateur à **construire son histoire**, avec un **system prompt** dédié au rôle de scénariste (agent « scénariste IA »). Voir roadmap Phase 2.
 - **BDD — Scénarios approuvés** : tout ce qui a été **approuvé** par l'utilisateur (scénarios, chapitres de scénario) est **persisté en BDD** ; modèle et historique/versions à définir en roadmap.
 - **Réflexion — Rôle étendu** : il y a matière à réflexion sur l’extension du rôle de cette IA : elle pourrait aussi servir à la **rédaction des prompts pour les panels** (suggestions de descriptions à partir du scénario + assets), sans remettre en cause la règle « prompt d'image = style + assets + description » (jamais le scénario brut).
@@ -92,6 +94,32 @@ Lors de l'édition d'un panel, l'utilisateur dispose de **deux aides visuelles**
 | **Assets** | Visualisation des **assets sélectionnés** pour ce panel (personnages, décors, objets). | Rappel visuel pour le prompting et la cohérence ; cadrer la génération IA. |
 
 Cela suppose qu'un **lien optionnel** entre chapitre visuel et chapitre de scénario (ou passage) soit possible, pour afficher « le bon » extrait de scénario à côté du panel en cours d'édition. Voir section 6 « Points à clarifier ».
+
+### 3.5 Assistance IA : deux types (Scénario / Chapitre), réécriture directe et accepter-rejeter
+
+**Même modèle LLM, system prompts différents** : le produit utilise **deux rôles IA** (et optionnellement un troisième pour les panels), avec le **même fournisseur LLM** mais des **system prompts** distincts : (1) **IA Scénario** — écrit toute l'histoire, intervient sur le scénario global ; (2) **IA Chapitre** — intervient **uniquement sur le chapitre de scénario** en cours ; (3) **IA Panel** (Édition de l'œuvre) — suggère ou réécrit les descriptions de panels. Voir ci-dessous.
+
+#### IA Scénario (niveau histoire entière)
+
+- L'utilisateur **saisit un prompt** décrivant son histoire (ex. « Une fantasy où un forgeron découvre une épée maudite »).
+- Le système **demande en combien de chapitres** il veut son histoire (ex. 50 chapitres).
+- L'**IA Scénario** génère **toute l'histoire** chapitre par chapitre, **directement sur le site** (le texte apparaît dans l'éditeur de scénario, chapitre par chapitre).
+- **Modification par prompt** : l'utilisateur peut ensuite saisir un **nouveau prompt** pour modifier des aspects (ex. « Rendre le ton plus sombre, ajouter un second personnage »). L'IA **réécrit** le scénario (ou les parties concernées) **directement sur le site**.
+- **Comparaison et choix** : l'utilisateur peut **lire** l'ancienne version et la **nouvelle version** (affichage côte à côte ou bascule). Il **choisit** : **garder la nouvelle** (accepter) ou **revenir à l'ancienne** (rejeter). Les versions sont conservées tant que l'utilisateur n'a pas accepté définitivement.
+
+#### IA Chapitre (niveau un chapitre de scénario)
+
+- Sur **chaque chapitre de scénario**, une **IA dédiée** qui **n'intervient que sur ce chapitre** (system prompt « assistant chapitre »).
+- L'utilisateur ouvre un chapitre, saisit un **prompt de modification** (ex. « Allonger la scène du duel, plus de dialogues »). L'IA **réécrit le chapitre** directement sur le site.
+- **Même flux accepter-rejeter** : l'utilisateur voit l'ancienne vs la nouvelle version et **accepte** (garder la nouvelle) ou **rejette** (revenir à l'ancienne).
+
+#### IA Panel (Édition de l'œuvre)
+
+- Lors de l'édition d'un **panel** (description / prompt du panel), l'utilisateur peut demander à l'**IA Panel** de **suggérer ou réécrire** la description du panel (à partir du contexte scénario + assets). La réécriture s'affiche **directement** dans le champ ; l'utilisateur peut **accepter** ou **rejeter** (revenir à l'ancienne description).
+
+#### Options d'IA LLM gratuites (recommandations)
+
+Pour un usage **gratuit** ou à coût maîtrisé, des options courantes en 2024–2025 sont : **Groq** (tier gratuit : Llama 3.3 70B, Mixtral 8x7B, nombreuses requêtes/jour) ; **OpenRouter** (accès gratuit avec limites, modèles Llama, Mistral, Gemma) ; **Mistral** (API gratuite via La Plateforme) ; **Google AI Studio** (Gemini avec quota gratuit). Le choix dépend des quotas, de la latence et de la langue ; un même backend peut appeler l’un de ces fournisseurs avec des system prompts différents pour Scénario / Chapitre / Panel.
 
 ---
 

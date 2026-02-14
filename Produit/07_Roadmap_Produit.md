@@ -61,25 +61,39 @@
 
 ## Phase 2 : Panels & Dialogues (Q2 2026) — 🔜 NEXT
 
-> **Objectif** : Permettre la création complète d'un chapitre avec **deux flux** (Automatique et Structuré). Les images générées sont toujours des **illustrations pleines** ; elles sont affichées dans les panels ou dans des blocs (conteneurs de mise en page), sans « cases » dessinées dans l’image. Voir `11_Rapport_Chapitres_Flux_Blocs_Scenario.md`. **Règle impérative** : la génération doit s'appuyer sur les **assets sélectionnés par l'utilisateur** (chapitre en mode Auto, par bloc en mode Structuré) pour cadrer la scène et que l'IA comprenne les éléments à mettre dans le chapitre.
+> **Objectif** : (1) **Section Scénario** : écriture avec IA (génération complète, nombre de chapitres, accepter/rejeter). (2) **Édition de l'œuvre** : chapitres visuels et panels (**deux flux** (Automatique et Structuré). Les images générées sont toujours des **illustrations pleines** ; elles sont affichées dans les panels ou dans des blocs (conteneurs de mise en page), sans « cases » dessinées dans l’image. Voir `11_Rapport_Chapitres_Flux_Blocs_Scenario.md`. **Règle impérative** : la génération doit s'appuyer sur les **assets sélectionnés par l'utilisateur** (chapitre en mode Auto, par bloc en mode Structuré) pour cadrer la scène et que l'IA comprenne les éléments à mettre dans le chapitre.
 
-### 2.1 Section Scénario (texte narratif)
+### 2.1 Section Scénario (texte narratif — uniquement scénario)
+
+**Deux types d'IA LLM** : **même modèle** (ex. Groq/Llama, OpenRouter, Mistral), **system prompts différents** — (1) **IA Scénario** (histoire entière), (2) **IA Chapitre** (un chapitre). Options gratuites : **Groq** (Llama 3.3 70B, Mixtral), **OpenRouter**, **Mistral La Plateforme**, **Google AI Studio** (Gemini). Voir rapport section 3.5.
 
 | Tâche | Description | Priorité | Effort |
 |-------|------------|----------|--------|
-| **Écrire / importer le scénario** | Zone dédiée : l'utilisateur écrit son scénario ou importe un fichier texte (.txt) / copier-coller. | P0 | M |
-| **Chapitres de scénario** | L'utilisateur peut créer des chapitres pour son scénario (découpage narratif). **Dissociés** des chapitres visuels (Édition de l'œuvre). | P0 | M |
-| **IA LLM — Scénariste (agent)** | Intégration d'une **IA LLM** dans la section Scénario pour aider à construire l'histoire. **System prompt** dédié au rôle de scénariste (agent « scénariste IA ») : cohérence narrative, structure, personnages, dialogues, ton. | P0 | L |
-| **BDD — Scénarios approuvés** | Modèle de données et persistance pour stocker **tout ce qui a été approuvé** : versions de scénario (et chapitres de scénario) validées par l'utilisateur. Historique / versions possibles. | P0 | M |
+| **Écrire / importer le scénario** | Zone dédiée : écriture ou import (.txt / copier-coller). | P0 | M |
+| **Choix du nombre de chapitres + IA Scénario** | Demander **en combien de chapitres** l'utilisateur veut son histoire (ex. 50). Prompt → **IA Scénario** génère **toute l'histoire** chapitre par chapitre **directement sur le site**. | P0 | L |
+| **Modification par prompt (scénario entier)** | Nouveau prompt pour modifier l'histoire → IA **réécrit** directement sur le site. **Comparaison** ancienne vs nouvelle. **Accepter** (garder nouvelle) ou **Rejeter** (revenir à l'ancienne). | P0 | L |
+| **IA Chapitre (par chapitre)** | Sur **chaque chapitre**, IA qui **n'intervient que sur ce chapitre**. Prompt de modification → réécriture du chapitre → **accepter / rejeter**. | P0 | L |
+| **Chapitres de scénario** | Création / découpage chapitres de scénario (titres). **Dissociés** des chapitres visuels (Édition de l'œuvre). | P0 | M |
+| **BDD — Scénarios approuvés & versions** | Persistance des versions approuvées ; conservation ancienne vs nouvelle pour flux accepter/rejeter. | P0 | M |
 | **Découpage IA (optionnel)** | IA : scénario → chapitres, puis chapitre → panels (courtes descriptions). Structure uniquement ; scénario **jamais** dans les prompts d'image. | P0 | L |
+| **Détection des assets dans le scénario** | Repérer dans le texte les mentions d'assets déjà créés (personnages, décors, objets). **Surbrillance** dans l'éditeur (style par type). **Hover** : affichage de l'image de l'asset (tooltip / popover). | P0 | M |
+| **IA — Éléments non créés** | Détection (règles + LLM si besoin) des **éléments mentionnés dans le scénario** qui ne sont **pas encore** créés comme assets (personnages, décors, objets). Signalement dans le scénario (surbrillance « à créer » ou liste « Éléments mentionnés non créés ») pour inviter à créer les assets manquants. | P0 | L |
 
-**Réflexion — Rôle étendu de l'IA LLM** : matières à réflexion pour une phase ultérieure : réutilisation de cette IA (ou d’un agent dérivé) pour la **rédaction des prompts des panels** (suggestions de descriptions courtes à partir du scénario + assets), sans injecter le scénario brut dans le prompt d’image (règle inchangée : prompt = style + assets + description).
+**Note** : L'IA Panel (suggestions / réécriture des descriptions de panels, accepter-rejeter) est en **2.2.1**. Règle inchangée : réutilisation de cette IA (ou d’un agent dérivé) pour la **rédaction des prompts des panels** (suggestions de descriptions courtes à partir du scénario + assets), sans injecter le scénario brut dans le prompt d’image (règle inchangée : prompt = style + assets + description).
 
-### 2.2 Mode Automatique (flux rapide) & Édition de l'œuvre
+### 2.2 Édition de l'œuvre (chapitres visuels, panels — uniquement visuel)
+
+#### 2.2.1 Double visualisation & IA Panel
 
 | Tâche | Description | Priorité | Effort |
 |-------|------------|----------|--------|
-| **Édition de l'œuvre — double visualisation** | Lors de l'édition d'un panel : afficher **côté scénario** le chapitre de scénario (ou passage) adapté ; **côté assets** les assets sélectionnés pour le prompting. | P0 | M |
+| **Double visualisation** | À l'édition d'un panel : **côté scénario** chapitre de scénario (ou passage) ; **côté assets** assets sélectionnés pour le prompting. | P0 | M |
+| **IA Panel** | Même modèle LLM, system prompt « IA Panel » : suggère ou **réécrit** la description du panel (contexte scénario + assets). Réécriture **directe** dans le champ ; **accepter** ou **rejeter**. Règle : prompt d'image = style + assets + description (jamais le scénario brut). | P0 | L |
+
+#### 2.2.2 Mode Automatique (flux rapide)
+
+| Tâche | Description | Priorité | Effort |
+|-------|------------|----------|--------|
 | **Découpage automatique** | IA : scénario/synopsis → liste de panels (courtes descriptions). Découpage uniquement, pas dans le prompt d'image. | P0 | L |
 | **Génération panel par panel** | Génération au minimum un panel à la fois (pas tout le chapitre d'un coup : limites API, timeouts). | P0 | M |
 | **Architecture prompt panels** | Prompt par panel = style + **assets sélectionnés** + **courte description du panel** (pas le scénario/synopsis). Génération d’**images pleines** | P0 | L |
@@ -88,7 +102,7 @@
 | **Format vertical 800×1200** | Images pleines, format webtoon | P0 | S |
 | **Régénération / édition** | Régénérer un panel, modifier le prompt, réorganisation | P0–P1 | S–M |
 
-### 2.3 Mode Structuré (flux avec blocs)
+#### 2.2.3 Mode Structuré (flux avec blocs)
 
 | Tâche | Description | Priorité | Effort |
 |-------|------------|----------|--------|
@@ -98,7 +112,7 @@
 | **Génération 1 image par bloc** | Image pleine par bloc à partir du prompt et des **assets sélectionnés** pour ce bloc, stockage URL, affichage dans le bloc | P0 | L |
 | **Régénération / édition** | Régénérer un bloc, modifier prompt ou refs, réorganisation blocs | P1 | M |
 
-### 2.4 Système de dialogues et narration
+#### 2.2.4 Système de dialogues et narration
 
 | Tâche | Description | Priorité | Effort |
 |-------|------------|----------|--------|
@@ -109,7 +123,7 @@
 | **Personnalisation typographique** | Police, taille, couleur du texte | P2 | S |
 | **Génération IA de dialogues** | Suggestion de dialogues à partir du synopsis | P2 | L |
 
-### 2.5 Lecteur webtoon amélioré
+#### 2.2.5 Lecteur webtoon amélioré
 
 | Tâche | Description | Priorité | Effort |
 |-------|------------|----------|--------|

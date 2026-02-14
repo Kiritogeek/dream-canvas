@@ -124,7 +124,15 @@ DreamWeave résout ces problèmes en :
 - Navigation vers le détail d'un chapitre
 - Suppression de chapitres
 
-**Valeur** : Structure narrative claire, organisation de l'histoire.
+**Section Scénario (écriture de l'histoire)** :
+- Zone dédiée pour écrire ou importer le scénario (texte narratif). Chapitres de scénario (dissociés des chapitres visuels). **Deux types d'IA LLM** (même modèle, system prompts différents) — **IA Scénario** (histoire entière) et **IA Chapitre** (un chapitre). Options gratuites possibles : Groq (Llama, Mixtral), OpenRouter, Mistral, Google AI Studio.
+- **IA Scénario** : l'utilisateur saisit un **prompt** pour son histoire ; l'application **demande en combien de chapitres** il la veut (ex. 50). L'IA génère **toute l'histoire** chapitre par chapitre **directement sur le site**. Pour modifier : nouveau prompt → réécriture directe → **comparaison ancienne / nouvelle version** → **Accepter** (garder la nouvelle) ou **Rejeter** (revenir à l'ancienne).
+- **IA Chapitre** : sur **chaque chapitre de scénario**, une IA qui **n'intervient que sur ce chapitre**. Prompt de modification → réécriture du chapitre directement sur le site → **Accepter / Rejeter**.
+- **Dans le scénario** : détection des **assets déjà créés** (surbrillance + hover = image de l'asset) et détection des **éléments mentionnés non encore créés** (signalement « à créer »).
+
+**Édition de l'œuvre (panels)** : **IA Panel** (même modèle LLM, system prompt dédié) : suggère ou réécrit la description d'un panel (contexte scénario + assets) ; réécriture directe dans le champ ; **Accepter / Rejeter**. Voir rapport pour flux Automatique / Structuré.
+
+**Valeur** : Structure narrative claire, assistance IA pour écrire et modifier tout le scénario ou chapitre par chapitre, lien visuel scénario ↔ assets.
 
 ---
 

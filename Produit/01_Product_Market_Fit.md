@@ -212,16 +212,28 @@ Des **millions de créateurs potentiels** (auteurs, scénaristes, conteurs, fans
 - **Personnages** : vues multiples (face, profil G/D, dos) en Pro.
 - Création, modification, régénération, suppression ; stockage Supabase.
 
-### 8.4 Chapitres (deux modes)
-- **Mode Automatique** : scénario → découpage IA en panels → sélection des assets → génération panel par panel (prompt = style + assets + description du panel).
-- **Mode Structuré** : chapitre vide → panels et blocs (rectangles) → description + assets par bloc → génération 1 image pleine par bloc.
-- Règle : la génération s'appuie toujours sur les **assets sélectionnés** (chapitre ou bloc).
+### 8.4 Section « Scénario » (texte narratif)
+- **Contenu** : l'utilisateur écrit le scénario de son histoire **ou** importe un scénario (format texte : fichier .txt ou copier-coller).
+- **Chapitres de scénario** : l'utilisateur peut créer lui-même des **chapitres pour son scénario**. Ces chapitres sont **complètement dissociés** des chapitres visuels du webtoon : ils structurent uniquement le texte narratif (titre, découpage logique de l'histoire).
+- **IA LLM — Scénariste (agent)** : une **IA LLM** est intégrée dans la section Scénario pour aider l'utilisateur à **construire son histoire**. Elle dispose d'un **system prompt** dédié au rôle de scénariste (agent « scénariste IA ») : cohérence narrative, structure, personnages, dialogues, etc. Les scénarios **approuvés** par l'utilisateur sont **persistés en BDD** (voir roadmap).
+- **Réflexion — Rôle étendu de l'IA** : il y a **matière à réflexion** sur l'extension du rôle de cette IA : elle pourrait également servir à la **rédaction des prompts pour les panels** (suggestions de descriptions courtes à partir du scénario + assets), tout en gardant la règle que le prompt d'image final = style + assets sélectionnés + description (jamais le scénario brut dans le prompt d'image).
+- **Rôle du scénario** : le scénario sert de référence pour l'adaptation en visuel ; il n'est **jamais** injecté tel quel dans les prompts de génération d'image (découpage IA éventuel en panels, structure uniquement).
 
-### 8.5 Génération IA
+### 8.5 Édition de l'œuvre (chapitres visuels et panels)
+- **Édition de l'œuvre** désigne la partie **visuelle** du webtoon : chapitres (visuels) et panels. C'est là que l'utilisateur construit le webtoon à partir du scénario et des assets.
+- **Deux modes** :
+  - **Mode Automatique** : découpage IA du scénario en panels → sélection des assets du chapitre → génération panel par panel (prompt = style + assets + description du panel).
+  - **Mode Structuré** : chapitre visuel vide → panels et blocs (rectangles) → description + assets par bloc → génération 1 image pleine par bloc.
+- **Interface d'édition des panels** : pendant l'édition d'un panel, l'utilisateur dispose de **deux aides visuelles** :
+  - **Côté scénario** : visualisation du **chapitre de scénario** (ou du passage de scénario) qu'il adapte en visuel, pour garder le contexte narratif.
+  - **Côté visuel** : visualisation des **assets sélectionnés** pour le prompting du panel (personnages, décors, objets), pour cadrer la génération IA.
+- Règle : la génération s'appuie toujours sur les **assets sélectionnés** (chapitre ou bloc), jamais sur le texte du scénario dans le prompt d'image.
+
+### 8.6 Génération IA
 - **Free** : FLUX.1 Schnell (~0,003 €/image). **Pro** : FLUX.2 Pro / Pro Edit (refs).
 - Edge Function Supabase, FAL.ai, format 1024×1024, quotas mensuels (20 Free / 300 Pro).
 
-### 8.6 Lecture, auth, UI, dashboard, profil, plans
+### 8.7 Lecture, auth, UI, dashboard, profil, plans
 - Lecture verticale type webtoon ; auth Supabase (email + Google) ; interface glassmorphism, thème clair/sombre ; dashboard (stats, usage, projets récents) ; plans Free / Pro (14,99 €/mois).
 
 ---
@@ -232,8 +244,9 @@ Des **millions de créateurs potentiels** (auteurs, scénaristes, conteurs, fans
 2. **Création d'un projet** → Titre + description
 3. **Définition du style** : template texte + images de référence (Pro)
 4. **Création des assets** : personnages, décors, objets ; vues multiples (Pro)
-5. **Création des chapitres** : mode Automatique (scénario → panels → génération) ou Structuré (blocs → descriptions + assets → génération) ; dialogues/narration en overlay
-6. **Prévisualisation** : lecture verticale (images pleines dans panels/blocs)
+5. **Section Scénario** : écrire ou importer le scénario (texte) ; créer des chapitres de scénario (découpage narratif, indépendants du visuel)
+6. **Édition de l'œuvre** : créer les chapitres visuels et panels — mode Automatique (scénario → panels → génération) ou Structuré (blocs → descriptions + assets → génération) ; pendant l'édition des panels : visualisation du chapitre de scénario adapté + visualisation des assets sélectionnés ; dialogues/narration en overlay
+7. **Prévisualisation** : lecture verticale (images pleines dans panels/blocs)
 
 ---
 

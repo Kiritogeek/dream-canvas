@@ -57,24 +57,41 @@ Dans les deux cas, l'UI doit imposer ou fortement encourager cette sélection av
 
 ---
 
-## 3. Scénario — section dédiée, découpage IA, hors prompts d'image
+## 3. Scénario — section dédiée, chapitres de scénario, hors prompts d'image
 
 ### 3.1 Définitions
 
 | Terme | Définition | Usage |
 |-------|------------|--------|
-| **Scénario** | **Section à part entière** du produit : l'utilisateur y écrit son histoire (texte narratif : actions, lieux, personnages, dialogues). « Ce qui se passe » de façon lisible. | **Découpage IA uniquement** : scénario → chapitres, puis chapitre → panels (liste + courte description par panel). **Jamais** injecté dans le prompt de génération d'image. |
-| **Synopsis** | Résumé court du chapitre (quelques phrases). Présent en BDD (`chapters.synopsis`). | Référence auteur ; peut servir d'entrée au découpage IA si pas de scénario détaillé. **Pas** utilisé dans le prompt d'image. |
+| **Scénario** | **Section à part entière** du produit : l'utilisateur y **écrit** son histoire ou **importe** un scénario (format texte : fichier .txt ou copier-coller). Texte narratif : actions, lieux, personnages, dialogues. | **Découpage IA** (optionnel) : scénario → chapitres, puis chapitre → panels (liste + courte description). **Jamais** injecté dans le prompt de génération d'image. |
+| **Chapitres de scénario** | Découpage **narratif** du scénario, créés par l'utilisateur (titres, structure logique de l'histoire). | **Complètement dissociés** des chapitres visuels du webtoon (Édition de l'œuvre). Servent de référence pour l'adaptation en visuel. |
+| **Édition de l'œuvre** | Partie **visuelle** du produit : chapitres (visuels) et panels. C'est là que l'utilisateur construit le webtoon à partir du scénario et des assets. | Chapitres visuels = ceux qui contiennent les panels. Lors de l'édition d'un panel : double visualisation (voir 3.4). |
+| **Synopsis** | Résumé court du chapitre visuel (quelques phrases). Présent en BDD (`chapters.synopsis`). | Référence auteur ; peut servir d'entrée au découpage IA. **Pas** utilisé dans le prompt d'image. |
 
-### 3.2 Place dans le modèle
+### 3.2 Contenu de la section Scénario
 
-- **Section « Scénario »** (projet ou chapitre) : zone d'édition dédiée pour écrire l'histoire. L'IA peut découper ce texte en chapitres, puis chaque chapitre en panels (titres / courtes descriptions). Ce découpage alimente **uniquement** la structure (liste de panels), pas les prompts d'image.
-- **Chapitre** : `synopsis` (TEXT), `scenario` (TEXT, optionnel). Aucun de ces champs ne doit être envoyé au modèle de génération d'image.
+- **Saisie** : l'utilisateur écrit son scénario dans la section « Scénario » **ou** importe un scénario (fichier texte .txt ou copier-coller).
+- **Chapitres de scénario** : l'utilisateur peut créer lui-même des chapitres pour structurer son scénario. Ces chapitres sont **indépendants** des chapitres de l'œuvre (visuels) : même nombre ou non, même découpage ou non.
+- **IA LLM — Scénariste (agent)** : une **IA LLM** est intégrée pour aider l'utilisateur à **construire son histoire**, avec un **system prompt** dédié au rôle de scénariste (agent « scénariste IA »). Voir roadmap Phase 2.
+- **BDD — Scénarios approuvés** : tout ce qui a été **approuvé** par l'utilisateur (scénarios, chapitres de scénario) est **persisté en BDD** ; modèle et historique/versions à définir en roadmap.
+- **Réflexion — Rôle étendu** : il y a matière à réflexion sur l’extension du rôle de cette IA : elle pourrait aussi servir à la **rédaction des prompts pour les panels** (suggestions de descriptions à partir du scénario + assets), sans remettre en cause la règle « prompt d'image = style + assets + description » (jamais le scénario brut).
+- **Place dans le modèle** : à préciser (scénario au niveau projet avec chapitres de scénario en entité dédiée ou champs structurés ; table/colonnes pour versions approuvées). Voir section 6 « Points à clarifier ».
 
 ### 3.3 Rôle par flux
 
-- **Mode Automatique** : le scénario (section dédiée) sert à produire la **liste des panels** (découpage IA). La **génération d'image** pour chaque panel utilise **uniquement** : style + **assets sélectionnés** + **courte description du panel** (issue du découpage ou saisie). Génération **panel par panel** (pas tout le chapitre d'un coup).
-- **Mode Structuré** : scénario / synopsis = **référence** pour l'auteur qui remplit les blocs à la main. Pas utilisé dans les prompts d'image (chaque bloc = prompt + refs assets).
+- **Mode Automatique** : le scénario (section dédiée) peut servir à produire la **liste des panels** (découpage IA). La **génération d'image** pour chaque panel utilise **uniquement** : style + **assets sélectionnés** + **courte description du panel**. Génération **panel par panel**.
+- **Mode Structuré** : scénario / chapitres de scénario = **référence** pour l'auteur qui remplit les blocs à la main. Pas utilisé dans les prompts d'image (chaque bloc = prompt + refs assets).
+
+### 3.4 Interface d'édition des panels (Édition de l'œuvre)
+
+Lors de l'édition d'un panel, l'utilisateur dispose de **deux aides visuelles** :
+
+| Côté | Contenu affiché | Objectif |
+|------|-----------------|----------|
+| **Scénario** | Visualisation du **chapitre de scénario** (ou du passage de scénario) qu'il adapte en visuel. | Garder le contexte narratif pendant la saisie du prompt / la génération. |
+| **Assets** | Visualisation des **assets sélectionnés** pour ce panel (personnages, décors, objets). | Rappel visuel pour le prompting et la cohérence ; cadrer la génération IA. |
+
+Cela suppose qu'un **lien optionnel** entre chapitre visuel et chapitre de scénario (ou passage) soit possible, pour afficher « le bon » extrait de scénario à côté du panel en cours d'édition. Voir section 6 « Points à clarifier ».
 
 ---
 
@@ -143,11 +160,24 @@ Alternative : table **panel_blocks** (id, panel_id, block_index, x, y, width, he
 - **Product.md** : décrire la section « Scénario » (écrire l'histoire, découpage IA en chapitres/panels, **jamais** dans les prompts d'image) ; les deux flux avec génération **panel par panel** en mode Auto ; images pleines ; assets impératifs dans les 2 flux.
 - **08_Modele_de_Donnees** : ajouter `chapters.scenario`, `chapters.creation_mode` ; étendre `panels` avec `layout` (blocs) ou documenter la table `panel_blocks` ; préciser que `image_url` sur un bloc = image pleine pour ce bloc.
 - **07_Roadmap** : Phase 2 scinder en 2a–2d ci-dessus ; mentionner mode Structuré (blocs) et mode Automatique (synopsis/scénario).
-- **04_User_Stories** : ajouter des user stories pour le mode Structuré (créer blocs, remplir blocs, référencer assets, générer images dans les blocs) et pour le scénario (saisie, utilisation en mode Auto).
+- **04_User_Stories** : ajouter des user stories pour le mode Structuré (créer blocs, remplir blocs, référencer assets, générer images dans les blocs) et pour le scénario (saisie, import, chapitres de scénario ; double visualisation en édition de panel).
 
 ---
 
-## 6. Avis impartial sur cette vision
+## 6. Points à clarifier / incohérences possibles
+
+Ces points découlent de la dissociation **chapitres de scénario** vs **chapitres de l'œuvre** et de la double visualisation en édition. À trancher en produit / technique.
+
+| Point | Évocation | Question / risque d'incohérence |
+|-------|-----------|----------------------------------|
+| **Lien scénario ↔ œuvre** | Chapitres de scénario et chapitres visuels sont « complètement dissociés ». Pendant l'édition d'un panel, on affiche « le chapitre de scénario qu'il adapte ». | **Quel passage afficher ?** Si tout est dissocié, il n'y a pas de lien explicite entre un panel (ou chapitre visuel) et un chapitre de scénario. Faut-il une **association optionnelle** (ex. « Ce chapitre visuel adapte le chapitre de scénario #2 ») pour afficher le bon extrait à côté ? Sinon : afficher tout le scénario, ou le chapitre visuel courant sans lien ? |
+| **Modèle de données « chapitres de scénario »** | L'utilisateur crée des chapitres pour son scénario (texte). | **Où les stocker ?** Nouvelle table `scenario_chapters` (project_id, title, content ou start/end offset dans un blob scénario) ? Ou un seul champ `project.scenario` (TEXT) avec un JSON de découpage (titres + positions) ? Impact sur l'UI (liste des chapitres de scénario, édition). |
+| **Import scénario** | Import d'un scénario (format texte). | **Format** : .txt uniquement ou aussi .md / docx ? **Chapitres après import** : l'utilisateur doit-il recréer les chapitres de scénario après import, ou l'import peut-il détecter des marqueurs (ex. "## Chapitre 1") pour pré-remplir les chapitres ? |
+| **Ordre des onglets / zones** | « Côté scénario » et « côté assets » pendant l'édition. | **Layout** : deux colonnes (scénario à gauche, assets à droite), panneaux repliables, ou onglets ? À définir en UX. |
+
+---
+
+## 7. Avis impartial sur cette vision
 
 **Points forts**
 
@@ -160,6 +190,6 @@ Alternative : table **panel_blocks** (id, panel_id, block_index, x, y, width, he
 - **UX en mode Automatique** : Générer panel par panel peut sembler plus lent qu'un « tout en un clic ». Il faudra une UI claire (ex. bouton « Générer ce panel », progression, possibilité de lancer plusieurs panels à la suite sans réinjecter le scénario).
 - **Courte description par panel** : Elle doit être suffisante pour que l'IA produise une image pertinente. Le découpage IA doit donc produire des descriptions courtes mais exploitables ; sinon, l'utilisateur devra les compléter (déjà prévu).
 
-**Conclusion** : La vision (scénario = structure uniquement ; génération panel par panel ; assets impératifs dans les deux flux) est cohérente, réaliste pour l'implémentation et alignée avec les limites des API. Les .md ont été alignés en conséquence.
+**Conclusion** : La vision (scénario = structure uniquement ; chapitres de scénario dissociés de l'œuvre ; génération panel par panel ; assets impératifs ; double visualisation en édition) est cohérente. Les points de la section 6 restent à trancher pour l'implémentation (lien scénario/œuvre, modèle chapitres de scénario, import, layout). Les .md ont été alignés en conséquence.
 
 Ce rapport sert de référence pour la mise à jour des .md et pour l’implémentation.

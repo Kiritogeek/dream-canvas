@@ -165,6 +165,8 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 - UPDATE : `auth.uid() = user_id`
 - DELETE : `auth.uid() = user_id`
 
+**Note — Section Scénario (à préciser)** : La section « Scénario » permet à l'utilisateur d'écrire ou d'importer un scénario (texte) et de créer des **chapitres de scénario** (découpage narratif, **dissociés** des chapitres visuels `chapters`). Une **IA LLM scénariste** (agent avec system prompt dédié) aide à construire l'histoire. Le modèle pour stocker le scénario et ces chapitres de scénario reste à définir : ex. `projects.scenario` (TEXT) + table `scenario_chapters`, ou scénario avec JSON de découpage. **BDD — Scénarios approuvés** : prévoir la persistance de **tout ce qui a été approuvé** par l'utilisateur (versions de scénario, chapitres de scénario validés) ; historique / versions selon roadmap. Voir `11_Rapport_Chapitres_Flux_Blocs_Scenario.md` section 6 et `07_Roadmap_Produit.md` Phase 2.
+
 ---
 
 ### 2.3 `assets`

@@ -9,8 +9,9 @@
 | E3 | **Style visuel** | Définir et appliquer un style à un projet | P0 |
 | E4 | **Bibliothèque d'assets** | Gérer les personnages, décors, objets | P0 |
 | E5 | **Génération IA** | Générer des images via l'IA | P0 |
-| E6 | **Chapitres** | Organiser l'histoire en chapitres | P0 |
-| E7 | **Panels** | Créer et gérer les panels d'un chapitre | P1 |
+| E5b | **Section Scénario** | Écrire/importer le scénario, créer des chapitres de scénario (texte) | P0 |
+| E6 | **Chapitres (œuvre)** | Organiser l'œuvre visuelle en chapitres et panels (Édition de l'œuvre) | P0 |
+| E7 | **Panels** | Créer et gérer les panels ; édition avec visualisation scénario + assets | P1 |
 | E8 | **Dialogues** | Ajouter des bulles et narration aux panels | P1 |
 | E9 | **Export** | Exporter en PDF, images, format plateforme | P2 |
 | E10 | **Collaboration** | Partage, édition multi-utilisateurs | P2 |
@@ -68,18 +69,32 @@
 | US-5.2 | En tant qu'utilisateur, je veux voir un indicateur de chargement pendant la génération | - Spinner ou skeleton<br>- Message "Génération en cours"<br>- Timeout géré | ✅ Fait |
 | US-5.3 | En tant qu'utilisateur, je veux être notifié si la génération échoue | - Toast d'erreur<br>- Message explicatif<br>- Option de réessayer | ✅ Fait |
 
-### E6 — Chapitres
+### E5b — Section Scénario (texte narratif)
 
 | ID | User Story | Critères d'acceptation | Statut |
 |----|-----------|----------------------|--------|
-| US-6.1 | En tant qu'utilisateur, je veux créer un chapitre | - Titre + synopsis (+ scénario optionnel)<br>- Choix du mode : Automatique ou Structuré<br>- Numérotation automatique<br>- Ajout au projet | ✅ Fait (scénario + mode à ajouter) |
-| US-6.2 | En tant qu'utilisateur, je veux voir la liste des chapitres | - Liste ordonnée par numéro<br>- Titre et synopsis visibles<br>- Lien vers le détail | ✅ Fait |
-| US-6.3 | En tant qu'utilisateur, je veux supprimer un chapitre | - Confirmation<br>- Suppression en cascade (panels)<br>- Mise à jour de la liste | ✅ Fait |
-| US-6.4 | En tant qu'utilisateur, je veux écrire mon histoire dans une section « Scénario » | - Section dédiée (projet ou chapitre)<br>- IA découpe scénario → chapitres, puis chapitre → panels (structure uniquement)<br>- **Scénario jamais utilisé dans le prompt de génération d'image** ; en mode Structuré : référence pour remplir les blocs | 🔜 Planifié |
+| US-5b.1 | En tant qu'utilisateur, je veux écrire le scénario de mon histoire dans une section « Scénario » | - Section dédiée pour le texte narratif<br>- Édition libre (actions, lieux, personnages, dialogues)<br>- Sauvegarde automatique | 🔜 Planifié |
+| US-5b.2 | En tant qu'utilisateur, je veux importer un scénario (format texte) | - Import par fichier texte (.txt) ou copier-coller<br>- Le contenu remplit la section Scénario<br>- Possibilité d'éditer après import | 🔜 Planifié |
+| US-5b.3 | En tant qu'utilisateur, je veux créer des chapitres pour mon scénario | - Création de chapitres de scénario (titres, découpage narratif)<br>- **Dissociés des chapitres visuels** (Édition de l'œuvre)<br>- Servent de référence pour l'adaptation en visuel | 🔜 Planifié |
+| US-5b.4 | En tant qu'utilisateur, je veux que le scénario ne soit jamais utilisé dans le prompt de génération d'image | - Découpage IA (scénario → panels) = structure uniquement<br>- Prompts d'image = style + assets sélectionnés + courte description du panel | 🔜 Planifié |
+| US-5b.5 | En tant qu'utilisateur, je veux être aidé par une IA scénariste pour construire mon histoire | - IA LLM avec **system prompt** dédié (agent scénariste IA)<br>- Aide à la structure, cohérence narrative, personnages, dialogues<br>- Suggestions / itérations sur le texte du scénario | 🔜 Planifié |
+| US-5b.6 | En tant qu'utilisateur, je veux que mes scénarios approuvés soient sauvegardés | - Persistance en BDD de tout ce qui a été **approuvé** (scénarios, chapitres de scénario)<br>- Historique ou versions selon implémentation | 🔜 Planifié |
 
-### E7 — Panels (à implémenter)
+### E6 — Chapitres (Édition de l'œuvre — visuel)
+
+| ID | User Story | Critères d'acceptation | Statut |
+|----|-----------|----------------------|--------|
+| US-6.1 | En tant qu'utilisateur, je veux créer un chapitre visuel (œuvre) | - Titre + synopsis (+ lien optionnel vers un chapitre de scénario)<br>- Choix du mode : Automatique ou Structuré<br>- Numérotation automatique<br>- Ajout au projet | ✅ Fait (mode à finaliser) |
+| US-6.2 | En tant qu'utilisateur, je veux voir la liste des chapitres de l'œuvre | - Liste ordonnée par numéro<br>- Titre et synopsis visibles<br>- Lien vers le détail | ✅ Fait |
+| US-6.3 | En tant qu'utilisateur, je veux supprimer un chapitre (œuvre) | - Confirmation<br>- Suppression en cascade (panels)<br>- Mise à jour de la liste | ✅ Fait |
+
+### E7 — Panels & Édition de l'œuvre (à implémenter)
 
 **Principe** : les images générées sont des **illustrations pleines** (pas de cases dessinées dans l’image) ; en mode Structuré, elles sont affichées **dans** des blocs (conteneurs de mise en page). Voir `11_Rapport_Chapitres_Flux_Blocs_Scenario.md`.
+
+**Édition de l'œuvre** : lors de l'édition d'un panel, l'utilisateur dispose de **deux visualisations** pour s'aider :
+- **Côté scénario** : le chapitre de scénario (ou le passage) qu'il adapte en visuel, affiché pendant l'édition.
+- **Côté assets** : les assets sélectionnés pour le prompting du panel (personnages, décors, objets), pour cadrer la génération IA.
 
 #### Mode Automatique
 
@@ -104,6 +119,8 @@
 | ID | User Story | Critères d'acceptation | Statut |
 |----|-----------|----------------------|--------|
 | US-7.9 | En tant qu'utilisateur, je veux lire mon chapitre en défilement vertical | - Affichage vertical continu<br>- Images pleines dans les panels/blocs<br>- Format natif webtoon | 🔜 Planifié |
+| US-7.10 | En tant qu'utilisateur, je veux voir le chapitre de scénario adapté pendant l'édition d'un panel | - Visualisation du texte du chapitre de scénario (ou passage) associé<br>- Contexte narratif visible pendant la saisie du prompt / génération | 🔜 Planifié |
+| US-7.11 | En tant qu'utilisateur, je veux voir les assets sélectionnés pour le panel pendant l'édition | - Visualisation des personnages, décors et objets sélectionnés pour ce panel<br>- Rappel visuel pour le prompting et la cohérence | 🔜 Planifié |
 
 ### E8 — Dialogues (à implémenter)
 

@@ -63,11 +63,23 @@
 
 > **Objectif** : Permettre la création complète d'un chapitre avec **deux flux** (Automatique et Structuré). Les images générées sont toujours des **illustrations pleines** ; elles sont affichées dans les panels ou dans des blocs (conteneurs de mise en page), sans « cases » dessinées dans l’image. Voir `11_Rapport_Chapitres_Flux_Blocs_Scenario.md`. **Règle impérative** : la génération doit s'appuyer sur les **assets sélectionnés par l'utilisateur** (chapitre en mode Auto, par bloc en mode Structuré) pour cadrer la scène et que l'IA comprenne les éléments à mettre dans le chapitre.
 
-### 2.1 Mode Automatique (flux rapide)
+### 2.1 Section Scénario (texte narratif)
 
 | Tâche | Description | Priorité | Effort |
 |-------|------------|----------|--------|
-| **Section Scénario** | Zone dédiée pour écrire l'histoire ; IA découpe scénario → chapitres → panels. Scénario non utilisé dans les prompts d'image. | P0 | M |
+| **Écrire / importer le scénario** | Zone dédiée : l'utilisateur écrit son scénario ou importe un fichier texte (.txt) / copier-coller. | P0 | M |
+| **Chapitres de scénario** | L'utilisateur peut créer des chapitres pour son scénario (découpage narratif). **Dissociés** des chapitres visuels (Édition de l'œuvre). | P0 | M |
+| **IA LLM — Scénariste (agent)** | Intégration d'une **IA LLM** dans la section Scénario pour aider à construire l'histoire. **System prompt** dédié au rôle de scénariste (agent « scénariste IA ») : cohérence narrative, structure, personnages, dialogues, ton. | P0 | L |
+| **BDD — Scénarios approuvés** | Modèle de données et persistance pour stocker **tout ce qui a été approuvé** : versions de scénario (et chapitres de scénario) validées par l'utilisateur. Historique / versions possibles. | P0 | M |
+| **Découpage IA (optionnel)** | IA : scénario → chapitres, puis chapitre → panels (courtes descriptions). Structure uniquement ; scénario **jamais** dans les prompts d'image. | P0 | L |
+
+**Réflexion — Rôle étendu de l'IA LLM** : matières à réflexion pour une phase ultérieure : réutilisation de cette IA (ou d’un agent dérivé) pour la **rédaction des prompts des panels** (suggestions de descriptions courtes à partir du scénario + assets), sans injecter le scénario brut dans le prompt d’image (règle inchangée : prompt = style + assets + description).
+
+### 2.2 Mode Automatique (flux rapide) & Édition de l'œuvre
+
+| Tâche | Description | Priorité | Effort |
+|-------|------------|----------|--------|
+| **Édition de l'œuvre — double visualisation** | Lors de l'édition d'un panel : afficher **côté scénario** le chapitre de scénario (ou passage) adapté ; **côté assets** les assets sélectionnés pour le prompting. | P0 | M |
 | **Découpage automatique** | IA : scénario/synopsis → liste de panels (courtes descriptions). Découpage uniquement, pas dans le prompt d'image. | P0 | L |
 | **Génération panel par panel** | Génération au minimum un panel à la fois (pas tout le chapitre d'un coup : limites API, timeouts). | P0 | M |
 | **Architecture prompt panels** | Prompt par panel = style + **assets sélectionnés** + **courte description du panel** (pas le scénario/synopsis). Génération d’**images pleines** | P0 | L |
@@ -76,7 +88,7 @@
 | **Format vertical 800×1200** | Images pleines, format webtoon | P0 | S |
 | **Régénération / édition** | Régénérer un panel, modifier le prompt, réorganisation | P0–P1 | S–M |
 
-### 2.2 Mode Structuré (flux avec blocs)
+### 2.3 Mode Structuré (flux avec blocs)
 
 | Tâche | Description | Priorité | Effort |
 |-------|------------|----------|--------|
@@ -86,7 +98,7 @@
 | **Génération 1 image par bloc** | Image pleine par bloc à partir du prompt et des **assets sélectionnés** pour ce bloc, stockage URL, affichage dans le bloc | P0 | L |
 | **Régénération / édition** | Régénérer un bloc, modifier prompt ou refs, réorganisation blocs | P1 | M |
 
-### 2.3 Système de dialogues et narration
+### 2.4 Système de dialogues et narration
 
 | Tâche | Description | Priorité | Effort |
 |-------|------------|----------|--------|
@@ -97,7 +109,7 @@
 | **Personnalisation typographique** | Police, taille, couleur du texte | P2 | S |
 | **Génération IA de dialogues** | Suggestion de dialogues à partir du synopsis | P2 | L |
 
-### 2.4 Lecteur webtoon amélioré
+### 2.5 Lecteur webtoon amélioré
 
 | Tâche | Description | Priorité | Effort |
 |-------|------------|----------|--------|
@@ -148,6 +160,7 @@
 | **Modèles multiples** | Support de Flux Pro, SDXL, etc. | P1 | L |
 | **Inpainting** | Modifier une partie d'une image existante | P2 | L |
 | **Character consistency** | IA améliorée pour la cohérence des personnages entre panels | P1 | XL |
+| **IA — Rédaction des prompts panels** | Réutilisation de l’IA LLM (ou agent dérivé) pour **suggérer les descriptions/prompts des panels** à partir du scénario + assets sélectionnés. Règle inchangée : prompt d’image = style + assets + description (jamais le scénario brut). | P1 | L |
 
 ### 3.4 Monétisation
 

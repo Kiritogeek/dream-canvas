@@ -223,11 +223,13 @@ CREATE TYPE asset_type AS ENUM ('character', 'background', 'object');
 | `scenario` | `TEXT` | NULL | Scénario détaillé (optionnel). Utilisé **uniquement pour le découpage IA** (scénario → chapitres → panels). **Jamais injecté dans le prompt de génération d'image.** |
 | `creation_mode` | `TEXT` | NULL | `'automatic'` \| `'structured'` — mode de création du chapitre |
 | `chapter_number` | `INTEGER` | NOT NULL | Numéro du chapitre (ordonné) |
+| `linked_scenario_chapter_id` | `UUID` | NULL, FK → scenario_chapters.id | Chapitre de scénario lié (double visualisation en Édition de l'œuvre). |
 | `created_at` | `TIMESTAMPTZ` | NOT NULL, DEFAULT now() | Date de création |
 | `updated_at` | `TIMESTAMPTZ` | NOT NULL, DEFAULT now() | Date de mise à jour |
 
 **Index** :
 - `idx_chapters_project_id` sur `project_id`
+- `idx_chapters_linked_scenario` sur `linked_scenario_chapter_id` (WHERE NOT NULL), voir migration Phase 2.
 
 **RLS** :
 - SELECT : `auth.uid() = user_id`

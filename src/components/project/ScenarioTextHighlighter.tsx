@@ -41,21 +41,21 @@ const ASSET_COLORS: Record<
   { bg: string; border: string; label: string; tagBg: string; tagText: string }
 > = {
   character: {
-    bg: "hsl(var(--lavender) / 0.35)",
+    bg: "hsl(var(--lavender) / 0.55)",
     border: "hsl(var(--lavender) / 0.6)",
     label: "Personnage",
     tagBg: "hsl(var(--lavender) / 0.2)",
     tagText: "hsl(var(--lavender) / 1)",
   },
   background: {
-    bg: "hsl(var(--mint) / 0.35)",
+    bg: "hsl(var(--mint) / 0.55)",
     border: "hsl(var(--mint) / 0.6)",
     label: "Décor",
     tagBg: "hsl(var(--mint) / 0.2)",
     tagText: "hsl(170 40% 35%)",
   },
   object: {
-    bg: "hsl(230 55% 88% / 0.5)",
+    bg: "hsl(230 55% 88% / 0.65)",
     border: "hsl(230 50% 55% / 0.65)",
     label: "Objet",
     tagBg: "hsl(230 45% 85% / 0.4)",
@@ -64,7 +64,7 @@ const ASSET_COLORS: Record<
 };
 
 const DEFAULT_COLOR = {
-  bg: "hsl(var(--muted) / 0.4)",
+  bg: "hsl(var(--muted) / 0.55)",
   border: "hsl(var(--border))",
   label: "Asset",
   tagBg: "hsl(var(--muted) / 0.3)",
@@ -348,7 +348,7 @@ function CreateAssetHover({
     <HoverCard open={open} onOpenChange={setOpen} openDelay={150} closeDelay={200}>
       <HoverCardTrigger asChild>{children}</HoverCardTrigger>
       <HoverCardContent
-        className="w-56 p-3 glass shadow-dream"
+        className="w-56 p-3 bg-background border border-border shadow-lg"
         side="top"
         sideOffset={8}
       >
@@ -650,7 +650,7 @@ export function ScenarioTextHighlighter({
                 onDismiss={onDismissMissing}
               >
                 <span
-                  className="cursor-pointer rounded-[4px] font-medium hover:brightness-110 transition-all"
+                  className="cursor-pointer rounded-[4px] font-medium transition-all"
                   style={{
                     backgroundColor: MISSING_COLOR.bg,
                     borderBottom: `2.5px solid ${MISSING_COLOR.border}`,
@@ -672,7 +672,7 @@ export function ScenarioTextHighlighter({
                 <span
                   role="button"
                   tabIndex={0}
-                  className="cursor-pointer rounded-[4px] font-medium transition-all hover:brightness-110"
+                  className="cursor-pointer rounded-[4px] font-medium transition-all"
                   style={{
                     backgroundColor: colors.bg,
                     borderBottom: `2.5px solid ${colors.border}`,
@@ -694,7 +694,7 @@ export function ScenarioTextHighlighter({
                 </span>
               </HoverCardTrigger>
               <HoverCardContent
-                className="w-[320px] max-w-[calc(100vw-2rem)] p-3 glass shadow-dream"
+                className="w-[320px] max-w-[calc(100vw-2rem)] p-3 bg-background border border-border shadow-lg"
                 side="top"
                 sideOffset={10}
               >

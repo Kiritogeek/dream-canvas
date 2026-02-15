@@ -65,7 +65,8 @@ export function EditionSection({ projectId, project }: EditionSectionProps) {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newSynopsis, setNewSynopsis] = useState("");
-  const [linkedScenarioChapterId, setLinkedScenarioChapterId] = useState<string>("");
+  const LINKED_NONE_VALUE = "__none__";
+  const [linkedScenarioChapterId, setLinkedScenarioChapterId] = useState<string>(LINKED_NONE_VALUE);
   const [deleteTarget, setDeleteTarget] = useState<Chapter | null>(null);
   const [editTarget, setEditTarget] = useState<Chapter | null>(null);
   const [editTitle, setEditTitle] = useState("");
@@ -82,7 +83,7 @@ export function EditionSection({ projectId, project }: EditionSectionProps) {
 
   const handleOpenCreateDialog = useCallback(() => {
     setCreateDialogOpen(true);
-    setLinkedScenarioChapterId(suggestedScenarioChapter?.id ?? "");
+    setLinkedScenarioChapterId(suggestedScenarioChapter?.id ?? LINKED_NONE_VALUE);
   }, [suggestedScenarioChapter?.id]);
 
   const handleCreateChapter = useCallback(() => {
@@ -92,7 +93,10 @@ export function EditionSection({ projectId, project }: EditionSectionProps) {
         title,
         chapter_number: nextChapterNumber,
         synopsis: newSynopsis.trim() || undefined,
-        linked_scenario_chapter_id: linkedScenarioChapterId || undefined,
+        linked_scenario_chapter_id:
+          linkedScenarioChapterId === LINKED_NONE_VALUE
+            ? undefined
+            : linkedScenarioChapterId,
       },
       {
         onSuccess: (created) => {
@@ -100,7 +104,7 @@ export function EditionSection({ projectId, project }: EditionSectionProps) {
           setCreateDialogOpen(false);
           setNewTitle("");
           setNewSynopsis("");
-          setLinkedScenarioChapterId("");
+          setLinkedScenarioChapterId(LINKED_NONE_VALUE);
           navigate(`/dashboard/projects/${projectId}/chapter/${created.id}`);
         },
         onError: (err) =>
@@ -345,7 +349,7 @@ export function EditionSection({ projectId, project }: EditionSectionProps) {
         open={createDialogOpen}
         onOpenChange={(open) => {
           setCreateDialogOpen(open);
-          if (!open) setLinkedScenarioChapterId("");
+          if (!open) setLinkedScenarioChapterId(LINKED_NONE_VALUE);
         }}
       >
         <DialogContent className="glass">
@@ -396,7 +400,9 @@ export function EditionSection({ projectId, project }: EditionSectionProps) {
                     <SelectValue placeholder="Aucun (associer plus tard)" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Aucun (associer plus tard)</SelectItem>
+                    <SelectItem value={LINKED_NONE_VALUE}>
+                      Aucun (associer plus tard)
+                    </SelectItem>
                     {scenarioChapters.map((sc) => (
                       <SelectItem key={sc.id} value={sc.id}>
                         Chapitre {sc.chapter_number} : {sc.title}

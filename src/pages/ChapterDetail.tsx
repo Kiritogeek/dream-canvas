@@ -1,6 +1,6 @@
 // Écran d'édition d'un chapitre visuel — double visualisation (Étape 2)
 // Gauche : chapitre texte (scénario) avec Aperçu = surbrillance assets + hover. Droite : panels.
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useParams, Link } from "react-router-dom";
 import {
   ArrowLeft,
@@ -28,6 +28,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { ScenarioTextHighlighter } from "@/components/project/ScenarioTextHighlighter";
 import { useChapter, useUpdateChapter } from "@/hooks/useChapters";
 import { useScenarioChapters, useScenarioChapter } from "@/hooks/useScenarioChapters";
@@ -49,12 +59,36 @@ export default function ChapterDetail() {
 
   const [panels, setPanels] = useState<Panel[]>([]);
   const [loadingPanels, setLoadingPanels] = useState(true);
+  /** Valeur sentinelle pour "Aucun" (Radix Select n'accepte pas value="") */
+  const SCENARIO_NONE_VALUE = "__none__";
+  /** undefined = pas encore choisi (afficher la suggestion par numéro), null = "Aucun", string = id choisi */
   const [selectedScenarioChapterId, setSelectedScenarioChapterId] = useState<
-    string | null
-  >(null);
+    string | null | undefined
+  >(undefined);
+  const [confirmScenarioChangeOpen, setConfirmScenarioChangeOpen] = useState(false);
+  const [pendingScenarioChapterId, setPendingScenarioChapterId] = useState<
+    string | null | undefined
+  >(undefined);
+
+  const suggestedScenarioChapterId = useMemo(
+    () =>
+      scenarioChapters.find((sc) => sc.chapter_number === chapter?.chapter_number)
+        ?.id ?? null,
+    [scenarioChapters, chapter?.chapter_number]
+  );
 
   const displayedScenarioChapterId =
-    chapter?.linked_scenario_chapter_id ?? selectedScenarioChapterId;
+    (selectedScenarioChapterId !== undefined
+      ? selectedScenarioChapterId
+      : chapter?.linked_scenario_chapter_id) ??
+    suggestedScenarioChapterId;
+
+  const scenarioChapterLabel = useMemo(() => {
+    if (!displayedScenarioChapterId || displayedScenarioChapterId === SCENARIO_NONE_VALUE)
+      return null;
+    const sc = scenarioChapters.find((c) => c.id === displayedScenarioChapterId);
+    return sc ? `Chapitre ${sc.chapter_number} : ${sc.title}` : null;
+  }, [displayedScenarioChapterId, scenarioChapters]);
 
   const { data: scenarioChapter, isLoading: loadingScenario } = useScenarioChapter(
     displayedScenarioChapterId ?? undefined
@@ -74,14 +108,14 @@ export default function ChapterDetail() {
   }, [chapterId]);
 
   const handleSaveScenarioLink = () => {
-    const idToSave = chapter?.linked_scenario_chapter_id ?? selectedScenarioChapterId;
-    if (!chapterId || !idToSave) return;
+    const idToSave = displayedScenarioChapterId;
+    if (!chapterId) return;
     updateChapter.mutate(
-      { id: chapterId, updates: { linked_scenario_chapter_id: idToSave } },
+      { id: chapterId, updates: { linked_scenario_chapter_id: idToSave ?? null } },
       {
         onSuccess: () => {
           toast({ title: "Lien enregistré" });
-          setSelectedScenarioChapterId(null);
+          setSelectedScenarioChapterId(undefined);
         },
         onError: (err) =>
           toast({
@@ -95,9 +129,8 @@ export default function ChapterDetail() {
 
   const loading = loadingChapter || loadingPanels;
   const canSaveLink =
-    (displayedScenarioChapterId &&
-      displayedScenarioChapterId !== chapter?.linked_scenario_chapter_id) ||
-    (selectedScenarioChapterId && !chapter?.linked_scenario_chapter_id);
+    (chapter?.linked_scenario_chapter_id ?? null) !==
+    (displayedScenarioChapterId ?? null);
 
   if (loading && !chapter) {
     return (
@@ -178,22 +211,87 @@ export default function ChapterDetail() {
                           Chapitre de scénario à afficher
                         </label>
                         <Select
-                          value={displayedScenarioChapterId ?? ""}
-                          onValueChange={(v) =>
-                            setSelectedScenarioChapterId(v || null)
-                          }
+                          value={displayedScenarioChapterId ?? SCENARIO_NONE_VALUE}
+                          onValueChange={(v) => {
+                            const next = v === SCENARIO_NONE_VALUE ? null : v;
+                            if (next !== (displayedScenarioChapterId ?? null)) {
+                              setPendingScenarioChapterId(next);
+                              setConfirmScenarioChangeOpen(true);
+                            }
+                          }}
                         >
                           <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Choisir un chapitre..." />
+                            <SelectValue placeholder="Choisir un chapitre...">
+                              {scenarioChapterLabel ?? "Aucun (ne pas associer)"}
+                            </SelectValue>
                           </SelectTrigger>
                           <SelectContent>
+                            <SelectItem value={SCENARIO_NONE_VALUE}>
+                              Aucun (ne pas associer)
+                            </SelectItem>
                             {scenarioChapters.map((sc) => (
                               <SelectItem key={sc.id} value={sc.id}>
-                                Chapitre {sc.chapter_number} : {sc.title}
+                                <span className="flex items-center gap-2">
+                                  Chapitre {sc.chapter_number} : {sc.title}
+                                  {sc.id === suggestedScenarioChapterId && (
+                                    <span className="text-xs text-muted-foreground">✓ suggéré</span>
+                                  )}
+                                </span>
                               </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
+                        <AlertDialog
+                          open={confirmScenarioChangeOpen}
+                          onOpenChange={setConfirmScenarioChangeOpen}
+                        >
+                          <AlertDialogContent className="glass">
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Changer de chapitre texte ?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Le chapitre de scénario affiché à gauche sera remplacé et le lien
+                                sera enregistré pour ce chapitre visuel.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel
+                                onClick={() => setPendingScenarioChapterId(undefined)}
+                              >
+                                Annuler
+                              </AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => {
+                                  if (!chapterId) return;
+                                  const idToSave = pendingScenarioChapterId ?? null;
+                                  setSelectedScenarioChapterId(pendingScenarioChapterId);
+                                  setConfirmScenarioChangeOpen(false);
+                                  setPendingScenarioChapterId(undefined);
+                                  updateChapter.mutate(
+                                    {
+                                      id: chapterId,
+                                      updates: { linked_scenario_chapter_id: idToSave },
+                                    },
+                                    {
+                                      onSuccess: () => {
+                                        toast({ title: "Lien enregistré" });
+                                        setSelectedScenarioChapterId(undefined);
+                                      },
+                                      onError: (err) =>
+                                        toast({
+                                          title: "Erreur",
+                                          description: err.message,
+                                          variant: "destructive",
+                                        }),
+                                    }
+                                  );
+                                }}
+                                disabled={updateChapter.isPending}
+                              >
+                                {updateChapter.isPending ? "Enregistrement..." : "Changer"}
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </div>
                       {displayedScenarioChapterId && (
                         <>

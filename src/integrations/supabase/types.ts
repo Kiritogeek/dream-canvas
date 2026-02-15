@@ -233,6 +233,7 @@ export type Database = {
           chapter_number: number
           title: string
           content: string | null
+          panels_outline: Json | null
           created_at: string
           updated_at: string
         }
@@ -243,6 +244,7 @@ export type Database = {
           chapter_number?: number
           title: string
           content?: string | null
+          panels_outline?: Json | null
           created_at?: string
           updated_at?: string
         }
@@ -253,6 +255,7 @@ export type Database = {
           chapter_number?: number
           title?: string
           content?: string | null
+          panels_outline?: Json | null
           created_at?: string
           updated_at?: string
         }
@@ -320,6 +323,7 @@ export type Database = {
           created_at: string
           description: string | null
           id: string
+          panels_target_per_chapter: number | null
           style_image_urls: string[]
           style_template: string | null
           title: string
@@ -331,6 +335,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          panels_target_per_chapter?: number | null
           style_image_urls?: string[]
           style_template?: string | null
           title: string
@@ -342,6 +347,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          panels_target_per_chapter?: number | null
           style_image_urls?: string[]
           style_template?: string | null
           title?: string

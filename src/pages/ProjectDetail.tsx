@@ -70,23 +70,28 @@ export default function ProjectDetail() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editTitle, setEditTitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
+  const [editPanelsTarget, setEditPanelsTarget] = useState("");
 
   const openEditDialog = () => {
     if (!project) return;
     setEditTitle(project.title);
     setEditDescription(project.description || "");
+    setEditPanelsTarget(project.panels_target_per_chapter != null ? String(project.panels_target_per_chapter) : "");
     setEditDialogOpen(true);
   };
 
   const handleEditProject = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!id || !editTitle.trim()) return;
+    const panelsTarget = editPanelsTarget.trim();
+    const panelsTargetNum = panelsTarget === "" ? null : Math.max(1, Math.min(99, parseInt(panelsTarget, 10) || 10));
     updateProject.mutate(
       {
         id,
         updates: {
           title: editTitle.trim(),
           description: editDescription.trim() || null,
+          panels_target_per_chapter: panelsTargetNum,
         },
       },
       {
@@ -237,6 +242,20 @@ export default function ProjectDetail() {
                 placeholder="De quoi parle votre histoire ?"
                 rows={3}
               />
+            </div>
+            <div className="space-y-2">
+              <Label>Panels cible par chapitre (optionnel)</Label>
+              <Input
+                type="number"
+                min={1}
+                max={99}
+                value={editPanelsTarget}
+                onChange={(e) => setEditPanelsTarget(e.target.value)}
+                placeholder="ex. 10"
+              />
+              <p className="text-xs text-muted-foreground">
+                Référence pour comparer à l’estimation du découpage (indicatif).
+              </p>
             </div>
             <Button
               type="submit"

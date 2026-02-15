@@ -21,3 +21,25 @@ npx supabase functions deploy generate-asset-image
 ```
 
 Voir aussi le guide principal : [SUPABASE_SETUP.md](../../SUPABASE_SETUP.md) (section « Génération d'images IA »).
+
+---
+
+## generate-scenario-ai
+
+IA Scénario, IA Chapitre et **découpage chapitre → panels** (mode `panels`). Utilise Groq (Llama 3.3 70B).
+
+**Secrets requis (Dashboard Supabase → Edge Functions → Secrets) :**
+- `GROQ_API_KEY` — clé API Groq
+- `SUPABASE_ANON_KEY` — clé anon du projet (souvent déjà injectée ; nécessaire pour valider le JWT utilisateur dans la fonction)
+- `SUPABASE_URL` et `SUPABASE_SERVICE_ROLE_KEY` — en général déjà définis par Supabase
+
+**Config (config.toml) :** `verify_jwt = false` pour cette fonction afin d’éviter un 401 côté passerelle ; la fonction vérifie elle-même le JWT via l’API Auth.
+
+**Redéploiement :**
+
+```bash
+npx supabase link --project-ref VOTRE_PROJECT_REF   # si pas déjà lié
+npx supabase functions deploy generate-scenario-ai
+```
+
+Après déploiement, vérifier dans le Dashboard que les secrets ci-dessus sont bien renseignés pour `generate-scenario-ai`.

@@ -21,6 +21,10 @@ import {
   CHAPTER_SYSTEM_PROMPT,
   buildChapterPrompt,
 } from "./system-prompts/chapter.ts";
+import {
+  PANELS_SYSTEM_PROMPT,
+  buildPanelsPrompt,
+} from "./system-prompts/panels.ts";
 
 // ═══════════════════════════════════════════════════════════════
 // CONFIGURATION
@@ -79,6 +83,31 @@ async function verifyUserFromToken(
   } catch {
     return null;
   }
+}
+
+// ── Réparer un JSON panels tronqué (fermeture des chaînes/objets) ─
+function tryClosePanelsJson(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed.startsWith("{")) return trimmed;
+  // Si déjà valide, retour tel quel
+  try {
+    JSON.parse(trimmed);
+    return trimmed;
+  } catch {
+    // ignore
+  }
+  // Tronqué souvent en milieu de chaîne : fermer " puis }} ] }
+  const suffixes = ['"}}]}', '"}]}', '"]}', '"}'];
+  for (const suf of suffixes) {
+    try {
+      const closed = trimmed + suf;
+      JSON.parse(closed);
+      return closed;
+    } catch {
+      // continue
+    }
+  }
+  return trimmed;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -195,7 +224,7 @@ Deno.serve(async (req) => {
 
     // 4. Parse body
     let body: {
-      mode?: "scenario" | "chapter";
+      mode?: "scenario" | "chapter" | "panels";
       prompt?: string;
       num_chapters?: number;
       existing_content?: string;
@@ -203,6 +232,7 @@ Deno.serve(async (req) => {
       chapter_title?: string;
       chapter_content?: string;
       chapter_number?: number;
+      target_panel_count?: number;
     };
     try {
       body = (await req.json()) as typeof body;
@@ -211,13 +241,13 @@ Deno.serve(async (req) => {
     }
 
     const { mode, prompt } = body;
-    if (!mode || !["scenario", "chapter"].includes(mode)) {
+    if (!mode || !["scenario", "chapter", "panels"].includes(mode)) {
       return jsonResponse(
-        { error: 'Le champ "mode" est requis ("scenario" ou "chapter").' },
+        { error: 'Le champ "mode" est requis ("scenario", "chapter" ou "panels").' },
         400
       );
     }
-    if (!prompt?.trim()) {
+    if (mode !== "panels" && !prompt?.trim()) {
       return jsonResponse(
         { error: "Le champ \"prompt\" est requis (votre instruction)." },
         400
@@ -225,18 +255,16 @@ Deno.serve(async (req) => {
     }
 
     // 5. Construire system + user prompt selon le mode
-    //    (même pattern que les system-prompts image : build*Prompt)
     let systemPrompt: string;
     let userPrompt: string;
 
     if (mode === "scenario") {
       systemPrompt = SCENARIO_SYSTEM_PROMPT;
-      userPrompt = buildScenarioPrompt(prompt, {
+      userPrompt = buildScenarioPrompt(prompt!, {
         existingContent: body.existing_content,
         projectDescription: body.project_description,
       });
-    } else {
-      // mode === "chapter"
+    } else if (mode === "chapter") {
       if (!body.chapter_content?.trim()) {
         return jsonResponse(
           {
@@ -247,16 +275,34 @@ Deno.serve(async (req) => {
         );
       }
       systemPrompt = CHAPTER_SYSTEM_PROMPT;
-      userPrompt = buildChapterPrompt(prompt, {
+      userPrompt = buildChapterPrompt(prompt!, {
         chapterTitle: body.chapter_title ?? "Sans titre",
         chapterContent: body.chapter_content,
         chapterNumber: body.chapter_number,
+      });
+    } else {
+      // mode === "panels"
+      if (!body.chapter_content?.trim()) {
+        return jsonResponse(
+          {
+            error:
+              "Le champ \"chapter_content\" est requis pour le mode panels (contenu du chapitre à découper).",
+          },
+          400
+        );
+      }
+      systemPrompt = PANELS_SYSTEM_PROMPT;
+      userPrompt = buildPanelsPrompt({
+        chapterTitle: body.chapter_title ?? "Sans titre",
+        chapterContent: body.chapter_content,
+        chapterNumber: body.chapter_number,
+        targetPanelCount: body.target_panel_count,
       });
     }
 
     // 6. Appel Groq
     console.log(
-      `[generate-scenario-ai] mode=${mode}, user=${userId}, prompt_length=${prompt.length}`
+      `[generate-scenario-ai] mode=${mode}, user=${userId}, prompt_length=${userPrompt.length}`
     );
 
     const result = await callGroq(systemPrompt, userPrompt, groqKey);
@@ -265,6 +311,32 @@ Deno.serve(async (req) => {
       return jsonResponse(
         { error: "Échec génération IA", details: result.error },
         502
+      );
+    }
+
+    // Mode panels : parser le JSON et retourner { panels }
+    if (mode === "panels") {
+      const cleaned = result.text.replace(/^[\s\S]*?\{/, "{").trim();
+      let parsed: { panels?: Array<{ description: string; context?: { lieu?: string; scene?: string; personnages?: string } }> };
+
+      try {
+        // Tenter parse direct
+        const closed = tryClosePanelsJson(cleaned);
+        parsed = JSON.parse(closed) as typeof parsed;
+      } catch {
+        // Réponse tronquée ou invalide : message clair (sans renvoyer le JSON brut)
+        return jsonResponse(
+          {
+            error:
+              "La réponse de l'IA est tronquée ou invalide. Réessayez avec un chapitre plus court ou une cible de panels plus faible.",
+          },
+          502
+        );
+      }
+      const panels = Array.isArray(parsed.panels) ? parsed.panels : [];
+      return jsonResponse(
+        { panels, mode, model: GROQ_MODEL },
+        200
       );
     }
 

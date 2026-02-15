@@ -16,6 +16,7 @@ import {
   LayoutTemplate,
   Eye,
   PenLine,
+  LayoutPanelTop,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,6 +45,7 @@ import {
   useReorderScenarioChapters,
 } from "@/hooks/useScenarioChapters";
 import { useScenarioAI } from "@/hooks/useScenarioAI";
+import { useSplitChapterIntoPanels } from "@/hooks/usePanels";
 import { useAssets } from "@/hooks/useAssets";
 import { TextDiff, TextDiffLegend } from "@/components/ui/TextDiff";
 import {
@@ -51,6 +53,7 @@ import {
   MissingAssetsPanel,
 } from "@/components/project/ScenarioTextHighlighter";
 import type { Project, ScenarioChapter, Asset, AssetType } from "@/types";
+import { estimatePanelCount, PANELS_REFERENCE_PER_CHAPTER } from "@/services/panels";
 
 // ── Props ─────────────────────────────────────────────────────
 
@@ -601,6 +604,7 @@ export function ScenarioSection({ projectId, project, onNavigateToCreateAsset }:
                 key={chapter.id}
                 chapter={chapter}
                 projectId={projectId}
+                panelsTarget={project.panels_target_per_chapter ?? undefined}
                 isOpen={openChapterId === chapter.id}
                 onToggle={() =>
                   setOpenChapterId(
@@ -725,6 +729,7 @@ export function ScenarioSection({ projectId, project, onNavigateToCreateAsset }:
 interface ChapterCardProps {
   chapter: ScenarioChapter;
   projectId: string;
+  panelsTarget?: number | null;
   isOpen: boolean;
   onToggle: () => void;
   onRequestDelete: () => void;
@@ -741,6 +746,7 @@ interface ChapterCardProps {
 function ChapterCard({
   chapter,
   projectId,
+  panelsTarget,
   isOpen,
   onToggle,
   onRequestDelete,
@@ -755,6 +761,7 @@ function ChapterCard({
 }: ChapterCardProps) {
   const { toast } = useToast();
   const chapterAI = useScenarioAI();
+  const splitIntoPanels = useSplitChapterIntoPanels();
 
   // Local editing state
   const [content, setContent] = useState(chapter.content ?? "");
@@ -956,6 +963,100 @@ function ChapterCard({
                 </>
               )}
             </div>
+
+            {/* Estimation panels (contrôle longueur) */}
+            {chapter.content && (
+              <p className="text-xs text-muted-foreground">
+                Estimation : <strong>{estimatePanelCount(chapter.content)}</strong> panels
+                {" · "}
+                Cible : <strong>{panelsTarget ?? PANELS_REFERENCE_PER_CHAPTER}</strong> panels
+              </p>
+            )}
+
+            {/* ── Découpage en panels (IA) — même système qu'en Édition de l'œuvre ──────── */}
+            {chapter.content && (
+              <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 space-y-2">
+                <div className="flex items-center gap-2">
+                  <LayoutPanelTop className="h-3.5 w-3.5 text-primary shrink-0" />
+                  <span className="text-sm font-medium">
+                    Découpage en panels (IA)
+                  </span>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Découpe ce chapitre en panels (bandes verticales). Le découpage est enregistré ici et pourra être importé dans l'onglet <strong>Édition de l'œuvre</strong> pour le chapitre visuel lié.
+                </p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-1.5"
+                    disabled={splitIntoPanels.isPending}
+                    onClick={() => {
+                      const target = estimatePanelCount(content);
+                      splitIntoPanels.mutate(
+                        {
+                          chapter_title: chapter.title,
+                          chapter_content: content,
+                          chapter_number: chapter.chapter_number,
+                          target_panel_count: target > 0 ? target : undefined,
+                        },
+                        {
+                          onSuccess: (res) => {
+                            if (res.panels?.length) {
+                              updateChapter.mutate(
+                                {
+                                  id: chapter.id,
+                                  projectId,
+                                  updates: {
+                                    panels_outline: res.panels as unknown as Record<string, unknown>,
+                                  },
+                                },
+                                {
+                                  onSuccess: () =>
+                                    toast({
+                                      title: `${res.panels.length} panel(s) enregistré(s)`,
+                                      description: "Importable dans Édition de l'œuvre.",
+                                    }),
+                                  onError: (err) =>
+                                    toast({
+                                      title: "Erreur",
+                                      description: err.message,
+                                      variant: "destructive",
+                                    }),
+                                }
+                              );
+                            } else {
+                              toast({
+                                title: "Aucun panel généré",
+                                variant: "destructive",
+                              });
+                            }
+                          },
+                          onError: (err) =>
+                            toast({
+                              title: "Erreur découpage",
+                              description: err.message,
+                              variant: "destructive",
+                            }),
+                        }
+                      );
+                    }}
+                  >
+                    {splitIntoPanels.isPending ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Sparkles className="h-3.5 w-3.5" />
+                    )}
+                    Découper en panels (IA)
+                  </Button>
+                  {Array.isArray(chapter.panels_outline) && chapter.panels_outline.length > 0 && (
+                    <span className="text-xs text-muted-foreground">
+                      {chapter.panels_outline.length} panel(s) enregistré(s)
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* ── IA Chapitre (visible dès l'ouverture) ──────── */}
             <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 space-y-2">

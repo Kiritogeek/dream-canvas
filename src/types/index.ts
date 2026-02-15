@@ -50,6 +50,7 @@ export type ScenarioVersion = Tables<"scenario_versions">;
 export type ProjectInsert = TablesInsert<"projects">;
 export type AssetInsert = TablesInsert<"assets">;
 export type ChapterInsert = TablesInsert<"chapters">;
+export type PanelInsert = TablesInsert<"panels">;
 export type ScenarioChapterInsert = TablesInsert<"scenario_chapters">;
 export type ScenarioVersionInsert = TablesInsert<"scenario_versions">;
 
@@ -93,4 +94,37 @@ export interface AssetTabConfig {
   type: AssetType;
   icon: React.ComponentType<{ className?: string }>;
   label: string;
+}
+
+/** Un item du découpage chapitre → panels (panels_outline sur scenario_chapters) */
+export interface PanelOutlineItem {
+  description: string;
+  context?: { lieu?: string; scene?: string; personnages?: string };
+}
+
+/** Un bloc d'image dans le layout d'un panel (720×5000). Dimensions en px. */
+export interface PanelBlock {
+  id: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  prompt: string | null;
+  asset_refs?: string[];
+  image_url?: string | null;
+}
+
+/** Layout d'un panel : liste de blocs. Stocké dans panels.layout (JSONB). */
+export interface PanelLayout {
+  blocks: PanelBlock[];
+}
+
+/** Bulle de dialogue / pensée (overlay sur le panel). Stocké dans panels.speech_bubbles. */
+export interface SpeechBubble {
+  id: string;
+  type: "speech" | "thought" | "shout" | "whisper" | "narration";
+  text: string;
+  position: { x: number; y: number };
+  style?: { font?: string; size?: number; color?: string; stroke?: string; fill?: string };
+  character?: string;
 }

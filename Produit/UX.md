@@ -131,7 +131,7 @@
 | Répartition N / N+1 | (À venir) Chapitre trop court → prendre des éléments du chapitre textuel N+1 (acceptation/refus). Trop long → céder des éléments au N+1. Prérequis : chapitre N et N+1. |
 | IA Panel | Suggestion ou réécriture de la description du panel (contexte scénario + assets) ; Accepter / Rejeter. |
 | Mode Automatique | Découpage IA → liste de panels. **Sélection des assets du chapitre** (impérative). Génération **panel par panel** (style + assets + description du panel). |
-| Mode Structuré | Chapitre vide → **blocs** (position, taille) → par bloc : description + **sélection d’assets** → génération 1 image par bloc. Images pleines affichées **dans** les blocs. |
+| Mode Structuré | Chapitre vide → **blocs** (position, taille) → par bloc : description + **sélection d’assets** → génération 1 image par bloc. **Dimensions du bloc obligatoires pour l'espace de l'image.** Images pleines affichées **dans** les blocs. |
 | Lecture verticale | Défilement vertical, format webtoon. |
 
 ### 3.3 Dialogues et export

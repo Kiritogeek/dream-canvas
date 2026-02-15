@@ -10,7 +10,7 @@
 |----------|--------|
 | **Flux** | Deux modes : **Automatique** (découpage IA → panels, génération **panel par panel**) et **Structuré** (chapitre vide → blocs → texte + assets → génération). |
 | **Images** | Chaque image générée est une **illustration pleine** (pas de “cases” ou blocs dessinés dans l’image). Les blocs sont des **zones de mise en page** dans l’app : on y affiche une image par bloc. |
-| **Blocs** | En mode Structuré : l’utilisateur définit des blocs (position, taille, forme rectangle en v1). Chaque bloc a un contenu texte (prompt) et des refs assets. À la génération : **1 image par bloc** → l’image est ensuite affichée **dans** ce bloc. |
+| **Blocs** | En mode Structuré : l’utilisateur définit des blocs (position, taille, forme rectangle en v1). Chaque bloc a un contenu texte (prompt) et des refs assets. À la génération : **1 image par bloc** → l’image est ensuite affichée **dans** ce bloc. **OBLIGATOIRE** : l'image générée utilise les dimensions du bloc concerné (largeur × hauteur) pour l'espace de l'image. |
 | **Scénario** | **Section à part entière** : écrire son histoire. **IA Scénario** : **un prompt = un chapitre** généré ; l'utilisateur construit son histoire chapitre par chapitre, accepter crée le chapitre. **IA Chapitre** : par chapitre existant, IA qui n'intervient que sur ce chapitre ; même flux accepter/rejeter. Détection assets (surbrillance + hover) et éléments non créés. Jamais le scénario dans le prompt d'image. Voir section 3. |
 | **Prompts d'image** | Uniquement **assets sélectionnés** + éventuellement **courte description par panel** (issue du découpage ou saisie). Le scénario/synopsis **n'est pas** injecté dans le prompt. |
 | **Génération panel par panel** | Mode Automatique : génération **au minimum panel par panel**. Impossible de générer un chapitre entier sans erreurs ou limites (quota, timeouts, API). |
@@ -36,7 +36,7 @@
 1. L’utilisateur crée un chapitre **vide** (titre, optionnellement synopsis/scénario pour référence).
 2. Il définit la **structure** du chapitre : création de **panels**, puis pour chaque panel, création de **blocs** (rectangles : position x,y, largeur, hauteur). Aucune image n’est générée à ce stade.
 3. Pour chaque bloc, il **rédige** une description (ce qui doit apparaître dans ce bloc) et **sélectionne les assets** (personnages, décors, objets) à utiliser pour ce bloc. **Cette sélection est primordiale** : elle cadre la génération et permet à l'IA de savoir quels éléments inclure. Les refs assets sont injectées dans le prompt à la génération.
-4. Une fois la structure et les textes (avec assets) prêts, il lance la **génération** : **1 image par bloc**. Chaque image est une illustration pleine (pas de sous-blocs dessinés dedans), produite à partir du prompt du bloc et des assets sélectionnés pour ce bloc.
+4. Une fois la structure et les textes (avec assets) prêts, il lance la **génération** : **1 image par bloc**. Chaque image est une illustration pleine (pas de sous-blocs dessinés dedans), produite à partir du prompt du bloc et des assets sélectionnés pour ce bloc. **OBLIGATOIRE** : l'espace de l'image doit prendre les **dimensions du bloc concerné** (largeur × hauteur) — l'API de génération reçoit ces dimensions.
 5. Les images générées sont **affichées dans** les blocs (chaque bloc affiche une image). En lecture, on affiche les panels avec leurs blocs (layout) ; les blocs contiennent les images.
 6. Optionnel : bulles de dialogue / narration en overlay sur les panels (comme en mode Automatique).
 

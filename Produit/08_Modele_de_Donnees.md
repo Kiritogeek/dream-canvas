@@ -274,7 +274,7 @@ CREATE TYPE asset_type AS ENUM ('character', 'background', 'object');
   ]
 }
 ```
-Chaque image générée pour un bloc est une **illustration pleine** ; elle est affichée **dans** le rectangle du bloc (conteneur de mise en page). **La sélection d'assets par l'utilisateur (asset_refs) est impérative** pour la génération : elle cadre la scène et permet à l'IA de comprendre les éléments (personnages, décors, objets) à mettre dans le chapitre.
+**Édition des panels** (voir `Edition_Panel_Blocs_Bulles.md`) : par défaut **aucun bloc** (`blocks: []`) ; l’utilisateur **ajoute des blocs par glisser-déposer** (bloc **500×500** déposé sur le panel), **déplace** les blocs par glisser-déposer, **édite** largeur/hauteur, puis saisit le prompt et génère l’image par bloc. Chaque image générée est une **illustration pleine** affichée **dans** le rectangle du bloc. **Les dimensions de l’image = dimensions du bloc** (width × height). **OBLIGATOIRE** : la génération d'image dans un bloc doit utiliser les dimensions de ce bloc pour l'espace de l'image. **La sélection d'assets (asset_refs)** est optionnelle mais recommandée pour cadrer la scène.
 
 **Format de `speech_bubbles`** (prévu) :
 ```json

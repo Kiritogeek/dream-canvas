@@ -32,13 +32,19 @@ export function useCreateChapter(projectId: string) {
   const { user } = useAuth();
 
   return useMutation({
-    mutationFn: (params: { title: string; chapter_number: number; synopsis?: string }) =>
+    mutationFn: (params: {
+      title: string;
+      chapter_number: number;
+      synopsis?: string;
+      linked_scenario_chapter_id?: string | null;
+    }) =>
       chapterService.createChapter({
         project_id: projectId,
         user_id: user!.id,
         title: params.title,
         chapter_number: params.chapter_number,
         synopsis: params.synopsis ?? null,
+        linked_scenario_chapter_id: params.linked_scenario_chapter_id ?? undefined,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: keys.list(projectId) });

@@ -87,14 +87,14 @@ Dans les deux cas, l'UI doit imposer ou fortement encourager cette sélection av
 
 ### 3.4 Interface d'édition des panels (Édition de l'œuvre)
 
-Lors de l'édition d'un panel, l'utilisateur dispose de **deux aides visuelles** :
+Lors de l'édition d'un chapitre visuel, l'utilisateur dispose d'**une aide visuelle** : le **chapitre texte** (scénario) affiché à gauche, avec la **même visualisation Aperçu** que dans la section Scénario.
 
-| Côté | Contenu affiché | Objectif |
-|------|-----------------|----------|
-| **Scénario** | Visualisation du **chapitre de scénario** (ou du passage de scénario) qu'il adapte en visuel. | Garder le contexte narratif pendant la saisie du prompt / la génération. |
-| **Assets** | Visualisation des **assets sélectionnés** pour ce panel (personnages, décors, objets). | Rappel visuel pour le prompting et la cohérence ; cadrer la génération IA. |
+| Zone | Contenu | Objectif |
+|------|---------|----------|
+| **Gauche — Chapitre texte** | Texte du **chapitre de scénario** lié, affiché en **Aperçu** : surbrillance des assets (personnages, décors, objets) dans le texte ; **hover** pour afficher l'asset (image + infos). | Garder le contexte narratif ; voir directement dans le texte quels assets sont concernés, sans panneau Assets séparé. |
+| **Droite — Panels** | Liste et édition des panels du chapitre visuel. | Saisie des descriptions, génération, blocs, bulles. |
 
-Cela suppose qu'un **lien optionnel** entre chapitre visuel et chapitre de scénario (ou passage) soit possible, pour afficher « le bon » extrait de scénario à côté du panel en cours d'édition. Voir section 6 « Points à clarifier ».
+Il n'y a **pas de panneau « Assets » dédié** dans cet écran : les assets sont visibles **dans le texte** via l'Aperçu (détection + surbrillance + hover), comme dans la section Scénario (Chapitre → Aperçu). Un lien optionnel entre chapitre visuel et chapitre de scénario (`linked_scenario_chapter_id`) permet d'afficher le bon chapitre texte. Voir section 6 « Points à clarifier ».
 
 #### 3.4.1 Projection : comment fonctionne l’ouverture du chapitre texte lors de l’édition de l’œuvre
 
@@ -103,8 +103,7 @@ Cela suppose qu'un **lien optionnel** entre chapitre visuel et chapitre de scén
 **Fonctionnement prévu** :
 
 1. **Où s’affiche le chapitre texte**
-   - Dans l’écran d’édition du chapitre visuel (ou du panel/bloc), un **panneau « Scénario »** (ou « Chapitre texte ») affiche le **contenu textuel** d’un chapitre de scénario.
-   - Ce panneau fait partie de la **double visualisation** : à côté (ou en dessous sur mobile) se trouve le panneau **Assets** (assets sélectionnés pour ce panel). L’utilisateur a ainsi **scénario + assets** sous les yeux pendant qu’il remplit le prompt du panel ou lance la génération.
+   - Dans l’écran d’édition du chapitre visuel, le **chapitre texte** (scénario) s’affiche **à gauche** dans un panneau « Chapitre texte » (repliable). Le contenu est affiché en **Aperçu** : même rendu que dans la section Scénario (surlignage des assets, hover pour voir l’asset). **À droite** : les panels du chapitre visuel. Pas de panneau Assets séparé — les assets sont visibles dans le texte via l’Aperçu.
 
 2. **Quel chapitre texte afficher**
    - **Si un lien existe** : au moment de créer ou d’éditer le **chapitre visuel**, l’utilisateur peut **associer** ce chapitre à un **chapitre de scénario** (ex. « Ce chapitre visuel adapte le chapitre de scénario #3 »). En BDD : un champ optionnel sur le chapitre visuel, ex. `linked_scenario_chapter_id` (FK vers la table des chapitres de scénario).
@@ -118,15 +117,38 @@ Cela suppose qu'un **lien optionnel** entre chapitre visuel et chapitre de scén
 
 4. **Résumé du flux**
    - Utilisateur **entre dans Édition de l’œuvre** → ouvre un **chapitre visuel** (liste des chapitres du webtoon).
-   - L’écran d’édition du chapitre visuel s’affiche avec **deux zones** : une pour les panels/blocs (édition, génération), une pour les **aides** (Scénario + Assets).
-   - **Panneau Scénario** : le système charge et affiche le texte du chapitre écrit **correspondant** au chapitre visuel (par ordre ou lien en BDD), sinon propose un **sélecteur** pour choisir un chapitre à afficher.
-   - L’utilisateur **lit le texte** dans ce panneau tout en remplissant les descriptions des panels ou en sélectionnant les assets ; il peut **replier** le panneau s’il veut plus d’espace, et le **réafficher** sans avoir à « rouvrir » un fichier.
+   - L’écran d’édition s’affiche avec **chapitre texte à gauche** (Aperçu : surlignage assets + hover) et **panels à droite**.
+   - Le système charge et affiche le texte du chapitre de scénario **lié** (lien en BDD), sinon propose un **sélecteur** pour choisir un chapitre à afficher ; l’utilisateur peut **enregistrer** ce choix comme lien.
+   - L’utilisateur **lit le texte** (avec les assets visibles dans l’Aperçu) tout en travaillant sur les panels ; il peut **replier** le panneau Chapitre texte pour gagner de la place.
 
 5. **Données nécessaires**
    - **Chapitres** (`chapters` ou équivalent) : ajout d’un champ optionnel **`linked_scenario_chapter_id`** (chapitres écrits = chapitres webtoon ; même table ou deux tables liées par ordre). l’ordre.
    - **Chapitres (texte)** : table ou structure avec `id`, `project_id`, `title`, `content`, ordre. **Découpage Chapitre → Panels** : stockage liste panels (descriptions) par chapitre ; règles de gestion à définir plus tard.
 
 Cette projection peut être implémentée progressivement : d’abord panneau Scénario avec **sélecteur manuel** (sans lien persisté), puis ajout du **lien optionnel** et affichage automatique du chapitre lié à l’entrée dans le chapitre visuel.
+
+#### 3.4.2 Création d’un chapitre visuel — association au chapitre textuel
+
+- **Suggestion par numéro** : à la création d’un chapitre visuel (ex. Chapitre 1), le système **pré-sélectionne** le chapitre de scénario de même numéro (Chapitre 1 textuel) s’il existe. L’utilisateur confirme, en choisit un autre ou laisse « Aucun » (associer plus tard).
+- **Aucun chapitre textuel** : si le projet n’a aucun chapitre de scénario, une **notification** informe que l’utilisateur peut en créer dans l’onglet Scénario et associer ce chapitre visuel plus tard. La création du chapitre visuel reste possible.
+
+#### 3.4.3 Longueur chapitre texte vs panels — guidance, estimation, répartition
+
+- **Guidance** : si le découpage du chapitre textuel en panels est trop court ou trop long pour un chapitre webtoon, indiquer à l’utilisateur qu’il peut **retourner dans l’onglet Scénario** pour modifier le texte.
+- **Estimation du nombre de panels** : disponible **en section Scénario** (pour chaque chapitre texte) et **en Édition de l'œuvre** (chapitre visuel). Estime le nombre de panels à partir du contenu texte et 720×5000. **Uniquement indicatif et visuel** : l'utilisateur n'est pas tenu de respecter cette estimation ; il peut créer plus ou moins de panels (images) qu'estimé. Permet de pré-visualiser si la longueur convient.
+- **Répartition N / N+1** : sans perdre d’éléments. Prérequis : **chapitre actuel (N) et chapitre suivant (N+1)**. **Trop court** : prendre des éléments du chapitre textuel N+1 et les ajouter au N (proposition + acceptation/refus). **Trop long** : céder des éléments du N vers N+1 (même principe). Les éléments acceptés sont retirés d’un chapitre et ajoutés à l’autre.
+
+#### 3.4.4 Contrôle de la longueur — référence, nombre de panels cible, comparaison
+
+*Objectif* : l'utilisateur a un **contrôle sur la longueur** de ses chapitres (en nombre de panels).
+
+- **Référence panels / chapitre** : afficher une référence (ex. « En moyenne, un chapitre fait environ **10 panels** »). *Évolution* : afficher un **vrai chapitre webtoon** (fourni plus tard) avec son **nombre de panels** → l'utilisateur juge combien de panels il veut pour ses chapitres.
+- **Nombre de panels cible** : l'utilisateur peut **choisir un nombre de panels cible** pour le chapitre (ou cible par défaut au niveau projet). Ex. 8, 10, 12 panels.
+- **Comparaison estimation vs cible** : confronter l'estimation (panels prévus) au **nombre de panels cible** (ex. « Estimation : 7 · Cible : 10 → chapitre un peu court »). L'utilisateur adapte le texte ou utilise la répartition N/N+1.
+
+*Usage intuitif* : en Scénario, à la création ou édition d'un chapitre, afficher référence + estimation ; permettre de définir une cible ; afficher la comparaison estimation vs cible. Même logique en Édition de l'œuvre.
+
+*Principe* : l'estimation et toute visualisation du découpage chapitre → panels sont **purement indicatives et visuelles**. L'utilisateur reste libre d'avoir plus ou moins d'images que l'estimation ; pas de contrainte à appliquer strictement un panel « détecté » comme panel visuel.
 
 ### 3.5 Assistance IA : deux types (Scénario / Chapitre), réécriture directe et accepter-rejeter
 

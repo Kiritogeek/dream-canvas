@@ -37,6 +37,14 @@ import {
   useDeleteChapter,
   useReorderChapters,
 } from "@/hooks/useChapters";
+import { useScenarioChapters } from "@/hooks/useScenarioChapters";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import type { Chapter, Project } from "@/types";
 
 interface EditionSectionProps {
@@ -48,6 +56,7 @@ export function EditionSection({ projectId, project }: EditionSectionProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { data: chapters = [], isLoading } = useChapters(projectId);
+  const { data: scenarioChapters = [] } = useScenarioChapters(projectId);
   const createChapter = useCreateChapter(projectId);
   const updateChapter = useUpdateChapter(projectId);
   const deleteChapter = useDeleteChapter(projectId);
@@ -56,6 +65,7 @@ export function EditionSection({ projectId, project }: EditionSectionProps) {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newSynopsis, setNewSynopsis] = useState("");
+  const [linkedScenarioChapterId, setLinkedScenarioChapterId] = useState<string>("");
   const [deleteTarget, setDeleteTarget] = useState<Chapter | null>(null);
   const [editTarget, setEditTarget] = useState<Chapter | null>(null);
   const [editTitle, setEditTitle] = useState("");
@@ -66,6 +76,15 @@ export function EditionSection({ projectId, project }: EditionSectionProps) {
   let nextChapterNumber = 1;
   while (usedNumbers.has(nextChapterNumber)) nextChapterNumber++;
 
+  const suggestedScenarioChapter = scenarioChapters.find(
+    (sc) => sc.chapter_number === nextChapterNumber
+  );
+
+  const handleOpenCreateDialog = useCallback(() => {
+    setCreateDialogOpen(true);
+    setLinkedScenarioChapterId(suggestedScenarioChapter?.id ?? "");
+  }, [suggestedScenarioChapter?.id]);
+
   const handleCreateChapter = useCallback(() => {
     const title = newTitle.trim() || `Chapitre ${nextChapterNumber}`;
     createChapter.mutate(
@@ -73,6 +92,7 @@ export function EditionSection({ projectId, project }: EditionSectionProps) {
         title,
         chapter_number: nextChapterNumber,
         synopsis: newSynopsis.trim() || undefined,
+        linked_scenario_chapter_id: linkedScenarioChapterId || undefined,
       },
       {
         onSuccess: (created) => {
@@ -80,6 +100,7 @@ export function EditionSection({ projectId, project }: EditionSectionProps) {
           setCreateDialogOpen(false);
           setNewTitle("");
           setNewSynopsis("");
+          setLinkedScenarioChapterId("");
           navigate(`/dashboard/projects/${projectId}/chapter/${created.id}`);
         },
         onError: (err) =>
@@ -94,6 +115,7 @@ export function EditionSection({ projectId, project }: EditionSectionProps) {
     newTitle,
     newSynopsis,
     nextChapterNumber,
+    linkedScenarioChapterId,
     createChapter,
     toast,
     projectId,
@@ -212,7 +234,7 @@ export function EditionSection({ projectId, project }: EditionSectionProps) {
           </div>
           <Button
             size="sm"
-            onClick={() => setCreateDialogOpen(true)}
+            onClick={handleOpenCreateDialog}
             disabled={createChapter.isPending}
             className="gap-1.5 gradient-primary text-primary-foreground mt-2"
           >
@@ -231,7 +253,7 @@ export function EditionSection({ projectId, project }: EditionSectionProps) {
             <Button
               size="sm"
               variant="outline"
-              onClick={() => setCreateDialogOpen(true)}
+              onClick={handleOpenCreateDialog}
               disabled={createChapter.isPending}
               className="gap-1.5"
             >
@@ -319,7 +341,13 @@ export function EditionSection({ projectId, project }: EditionSectionProps) {
       )}
 
       {/* Dialog création chapitre */}
-      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+      <Dialog
+        open={createDialogOpen}
+        onOpenChange={(open) => {
+          setCreateDialogOpen(open);
+          if (!open) setLinkedScenarioChapterId("");
+        }}
+      >
         <DialogContent className="glass">
           <DialogHeader>
             <DialogTitle className="font-display">
@@ -327,6 +355,13 @@ export function EditionSection({ projectId, project }: EditionSectionProps) {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
+            {scenarioChapters.length === 0 && (
+              <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-800 dark:text-amber-200">
+                Vous n'avez pas encore de chapitre de scénario. Vous pouvez en
+                créer dans l'onglet <strong>Scénario</strong> et associer ce
+                chapitre visuel plus tard.
+              </div>
+            )}
             <div className="space-y-2">
               <Label>Titre</Label>
               <Input
@@ -343,6 +378,35 @@ export function EditionSection({ projectId, project }: EditionSectionProps) {
                 placeholder="Résumé court du chapitre..."
               />
             </div>
+            {scenarioChapters.length > 0 && (
+              <div className="space-y-2">
+                <Label>
+                  Associer au chapitre de scénario
+                  {suggestedScenarioChapter && (
+                    <span className="ml-1.5 text-xs font-normal text-muted-foreground">
+                      (recommandé : chapitre {nextChapterNumber})
+                    </span>
+                  )}
+                </Label>
+                <Select
+                  value={linkedScenarioChapterId}
+                  onValueChange={setLinkedScenarioChapterId}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Aucun (associer plus tard)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Aucun (associer plus tard)</SelectItem>
+                    {scenarioChapters.map((sc) => (
+                      <SelectItem key={sc.id} value={sc.id}>
+                        Chapitre {sc.chapter_number} : {sc.title}
+                        {sc.chapter_number === nextChapterNumber ? " ✓" : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <Button
               className="w-full gradient-primary text-primary-foreground"
               onClick={handleCreateChapter}

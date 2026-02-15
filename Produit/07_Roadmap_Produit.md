@@ -102,6 +102,7 @@ Voir `Plan_Action_Developpement_Scénario.md` pour le détail des phases A à G.
 | **IA Chapitre (par chapitre)** | Par chapitre : prompt → réécriture → accepter/rejeter + diff visuel. | P0 | L | ✅ Livré |
 | **Chapitres (scénario = webtoon)** | 1 chapitre écrit = 1 chapitre webtoon. Création, réorganisation (drag & drop), suppression. | P0 | M | ✅ Livré |
 | **Découpage Chapitre → Panels (section Scénario)** | Dans chaque chapitre : liste de panels + courte description par panel pour la génération panel par panel. Règles (auto/manuel) à définir. | P0 | L | 📋 À faire |
+| **Contrôle longueur chapitres** | Estimation du nombre de panels, référence (~10/chapitre), cible (projet/chapitre), comparaison estimation vs cible. En **Scénario** (par chapitre) et en **Édition de l'œuvre**. Guidance longueur ; répartition N/N+1. Voir `Plan_Phase2_Edition_Oeuvre.md` § Étape 3. | P0 | M | 📋 À faire |
 | **BDD — Scénarios approuvés & versions** | Persistance des versions, flux accepter/rejeter. | P0 | M | ✅ Livré |
 | **Découpage IA (optionnel)** | IA : chapitre → panels (courtes descriptions). Structure uniquement ; scénario jamais dans les prompts d'image. | P0 | L | 📋 À faire |
 | **Détection des assets dans le scénario** | Surbrillance par type, hover (HoverCard), clic (Dialog). | P0 | M | ✅ Livré |

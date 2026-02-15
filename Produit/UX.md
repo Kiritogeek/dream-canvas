@@ -113,13 +113,22 @@
 |--------|--------------|
 | Import scénario | Fichier .txt ou copier-coller pour remplir le scénario. |
 | Découpage Chapitre → Panels | Dans la section Scénario, pour chaque chapitre : liste de panels avec courte description. Alimente la génération panel par panel. |
+| Estimation panels (par chapitre) | Pour chaque chapitre texte : **estimation** du nombre de panels (contenu + 720×5000). **Indicatif et visuel uniquement** — l'utilisateur peut ensuite faire plus ou moins d'images. Pré-visualiser si la longueur convient. |
+| Référence panels / chapitre | Référence (ex. ~10 panels/chapitre). À venir : vrai chapitre webtoon + son nombre de panels pour que l'utilisateur juge sa cible. |
+| Nombre de panels cible | Choix utilisateur (par chapitre ou défaut projet). Ex. 8, 10, 12. |
+| Comparaison estimation vs cible | Afficher estimation vs cible (ex. « Estimation : 7 · Cible : 10 → chapitre un peu court »). Adapter le texte ou répartition N/N+1. |
 | Renommage asset (complétion) | Option « Toujours proposer » la mise à jour des chapitres lors d’un renommage. |
 
 ### 3.2 Édition de l’œuvre (panels)
 
 | Élément | Description |
 |--------|--------------|
-| Double visualisation | À l’édition d’un panel : côté **scénario** (chapitre de scénario) + côté **assets** (sélection pour le panel). |
+| Double visualisation | À l’édition d’un chapitre visuel : **chapitre texte à gauche** (Aperçu : surbrillance assets + hover), **panels à droite**. Pas de panneau Assets séparé. |
+| Création chapitre visuel | Lors de la création : **sélecteur « Associer au chapitre de scénario »** ; pré-sélection du chapitre textuel de même numéro (ex. visuel 1 → textuel 1). Si aucun chapitre textuel : message invitant à en créer dans l’onglet Scénario et associer plus tard. |
+| Guidance longueur | Si le chapitre textuel découpé en panels est trop court ou trop long : indiquer qu’il peut retourner dans le Scénario pour modifier, ou utiliser (à venir) l’estimation de panels et la répartition N/N+1. |
+| Estimation panels | (À venir) **Estimation** du nombre de panels pour ce chapitre (texte + 720×5000). Indicatif et visuel uniquement ; pas de contrainte (plus ou moins d'images possible). Disponible en Scénario et en Édition de l'œuvre. |
+| Référence et cible | (À venir) **Référence** (ex. ~10 panels/chapitre) ; **nombre de panels cible** (choix utilisateur) ; **comparaison** estimation vs cible pour contrôler la longueur. |
+| Répartition N / N+1 | (À venir) Chapitre trop court → prendre des éléments du chapitre textuel N+1 (acceptation/refus). Trop long → céder des éléments au N+1. Prérequis : chapitre N et N+1. |
 | IA Panel | Suggestion ou réécriture de la description du panel (contexte scénario + assets) ; Accepter / Rejeter. |
 | Mode Automatique | Découpage IA → liste de panels. **Sélection des assets du chapitre** (impérative). Génération **panel par panel** (style + assets + description du panel). |
 | Mode Structuré | Chapitre vide → **blocs** (position, taille) → par bloc : description + **sélection d’assets** → génération 1 image par bloc. Images pleines affichées **dans** les blocs. |

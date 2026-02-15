@@ -109,6 +109,8 @@ export default function ChapterDetail() {
   const [blockDimensionDrafts, setBlockDimensionDrafts] = useState<Record<string, { width: number; height: number }>>({});
   /** Refs du canvas par panel (pour calcul position de dépôt quand on drop sur un bloc) */
   const canvasRefByPanel = useRef<Record<string, HTMLDivElement | null>>({});
+  /** Élément ghost pour le drag « nouveau bloc » (setDragImage) */
+  const newBlockDragGhostRef = useRef<HTMLDivElement | null>(null);
   /** Drop move-block traité sur le canvas : ne pas nettoyer le preview dans onDragEnd pour éviter le saut visuel */
   const moveDropHandledRef = useRef(false);
   /** En cours de resize (annuler le drag du bloc) */
@@ -840,9 +842,12 @@ export default function ChapterDetail() {
                       const el = canvasEl ?? canvasRefByPanel.current[panel.id] ?? (e.currentTarget as HTMLDivElement);
                       if (!el) return { x: 0, y: 0 };
                       const { x: canvasX, y: canvasY } = viewportToCanvas(el, e.clientX, e.clientY);
+                      // Position du bloc pour que son centre soit au point de dépôt
+                      const x = Math.round(canvasX - maxW / 2);
+                      const y = Math.round(canvasY - maxH / 2);
                       return {
-                        x: Math.max(0, Math.min(PANEL_WIDTH - maxW, Math.round(canvasX))),
-                        y: Math.max(0, Math.min(PANEL_HEIGHT - maxH, Math.round(canvasY))),
+                        x: Math.max(0, Math.min(PANEL_WIDTH - maxW, x)),
+                        y: Math.max(0, Math.min(PANEL_HEIGHT - maxH, y)),
                       };
                     };
 
@@ -1043,6 +1048,10 @@ export default function ChapterDetail() {
                               onDragStart={(e) => {
                                 e.dataTransfer.setData("application/json", JSON.stringify({ type: "new-block" }));
                                 e.dataTransfer.effectAllowed = "copy";
+                                const ghost = newBlockDragGhostRef.current;
+                                if (ghost) {
+                                  e.dataTransfer.setDragImage(ghost, 250, 250);
+                                }
                               }}
                               className="cursor-grab active:cursor-grabbing rounded-lg border-2 border-dashed border-primary/50 bg-primary/5 px-3 py-2 text-sm font-medium text-foreground hover:bg-primary/10"
                             >
@@ -1061,12 +1070,12 @@ export default function ChapterDetail() {
                           </div>
                         </div>
 
-                        {/* Canvas 720×5000 — fond quadrillé, zone de dépôt ; scroll à l'extérieur du contenu */}
+                        {/* Canvas 720×5000 — fond quadrillé, zone de dépôt ; scroll vertical uniquement */}
                         <div
-                          className="overflow-auto"
+                          className="overflow-x-hidden overflow-y-auto"
                           style={{ maxHeight: "80vh" }}
                         >
-                          <div className="border-b border-border px-5 min-w-[760px]">
+                          <div className="border-b border-border px-5 py-[15px] min-w-[760px]">
                             <div
                               ref={(el) => {
                                 if (el) canvasRefByPanel.current[panel.id] = el;
@@ -1138,7 +1147,7 @@ export default function ChapterDetail() {
                                     }}
                                     onDragOver={(e) => e.preventDefault()}
                                     onDrop={handleCanvasDrop}
-                                    className="absolute overflow-visible ring-2 ring-primary/60 bg-background/95 shadow-md cursor-grab active:cursor-grabbing"
+                                    className="group absolute overflow-visible ring-2 ring-primary/60 bg-background/95 shadow-md cursor-grab active:cursor-grabbing"
                                     style={{
                                       left: geom.x,
                                       top: geom.y,
@@ -1147,6 +1156,20 @@ export default function ChapterDetail() {
                                     }}
                                     title={`Bloc ${blockIndex + 1} — glisser pour déplacer, bordures pour redimensionner`}
                                   >
+                                    {/* Bouton supprimer au survol — milieu horizontal, moitié bas du bloc */}
+                                    <button
+                                      type="button"
+                                      className="absolute bottom-[25%] left-1/2 z-20 flex h-8 w-8 -translate-x-1/2 items-center justify-center rounded-md bg-destructive/90 text-destructive-foreground opacity-0 shadow-md transition-opacity hover:bg-destructive group-hover:opacity-100"
+                                      title="Supprimer le bloc"
+                                      onPointerDown={(e) => e.stopPropagation()}
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        handleDeleteBlock(block);
+                                      }}
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </button>
                                     {/* Contenu (image ou placeholder) */}
                                     <div className="w-full h-full overflow-hidden pointer-events-none">
                                       {block.image_url ? (
@@ -1163,18 +1186,18 @@ export default function ChapterDetail() {
                                     </div>
                                     {/* Poignées de redimensionnement (bordures + coins). Spec : étirer/réduire au glisser uniquement, aucun comportement au survol. */}
                                     {[
-                                      { edge: "r" as const, style: { right: 0, top: 0, bottom: 0, width: 6 }, cursor: "ew-resize" },
-                                      { edge: "b" as const, style: { bottom: 0, left: 0, right: 0, height: 6 }, cursor: "ns-resize" },
-                                      { edge: "l" as const, style: { left: 0, top: 0, bottom: 0, width: 6 }, cursor: "ew-resize" },
-                                      { edge: "t" as const, style: { top: 0, left: 0, right: 0, height: 6 }, cursor: "ns-resize" },
-                                      { edge: "tl" as const, style: { left: 0, top: 0, width: 12, height: 12 }, cursor: "nwse-resize" },
-                                      { edge: "tr" as const, style: { right: 0, top: 0, width: 12, height: 12 }, cursor: "nesw-resize" },
-                                      { edge: "br" as const, style: { right: 0, bottom: 0, width: 12, height: 12 }, cursor: "nwse-resize" },
-                                      { edge: "bl" as const, style: { left: 0, bottom: 0, width: 12, height: 12 }, cursor: "nesw-resize" },
+                                      { edge: "r" as const, style: { right: 0, top: 0, bottom: 0, width: 9 }, cursor: "ew-resize" },
+                                      { edge: "b" as const, style: { bottom: 0, left: 0, right: 0, height: 9 }, cursor: "ns-resize" },
+                                      { edge: "l" as const, style: { left: 0, top: 0, bottom: 0, width: 9 }, cursor: "ew-resize" },
+                                      { edge: "t" as const, style: { top: 0, left: 0, right: 0, height: 9 }, cursor: "ns-resize" },
+                                      { edge: "tl" as const, style: { left: 0, top: 0, width: 15, height: 15 }, cursor: "nwse-resize" },
+                                      { edge: "tr" as const, style: { right: 0, top: 0, width: 15, height: 15 }, cursor: "nesw-resize" },
+                                      { edge: "br" as const, style: { right: 0, bottom: 0, width: 15, height: 15 }, cursor: "nwse-resize" },
+                                      { edge: "bl" as const, style: { left: 0, bottom: 0, width: 15, height: 15 }, cursor: "nesw-resize" },
                                     ].map(({ edge, style, cursor }) => (
                                       <div
                                         key={edge}
-                                        className="absolute z-10"
+                                        className="absolute z-10 rounded-sm transition-colors hover:bg-primary/30"
                                         style={{ ...style, cursor }}
                                         onPointerDown={(e) => {
                                           if (e.button !== 0) return;
@@ -1513,6 +1536,15 @@ export default function ChapterDetail() {
           })()}
         </DialogContent>
       </Dialog>
+
+      {/* Ghost pour le drag « nouveau bloc » — 500×500 comme le bloc réel, hors écran, utilisé par setDragImage */}
+      <div
+        ref={newBlockDragGhostRef}
+        className="pointer-events-none fixed left-[-9999px] top-0 z-[9999] flex w-[500px] h-[500px] shrink-0 items-center justify-center rounded-lg border-2 border-dashed border-primary bg-primary/10 text-sm font-medium text-foreground"
+        aria-hidden
+      >
+        500×500
+      </div>
     </DashboardLayout>
   );
 }

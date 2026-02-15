@@ -902,7 +902,6 @@ export default function ChapterDetail() {
                               onSuccess: () => {
                                 moveDropHandledRef.current = false;
                                 queryClient.refetchQueries({ queryKey: panelsQueryKey });
-                                toast({ title: "Bloc déplacé" });
                               },
                               onError: (err) => {
                                 moveDropHandledRef.current = false;
@@ -938,7 +937,6 @@ export default function ChapterDetail() {
                               delete next[`${panel.id}-${block.id}`];
                               return next;
                             });
-                            toast({ title: "Dimensions enregistrées" });
                           },
                           onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }),
                         }
@@ -1033,7 +1031,7 @@ export default function ChapterDetail() {
                     return (
                       <div
                         key={panel.id}
-                        className="glass rounded-xl overflow-hidden border border-border max-w-[720px]"
+                        className="glass rounded-xl overflow-hidden border border-border max-w-[760px]"
                       >
                         <div className="p-3 border-b border-border flex flex-wrap items-center justify-between gap-2">
                           <h3 className="font-medium">
@@ -1063,17 +1061,18 @@ export default function ChapterDetail() {
                           </div>
                         </div>
 
-                        {/* Canvas 720×5000 — fond quadrillé, zone de dépôt */}
+                        {/* Canvas 720×5000 — fond quadrillé, zone de dépôt ; scroll à l'extérieur du contenu */}
                         <div
-                          className="overflow-auto border-b border-border"
+                          className="overflow-auto"
                           style={{ maxHeight: "80vh" }}
                         >
-                          <div
-                            ref={(el) => {
-                              if (el) canvasRefByPanel.current[panel.id] = el;
-                            }}
-                            className="relative shrink-0"
-                            style={{
+                          <div className="border-b border-border px-5 min-w-[760px]">
+                            <div
+                              ref={(el) => {
+                                if (el) canvasRefByPanel.current[panel.id] = el;
+                              }}
+                              className="relative shrink-0 mx-auto"
+                              style={{
                               width: PANEL_WIDTH,
                               height: PANEL_HEIGHT,
                               backgroundImage: `
@@ -1217,9 +1216,7 @@ export default function ChapterDetail() {
                                             resizeCaptureTargetRef.current = null;
                                             isResizingRef.current = false;
                                             updatePanelMutation.mutate(payload, {
-                                              onSuccess: () => {
-                                                toast({ title: "Dimensions enregistrées" });
-                                              },
+                                              onSuccess: () => {},
                                               onError: (err) => {
                                                 if (previousPanels != null) {
                                                   queryClient.setQueryData(panelsQueryKey, previousPanels);
@@ -1236,6 +1233,7 @@ export default function ChapterDetail() {
                                 );
                               })
                             )}
+                          </div>
                           </div>
                         </div>
 

@@ -34,8 +34,8 @@
 ### 2.2 Flux Structuré (contrôle créatif)
 
 1. L’utilisateur crée un chapitre **vide** (titre, optionnellement synopsis/scénario pour référence).
-2. Il définit la **structure** du chapitre : création de **panels**, puis pour chaque panel, création de **blocs** (rectangles : position x,y, largeur, hauteur). Aucune image n’est générée à ce stade.
-3. Pour chaque bloc, il **rédige** une description (ce qui doit apparaître dans ce bloc) et **sélectionne les assets** (personnages, décors, objets) à utiliser pour ce bloc. **Cette sélection est primordiale** : elle cadre la génération et permet à l'IA de savoir quels éléments inclure. Les refs assets sont injectées dans le prompt à la génération.
+2. Il définit la **structure** du chapitre : création de **panels**, puis pour chaque panel, en **mode Architecture**, création de **blocs** (rectangles : position x,y, largeur, hauteur). Aucune image n’est générée à ce stade.
+3. En **mode Édition**, pour chaque bloc : il **rédige** une description (prompt) — avec **détection des assets** dans le texte comme dans le scénario — et **sélectionne les assets** (personnages, décors, objets) à utiliser pour ce bloc. **Cette sélection est primordiale** : elle cadre la génération et permet à l'IA de savoir quels éléments inclure. Les refs assets sont injectées dans le prompt à la génération.
 4. Une fois la structure et les textes (avec assets) prêts, il lance la **génération** : **1 image par bloc**. Chaque image est une illustration pleine (pas de sous-blocs dessinés dedans), produite à partir du prompt du bloc et des assets sélectionnés pour ce bloc. **OBLIGATOIRE** : l'espace de l'image doit prendre les **dimensions du bloc concerné** (largeur × hauteur) — l'API de génération reçoit ces dimensions.
 5. Les images générées sont **affichées dans** les blocs (chaque bloc affiche une image). En lecture, on affiche les panels avec leurs blocs (layout) ; les blocs contiennent les images.
 6. Optionnel : bulles de dialogue / narration en overlay sur les panels (comme en mode Automatique).

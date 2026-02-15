@@ -1,10 +1,16 @@
 # Édition de panel — Blocs et bulles
 
-> Définition du **système d'édition** d'un panel : agencement des **blocs**, prompts par bloc, **génération d'image par bloc** (selon la forme du bloc), **bulles de texte**, et **visualisation totale** du panel en 720×5000 px.
+> Définition du **système d'édition** d'un panel : agencement des **blocs**, prompts par bloc, **génération d'image par bloc** (les **images sont générées dans les blocs**), **bulles de texte**, et **visualisation totale** du panel en 720×5000 px. L'édition se fait en **deux modes** : **Architecture** (structure des blocs) et **Édition** (contenu). Voir `Edition_Panel_Deux_Modes.md`.
 
 ---
 
-## 1. Dimensions et visualisation du panel
+## 1. Images dans les blocs — rappel
+
+**C'est dans les blocs que les images sont générées.** Chaque bloc est une zone (position, dimensions) ; l'utilisateur renseigne un **prompt** pour ce bloc ; la génération produit une **image** aux dimensions du bloc, affichée **dans** le bloc (`layout.blocks[].image_url`). Pas de génération « tout le panel » : une image par bloc.
+
+---
+
+## 2. Dimensions et visualisation du panel
 
 | Élément | Valeur | Description |
 |--------|--------|-------------|
@@ -18,7 +24,18 @@ Le panel est donc une **surface fixe 720×5000** dans laquelle s'organisent :
 
 ---
 
-## 2. Workflow : avant la génération d'images
+## 3. Deux modes d'édition (Architecture / Édition)
+
+| Mode | Rôle | Détail |
+|------|------|--------|
+| **Architecture** | Structure du panel | Ajouter des blocs, **modifier la position** des blocs (glisser-déposer), **modifier les dimensions** des blocs (poignées ou champs). Aucune édition de prompt ni bulles dans ce mode. |
+| **Édition** | Contenu du panel | **Clic sur un bloc** → popup pour **saisir le prompt** (avec **détection des assets** dans le texte, comme dans le scénario). **Bibliothèque de bulles** (même comportement que les blocs : placement par glisser-déposer). **Bibliothèque d'effets**, **couleur de fond**, **ajout de texte** (choix de la typo). Canvas en lecture seule pour la structure. |
+
+Spécification détaillée : **`Edition_Panel_Deux_Modes.md`**.
+
+---
+
+## 4. Workflow : avant la génération d'images
 
 L'ordre de travail est le suivant :
 
@@ -38,7 +55,7 @@ L'ordre de travail est le suivant :
 
 ---
 
-## 3. Système d'édition — Blocs
+## 5. Système d'édition — Blocs (mode Architecture)
 
 | Fonctionnalité | Description |
 |----------------|-------------|
@@ -49,7 +66,7 @@ L'ordre de travail est le suivant :
 | **Déplacement d'un bloc** | Chaque bloc est **déplaçable** : **glisser-déposer** du bloc sur le canvas du panel pour modifier sa position (x, y). La position est **clampée** pour rester dans le panel. |
 | **Redimensionnement type Canva** | **Au glisser uniquement** : en faisant glisser une **bordure** (ou un coin) du bloc, l'utilisateur étire ou réduit le bloc. Curseurs adaptés (ns-resize / ew-resize / coins). **Aucun comportement au survol** des bords (pas de changement de taille au simple survol). Les dimensions restent **dans le panel** (min 100 px, x+largeur ≤ 720, y+hauteur ≤ 5000). |
 | **Édition des dimensions** | En complément : champs **largeur** et **hauteur** (éditables) + bouton « Appliquer dimensions » pour enregistrer. Mêmes contraintes. |
-| **Prompt et génération** | Dans chaque bloc : **prompt** éditable (description de la scène). Bouton **Générer** : génération d'image pour ce bloc (style + contexte chapitre + prompt). **L'image générée utilise obligatoirement les dimensions du bloc** (largeur × hauteur) pour l'espace de l'image ; elle s'affiche **dans le bloc** sur le panel. |
+| **Prompt et génération** | Le **prompt** est édité en **mode Édition** (clic sur le bloc → popup avec détection des assets comme dans le scénario). En mode Architecture, le panneau peut proposer un accès rapide au prompt et au bouton **Générer**. Génération : style + contexte chapitre + prompt du bloc. **L'image générée utilise obligatoirement les dimensions du bloc** (largeur × hauteur) ; elle s'affiche **dans le bloc** sur le panel. |
 | **Suppression** | **Supprimer un bloc** : bouton par bloc ; le bloc est retiré de `layout.blocks`. |
 | **Visualisation** | Le panel (720×5000) est affiché avec un **fond quadrillé** (grille) pour identifier les blocs ; chaque bloc est délimité (bordure, ombre) et affiche son image générée ou un placeholder. |
 
@@ -72,14 +89,14 @@ L'ordre de travail est le suivant :
 
 ---
 
-## 4. Système d'édition — Bulles de texte
+## 6. Système d'édition — Bulles de texte (mode Édition)
 
 | Fonctionnalité | Description |
 |----------------|-------------|
 | **Stockage** | `panels.speech_bubbles` (JSONB) : tableau de bulles. |
 | **Types** | Parole, pensée, cri, chuchotement, narration (bibliothèque de formes prédéfinies). |
 | **Par bulle** | **Texte** éditable, **position** (x, y) sur le panel 720×5000, **style** (couleur contour, couleur intérieur, police, taille). |
-| **Placement** | Drag & drop sur le panel ; les bulles sont en **overlay** au-dessus des blocs (couche client, pas dans l'image générée). |
+| **Placement** | **Bibliothèque de bulles** : même comportement que les blocs — glisser-déposer depuis la bibliothèque sur le panel. Les bulles sont en **overlay** au-dessus des blocs (couche client, pas dans l'image générée). |
 
 Format prévu (voir `08_Modele_de_Donnees.md`) : `id`, `type`, `text`, `position`, `style`, optionnel `character`.
 
@@ -87,24 +104,20 @@ Les bulles sont **éditables** (texte, position, style) dans l'éditeur de panel
 
 ---
 
-## 5. Récapitulatif — Ordre des opérations
+## 7. Récapitulatif — Ordre des opérations
 
 1. **Créer / importer les panels** (découpage chapitre → panels). Par défaut **aucun bloc**.  
 2. **Pour chaque panel** :  
-   - **Visualisation 720×5000** : afficher le panel avec fond quadrillé.  
-   - **Ajouter des blocs** : glisser « Bloc 500×500 » sur le panel (ou « Ajouter en (0,0) »).  
-   - **Déplacer les blocs** : glisser-déposer chaque bloc sur le canvas.  
-   - **Éditer les dimensions** : largeur et hauteur par bloc, puis « Appliquer dimensions ».  
-   - **Renseigner les prompts** dans chaque bloc.  
-   - **Générer les images** bloc par bloc (bouton « Générer » ; **chaque image utilise les dimensions du bloc concerné** ; l'image s'affiche dans le bloc).  
-   - **Ajouter les bulles** (texte, position, style).  
-3. **Rendu final** : panel 720×5000 = blocs (images) + overlay (bulles + effets).
+   - **Mode Architecture** : visualisation 720×5000, **ajouter des blocs** (glisser « Bloc 500×500 » ou « Ajouter en (0,0) »), **déplacer** les blocs (glisser-déposer), **éditer les dimensions** (poignées ou champs).  
+   - **Mode Édition** : **clic sur un bloc** → popup pour **prompt** (détection des assets comme dans le scénario) ; **bibliothèque de bulles** (placement + texte/style) ; **bibliothèque d'effets** ; **couleur de fond** ; **ajout de texte** (typo). **Générer les images** bloc par bloc (chaque image dans son bloc).  
+3. **Rendu final** : panel 720×5000 = blocs (images) + overlay (bulles + effets + texte).
 
 ---
 
-## 6. Références
+## 8. Références
 
-- **Plan Phase 2** : `Plan_Phase2_Edition_Oeuvre.md` — Étapes 5 (génération par bloc), 6 (mode Structuré), 7 (bulles, effets).
+- **Deux modes (Architecture / Édition)** : `Edition_Panel_Deux_Modes.md` — détail des deux modes et des fonctionnalités par mode.
+- **Plan Phase 2** : `Plan_Phase2_Edition_Oeuvre.md` — Étapes 5 (blocs + génération), 6 (mode Structuré), 7 (bulles, effets, fond, texte).
 - **Modèle de données** : `08_Modele_de_Donnees.md` — `panels.layout`, `panels.speech_bubbles`.
 - **Rapport flux** : `11_Rapport_Chapitres_Flux_Blocs_Scenario.md`.
 

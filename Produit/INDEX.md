@@ -31,7 +31,8 @@
 | — | [Plan d'action Section Scénario](./Plan_Action_Developpement_Scénario.md) | Scénario : réalisé (phases A–G) + à prévoir (renommage assets) |
 | — | [Plan d'action TextHighlighter](./Plan_Action_TextHighligh_No_Assets.md) | Détection éléments non créés : règles, répétition, stop-words, évolutions |
 | — | [**Plan Phase 2 — Édition de l'œuvre**](./Plan_Phase2_Edition_Oeuvre.md) | **Plan détaillé Phase 2 : section Édition de l'œuvre, lien textuel↔visuel, IA Panel, transformation chapitre texte → visuel** |
-| — | [**Édition panel — Blocs et bulles**](./Edition_Panel_Blocs_Bulles.md) | Workflow édition panel : agencement blocs, prompt par bloc, **génération par bloc (dimensions du bloc obligatoires pour l'image)**, bulles, visualisation 720×5000 |
+| — | [**Édition panel — Blocs et bulles**](./Edition_Panel_Blocs_Bulles.md) | Workflow édition panel : agencement blocs, prompt par bloc, **génération par bloc (images dans les blocs)**, bulles, visualisation 720×5000 |
+| — | [**Édition panel — Deux modes**](./Edition_Panel_Deux_Modes.md) | **Mode Architecture** (ajout, position, dimensions des blocs) et **Mode Édition** (prompt avec détection assets, bulles, effets, fond, texte) |
 
 ### Architecture Technique
 

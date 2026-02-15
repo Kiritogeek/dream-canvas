@@ -1,5 +1,9 @@
 # Business Model Canvas — DreamWeave
 
+> Bloc canvas : proposition de valeur, segments, canaux, revenus (Free/Pro), partenaires IA et infra.
+
+---
+
 ## Vue d'ensemble
 
 ```
@@ -291,3 +295,7 @@
 | **LTV** | Lifetime Value | > 150 € |
 | **LTV/CAC** | Ratio valeur/coût acquisition | > 3:1 |
 | **Churn** | Taux de désabonnement mensuel | < 8% |
+
+---
+
+*Dernière mise à jour : 14 février 2026*

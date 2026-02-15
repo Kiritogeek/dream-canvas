@@ -1,5 +1,9 @@
 # Analyse Concurrentielle — DreamWeave
 
+> Cartographie manuel/IA, positionnement DreamWeave, forces/faiblesses et axes de différenciation.
+
+---
+
 ## 1. Paysage concurrentiel
 
 ### 1.1 Cartographie des concurrents
@@ -242,3 +246,7 @@
 - Publication directe multi-plateforme
 - Analytics de lecture
 - App mobile native
+
+---
+
+*Dernière mise à jour : 14 février 2026*

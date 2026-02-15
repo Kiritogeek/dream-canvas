@@ -1,5 +1,9 @@
 # Architecture Technique — DreamWeave
 
+> SPA JAMstack, backend Supabase serverless, intégration IA externe.
+
+---
+
 ## 1. Vue d'ensemble
 
 DreamWeave est une application web monopage (SPA) basée sur une architecture **JAMstack** avec un backend serverless Supabase et une intégration IA via API externe.
@@ -692,3 +696,7 @@ VITE_SUPABASE_PUBLISHABLE_KEY="eyJ..."
                        │     (External)               │
                        └──────────────────────────────┘
 ```
+
+---
+
+*Dernière mise à jour : 14 février 2026*

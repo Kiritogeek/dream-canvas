@@ -1,5 +1,9 @@
 # Modèle de Données — DreamWeave
 
+> PostgreSQL (Supabase) : utilisateur → projets → style → assets → chapitres → panels.
+
+---
+
 ## 1. Vue d'ensemble
 
 Le modèle de données de DreamWeave est construit sur **PostgreSQL** via Supabase. Il est conçu pour supporter le workflow de création de webtoons : utilisateur → projets → style → assets → chapitres → panels.
@@ -457,3 +461,7 @@ Suppression d'un chapitre
 | Nouvelle table `publications` | `publications` | Liens de publication externe |
 | Nouvelle table `analytics` | `analytics` | Statistiques de lecture |
 | Nouvelle table `notifications` | `notifications` | Notifications utilisateur |
+
+---
+
+*Dernière mise à jour : 14 février 2026*

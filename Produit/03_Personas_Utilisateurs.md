@@ -1,5 +1,9 @@
 # Personas Utilisateurs — DreamWeave
 
+> Personas cibles : Luna (autrice webfiction), Marc (créateur contenu), Élodie (studio), Théo (amateur).
+
+---
+
 ## Persona 1 : Luna — L'Autrice de Webfiction
 
 ### Profil
@@ -215,3 +219,7 @@ Théo est un lecteur assidu de webtoons (Webtoon, Tapas). Il passe 2-3h par jour
 | **Usage** | Quotidien | 3-4x/semaine | Hebdomadaire | Irrégulier |
 | **Fonctionnalité clé** | Cohérence style | Vitesse | Collaboration | Facilité |
 | **Risque churn** | Moyen | Faible | Faible | Élevé |
+
+---
+
+*Dernière mise à jour : 14 février 2026*

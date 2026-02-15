@@ -1,5 +1,9 @@
 # Spécifications API — DreamWeave
 
+> API Supabase (PostgREST) et Edge Functions pour la logique métier et la génération IA.
+
+---
+
 ## 1. Vue d'ensemble
 
 DreamWeave utilise deux types d'API :
@@ -665,3 +669,7 @@ const { data, error } = await supabase.storage
   .from('dreamweave')
   .upload(`${userId}/projects/${projectId}/style/ref.png`, file);
 ```
+
+---
+
+*Dernière mise à jour : 14 février 2026*

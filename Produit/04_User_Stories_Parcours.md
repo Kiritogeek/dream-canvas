@@ -1,5 +1,9 @@
 # User Stories & Parcours Utilisateur — DreamWeave
 
+> Epics, user stories (40+), parcours utilisateur, experience map et priorisation RICE.
+
+---
+
 ## 1. Épopées (Epics)
 
 | ID | Epic | Description | Priorité |
@@ -287,3 +291,7 @@ Asset existant ──► Résultat insatisfaisant
 | US-7.4 Drag & drop panels | 5 | 5 | 8 | 5 | 40 |
 | US-8.2 Narration | 6 | 6 | 7 | 4 | 63 |
 | US-8.3 Polices personnalisées | 3 | 3 | 8 | 3 | 24 |
+
+---
+
+*Dernière mise à jour : 14 février 2026*

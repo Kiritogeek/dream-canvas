@@ -1,5 +1,9 @@
 # Sécurité & Infrastructure — DreamWeave
 
+> Transport (HTTPS), authentification (Supabase Auth), autorisation (RLS), infra et bonnes pratiques.
+
+---
+
 ## 1. Architecture de sécurité
 
 ### 1.1 Vue d'ensemble des couches de sécurité
@@ -477,3 +481,7 @@ const corsHeaders = {
 - [ ] Tester la suppression de compte (RGPD)
 - [ ] Auditer les dépendances npm (`npm audit`)
 - [ ] Configurer les headers de sécurité HTTP (CSP, HSTS, etc.)
+
+---
+
+*Dernière mise à jour : 14 février 2026*

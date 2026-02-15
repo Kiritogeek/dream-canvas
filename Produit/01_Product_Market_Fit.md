@@ -1,8 +1,6 @@
 # Product Market Fit — DreamWeave
 
-## 📋 Vue d'ensemble
-
-**DreamWeave** est une plateforme web innovante permettant de créer des webtoons (bandes dessinées verticales) grâce à l'intelligence artificielle. Le produit démocratise la création de contenu visuel narratif en permettant à quiconque, sans compétences artistiques, de transformer ses idées en webtoons professionnels.
+> Analyse du problème, de la solution, du marché cible, validation PMF, positionnement, risques et Go-to-Market.
 
 ---
 
@@ -304,3 +302,7 @@ Le product-market fit est solide car :
 - ✅ La valeur est immédiate (résultats visuels rapides, cohérence garantie)
 
 **État actuel** : MVP Phase 1 complète (projets, assets, style, plans Free/Pro, multi-modèles IA, profil, Plans). Phase 2 planifiée : panels avancés, dialogues, chapitres (flux Automatique/Structuré), intégration Stripe.
+
+---
+
+*Dernière mise à jour : 14 février 2026*

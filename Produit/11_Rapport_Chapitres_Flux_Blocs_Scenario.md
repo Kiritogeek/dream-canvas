@@ -1,7 +1,6 @@
 # Rapport — Chapitres : flux Structuré / Automatique, blocs et place du scénario
 
-**Date** : 14 Février 2026  
-**Contexte** : Option B — deux flux de création (Structuré + Automatique). Les images générées sont des **images pleines** (illustrations), affichées **dans** des blocs de mise en page ; les blocs ne sont pas dessinés dans l’image.
+> Deux flux (Automatique / Structuré), images pleines dans des blocs, place du scénario et découpage Chapitre → Panels.
 
 ---
 
@@ -258,3 +257,7 @@ Ces points découlent de la **correspondance chapitres écrits = chapitres webto
 **Conclusion** : La vision (scénario = structure ; **chapitres écrits = chapitres webtoon** ; **découpage Chapitre → Panels** dans la section Scénario, règles à définir ; génération panel par panel ; assets impératifs ; double visualisation en édition) est cohérente. Les points de la section 6 restent à trancher pour l'implémentation (modèle chapitres, règles de gestion du découpage, import, layout). Les .md ont été alignés en conséquence.
 
 Ce rapport sert de référence pour la mise à jour des .md et pour l’implémentation.
+
+---
+
+*Dernière mise à jour : 14 février 2026*

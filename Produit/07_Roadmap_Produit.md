@@ -1,5 +1,9 @@
 # Roadmap Produit — DreamWeave
 
+> Quatre phases (Q1–Q4 2026) : MVP livré, Panels & Dialogues, Export & Publication, Marketplace & Scale.
+
+---
+
 ## Vue d'ensemble
 
 ```
@@ -11,10 +15,10 @@
   │  MVP +      │        │  Panels &   │       │  Export &   │      │  Marketplace│
   │  Fondations │        │  Dialogues  │       │  Publication│      │  & Scale    │
   │             │        │             │       │             │      │             │
-  │ ✅ Assets   │        │ 🔜 Panels   │       │ 📋 Export   │      │ 📋 Marketplace│
-  │ ✅ Style    │        │    auto     │       │    PDF/PNG  │      │    de styles│
-  │ ✅ Chapitres│        │ 🔜 Dialogues│       │ 📋 Publish  │      │ 📋 App mobile│
-  │ ✅ Auth     │        │ 🔜 Lecture  │       │ 📋 Collab   │      │ 📋 Analytics│
+  │ ✅ Assets   │        │ 🔜 Panels  │       │ 📋 Export   │      │ 📋 Marketplace│
+  │ ✅ Style    │       │    auto     │       │    PDF/PNG  │      │    de styles│
+  │ ✅ Chapitres│       │ 🔜 Dialogues│       │ 📋 Publish  │      │ 📋 App mobile│
+  │ ✅ Auth     │       │ 🔜 Lecture  │       │ 📋 Collab   │      │ 📋 Analytics│
   └─────────────┘        └─────────────┘       └─────────────┘      └─────────────┘
        ACTUEL                 NEXT                PLANNED              FUTURE
 ```
@@ -82,25 +86,28 @@
 | **Détection assets** | Surbrillance des noms d’assets dans le texte (par type). **Hover** : image de l’asset (HoverCard responsive). **Clic** : popup agrandie (Dialog) avec image, nom, type. |
 | **Éléments non créés** | Détection noms mentionnés sans asset ; panneau « Personnages / éléments mentionnés non créés » ; surbrillance ambre. |
 | **Création depuis scénario** | Survol élément non créé ou **sélection de texte** → choix type (Personnage/Décor/Objet) → **navigation onglet Assets** avec dialog de création **pré-rempli** (nom + type), pas de création directe. |
-| **Précision détection** | Frontières de mots (pas « Jean » dans « Jean-Pierre », pas « ile » dans « silencieux »), stop-words (Acte, Merci, etc.). |
+| **Précision détection** | Frontières de mots (pas « Jean » dans « Jean-Pierre », pas « ile » dans « silencieux »), stop-words (Acte, Merci, etc.). Voir `Plan_Action_TextHighligh_No_Assets.md` pour les règles (signal dialogue, répétition, liste limitée). |
+| **Option « Ne pas créer »** | Retirer un élément de la liste « non créés » pour la session (exclusion sans créer l'asset). |
 
-Voir `Produit/Plan_Action_Developpement_Scénario.md` pour le détail des phases A à G.
+Voir `Plan_Action_Developpement_Scénario.md` pour le détail des phases A à G.
 
-#### Tâches roadmap (à faire ou à prévoir)
+#### Tâches roadmap (statut et à faire)
 
-| Tâche | Description | Priorité | Effort |
-|-------|------------|----------|--------|
-| **Écrire / importer le scénario** | Zone dédiée : écriture ou import (.txt / copier-coller). | P0 | M |
-| **IA Scénario (un chapitre par prompt)** | Chaque prompt → l’IA génère **un chapitre** ; l’utilisateur accepte ou rejette. Pas de sélection du nombre de chapitres : l’histoire se construit chapitre par chapitre. | P0 | L |
-| **Modification par prompt (scénario entier)** | Nouveau prompt pour modifier l'histoire → IA **réécrit** directement sur le site. **Comparaison** ancienne vs nouvelle. **Accepter** (garder nouvelle) ou **Rejeter** (revenir à l'ancienne). | P0 | L |
-| **IA Chapitre (par chapitre)** | Sur **chaque chapitre**, IA qui **n'intervient que sur ce chapitre**. Prompt de modification → réécriture du chapitre → **accepter / rejeter**. | P0 | L |
-| **Chapitres (scénario = webtoon)** | Les chapitres créés dans la section Scénario **correspondent** aux chapitres webtoon (1 chapitre écrit = 1 chapitre webtoon). Création / découpage (titres, ordre). | P0 | M |
-| **Découpage Chapitre → Panels (section Scénario)** | Dans chaque chapitre (texte), découpage en **panels** (liste + courte description par panel) directement dans la section Scénario, pour alimenter la génération panel par panel. **Règles de gestion** du découpage (auto/manuel, critères) à **définir plus tard**. | P0 | L |
-| **BDD — Scénarios approuvés & versions** | Persistance des versions approuvées ; conservation ancienne vs nouvelle pour flux accepter/rejeter. | P0 | M |
-| **Découpage IA (optionnel)** | IA : scénario → chapitres, puis chapitre → panels (courtes descriptions). Structure uniquement ; scénario **jamais** dans les prompts d'image. | P0 | L |
-| **Détection des assets dans le scénario** | Repérer dans le texte les mentions d'assets déjà créés (personnages, décors, objets). **Surbrillance** dans l'éditeur (style par type). **Hover** : affichage de l'image de l'asset (tooltip / popover). | P0 | M |
-| **IA — Éléments non créés** | Détection (règles + LLM si besoin) des **éléments mentionnés dans le scénario** qui ne sont **pas encore** créés comme assets (personnages, décors, objets). Signalement dans le scénario (surbrillance « à créer » ou liste « Éléments mentionnés non créés ») pour inviter à créer les assets manquants. | P0 | L |
-| **À prévoir — Renommage d'assets** | Lors du **changement de nom d'un asset**, détecter toutes les occurrences de l'ancien nom dans le **contenu des chapitres** du projet et **proposer (ou appliquer) le remplacement** partout pour garder la cohérence scénario ↔ assets. Voir `Plan_Action_Developpement_Scénario.md` § 2. | P0 | M |
+| Tâche | Description | Priorité | Effort | Statut |
+|-------|------------|----------|--------|--------|
+| **Écrire le scénario** | Zone dédiée par chapitre (textarea). | P0 | M | ✅ Livré |
+| **Import scénario** | Import .txt / copier-coller pour remplir le scénario. | P0 | S | 📋 À faire |
+| **IA Scénario (un chapitre par prompt)** | Un prompt = un chapitre généré ; accepter/rejeter. | P0 | L | ✅ Livré |
+| **Modification par prompt (scénario entier)** | Nouveau prompt → IA réécrit l'histoire entière ; comparaison ancienne vs nouvelle ; accepter/rejeter. | P1 | L | 📋 À faire |
+| **IA Chapitre (par chapitre)** | Par chapitre : prompt → réécriture → accepter/rejeter + diff visuel. | P0 | L | ✅ Livré |
+| **Chapitres (scénario = webtoon)** | 1 chapitre écrit = 1 chapitre webtoon. Création, réorganisation (drag & drop), suppression. | P0 | M | ✅ Livré |
+| **Découpage Chapitre → Panels (section Scénario)** | Dans chaque chapitre : liste de panels + courte description par panel pour la génération panel par panel. Règles (auto/manuel) à définir. | P0 | L | 📋 À faire |
+| **BDD — Scénarios approuvés & versions** | Persistance des versions, flux accepter/rejeter. | P0 | M | ✅ Livré |
+| **Découpage IA (optionnel)** | IA : chapitre → panels (courtes descriptions). Structure uniquement ; scénario jamais dans les prompts d'image. | P0 | L | 📋 À faire |
+| **Détection des assets dans le scénario** | Surbrillance par type, hover (HoverCard), clic (Dialog). | P0 | M | ✅ Livré |
+| **IA — Éléments non créés** | Détection + panneau « Personnages / éléments mentionnés non créés », surbrillance ambre. | P0 | L | ✅ Livré |
+| **Liste « Ne pas créer » / précision détection** | Réduire faux positifs (règles dialogue, répétition, stop-words). Voir `Plan_Action_TextHighligh_No_Assets.md`. | P0 | M | ✅ En place (évolution continue) |
+| **Renommage d'assets → mise à jour scénario** | Au renommage : proposer (ou appliquer) le remplacement dans les chapitres concernés. Voir `Plan_Action_Developpement_Scénario.md` § 2. | P0 | M | 📋 À faire |
 
 **Note** : L'IA Panel (suggestions / réécriture des descriptions de panels, accepter-rejeter) est en **2.2.1**. Règle inchangée : réutilisation de cette IA (ou d’un agent dérivé) pour la **rédaction des prompts des panels** (suggestions de descriptions courtes à partir du scénario + assets), sans injecter le scénario brut dans le prompt d’image (règle inchangée : prompt = style + assets + description).
 
@@ -301,3 +308,15 @@ Jan     Fév     Mar     Avr     Mai     Juin    Jul     Aoû     Sep     Oct   
                                                                 │  Marketplace & Scale  │
                                                                 ├───────────────────────┤
 ```
+
+---
+
+## Références
+
+- **UX et parcours** : `UX.md`, `04_User_Stories_Parcours.md`
+- **Scénario et flux** : `11_Rapport_Chapitres_Flux_Blocs_Scenario.md`, `Plan_Action_Developpement_Scénario.md`, `Plan_Action_TextHighligh_No_Assets.md`, `Plan_Phase2_Edition_Oeuvre.md`
+- **Index produit** : `INDEX.md`
+
+---
+
+*Dernière mise à jour : 14 février 2026*

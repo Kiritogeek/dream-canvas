@@ -72,6 +72,7 @@ export type Database = {
           chapter_number: number
           created_at: string
           id: string
+          linked_scenario_chapter_id: string | null
           project_id: string
           synopsis: string | null
           title: string
@@ -82,6 +83,7 @@ export type Database = {
           chapter_number?: number
           created_at?: string
           id?: string
+          linked_scenario_chapter_id?: string | null
           project_id: string
           synopsis?: string | null
           title: string
@@ -92,6 +94,7 @@ export type Database = {
           chapter_number?: number
           created_at?: string
           id?: string
+          linked_scenario_chapter_id?: string | null
           project_id?: string
           synopsis?: string | null
           title?: string
@@ -106,6 +109,13 @@ export type Database = {
             referencedRelation: "projects"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "chapters_linked_scenario_chapter_id_fkey"
+            columns: ["linked_scenario_chapter_id"]
+            isOneToOne: false
+            referencedRelation: "scenario_chapters"
+            referencedColumns: ["id"]
+          },
         ]
       }
       panels: {
@@ -115,10 +125,13 @@ export type Database = {
           dialogue: string | null
           id: string
           image_url: string | null
+          layout: Json | null
+          motion_lines: Json | null
           narration: string | null
           panel_number: number
           prompt: string | null
           speech_bubbles: Json | null
+          transition_effects: Json | null
           user_id: string
         }
         Insert: {
@@ -127,10 +140,13 @@ export type Database = {
           dialogue?: string | null
           id?: string
           image_url?: string | null
+          layout?: Json | null
+          motion_lines?: Json | null
           narration?: string | null
           panel_number: number
           prompt?: string | null
           speech_bubbles?: Json | null
+          transition_effects?: Json | null
           user_id: string
         }
         Update: {
@@ -139,10 +155,13 @@ export type Database = {
           dialogue?: string | null
           id?: string
           image_url?: string | null
+          layout?: Json | null
+          motion_lines?: Json | null
           narration?: string | null
           panel_number?: number
           prompt?: string | null
           speech_bubbles?: Json | null
+          transition_effects?: Json | null
           user_id?: string
         }
         Relationships: [

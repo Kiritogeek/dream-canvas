@@ -56,6 +56,7 @@ export type ScenarioVersionInsert = TablesInsert<"scenario_versions">;
 // ── Update types (mise à jour) ───────────────────────────────────
 export type ProjectUpdate = TablesUpdate<"projects">;
 export type AssetUpdate = TablesUpdate<"assets">;
+export type ChapterUpdate = TablesUpdate<"chapters">;
 export type ScenarioChapterUpdate = TablesUpdate<"scenario_chapters">;
 export type ScenarioVersionUpdate = TablesUpdate<"scenario_versions">;
 

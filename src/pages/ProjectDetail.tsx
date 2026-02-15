@@ -1,5 +1,5 @@
-import { useState, useCallback } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useState, useCallback, useEffect } from "react";
+import { useParams, useSearchParams, Link } from "react-router-dom";
 import { ArrowLeft, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,6 +21,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { AssetLibrary } from "@/components/project/AssetLibrary";
 import { StyleManager } from "@/components/project/StyleManager";
 import { ScenarioSection } from "@/components/project/ScenarioSection";
+import { EditionSection } from "@/components/project/EditionSection";
 
 export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
@@ -43,8 +44,14 @@ export default function ProjectDetail() {
   const { generatingAssetId, generatingView, canGenerate, generate } =
     useAssetGeneration({ styleTemplate, project: project ?? null, userPlan });
 
-  // Onglet actif (contrôlé)
+  // Onglet actif (contrôlé) — initialiser depuis l'URL si ?tab=edition
+  const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState("style");
+
+  useEffect(() => {
+    const tab = searchParams.get("tab");
+    if (tab === "edition") setActiveTab("edition");
+  }, [searchParams]);
 
   // Pré-remplissage création d'asset depuis le scénario
   const [pendingAssetName, setPendingAssetName] = useState("");
@@ -160,6 +167,7 @@ export default function ProjectDetail() {
             <TabsTrigger value="style" className="flex-1 sm:flex-none">Style</TabsTrigger>
             <TabsTrigger value="assets" className="flex-1 sm:flex-none">Assets</TabsTrigger>
             <TabsTrigger value="scenario" className="flex-1 sm:flex-none">Scénario</TabsTrigger>
+            <TabsTrigger value="edition" className="flex-1 sm:flex-none">Édition de l'œuvre</TabsTrigger>
           </TabsList>
 
           {/* Style Tab */}
@@ -195,6 +203,11 @@ export default function ProjectDetail() {
               project={project}
               onNavigateToCreateAsset={handleNavigateToCreateAsset}
             />
+          </TabsContent>
+
+          {/* Édition de l'œuvre Tab */}
+          <TabsContent value="edition">
+            <EditionSection projectId={project.id} project={project} />
           </TabsContent>
         </Tabs>
       </div>

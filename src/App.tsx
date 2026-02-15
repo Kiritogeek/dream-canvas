@@ -15,6 +15,7 @@ const Projects = lazy(() => import("./pages/Projects"));
 const ProjectDetail = lazy(() => import("./pages/ProjectDetail"));
 const Profile = lazy(() => import("./pages/Profile"));
 const Plans = lazy(() => import("./pages/Plans"));
+const ChapterDetail = lazy(() => import("./pages/ChapterDetail"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient({
@@ -71,6 +72,14 @@ const App = () => (
                 element={
                   <ProtectedRoute>
                     <Projects />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/dashboard/projects/:id/chapter/:chapterId"
+                element={
+                  <ProtectedRoute>
+                    <ChapterDetail />
                   </ProtectedRoute>
                 }
               />

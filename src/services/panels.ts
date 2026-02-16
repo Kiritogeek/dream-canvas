@@ -130,6 +130,12 @@ export async function createPanelsFromOutline(
   return data ?? [];
 }
 
+/** Supprime un panel par id. */
+export async function deletePanel(id: string): Promise<void> {
+  const { error } = await supabase.from("panels").delete().eq("id", id);
+  if (error) throw error;
+}
+
 /** Supprime tous les panels du chapitre puis crée les nouveaux à partir de l'outline. */
 export async function replacePanelsFromOutline(
   chapterId: string,

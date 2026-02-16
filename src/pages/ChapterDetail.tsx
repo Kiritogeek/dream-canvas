@@ -59,14 +59,11 @@ import { useProject } from "@/hooks/useProjects";
 import {
   usePanels,
   useCreatePanel,
-  useSplitChapterIntoPanels,
-  useCreatePanelsFromOutline,
-  useReplacePanelsFromOutline,
   useUpdatePanel,
+  useDeletePanel,
   useGeneratePanelImage,
 } from "@/hooks/usePanels";
 import {
-  estimatePanelCount,
   getPanelBlocks,
   getPanelHeight,
   getPanelLayout,
@@ -78,7 +75,7 @@ import {
 } from "@/services/panels";
 import { updateScenarioChapter } from "@/services/scenarioChapters";
 import type { Json } from "@/integrations/supabase/types";
-import type { Chapter, Panel, PanelBlock, PanelLayout, PanelOutlineItem } from "@/types";
+import type { Chapter, Panel, PanelBlock, PanelLayout } from "@/types";
 
 const PANEL_WIDTH = 800;
 
@@ -94,23 +91,18 @@ export default function ChapterDetail() {
   const queryClient = useQueryClient();
   const { data: panels = [], isLoading: loadingPanels } = usePanels(chapterId);
   const createPanelMutation = useCreatePanel(chapterId ?? "");
-  const splitIntoPanels = useSplitChapterIntoPanels();
-  const createPanelsFromOutline = useCreatePanelsFromOutline(chapterId ?? "");
-  const replacePanelsFromOutline = useReplacePanelsFromOutline(chapterId ?? "");
   const updatePanelMutation = useUpdatePanel(chapterId ?? "");
+  const deletePanelMutation = useDeletePanel(chapterId ?? "");
+  /** Panel dont la suppression est en attente de confirmation */
+  const [panelToDeleteId, setPanelToDeleteId] = useState<string | null>(null);
   const generatePanelImage = useGeneratePanelImage(chapterId ?? "");
   const panelsQueryKey = ["panels", chapterId] as const;
 
-  const [replacePanelsConfirmOpen, setReplacePanelsConfirmOpen] = useState(false);
-  /** Brouillons des descriptions (modifiables) par panel id */
-  const [promptDrafts, setPromptDrafts] = useState<Record<string, string>>({});
   /** Brouillons des prompts par bloc : clé = `${panelId}-${blockId}` */
   const [blockPromptDrafts, setBlockPromptDrafts] = useState<Record<string, string>>({});
   const [blockNameDrafts, setBlockNameDrafts] = useState<Record<string, string>>({});
-  /** Brouillon hauteur du panel (modale édition), appliqué au clic sur Appliquer */
-  const [panelHeightDraft, setPanelHeightDraft] = useState<number | null>(null);
-  /** Panel en cours d'édition (null = vue figée pour tous) */
-  const [editingPanelId, setEditingPanelId] = useState<string | null>(null);
+  /** Brouillon hauteur du panel (modale édition), chaîne pour autoriser le champ vide ; null = afficher la valeur réelle */
+  const [panelHeightDraft, setPanelHeightDraft] = useState<string | null>(null);
   /** Bloc en cours d'édition de prompt : clé = `${panelId}-${blockId}` */
   const [editingBlockKey, setEditingBlockKey] = useState<string | null>(null);
   /** Brouillon dimensions par bloc : clé = `${panelId}-${blockId}` → { width, height } */
@@ -213,10 +205,6 @@ export default function ChapterDetail() {
     displayedScenarioChapterId ?? undefined
   );
 
-  const estimatedPanels = useMemo(
-    () => estimatePanelCount(scenarioChapter?.content ?? null),
-    [scenarioChapter?.content]
-  );
   /** Clamp position/dimensions pour rester dans le panel (largeur fixe, hauteur variable). */
   const clampBlockToPanel = (x: number, y: number, w: number, h: number, panelHeight = PANEL_HEIGHT_DEFAULT) => {
     const width = Math.max(100, Math.min(PANEL_WIDTH, w));
@@ -378,104 +366,6 @@ export default function ChapterDetail() {
     };
   }, [resizingState, panels]);
 
-  const handleSplitAndCreatePanels = () => {
-    if (!scenarioChapter?.content?.trim() || !chapterId || !displayedScenarioChapterId) return;
-    const target = estimatedPanels > 0 ? estimatedPanels : 10;
-    splitIntoPanels.mutate(
-      {
-        chapter_title: scenarioChapter.title,
-        chapter_content: scenarioChapter.content,
-        chapter_number: scenarioChapter.chapter_number,
-        target_panel_count: target,
-      },
-      {
-        onSuccess: (res) => {
-          if (!res.panels?.length) {
-            toast({ title: "Aucun panel généré", variant: "destructive" });
-            return;
-          }
-          if (panels.length > 0) {
-            setPendingOutline(res.panels);
-            setReplacePanelsConfirmOpen(true);
-          } else {
-            applyOutlineAndSave(res.panels);
-          }
-        },
-        onError: (err) =>
-          toast({ title: "Erreur suggestion IA", description: err.message, variant: "destructive" }),
-      }
-    );
-  };
-
-  const applyOutlineAndSave = (
-    outline: Array<{ description: string; context?: { lieu?: string; scene?: string; personnages?: string } }>
-  ) => {
-    if (!chapterId || !displayedScenarioChapterId) return;
-    const saveOutline = () =>
-      updateScenarioChapter(displayedScenarioChapterId, {
-        panels_outline: outline as unknown as Json,
-      });
-
-    if (panels.length > 0) {
-      replacePanelsFromOutline.mutate(outline, {
-        onSuccess: async (created) => {
-          await saveOutline();
-          toast({ title: `${created.length} panel(s) créé(s) (remplacement)` });
-          setReplacePanelsConfirmOpen(false);
-          setPendingOutline(null);
-        },
-        onError: (err) =>
-          toast({ title: "Erreur", description: err.message, variant: "destructive" }),
-      });
-    } else {
-      createPanelsFromOutline.mutate(outline, {
-        onSuccess: async (created) => {
-          await saveOutline();
-          toast({ title: `${created.length} panel(s) créé(s)` });
-          setReplacePanelsConfirmOpen(false);
-          setPendingOutline(null);
-        },
-        onError: (err) =>
-          toast({ title: "Erreur", description: err.message, variant: "destructive" }),
-      });
-    }
-  };
-
-  const storedOutline =
-    useMemo((): PanelOutlineItem[] | null => {
-      const raw = scenarioChapter?.panels_outline;
-      if (!raw || !Array.isArray(raw) || raw.length === 0) return null;
-      return raw as unknown as PanelOutlineItem[];
-    }, [scenarioChapter?.panels_outline]);
-
-  const handleImportDecoupage = () => {
-    if (!storedOutline?.length || !chapterId || !displayedScenarioChapterId) return;
-    if (panels.length > 0) {
-      setPendingOutline(storedOutline);
-      setReplacePanelsConfirmOpen(true);
-    } else {
-      applyOutlineAndSave(storedOutline);
-    }
-  };
-
-  const confirmReplacePanels = () => {
-    if (!pendingOutline) return;
-    const outline = pendingOutline;
-    setPendingOutline(null);
-    setReplacePanelsConfirmOpen(false);
-    replacePanelsFromOutline.mutate(outline, {
-      onSuccess: async (created) => {
-        if (displayedScenarioChapterId)
-          await updateScenarioChapter(displayedScenarioChapterId, {
-            panels_outline: outline as unknown as Json,
-          });
-        toast({ title: `${created.length} panel(s) créé(s) (remplacement)` });
-      },
-      onError: (err) =>
-        toast({ title: "Erreur", description: err.message, variant: "destructive" }),
-    });
-  };
-
   const handleSaveScenarioLink = () => {
     const idToSave = displayedScenarioChapterId;
     if (!chapterId) return;
@@ -533,10 +423,6 @@ export default function ChapterDetail() {
     const blocks = getPanelBlocks(panel);
     const panelHeight = getPanelHeight(panel);
     const mode = panelEditModeByPanelId[panel.id] ?? "architecture";
-    const isEditing = editingPanelId === panel.id;
-    const draftPrompt = promptDrafts[panel.id] ?? panel.prompt ?? "";
-    const displayText = panel.prompt ?? "";
-    const isDirty = isEditing && draftPrompt !== (panel.prompt ?? "");
     const selectedBlock = selectedBlockIdInModal?.panelId === panel.id && selectedBlockIdInModal?.blockId
       ? blocks.find((b) => b.id === selectedBlockIdInModal.blockId)
       : null;
@@ -721,10 +607,7 @@ export default function ChapterDetail() {
         toast({ title: "Prompt requis", description: "Saisissez un prompt pour ce bloc (ou une description au panel).", variant: "destructive" });
         return;
       }
-      const outlineItem = storedOutline?.[panel.panel_number - 1];
-      const contextChapter = outlineItem?.context
-        ? [outlineItem.context.lieu && `Lieu : ${outlineItem.context.lieu}`, outlineItem.context.scene && `Scène : ${outlineItem.context.scene}`, outlineItem.context.personnages && `Personnages : ${outlineItem.context.personnages}`].filter(Boolean).join("\n")
-        : (panel.prompt?.trim() || null);
+      const contextChapter = panel.prompt?.trim() || null;
       generatePanelImage.mutate(
         { panel: { id: panel.id, prompt: promptToUse }, block: { id: block.id, width: block.width, height: block.height }, project, contextChapter: contextChapter ?? undefined },
         {
@@ -783,45 +666,46 @@ export default function ChapterDetail() {
                 <span className="text-xs font-medium text-muted-foreground">Hauteur du panel</span>
                 <div className="flex items-center gap-2">
                   <input
-                    type="number"
-                    min={PANEL_HEIGHT_MIN}
-                    max={PANEL_HEIGHT_MAX}
-                    value={panelHeightDraft ?? layout.panelHeight ?? PANEL_HEIGHT_DEFAULT}
-                    onChange={(e) => {
-                      const v = Number(e.target.value);
-                      if (!Number.isNaN(v)) setPanelHeightDraft(v);
-                    }}
+                    type="text"
+                    inputMode="numeric"
+                    value={panelHeightDraft !== null ? panelHeightDraft : String(layout.panelHeight ?? PANEL_HEIGHT_DEFAULT)}
+                    onChange={(e) => setPanelHeightDraft(e.target.value)}
                     className="w-24 h-9 rounded-lg border border-border/60 bg-background px-2 text-sm"
                   />
                   <span className="text-xs text-muted-foreground">px</span>
-                  <Button size="sm" variant="outline" className="shrink-0 rounded-lg" onClick={() => { const h = panelHeightDraft ?? layout.panelHeight ?? PANEL_HEIGHT_DEFAULT; handlePanelHeightChange(h); setPanelHeightDraft(null); }}>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="shrink-0 rounded-lg"
+                    onClick={() => {
+                      const raw = panelHeightDraft !== null ? panelHeightDraft.trim() : null;
+                      const num = raw === null
+                        ? (layout.panelHeight ?? PANEL_HEIGHT_DEFAULT)
+                        : (raw === "" ? PANEL_HEIGHT_MIN : Math.max(PANEL_HEIGHT_MIN, Math.min(PANEL_HEIGHT_MAX, Number(raw) || PANEL_HEIGHT_MIN)));
+                      handlePanelHeightChange(num);
+                      setPanelHeightDraft(null);
+                    }}
+                  >
                     Appliquer
                   </Button>
                 </div>
-                <p className="text-[11px] text-muted-foreground/80">Min {PANEL_HEIGHT_MIN} — max {PANEL_HEIGHT_MAX}</p>
+                <p className="text-[11px] text-muted-foreground/80">Min {PANEL_HEIGHT_MIN} — max {PANEL_HEIGHT_MAX}. Vide = min par défaut.</p>
               </div>
             )}
           </div>
           <div className="p-4 border-t border-border/60 space-y-2">
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-xs font-medium text-muted-foreground">Contexte du panel</span>
-              {!isEditing ? (
-                <Button size="sm" variant="ghost" className="h-8 gap-1.5 text-muted-foreground" onClick={() => { setEditingPanelId(panel.id); setPromptDrafts((prev) => ({ ...prev, [panel.id]: panel.prompt ?? "" })); }}>
-                  <Pencil className="h-3.5 w-3.5" /> Modifier
-                </Button>
-              ) : (
-                <div className="flex gap-1">
-                  <Button size="sm" variant="ghost" className="h-8 gap-1.5" onClick={() => setEditingPanelId(null)}><X className="h-3.5 w-3.5" /> Annuler</Button>
-                  <Button size="sm" variant="outline" className="h-8 gap-1.5" disabled={updatePanelMutation.isPending || !isDirty} onClick={() => { updatePanelMutation.mutate({ id: panel.id, updates: { prompt: draftPrompt.trim() || null } }, { onSuccess: () => { setEditingPanelId(null); setPromptDrafts((prev) => { const n = { ...prev }; delete n[panel.id]; return n; }); toast({ title: "Contexte enregistré" }); }, onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }) }); }}>{updatePanelMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />} Enregistrer</Button>
-                </div>
-              )}
-            </div>
-            {isEditing ? (
-              <Textarea value={draftPrompt} onChange={(e) => setPromptDrafts((prev) => ({ ...prev, [panel.id]: e.target.value }))} placeholder="Lieu / Scène / Personnages (contexte pour tous les blocs)…" className="min-h-[80px] text-sm resize-y" autoFocus />
-            ) : (
-              <div className="rounded-md border border-border bg-muted/30 px-3 py-2 min-h-[48px]">
-                <p className="text-sm whitespace-pre-wrap text-foreground/90">{displayText || <span className="text-muted-foreground italic">Aucun contexte.</span>}</p>
+            <span className="text-xs font-medium text-muted-foreground">Scénario</span>
+            {loadingScenario ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Chargement...
               </div>
+            ) : scenarioChapter?.content ? (
+              <div className="rounded-md border border-border bg-muted/30 p-3 min-h-[80px] max-h-[40vh] overflow-y-auto">
+                <ScenarioTextHighlighter text={scenarioChapter.content} assets={assets} className="text-sm" />
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground italic py-2">Aucun chapitre scénario lié.</p>
             )}
           </div>
         </aside>
@@ -1312,7 +1196,7 @@ export default function ChapterDetail() {
               pixels par défaut (blocs, bulles, effets).
             </p>
 
-            <div className="rounded-lg border border-border bg-muted/20 p-3 text-sm text-muted-foreground space-y-2">
+            <div className="w-full max-w-[840px] rounded-lg border border-border bg-muted/20 p-3 text-sm text-muted-foreground space-y-2">
                 <p className="font-medium text-foreground">
                   Liberté de création
                 </p>
@@ -1321,123 +1205,36 @@ export default function ChapterDetail() {
                 </p>
             </div>
 
-            <div className="flex flex-wrap gap-2 items-center">
-              <Button
-                onClick={() => createPanelMutation.mutate(undefined, {
-                  onSuccess: () => toast({ title: "Panel ajouté" }),
-                  onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }),
-                })}
-                disabled={!chapterId || createPanelMutation.isPending}
-                className="gap-2"
-              >
-                {createPanelMutation.isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Plus className="h-4 w-4" />
-                )}
-                Ajouter un panel
-              </Button>
-              {scenarioChapter?.content && (
-                <Button
-                  onClick={handleSplitAndCreatePanels}
-                  disabled={splitIntoPanels.isPending}
-                  variant="outline"
-                  className="gap-2"
-                >
-                  {splitIntoPanels.isPending ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Sparkles className="h-4 w-4" />
-                  )}
-                  Suggestion de panels (IA)
-                </Button>
-              )}
-              {storedOutline && storedOutline.length > 0 && (
-                <Button
-                  onClick={handleImportDecoupage}
-                  disabled={createPanelsFromOutline.isPending || replacePanelsFromOutline.isPending}
-                  variant="outline"
-                  className="gap-2"
-                >
-                  <LayoutPanelTop className="h-4 w-4" />
-                  Importer la suggestion ({storedOutline.length} panels)
-                </Button>
-              )}
-            </div>
-
-            <AlertDialog open={replacePanelsConfirmOpen} onOpenChange={setReplacePanelsConfirmOpen}>
-              <AlertDialogContent className="glass">
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Remplacer les panels existants ?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Ce chapitre a déjà {panels.length} panel(s). La suggestion IA va les supprimer et créer de nouveaux panels à partir du scénario. Cette action est irréversible.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel onClick={() => setPendingOutline(null)}>
-                    Annuler
-                  </AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={confirmReplacePanels}
-                    disabled={replacePanelsFromOutline.isPending}
-                  >
-                    {replacePanelsFromOutline.isPending ? "Remplacement..." : "Remplacer"}
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-
             {panels.length === 0 ? (
-              <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border bg-muted/40 py-12 px-4 text-center">
-                <LayoutPanelTop className="h-10 w-10 text-muted-foreground/50" />
-                <p className="text-base font-medium text-muted-foreground">
-                  Aucun panel
-                </p>
-                <p className="text-sm text-muted-foreground max-w-sm">
-                  Vous êtes libre de créer le nombre de panels que vous souhaitez. Ajoutez un panel ci-dessous, ou utilisez une suggestion à partir du scénario (optionnel).
-                </p>
-                <div className="flex flex-wrap gap-2 justify-center mt-2">
+              <div className="w-full max-w-[840px] glass rounded-xl border border-border overflow-hidden">
+                <div className="flex flex-col items-center justify-center gap-5 py-10 px-6 text-center">
+                  <div className="rounded-full bg-muted/60 p-4">
+                    <LayoutPanelTop className="h-8 w-8 text-muted-foreground" />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-base font-medium text-foreground">
+                      Aucun panel
+                    </p>
+                    <p className="text-sm text-muted-foreground max-w-sm">
+                      Créez votre premier panel pour commencer à composer la planche.
+                    </p>
+                  </div>
                   <Button
                     onClick={() => createPanelMutation.mutate(undefined, {
                       onSuccess: () => toast({ title: "Panel ajouté" }),
                       onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }),
                     })}
                     disabled={!chapterId || createPanelMutation.isPending}
-                    className="gap-1.5"
+                    variant="outline"
+                    className="w-full max-w-sm gap-2 h-11 rounded-xl border-dashed border-2 border-border/80 bg-muted/30 hover:bg-muted/50 hover:border-primary/30 text-foreground font-medium"
                   >
                     {createPanelMutation.isPending ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
-                      <Plus className="h-3.5 w-3.5" />
+                      <Plus className="h-4 w-4" />
                     )}
                     Ajouter un panel
                   </Button>
-                  {scenarioChapter?.content && (
-                    <Button
-                      onClick={handleSplitAndCreatePanels}
-                      disabled={splitIntoPanels.isPending}
-                      variant="outline"
-                      className="gap-1.5"
-                    >
-                      {splitIntoPanels.isPending ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      ) : (
-                        <Sparkles className="h-3.5 w-3.5" />
-                      )}
-                      Suggestion de panels (IA)
-                    </Button>
-                  )}
-                  {storedOutline && storedOutline.length > 0 && (
-                    <Button
-                      onClick={handleImportDecoupage}
-                      disabled={createPanelsFromOutline.isPending}
-                      variant="outline"
-                      className="gap-1.5"
-                    >
-                      <LayoutPanelTop className="h-3.5 w-3.5" />
-                      Importer la suggestion ({storedOutline.length} panels)
-                    </Button>
-                  )}
                 </div>
               </div>
             ) : (
@@ -1457,16 +1254,28 @@ export default function ChapterDetail() {
                           <h3 className="font-medium text-sm shrink-0">
                             Panel {panel.panel_number} — {PANEL_WIDTH}×{getPanelHeight(panel)}
                           </h3>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="gap-1.5 shrink-0"
-                            onClick={() => setExpandedPanelId(panel.id)}
-                            title="Ouvrir l'édition du panel"
-                          >
-                            <Pencil className="h-3.5 w-3.5" />
-                            Edition
-                          </Button>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="gap-1.5"
+                              onClick={() => setExpandedPanelId(panel.id)}
+                              title="Ouvrir l'édition du panel"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                              Edition
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10"
+                              onClick={() => setPanelToDeleteId(panel.id)}
+                              title="Supprimer le panel"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                              Supprimer
+                            </Button>
+                          </div>
                         </div>
 
                         {/* Vue lecture seule du panel — édition dans la modale */}
@@ -1517,9 +1326,65 @@ export default function ChapterDetail() {
                 </div>
               </div>
             )}
+
+            {panels.length > 0 && (
+              <div className="pt-4 w-full max-w-[840px]">
+                <Button
+                  onClick={() => createPanelMutation.mutate(undefined, {
+                    onSuccess: () => toast({ title: "Panel ajouté" }),
+                    onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }),
+                  })}
+                  disabled={!chapterId || createPanelMutation.isPending}
+                  variant="outline"
+                  className="w-full gap-2 h-11 rounded-xl border-dashed border-2 border-border/80 bg-muted/30 hover:bg-muted/50 hover:border-primary/30 text-foreground font-medium"
+                >
+                  {createPanelMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Plus className="h-4 w-4" />
+                  )}
+                  Ajouter un panel
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       </div>
+
+      {/* Confirmation suppression panel */}
+      <AlertDialog open={!!panelToDeleteId} onOpenChange={(open) => { if (!open) setPanelToDeleteId(null); }}>
+        <AlertDialogContent className="glass">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer ce panel ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Le panel et tous ses blocs seront définitivement supprimés. Cette action est irréversible.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (!panelToDeleteId) return;
+                deletePanelMutation.mutate(panelToDeleteId, {
+                  onSuccess: () => {
+                    if (expandedPanelId === panelToDeleteId) setExpandedPanelId(null);
+                    setPanelToDeleteId(null);
+                    toast({ title: "Panel supprimé" });
+                  },
+                  onError: (err) => {
+                    toast({ title: "Erreur", description: err.message, variant: "destructive" });
+                  },
+                });
+              }}
+              disabled={deletePanelMutation.isPending}
+            >
+              {deletePanelMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+              Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Modale Edition : architecture et personnalisation du panel */}
       <Dialog open={!!expandedPanelId} onOpenChange={(open) => { if (!open) { setExpandedPanelId(null); setSelectedBlockIdInModal(null); setPanelHeightDraft(null); } }}>

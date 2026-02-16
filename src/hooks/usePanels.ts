@@ -81,6 +81,18 @@ export function useUpdatePanel(chapterId: string) {
   });
 }
 
+/** Supprimer un panel. */
+export function useDeletePanel(chapterId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => panelsService.deletePanel(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: keys.list(chapterId) });
+    },
+  });
+}
+
 /** Payload pour la génération d'image d'un bloc (dimensions = bloc). */
 export interface GeneratePanelImageVariables {
   panel: { id: string; prompt: string };

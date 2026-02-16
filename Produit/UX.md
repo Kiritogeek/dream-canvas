@@ -133,7 +133,7 @@
 | Mode Automatique | Découpage IA → liste de panels. **Sélection des assets du chapitre** (impérative). Génération **panel par panel** (style + assets + description du panel). |
 | Mode Structuré | Chapitre vide → **blocs** (position, taille) → par bloc : description + **sélection d’assets** → génération 1 image par bloc. **Dimensions du bloc obligatoires pour l'espace de l'image.** Images pleines affichées **dans** les blocs. |
 | Lecture verticale | Défilement vertical, format webtoon. |
-| **Deux modes panel** | **Architecture** : ajout, position, dimensions des blocs. **Édition** : clic bloc → popup prompt (détection assets comme dans le scénario), bibliothèque de bulles, bibliothèque d'effets, couleur de fond, ajout de texte (typo). Voir `Edition_Panel_Deux_Modes.md`. |
+| **Deux modes panel** | **Architecture** : ajout (prévisualisation 500×500, placement par centre), position, dimensions (poignées avec hover), suppression au survol du bloc. **Édition** : clic bloc → popup prompt (détection assets), bibliothèque de bulles, effets, fond, texte (typo). Génération par bloc avec dimensions + instruction « toute la place ». Voir `Edition_Panel_Deux_Modes.md`, `Edition_Panel_Blocs_Bulles.md`. |
 
 ### 3.3 Dialogues et export
 

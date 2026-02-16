@@ -28,8 +28,8 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Top bar */}
-      <header className="sticky top-0 z-50 glass border-b border-border/50">
+      {/* Top bar : glass avec lavande/peach (charte) */}
+      <header className="sticky top-0 z-50 glass border-b border-border/50 shadow-sm">
         <div className="container px-4 sm:px-6 lg:px-8 flex h-14 sm:h-16 items-center justify-between">
           <div className="flex items-center gap-2">
             <ThemeToggle />
@@ -79,7 +79,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
         {/* Menu mobile déroulant */}
         {mobileMenuOpen && (
-          <div className="sm:hidden border-t border-border/50 bg-background/95 backdrop-blur-xl">
+          <div className="sm:hidden border-t border-border/50 bg-card/95 backdrop-blur-xl">
             <div className="px-4 py-3 space-y-1">
               {navItems.map((item) => {
                 const active =
@@ -123,7 +123,8 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         )}
       </header>
 
-      <div className="container px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+      <div className="min-h-[calc(100vh-3.5rem)] bg-content">
+        <div className="container px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
         {/* Sub nav — desktop: inline, mobile: hidden (dans le burger) */}
         <nav className="hidden sm:flex gap-1.5 mb-6 lg:mb-8 overflow-x-auto pb-1 scrollbar-none">
           {navItems.map((item) => {
@@ -150,6 +151,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         </nav>
 
         {children}
+        </div>
       </div>
     </div>
   );

@@ -274,7 +274,7 @@ CREATE TYPE asset_type AS ENUM ('character', 'background', 'object');
   ]
 }
 ```
-**Édition des panels** (voir `Edition_Panel_Blocs_Bulles.md`, `Edition_Panel_Deux_Modes.md`) : **deux modes** — **Architecture** (ajout, position, dimensions des blocs) et **Édition** (prompt avec détection assets, bulles, effets, fond, texte). Par défaut **aucun bloc** (`blocks: []`) ; l’utilisateur **ajoute des blocs par glisser-déposer** (bloc **500×500** déposé sur le panel), **déplace** les blocs par glisser-déposer, **édite** largeur/hauteur, puis saisit le prompt et génère l’image par bloc. Chaque image générée est une **illustration pleine** affichée **dans** le rectangle du bloc. **Les dimensions de l’image = dimensions du bloc** (width × height). **OBLIGATOIRE** : la génération d'image dans un bloc doit utiliser les dimensions de ce bloc pour l'espace de l'image. **La sélection d'assets (asset_refs)** est optionnelle mais recommandée pour cadrer la scène.
+**Édition des panels** (voir `Edition_Panel_Blocs_Bulles.md`, `Edition_Panel_Deux_Modes.md`) : **deux modes** — **Architecture** (ajout, position, dimensions des blocs ; placement par centre ; suppression au survol ; poignées avec hitbox élargie et hover) et **Édition** (prompt avec détection assets, bulles, effets, fond, texte). **Génération par bloc** : l'API reçoit les dimensions du bloc et une instruction « utiliser toute la place » ; images stockées sous `panels/{panel_id}/blocks/{block_id}.png`. Par défaut **aucun bloc** (`blocks: []`) ; l’utilisateur **ajoute des blocs par glisser-déposer** (bloc **500×500** déposé sur le panel), **déplace** les blocs par glisser-déposer, **édite** largeur/hauteur, puis saisit le prompt et génère l’image par bloc. Chaque image générée est une **illustration pleine** affichée **dans** le rectangle du bloc. **Les dimensions de l’image = dimensions du bloc** (width × height). **OBLIGATOIRE** : la génération d'image dans un bloc doit utiliser les dimensions de ce bloc pour l'espace de l'image. **La sélection d'assets (asset_refs)** est optionnelle mais recommandée pour cadrer la scène.
 
 **Format de `speech_bubbles`** (prévu) :
 ```json
@@ -369,7 +369,10 @@ dreamweave/
             │   ├── {asset_id}_profile_right.png  ← Profil droit
             │   └── {asset_id}_back.png           ← Vue de dos
             └── panels/
-                ├── {panel_id}.png                ← Images des panels
+                ├── {panel_id}.png                ← Image panel (mode panel entier)
+                ├── {panel_id}/
+                │   └── blocks/
+                │       └── {block_id}.png        ← Image d'un bloc (génération par bloc)
                 └── ...
 ```
 

@@ -209,7 +209,7 @@ export function EditionSection({ projectId, project }: EditionSectionProps) {
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
         Construisez votre webtoon visuel à partir des chapitres : créez des
-        chapitres, ouvrez-les pour éditer les panels (720×5000), ajoutez blocs,
+        chapitres, ouvrez-les pour éditer les panels (800×5000), ajoutez blocs,
         bulles et effets.
       </p>
 
@@ -233,7 +233,7 @@ export function EditionSection({ projectId, project }: EditionSectionProps) {
             </p>
             <p className="text-sm text-muted-foreground max-w-sm">
               Créez votre premier chapitre pour commencer à construire l'œuvre
-              (panels 720×5000, blocs, bulles et effets à venir).
+              (panels 800×5000, blocs, bulles et effets à venir).
             </p>
           </div>
           <Button

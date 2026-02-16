@@ -1,6 +1,6 @@
 # Édition de panel — Deux modes (Architecture / Édition)
 
-> Les **images sont générées dans les blocs** du panel. L'édition d'un panel se fait selon **deux modes** : **Architecture** (structure des blocs) et **Édition** (contenu : prompts, bulles, effets, fond, texte).
+> Les **images sont générées dans les blocs** du panel. À terme, l'édition se fait selon **deux modes** : **Architecture** (structure des blocs) et **Édition** (contenu : prompts, bulles, effets, fond, texte). **Implémentation actuelle** : **vue unifiée** (pas de bascule Architecture | Édition) — canvas 720×5000 + panneau latéral par panel ; prompt par bloc et dimensions dans le panneau latéral ; **aperçu des mentions d'assets** sous le prompt (surbrillance + hover) ; **contexte chapitre** envoyé à l'API de génération. Bascule des deux modes = évolution possible (Étape 6 ou complément).
 
 ---
 
@@ -18,11 +18,11 @@
 
 | Fonctionnalité | Description |
 |----------------|-------------|
-| **Ajout de blocs** | Glisser-déposer « Bloc 500×500 » sur le panel (ou bouton « Ajouter en (0,0) »). Création d'un bloc aux coordonnées de dépôt. |
-| **Position des blocs** | Chaque bloc est **déplaçable** par glisser-déposer sur le canvas ; la position (x, y) est mise à jour au dépôt. Contraintes : bloc entièrement dans 720×5000. |
-| **Dimensions des blocs** | **Redimensionnement** par poignées (bordures et coins) au glisser ; champs **largeur** et **hauteur** éditables + « Appliquer dimensions ». Dimensions bornées (min 100 px, dans le panel). |
-| **Canvas** | Fond quadrillé 720×5000 ; blocs avec bordure/ombre ; pas d'édition de prompt ni de bulles dans ce mode. |
-| **Suppression** | Bouton « Supprimer » par bloc (dans le panneau latéral). |
+| **Ajout de blocs** | Glisser-déposer « Bloc 500×500 » sur le panel : **prévisualisation 500×500** pendant le drag ; au dépôt, le **centre** du bloc est placé au point de dépôt. Option « Ajouter en (0,0) ». |
+| **Position des blocs** | Chaque bloc est **déplaçable** par glisser-déposer ; position (x, y) mise à jour au dépôt. Contraintes : bloc entièrement dans 720×5000. |
+| **Dimensions des blocs** | **Redimensionnement** par poignées (bordures 9 px, coins 15×15 px) au glisser ; **survol** des poignées : léger fond pour indiquer la zone. Champs **largeur** et **hauteur** éditables + « Appliquer dimensions ». Dimensions bornées (min 100 px, dans le panel). |
+| **Canvas** | Fond quadrillé 720×5000 ; blocs avec bordure/ombre ; pas d'édition de prompt ni de bulles dans ce mode. Marges 20 px L/R, 15 px haut/bas ; scroll vertical uniquement. |
+| **Suppression** | **Au survol** du bloc : bouton supprimer (icône poubelle) centré en bas du bloc ; clic → bloc retiré. Également dans le panneau latéral. |
 
 **Règle** : en mode Architecture, on **ne modifie pas** le prompt des blocs ni les bulles/effets/texte. Uniquement structure (ajout, position, dimensions, suppression de blocs).
 
@@ -34,7 +34,7 @@
 
 | Fonctionnalité | Description |
 |----------------|-------------|
-| **Clic sur un bloc** | Ouvre une **popup** (dialog) permettant de **saisir ou modifier le prompt** du bloc pour la génération d'image. **Détection des assets dans le texte** : même comportement que dans le scénario (surbrillance des mentions d'assets existants, hover pour afficher l'asset ; éléments non créés signalés). Le prompt peut référencer les assets du projet ; ces références sont prises en compte à la génération. |
+| **Clic sur un bloc** | À terme : **popup** (dialog) pour saisir/modifier le prompt du bloc. **Actuellement** : le prompt est édité dans le **panneau latéral** (Textarea par bloc) ; **aperçu des mentions d'assets** sous le champ (surbrillance + hover, même composant que l'Aperçu scénario). |
 | **Bibliothèque de bulles de dialogue** | Même principe que les blocs : **bibliothèque** de formes/types (parole, pensée, cri, chuchotement, narration). L'utilisateur **place** les bulles sur le panel (glisser-déposer depuis la bibliothèque). Par bulle : **texte éditable**, position, style (couleur contour, intérieur, police, taille). Stockage `panels.speech_bubbles`. |
 | **Bibliothèque d'effets** | **Effets** applicables sur le panel (transitions, lignes de mouvement, etc.) : bibliothèque d'effets prédéfinis ; l'utilisateur **choisit et applique** un effet sur le panel (ou sur une zone). Positions/types/styles stockés en JSONB (ex. `panels.effects` ou champs dédiés). |
 | **Couleur de fond** | **Choix de la couleur de fond** du panel (couleur unie ou dégradé, selon implémentation). Stockage dans le panel (ex. `panels.background_style` ou champ dédié). |
@@ -42,13 +42,16 @@
 
 **Règle** : en mode Édition, on **ne déplace ni ne redimensionne** les blocs ; le canvas affiche les blocs en lecture seule. Toute l'édition de contenu (prompt, bulles, effets, fond, texte) se fait via popups, panneau latéral ou bibliothèques.
 
+**Génération par bloc** : l'API reçoit les **dimensions du bloc** (largeur × hauteur) et une **instruction** pour que l'image **remplisse tout le cadre** (pas de bandeaux ni bandes séparatrices). Stockage : `panels/{panel_id}/blocks/{block_id}.png`.
+
 ---
 
-## 4. Bascule entre les modes
+## 4. Bascule entre les modes (cible)
 
-- **Sélecteur** : en tête de la zone Panels (écran d'édition du chapitre), **deux onglets ou boutons** : **Architecture** | **Édition**.
+- **Sélecteur** (à implémenter) : en tête de la zone Panels, **deux onglets ou boutons** : **Architecture** | **Édition**.
 - **État** : un seul mode actif à la fois pour toute la page (tous les panels du chapitre).
 - **Persistance** : le mode peut être conservé en session (state) ; pas d'obligation de le persister en base.
+- **Actuellement** : pas de bascule ; une seule vue combine canvas (blocs déplaçables/redimensionnables) et panneau latéral (prompt, dimensions, générer par bloc).
 
 ---
 
@@ -75,6 +78,20 @@
 - **Plan Phase 2** : `Plan_Phase2_Edition_Oeuvre.md` — Étapes 5 (blocs + génération), 6 (mode Structuré), 7 (bulles, effets).
 - **Modèle de données** : `08_Modele_de_Donnees.md` — `panels.layout`, `panels.speech_bubbles`, effets.
 - **Scénario (détection assets)** : même logique que dans l'Aperçu du scénario (surbrillance, hover) pour le **prompt du bloc** dans la popup d'édition.
+
+---
+
+---
+
+## 7. Détails d'implémentation (livrés)
+
+| Élément | Détail |
+|--------|--------|
+| **Visualisation panel** | Marges 20 px gauche/droite, 15 px haut/bas ; scroll vertical uniquement (pas de scroll horizontal). |
+| **Placement nouveau bloc** | Centre du bloc 500×500 au point de dépôt ; prévisualisation 500×500 pendant le glisser. |
+| **Suppression** | Bouton au survol du bloc (milieu / moitié bas), plus panneau latéral. |
+| **Poignées de redimensionnement** | Hitbox élargie (bordures 9 px, coins 15 px) ; style au survol pour indiquer la zone. |
+| **Génération par bloc** | Edge Function `generate-panel-image` ; dimensions (width, height) du bloc envoyées à l'API ; instruction « remplir tout le cadre » dans le prompt ; stockage `{user_id}/projects/{project_id}/panels/{panel_id}/blocks/{block_id}.png`. Voir `09_Specifications_API.md` § 3.2. |
 
 ---
 

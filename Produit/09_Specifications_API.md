@@ -456,7 +456,77 @@ Authorization: Bearer {JWT_TOKEN}
 8. Retourner l'URL publique
 ```
 
-### 3.2 Edge Functions futures (planifiées)
+### 3.2 `generate-panel-image`
+
+> Génère une image pour **un bloc** d'un panel (Étape 5 — édition blocs). Les dimensions de l'image sont celles du bloc (largeur × hauteur). Stockage : `{user_id}/projects/{project_id}/panels/{panel_id}/blocks/{block_id}.png`.
+
+**Endpoint** :
+```
+POST /functions/v1/generate-panel-image
+```
+
+**Headers** :
+```
+Content-Type: application/json
+Authorization: Bearer {JWT_TOKEN}
+```
+
+**Body** :
+```json
+{
+  "panel_id": "uuid",
+  "block_id": "uuid",
+  "width": 500,
+  "height": 500,
+  "prompt": "Vue large de la ville sous l'orage, Luna debout sur un toit...",
+  "style_template": "style webtoon sombre, lumières néon...",
+  "style_image_urls": ["https://..."],
+  "context_chapter": "Lieu : toit. Scène : nuit d'orage. Personnages : Luna."
+}
+```
+
+**Paramètres** :
+
+| Paramètre | Type | Requis | Description |
+|-----------|------|--------|-------------|
+| `panel_id` | `string (UUID)` | Oui | ID du panel |
+| `block_id` | `string (UUID)` | Oui | ID du bloc dans le layout |
+| `width` | `number` | Oui | Largeur du bloc (px) ; plafonnée à 1024 côté serveur |
+| `height` | `number` | Oui | Hauteur du bloc (px) ; plafonnée à 1024 côté serveur |
+| `prompt` | `string` | Oui | Description de l'illustration pour ce bloc |
+| `style_template` | `string` | Non | Template de style du projet |
+| `style_image_urls` | `string[]` | Non | URLs des images de référence (non utilisées dans la version actuelle) |
+| `context_chapter` | `string` | Non | Contexte du chapitre (lieu, scène, personnages) pour cohérence visuelle. Envoyé par le frontend depuis le découpage (`panels_outline[].context`) ou la description du panel. |
+
+**Réponse succès** (200) :
+```json
+{
+  "image_url": "https://xxx.supabase.co/storage/v1/object/public/dreamweave/.../panels/.../blocks/....png?v=..."
+}
+```
+
+**Réponse erreur** (400/401/403/502/500) :
+```json
+{
+  "error": "Description de l'erreur"
+}
+```
+
+**Processus interne** :
+
+1. Vérifier FAL_API_KEY et JWT
+2. Vérifier que le panel appartient à l'utilisateur (table `panels`)
+3. Récupérer `project_id` via le chapitre du panel (pour le chemin Storage)
+4. Construire le prompt : style + contexte chapitre + instruction « remplir tout le cadre » + prompt du bloc
+5. Appeler FAL.ai (FLUX.2 Pro) avec `image_size: { width, height }`
+6. Télécharger l'image et l'uploader dans Storage : `{user_id}/projects/{project_id}/panels/{panel_id}/blocks/{block_id}.png`
+7. Retourner l'URL publique (le frontend met à jour `layout.blocks[].image_url`)
+
+**Secret** : `FAL_API_KEY` (Supabase Edge Functions → Secrets). Config : `verify_jwt = false` dans `config.toml` ; la fonction vérifie le JWT via Supabase Auth.
+
+---
+
+### 3.3 Edge Functions futures (planifiées)
 
 #### `generate-chapter-panels` (Phase 2)
 
@@ -672,4 +742,4 @@ const { data, error } = await supabase.storage
 
 ---
 
-*Dernière mise à jour : 14 février 2026*
+*Dernière mise à jour : 15 février 2026*

@@ -15,7 +15,9 @@
 | Élément | Valeur | Description |
 |--------|--------|-------------|
 | **Dimensions du panel** | **720 × 5000** pixels | Taille fixe du **contenant** du panel (bande verticale webtoon). |
-| **Visualisation en édition** | **720 × 5000** px | L'interface doit afficher le panel en **taille réelle** (ou avec zoom homogène) pour que l'utilisateur voie l'agencement exact des blocs et des bulles. Scroll vertical si la hauteur dépasse la fenêtre. |
+| **Visualisation en édition** | **720 × 5000** px | L'interface affiche le panel en **taille réelle** pour voir l'agencement exact des blocs et des bulles. **Scroll vertical uniquement** (pas de scroll horizontal). |
+| **Marges autour du canvas** | **20 px** gauche/droite, **15 px** haut/bas | Espace entre le bord de la carte du panel et le canvas 720×5000 (n'appartient pas au panel lui-même). Largeur totale de la zone : 760 px (20+720+20). |
+| **Scroll** | Vertical uniquement | La zone scrollable ne défile qu'en hauteur ; le contenu ne dépasse pas en largeur. |
 
 Le panel est donc une **surface fixe 720×5000** dans laquelle s'organisent :
 - les **blocs** (zones d'images),
@@ -47,11 +49,14 @@ L'ordre de travail est le suivant :
 
 3. **Génération par bloc**  
    La **génération d'image** se fait **bloc par bloc**. Pour chaque bloc :
-   - **Dimensions de l'image générée (OBLIGATOIRE)** : l'espace de l'image doit **obligatoirement** prendre les **dimensions du bloc concerné** (largeur × hauteur du rectangle). L'API de génération reçoit ces dimensions ; l'image produite est affichée dans le bloc et doit correspondre à sa forme.
-   - **Prompt** = style projet + contexte chapitre + (optionnel) description panel + **prompt du bloc**.
-   - L'image générée est stockée (Storage) et affichée **dans** le bloc (`layout.blocks[].image_url`).
+   - **Dimensions (OBLIGATOIRE)** : l'API reçoit la **taille du bloc** (largeur × hauteur). L'image générée a exactement ces dimensions.
+   - **Instruction « utiliser toute la place »** : le prompt système indique au modèle de **remplir tout le cadre** (pas de bandeaux, pas de bandes séparatrices, pas de marges vides). L'illustration doit occuper **toute la surface** du bloc.
+   - **Prompt** = style projet + (optionnel) contexte chapitre + **prompt du bloc**.
+   - **Stockage** : image par bloc dans Storage (`panels/{panel_id}/blocks/{block_id}.png`) ; URL enregistrée dans `layout.blocks[].image_url`.
 
 **Règle** : pas de génération globale « tout le panel » ; on ne génère qu'après avoir **agencé les blocs** et renseigné les **prompts par bloc**. **La forme du bloc détermine obligatoirement les dimensions envoyées à l'API de génération** — on peut générer des images dans les blocs, et chaque image doit utiliser l'espace (largeur × hauteur) du bloc concerné.
+
+**Implémentation** : génération par bloc implémentée (Étape 5 livrée). Edge Function `generate-panel-image` ; service `services/panels.ts` (`generatePanelBlockImage`) ; hooks `usePanels.ts` (`useGeneratePanelImage`). Stockage : `{user_id}/projects/{project_id}/panels/{panel_id}/blocks/{block_id}.png`. Voir `09_Specifications_API.md` § 3.2.
 
 ---
 
@@ -59,16 +64,16 @@ L'ordre de travail est le suivant :
 
 | Fonctionnalité | Description |
 |----------------|-------------|
-| **Par défaut : aucun bloc** | À la **création d'un panel** (découpage / import), le panel est créé **sans bloc** (`layout.blocks = []`). L'utilisateur ajoute des blocs par **glisser-déposer**. |
+| **Par défaut : aucun bloc** | À la **création d'un panel** (création manuelle ou import d'une suggestion), le panel est créé **sans bloc** (`layout.blocks = []`). L'utilisateur ajoute des blocs par **glisser-déposer**. |
 | **Dimensions par défaut d'un bloc** | Un **nouveau bloc** fait **500 × 500** pixels. |
-| **Ajout de blocs** | **Glisser-déposer** : une source « Bloc 500×500 » est déposée **sur le panel** à la position voulue ; un bloc 500×500 est créé à ces coordonnées (x, y). Option : bouton « Ajouter en (0,0) » pour créer un bloc en haut à gauche. |
+| **Ajout de blocs** | **Glisser-déposer** : une source « Bloc 500×500 » est déposée sur le panel ; **prévisualisation 500×500** pendant le drag (ghost centré sur le curseur). Au dépôt, le bloc est créé avec son **centre** au point de dépôt (coordonnées x, y = centre moins 250 px). Option : bouton « Ajouter en (0,0) ». |
 | **Contraintes panel** | **Aucun bloc ne peut dépasser** la zone du panel : 720×5000. Toutes les opérations (ajout, déplacement, redimensionnement) sont **bornées** pour que le bloc reste entièrement à l'intérieur. |
 | **Déplacement d'un bloc** | Chaque bloc est **déplaçable** : **glisser-déposer** du bloc sur le canvas du panel pour modifier sa position (x, y). La position est **clampée** pour rester dans le panel. |
-| **Redimensionnement type Canva** | **Au glisser uniquement** : en faisant glisser une **bordure** (ou un coin) du bloc, l'utilisateur étire ou réduit le bloc. Curseurs adaptés (ns-resize / ew-resize / coins). **Aucun comportement au survol** des bords (pas de changement de taille au simple survol). Les dimensions restent **dans le panel** (min 100 px, x+largeur ≤ 720, y+hauteur ≤ 5000). |
+| **Redimensionnement type Canva** | **Au glisser uniquement** : bordures et **coins** avec **hitbox élargie** (bordures 9 px, coins 15×15 px) pour faciliter la prise. **Survol** : léger style (fond primary/30) pour indiquer la zone cliquable. Curseurs adaptés (ns-resize / ew-resize / coins). Dimensions **dans le panel** (min 100 px, x+largeur ≤ 720, y+hauteur ≤ 5000). |
 | **Édition des dimensions** | En complément : champs **largeur** et **hauteur** (éditables) + bouton « Appliquer dimensions » pour enregistrer. Mêmes contraintes. |
-| **Prompt et génération** | Le **prompt** est édité en **mode Édition** (clic sur le bloc → popup avec détection des assets comme dans le scénario). En mode Architecture, le panneau peut proposer un accès rapide au prompt et au bouton **Générer**. Génération : style + contexte chapitre + prompt du bloc. **L'image générée utilise obligatoirement les dimensions du bloc** (largeur × hauteur) ; elle s'affiche **dans le bloc** sur le panel. |
-| **Suppression** | **Supprimer un bloc** : bouton par bloc ; le bloc est retiré de `layout.blocks`. |
-| **Visualisation** | Le panel (720×5000) est affiché avec un **fond quadrillé** (grille) pour identifier les blocs ; chaque bloc est délimité (bordure, ombre) et affiche son image générée ou un placeholder. |
+| **Prompt et génération** | Le **prompt** est éditable **par bloc** dans le **panneau latéral** (Textarea). **Aperçu des mentions d'assets** : sous le champ, le texte est affiché avec surbrillance des assets (personnages, décors, objets) et hover pour afficher l'asset (même composant que l'Aperçu scénario). Bouton **Générer** par bloc. Génération : style + **contexte chapitre** (depuis la suggestion ou la description du panel) + prompt du bloc. **L'image générée utilise obligatoirement les dimensions du bloc** (largeur × hauteur) ; elle s'affiche **dans le bloc** sur le panel. |
+| **Suppression** | **Supprimer un bloc** : bouton **au survol** du bloc (icône poubelle), positionné **milieu horizontal / moitié bas** du bloc (environ 25 % depuis le bas). Clic → bloc retiré de `layout.blocks`. Également disponible dans le panneau latéral. |
+| **Visualisation** | Le panel (720×5000) est affiché avec un **fond quadrillé** (grille) ; chaque bloc est délimité (bordure, ombre) et affiche son image générée ou un placeholder. |
 
 **Format d'un bloc** (aligné sur `08_Modele_de_Donnees.md`) :
 
@@ -106,7 +111,7 @@ Les bulles sont **éditables** (texte, position, style) dans l'éditeur de panel
 
 ## 7. Récapitulatif — Ordre des opérations
 
-1. **Créer / importer les panels** (découpage chapitre → panels). Par défaut **aucun bloc**.  
+1. **Créer les panels** (à la main ou en important une suggestion). Par défaut **aucun bloc**.  
 2. **Pour chaque panel** :  
    - **Mode Architecture** : visualisation 720×5000, **ajouter des blocs** (glisser « Bloc 500×500 » ou « Ajouter en (0,0) »), **déplacer** les blocs (glisser-déposer), **éditer les dimensions** (poignées ou champs).  
    - **Mode Édition** : **clic sur un bloc** → popup pour **prompt** (détection des assets comme dans le scénario) ; **bibliothèque de bulles** (placement + texte/style) ; **bibliothèque d'effets** ; **couleur de fond** ; **ajout de texte** (typo). **Générer les images** bloc par bloc (chaque image dans son bloc).  
@@ -117,7 +122,8 @@ Les bulles sont **éditables** (texte, position, style) dans l'éditeur de panel
 ## 8. Références
 
 - **Deux modes (Architecture / Édition)** : `Edition_Panel_Deux_Modes.md` — détail des deux modes et des fonctionnalités par mode.
-- **Plan Phase 2** : `Plan_Phase2_Edition_Oeuvre.md` — Étapes 5 (blocs + génération), 6 (mode Structuré), 7 (bulles, effets, fond, texte).
+- **Plan Phase 2** : `Plan_Phase2_Edition_Oeuvre.md` — Étapes 5 (blocs + génération) ✅ livrée, 6 (mode Structuré), 7 (bulles, effets, fond, texte).
+- **API génération par bloc** : `09_Specifications_API.md` § 3.2 — Edge Function `generate-panel-image`.
 - **Modèle de données** : `08_Modele_de_Donnees.md` — `panels.layout`, `panels.speech_bubbles`.
 - **Rapport flux** : `11_Rapport_Chapitres_Flux_Blocs_Scenario.md`.
 

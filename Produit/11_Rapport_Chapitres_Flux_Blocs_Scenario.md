@@ -1,6 +1,6 @@
 # Rapport — Chapitres : flux Structuré / Automatique, blocs et place du scénario
 
-> Deux flux (Automatique / Structuré), images pleines dans des blocs, place du scénario et découpage Chapitre → Panels.
+> Deux flux (Automatique / Structuré), images pleines dans des blocs, place du scénario. Liberté de création des panels ; suggestion Chapitre → Panels **optionnelle**.
 
 ---
 
@@ -8,7 +8,7 @@
 
 | Décision | Choix |
 |----------|--------|
-| **Flux** | Deux modes : **Automatique** (découpage IA → panels, génération **panel par panel**) et **Structuré** (chapitre vide → blocs → texte + assets → génération). |
+| **Flux** | Deux modes : **Automatique** (suggestion IA → panels **optionnelle**, génération **panel par panel**) et **Structuré** (chapitre vide → blocs → texte + assets → génération). L'utilisateur crée librement le nombre de panels. |
 | **Images** | Chaque image générée est une **illustration pleine** (pas de “cases” ou blocs dessinés dans l’image). Les blocs sont des **zones de mise en page** dans l’app : on y affiche une image par bloc. |
 | **Blocs** | En mode Structuré : l’utilisateur définit des blocs (position, taille, forme rectangle en v1). Chaque bloc a un contenu texte (prompt) et des refs assets. À la génération : **1 image par bloc** → l’image est ensuite affichée **dans** ce bloc. **OBLIGATOIRE** : l'image générée utilise les dimensions du bloc concerné (largeur × hauteur) pour l'espace de l'image. |
 | **Scénario** | **Section à part entière** : écrire son histoire. **IA Scénario** : **un prompt = un chapitre** généré ; l'utilisateur construit son histoire chapitre par chapitre, accepter crée le chapitre. **IA Chapitre** : par chapitre existant, IA qui n'intervient que sur ce chapitre ; même flux accepter/rejeter. Détection assets (surbrillance + hover) et éléments non créés. Jamais le scénario dans le prompt d'image. Voir section 3. |
@@ -36,7 +36,7 @@
 1. L’utilisateur crée un chapitre **vide** (titre, optionnellement synopsis/scénario pour référence).
 2. Il définit la **structure** du chapitre : création de **panels**, puis pour chaque panel, en **mode Architecture**, création de **blocs** (rectangles : position x,y, largeur, hauteur). Aucune image n’est générée à ce stade.
 3. En **mode Édition**, pour chaque bloc : il **rédige** une description (prompt) — avec **détection des assets** dans le texte comme dans le scénario — et **sélectionne les assets** (personnages, décors, objets) à utiliser pour ce bloc. **Cette sélection est primordiale** : elle cadre la génération et permet à l'IA de savoir quels éléments inclure. Les refs assets sont injectées dans le prompt à la génération.
-4. Une fois la structure et les textes (avec assets) prêts, il lance la **génération** : **1 image par bloc**. Chaque image est une illustration pleine (pas de sous-blocs dessinés dedans), produite à partir du prompt du bloc et des assets sélectionnés pour ce bloc. **OBLIGATOIRE** : l'espace de l'image doit prendre les **dimensions du bloc concerné** (largeur × hauteur) — l'API de génération reçoit ces dimensions.
+4. Une fois la structure et les textes (avec assets) prêts, il lance la **génération** : **1 image par bloc**. L'API reçoit les **dimensions du bloc** (largeur × hauteur) et une **instruction** pour que l'image **remplisse tout le cadre** (pas de bandeaux ni bandes séparatrices). Chaque image est stockée par bloc (ex. Storage `panels/{panel_id}/blocks/{block_id}.png`) et affichée dans le bloc.
 5. Les images générées sont **affichées dans** les blocs (chaque bloc affiche une image). En lecture, on affiche les panels avec leurs blocs (layout) ; les blocs contiennent les images.
 6. Optionnel : bulles de dialogue / narration en overlay sur les panels (comme en mode Automatique).
 
@@ -56,15 +56,15 @@ Dans les deux cas, l'UI doit imposer ou fortement encourager cette sélection av
 
 ---
 
-## 3. Scénario — section dédiée, chapitres = webtoon, découpage Chapitre → Panels
+## 3. Scénario — section dédiée, chapitres = webtoon, suggestion Chapitre → Panels (optionnelle)
 
 ### 3.1 Définitions
 
 | Terme | Définition | Usage |
 |-------|------------|--------|
 | **Scénario** | **Section à part entière** du produit : l'utilisateur y **écrit** son histoire ou **importe** un scénario (format texte : fichier .txt ou copier-coller). Texte narratif : actions, lieux, personnages, dialogues. | Découpage en **chapitres** (correspondant aux chapitres webtoon), puis **Chapitre → Panels** (liste + descriptions) dans la section Scénario. **Jamais** le texte brut injecté dans le prompt de génération d'image. |
-| **Chapitres (section Scénario)** | Chapitres **écrits** dans la section Scénario. Ils **correspondent** aux chapitres du webtoon : **un chapitre écrit = un chapitre webtoon**. Titres, ordre, contenu texte. | Permettent de générer panel par panel l'histoire : chaque chapitre (texte) peut être découpé en panels (liste + descriptions) dans la section Scénario ; ce découpage alimente l'Édition de l'œuvre. |
-| **Découpage Chapitre → Panels** | Au sein de la section Scénario, pour **chaque chapitre** (texte), découpage en **panels** : liste de panels avec courte description par panel. | Structure utilisée pour la génération panel par panel en mode Automatique. **Règles de gestion** de ce découpage (automatique, manuel, critères) à **définir plus tard**. |
+| **Chapitres (section Scénario)** | Chapitres **écrits** dans la section Scénario. Ils **correspondent** aux chapitres du webtoon : **un chapitre écrit = un chapitre webtoon**. Titres, ordre, contenu texte. | Permettent de générer panel par panel l'histoire : chaque chapitre (texte) peut être découpé en panels (liste + descriptions) dans la section Scénario ; une suggestion de panels peut alimenter l'Édition de l'œuvre (optionnel). |
+| **Suggestion Chapitre → Panels** | **Optionnel** : au sein de la section Scénario (ou en Édition de l'œuvre), pour **chaque chapitre** (texte), une **suggestion** en **panels** : liste avec courte description par panel. L'utilisateur crée librement le nombre de panels ; la suggestion est une base possible. **Règles de gestion** (IA, manuel) à **définir plus tard**. |
 | **Édition de l'œuvre** | Partie **visuelle** du produit : chapitres webtoon (alignés sur les chapitres écrits) et panels. C'est là que l'utilisateur construit le webtoon à partir du scénario et des assets. | Lors de l'édition d'un panel : double visualisation (chapitre texte correspondant + assets). Voir 3.4. |
 | **Synopsis** | Résumé court du chapitre (quelques phrases). Présent en BDD (`chapters.synopsis`). | Référence auteur ; peut servir d'entrée au découpage IA. **Pas** utilisé dans le prompt d'image. |
 

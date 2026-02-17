@@ -205,10 +205,10 @@ export default function ChapterDetail() {
 
   /** Clamp position/dimensions pour rester dans le panel (largeur fixe, hauteur variable). */
   const clampBlockToPanel = (x: number, y: number, w: number, h: number, panelHeight = PANEL_HEIGHT_DEFAULT) => {
-    const width = Math.max(100, Math.min(PANEL_WIDTH, w));
-    const height = Math.max(100, Math.min(panelHeight, h));
-    const x2 = Math.max(0, Math.min(PANEL_WIDTH - width, x));
-    const y2 = Math.max(0, Math.min(panelHeight - height, y));
+    const width = Math.round(Math.max(100, Math.min(PANEL_WIDTH, w)));
+    const height = Math.round(Math.max(100, Math.min(panelHeight, h)));
+    const x2 = Math.round(Math.max(0, Math.min(PANEL_WIDTH - width, x)));
+    const y2 = Math.round(Math.max(0, Math.min(panelHeight - height, y)));
     return { x: x2, y: y2, width: width, height: height };
   };
 
@@ -313,27 +313,30 @@ export default function ChapterDetail() {
       else if (bottomAnchored) y = bottomFixed - h;
       else y = Math.max(0, Math.min(panelH - h, y));
 
-      return { x, y, width: w, height: h };
+      return { x: Math.round(x), y: Math.round(y), width: Math.round(w), height: Math.round(h) };
     };
 
-    const onMove = (e: PointerEvent) => {
-      if (e.buttons !== 1) return;
-      lastResizeMouseRef.current = { x: e.clientX, y: e.clientY };
-      const result = computeFromMouse(e.clientX, e.clientY);
-      resizeDraftRef.current = result;
-      const el = resizingBlockElRef.current;
-      if (el) {
-        el.style.left = `${result.x}px`;
-        el.style.top = `${result.y}px`;
-        el.style.width = `${result.width}px`;
-        el.style.height = `${result.height}px`;
-      }
-    };
+      const onMove = (e: PointerEvent) => {
+        if (e.buttons !== 1) return;
+        lastResizeMouseRef.current = { x: e.clientX, y: e.clientY };
+        const result = computeFromMouse(e.clientX, e.clientY);
+        const roundedResult = { x: Math.round(result.x), y: Math.round(result.y), width: Math.round(result.width), height: Math.round(result.height) };
+        resizeDraftRef.current = roundedResult;
+        setResizeDraft(roundedResult);
+        const el = resizingBlockElRef.current;
+        if (el) {
+          el.style.left = `${roundedResult.x}px`;
+          el.style.top = `${roundedResult.y}px`;
+          el.style.width = `${roundedResult.width}px`;
+          el.style.height = `${roundedResult.height}px`;
+        }
+      };
     const onUp = () => {
       const lastClient = lastResizeMouseRef.current;
-      const result = lastClient
+      const rawResult = lastClient
         ? computeFromMouse(lastClient.x, lastClient.y)
         : resizeDraftRef.current ?? { x: start.x, y: start.y, width: start.w, height: start.h };
+      const result = { x: Math.round(rawResult.x), y: Math.round(rawResult.y), width: Math.round(rawResult.width), height: Math.round(rawResult.height) };
       const hadSave = !!saveResizeRef.current;
       saveResizeRef.current?.(result);
       saveResizeRef.current = null;
@@ -730,7 +733,8 @@ export default function ChapterDetail() {
                 blocks.map((block, blockIndex) => {
                   const isThisResizing = resizingState?.panelId === panel.id && resizingState?.blockId === block.id;
                   const useResizeDraft = isThisResizing && resizeDraft != null && isResizingRef.current;
-                  const geom = useResizeDraft ? resizeDraft : { x: block.x, y: block.y, width: block.width, height: block.height };
+                  const rawGeom = useResizeDraft ? resizeDraft : { x: block.x, y: block.y, width: block.width, height: block.height };
+                  const geom = { x: Math.round(rawGeom.x), y: Math.round(rawGeom.y), width: Math.round(rawGeom.width), height: Math.round(rawGeom.height) };
                   const isSelected = mode === "edition" && selectedBlockIdInModal?.panelId === panel.id && selectedBlockIdInModal?.blockId === block.id;
                   return (
                     <div
@@ -812,7 +816,7 @@ export default function ChapterDetail() {
                       onClick={mode === "edition" ? (e) => { e.stopPropagation(); setSelectedBlockIdInModal({ panelId: panel.id, blockId: block.id }); } : undefined}
                       className={`group absolute overflow-visible bg-background border border-border shadow-md transition-all duration-150 ${mode === "architecture" ? "cursor-grab active:cursor-grabbing ring-2 ring-primary/60" : `cursor-pointer ${isSelected ? "ring-2 ring-primary shadow-lg ring-offset-2 ring-offset-background" : "ring-1 ring-border/80 hover:ring-2 hover:ring-primary/50 hover:shadow-md"}`}`}
                       style={{ left: geom.x, top: geom.y, width: geom.width, height: geom.height }}
-                      title={mode === "edition" ? `Cliquer pour éditer — ${block.name ?? `Bloc ${blockIndex + 1}`}` : `Bloc ${blockIndex + 1}`}
+                      title={mode === "edition" ? `Clique — ${block.name ?? `Bloc ${blockIndex + 1}`}` : mode === "architecture" ? `Déplacer — ${block.name ?? `Bloc ${blockIndex + 1}`}` : `Bloc ${blockIndex + 1}`}
                     >
                       {mode === "architecture" && (
                         <button
@@ -829,8 +833,9 @@ export default function ChapterDetail() {
                         {block.image_url ? (
                           <ImageWithFallback src={block.image_url} alt="" className="w-full h-full object-cover" />
                         ) : (
-                          <div className="w-full h-full flex items-center justify-center text-xs text-muted-foreground p-2 text-center bg-muted/50">
-                            {block.prompt ? "Prompt défini — Générer ci-dessous" : "Saisir le prompt ci-dessous"}
+                          <div className="w-full h-full flex flex-col items-center justify-center text-xs text-muted-foreground p-2 text-center bg-muted/50 gap-1">
+                            <div>{mode === "architecture" ? "Déplacer" : mode === "edition" ? "Clique" : block.prompt ? "Prompt défini — Générer ci-dessous" : "Saisir le prompt ci-dessous"}</div>
+                            <div className="text-[10px] opacity-70">{Math.round(geom.width)} × {Math.round(geom.height)}</div>
                           </div>
                         )}
                       </div>
@@ -863,7 +868,8 @@ export default function ChapterDetail() {
                               const currentPanels = queryClient.getQueryData<Panel[]>(panelsQueryKey) ?? [];
                               const currentPanel = currentPanels.find((p) => p.id === panel.id);
                               const currentBlocks = getPanelBlocks(currentPanel ?? panel);
-                              const nextBlocks = currentBlocks.map((b) => (b.id === block.id ? { ...b, x: draft.x, y: draft.y, width: draft.width, height: draft.height } : b));
+                              const roundedDraft = { x: Math.round(draft.x), y: Math.round(draft.y), width: Math.round(draft.width), height: Math.round(draft.height) };
+                              const nextBlocks = currentBlocks.map((b) => (b.id === block.id ? { ...b, x: roundedDraft.x, y: roundedDraft.y, width: roundedDraft.width, height: roundedDraft.height } : b));
                               const payload = { id: panel.id, updates: { layout: { ...layout, blocks: nextBlocks } as unknown as Json } };
                               queryClient.cancelQueries({ queryKey: panelsQueryKey });
                               const previousPanels = queryClient.getQueryData<Panel[]>(panelsQueryKey);

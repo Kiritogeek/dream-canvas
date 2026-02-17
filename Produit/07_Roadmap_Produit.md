@@ -110,30 +110,16 @@ Voir `Plan_Action_Developpement_Scénario.md` pour le détail des phases A à G.
 | **Liste « Ne pas créer » / précision détection** | Réduire faux positifs (règles dialogue, répétition, stop-words). Voir `Plan_Action_TextHighligh_No_Assets.md`. | P0 | M | ✅ En place (évolution continue) |
 | **Renommage d'assets → mise à jour scénario** | Au renommage : proposer (ou appliquer) le remplacement dans les chapitres concernés. Voir `Plan_Action_Developpement_Scénario.md` § 2. | P0 | M | 📋 À faire |
 
-**Note** : L'IA Panel (suggestions / réécriture des descriptions de panels, accepter-rejeter) est en **2.2.1**. Règle inchangée : réutilisation de cette IA (ou d’un agent dérivé) pour la **rédaction des prompts des panels** (suggestions de descriptions courtes à partir du scénario + assets), sans injecter le scénario brut dans le prompt d’image (règle inchangée : prompt = style + assets + description).
 
 ### 2.2 Édition de l'œuvre (chapitres visuels, panels — uniquement visuel)
 
-#### 2.2.1 Double visualisation & IA Panel
+#### 2.2.1 Double visualisation
 
 | Tâche | Description | Priorité | Effort | Statut |
 |-------|------------|----------|--------|--------|
 | **Double visualisation** | À l'édition d'un panel : **côté scénario** chapitre de scénario (texte) affiché dès l'entrée dans le chapitre visuel (lien optionnel ou sélecteur) ; **côté assets** assets sélectionnés. Voir rapport § 3.4.1 (projection ouverture chapitre texte). | P0 | M | ✅ Livré |
-| **IA Panel** | Même modèle LLM, system prompt « IA Panel » : suggère ou **réécrit** la description du panel (contexte scénario + assets). Réécriture **directe** dans le champ ; **accepter** ou **rejeter**. Règle : prompt d'image = style + assets + description (jamais le scénario brut). | P0 | L | 📋 À venir |
 
-#### 2.2.2 Mode Automatique (flux rapide)
-
-| Tâche | Description | Priorité | Effort |
-|-------|------------|----------|--------|
-| **Découpage automatique** | IA : scénario/synopsis → liste de panels (courtes descriptions). Découpage uniquement, pas dans le prompt d'image. | P0 | L |
-| **Génération panel par panel** | Génération au minimum un panel à la fois (pas tout le chapitre d'un coup : limites API, timeouts). | P0 | M |
-| **Architecture prompt panels** | Prompt par panel = style + **assets sélectionnés** + **courte description du panel** (pas le scénario/synopsis). Génération d’**images pleines** | P0 | L |
-| **Sélection des assets par l'utilisateur** | En mode Auto : sélection des assets du chapitre avant génération. **Impératif** : cadrer la scène, faire comprendre à l'IA les éléments à mettre dans le chapitre. | P0 | M |
-| **Intégration des assets dans les prompts** | Injecter les assets sélectionnés (personnages, décors, objets) dans chaque prompt de panel | P0 | M |
-| **Format vertical 800×1200** | Images pleines, format webtoon | P0 | S |
-| **Régénération / édition** | Régénérer un panel, modifier le prompt, réorganisation | P0–P1 | S–M |
-
-#### 2.2.3 Mode Structuré (flux avec blocs)
+#### 2.2.2 Mode Structuré (flux avec blocs)
 
 | Tâche | Description | Priorité | Effort |
 |-------|------------|----------|--------|
@@ -143,7 +129,7 @@ Voir `Plan_Action_Developpement_Scénario.md` pour le détail des phases A à G.
 | **Génération 1 image par bloc** | Image pleine par bloc à partir du prompt et des **assets sélectionnés** pour ce bloc, stockage URL, affichage dans le bloc | P0 | L |
 | **Régénération / édition** | Régénérer un bloc, modifier prompt ou refs, réorganisation blocs | P1 | M |
 
-#### 2.2.4 Système de dialogues et narration
+#### 2.2.3 Système de dialogues et narration
 
 | Tâche | Description | Priorité | Effort |
 |-------|------------|----------|--------|
@@ -154,7 +140,7 @@ Voir `Plan_Action_Developpement_Scénario.md` pour le détail des phases A à G.
 | **Personnalisation typographique** | Police, taille, couleur du texte | P2 | S |
 | **Génération IA de dialogues** | Suggestion de dialogues à partir du synopsis | P2 | L |
 
-#### 2.2.5 Lecteur webtoon amélioré
+#### 2.2.4 Lecteur webtoon amélioré
 
 | Tâche | Description | Priorité | Effort |
 |-------|------------|----------|--------|

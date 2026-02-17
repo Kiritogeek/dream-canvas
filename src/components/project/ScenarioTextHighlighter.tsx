@@ -26,6 +26,8 @@ interface ScenarioTextHighlighterProps {
   text: string;
   assets: Asset[];
   className?: string;
+  /** Masquer la ligne d'indication (« X assets détectés » / « Aucun asset détecté »). Utile en overlay dans un champ de saisie. */
+  hideIndicator?: boolean;
   /** Appelé quand l'utilisateur clique « Créer comme asset » */
   onCreateAsset?: (name: string, type: AssetType) => void;
   /** Noms exclus de la liste « éléments non créés » (ex. après « Ne pas créer ») */
@@ -569,6 +571,7 @@ export function ScenarioTextHighlighter({
   text,
   assets,
   className,
+  hideIndicator,
   onCreateAsset,
   dismissedMissingNames,
   onDismissMissing,
@@ -615,20 +618,21 @@ export function ScenarioTextHighlighter({
   }, []);
 
   return (
-    <div className="space-y-2">
-      {/* Indicateur */}
-      <p className="text-xs text-muted-foreground">
-        {detectedAssetCount > 0
-          ? `${detectedAssetCount} asset${detectedAssetCount > 1 ? "s" : ""} détecté${detectedAssetCount > 1 ? "s" : ""} dans ce chapitre`
-          : "Aucun asset détecté dans ce chapitre"}
-        {missingNames.length > 0 &&
-          ` · ${missingNames.length} élément${missingNames.length > 1 ? "s" : ""} non créé${missingNames.length > 1 ? "s" : ""}`}
-        {onCreateAsset && (
-          <span className="ml-1 opacity-70">
-            · sélectionnez du texte pour créer un asset
-          </span>
-        )}
-      </p>
+    <div className={hideIndicator ? undefined : "space-y-2"}>
+      {!hideIndicator && (
+        <p className="text-xs text-muted-foreground">
+          {detectedAssetCount > 0
+            ? `${detectedAssetCount} asset${detectedAssetCount > 1 ? "s" : ""} détecté${detectedAssetCount > 1 ? "s" : ""} dans ce chapitre`
+            : "Aucun asset détecté dans ce chapitre"}
+          {missingNames.length > 0 &&
+            ` · ${missingNames.length} élément${missingNames.length > 1 ? "s" : ""} non créé${missingNames.length > 1 ? "s" : ""}`}
+          {onCreateAsset && (
+            <span className="ml-1 opacity-70">
+              · sélectionnez du texte pour créer un asset
+            </span>
+          )}
+        </p>
+      )}
 
       {/* Texte surligné */}
       <div

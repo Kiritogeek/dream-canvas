@@ -129,11 +129,9 @@ export default function ChapterDetail() {
     startMouseY: number;
     blockWidth: number;
     blockHeight: number;
-    /** Cache rect + scroll pour éviter getBoundingClientRect à chaque pointermove */
+    /** Cache rect au start (fallback si getBoundingClientRect indisponible pendant le move) */
     rectLeft: number;
     rectTop: number;
-    scrollLeft: number;
-    scrollTop: number;
   } | null>(null);
   /** En cours de resize (annuler le drag du bloc) */
   const isResizingRef = useRef(false);
@@ -214,20 +212,12 @@ export default function ChapterDetail() {
     return { x: x2, y: y2, width: width, height: height };
   };
 
-  /** Convertit viewport -> coords logiques canvas (prend en compte le scroll de tous les ancêtres) */
+  /** Convertit viewport -> coords logiques canvas. getBoundingClientRect() reflète déjà le scroll (le canvas bouge dans la viewport), donc pas d’ajout de scroll. */
   const viewportToCanvas = (canvasEl: HTMLDivElement, clientX: number, clientY: number) => {
     const rect = canvasEl.getBoundingClientRect();
-    let scrollLeft = 0;
-    let scrollTop = 0;
-    let p: HTMLElement | null = canvasEl.parentElement;
-    while (p) {
-      scrollLeft += p.scrollLeft ?? 0;
-      scrollTop += p.scrollTop ?? 0;
-      p = p.parentElement;
-    }
     return {
-      x: clientX - rect.left + scrollLeft,
-      y: clientY - rect.top + scrollTop,
+      x: clientX - rect.left,
+      y: clientY - rect.top,
     };
   };
 
@@ -580,15 +570,17 @@ export default function ChapterDetail() {
       );
     };
 
-    const handleSaveBlockPrompt = (block: PanelBlock, newPrompt: string) => {
+    const handleSaveBlockPrompt = (block: PanelBlock, newPrompt: string, options?: { silent?: boolean }) => {
       const nextBlocks = layout.blocks.map((b) => (b.id === block.id ? { ...b, prompt: newPrompt.trim() || null } : b));
       updatePanelMutation.mutate(
         { id: panel.id, updates: { layout: { ...layout, blocks: nextBlocks } as unknown as Json } },
         {
           onSuccess: () => {
             setEditingBlockKey(null);
-            setBlockPromptDrafts((prev) => { const next = { ...prev }; delete next[`${panel.id}-${block.id}`]; return next; });
-            toast({ title: "Prompt du bloc enregistré" });
+            if (!options?.silent) {
+              setBlockPromptDrafts((prev) => { const next = { ...prev }; delete next[`${panel.id}-${block.id}`]; return next; });
+              toast({ title: "Prompt du bloc enregistré" });
+            }
           },
           onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }),
         }
@@ -751,14 +743,11 @@ export default function ChapterDetail() {
                         const canvasEl = canvasRefByPanel.current[panel.id];
                         if (!canvasEl) return;
                         const rect = canvasEl.getBoundingClientRect();
-                        let scrollLeft = 0, scrollTop = 0;
-                        let p: HTMLElement | null = canvasEl.parentElement;
-                        while (p) { scrollLeft += p.scrollLeft ?? 0; scrollTop += p.scrollTop ?? 0; p = p.parentElement; }
-                        const startMouseX = e.clientX - rect.left + scrollLeft;
-                        const startMouseY = e.clientY - rect.top + scrollTop;
+                        const startMouseX = e.clientX - rect.left;
+                        const startMouseY = e.clientY - rect.top;
                         const el = e.currentTarget as HTMLDivElement;
                         draggingBlockElRef.current = el;
-                        draggingBlockDataRef.current = { panelId: panel.id, blockId: block.id, startBlockX: block.x, startBlockY: block.y, startMouseX, startMouseY, blockWidth: block.width, blockHeight: block.height, rectLeft: rect.left, rectTop: rect.top, scrollLeft, scrollTop };
+                        draggingBlockDataRef.current = { panelId: panel.id, blockId: block.id, startBlockX: block.x, startBlockY: block.y, startMouseX, startMouseY, blockWidth: block.width, blockHeight: block.height, rectLeft: rect.left, rectTop: rect.top };
                         const ghost = dragGhostRefByPanel.current[panel.id];
                         if (ghost) {
                           ghost.style.display = "block";
@@ -772,8 +761,10 @@ export default function ChapterDetail() {
                         const onPointerMove = (ev: PointerEvent) => {
                           const data = draggingBlockDataRef.current;
                           if (!data) return;
-                          const canvasMouseX = ev.clientX - data.rectLeft + data.scrollLeft;
-                          const canvasMouseY = ev.clientY - data.rectTop + data.scrollTop;
+                          const canvas = canvasRefByPanel.current[data.panelId];
+                          const rect = canvas?.getBoundingClientRect();
+                          const canvasMouseX = rect ? ev.clientX - rect.left : ev.clientX - data.rectLeft;
+                          const canvasMouseY = rect ? ev.clientY - rect.top : ev.clientY - data.rectTop;
                           const newX = Math.max(0, Math.min(PANEL_WIDTH - data.blockWidth, data.startBlockX + (canvasMouseX - data.startMouseX)));
                           const newY = Math.max(0, Math.min(panelH - data.blockHeight, data.startBlockY + (canvasMouseY - data.startMouseY)));
                           const g = dragGhostRefByPanel.current[data.panelId];
@@ -924,74 +915,42 @@ export default function ChapterDetail() {
                 const blockKey = `${panel.id}-${block.id}`;
                 const nameDraft = blockNameDrafts[blockKey] ?? block.name ?? "";
                 const promptDraft = blockPromptDrafts[blockKey] ?? block.prompt ?? "";
-                const isEditingPrompt = editingBlockKey === blockKey;
                 const isGenerating = generatePanelImage.isPending && generatePanelImage.variables?.panel?.id === panel.id;
-                const dimDraft = blockDimensionDrafts[blockKey] ?? { width: block.width, height: block.height };
-                const dimDirty = dimDraft.width !== block.width || dimDraft.height !== block.height;
                 return (
                   <>
                     <div className="space-y-2">
                       <label className="text-xs font-medium text-muted-foreground">Nom du bloc</label>
-                      <div className="flex gap-2">
-                        <input
-                          type="text"
-                          value={nameDraft}
-                          onChange={(e) => setBlockNameDrafts((prev) => ({ ...prev, [blockKey]: e.target.value }))}
-                          onBlur={() => { if (nameDraft.trim() !== (block.name ?? "")) handleSaveBlockName(block, nameDraft); }}
-                          placeholder="Ex. Bloc 1"
-                          className="flex-1 h-9 rounded-lg border border-border/60 bg-background px-3 text-sm"
-                        />
-                        <Button size="sm" variant="outline" className="shrink-0" onClick={() => handleSaveBlockName(block, nameDraft)} disabled={updatePanelMutation.isPending}>Enregistrer</Button>
-                      </div>
+                      <input
+                        type="text"
+                        value={nameDraft}
+                        onChange={(e) => setBlockNameDrafts((prev) => ({ ...prev, [blockKey]: e.target.value }))}
+                        onBlur={() => { if (nameDraft.trim() !== (block.name ?? "")) handleSaveBlockName(block, nameDraft); }}
+                        placeholder="Ex. Bloc 1"
+                        className="w-full h-9 rounded-lg border border-border/60 bg-background px-3 text-sm"
+                      />
                     </div>
                     <div className="space-y-2">
                       <label className="text-xs font-medium text-muted-foreground">Prompt visuel</label>
-                      {!isEditingPrompt ? (
-                        <div className="rounded-xl border border-border/60 bg-muted/20 px-3 py-2 min-h-[60px]">
-                          <p className="text-sm whitespace-pre-wrap text-foreground/90">{block.prompt || <span className="text-muted-foreground italic">Aucun prompt.</span>}</p>
-                          <Button size="sm" variant="ghost" className="mt-2 h-7 gap-1 text-muted-foreground" onClick={() => { setEditingBlockKey(blockKey); setBlockPromptDrafts((prev) => ({ ...prev, [blockKey]: block.prompt ?? "" })); }}><Pencil className="h-3 w-3" /> Modifier</Button>
-                        </div>
-                      ) : (
-                        <div className="space-y-2">
-                          <Textarea value={promptDraft} onChange={(e) => setBlockPromptDrafts((prev) => ({ ...prev, [blockKey]: e.target.value }))} placeholder="Description visuelle de ce bloc…" className="min-h-[100px] text-sm resize-y" autoFocus />
-                          <div className="flex gap-2">
-                            <Button size="sm" variant="ghost" onClick={() => setEditingBlockKey(null)}><X className="h-3 w-3" /> Annuler</Button>
-                            <Button size="sm" variant="outline" disabled={updatePanelMutation.isPending} onClick={() => handleSaveBlockPrompt(block, promptDraft)}><Save className="h-3 w-3" /> Enregistrer</Button>
-                          </div>
+                      <Textarea
+                        value={promptDraft}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setBlockPromptDrafts((prev) => ({ ...prev, [blockKey]: v }));
+                          handleSaveBlockPrompt(block, v, { silent: true });
+                        }}
+                        placeholder="Description visuelle de ce bloc…"
+                        className="min-h-[100px] text-sm resize-y"
+                      />
+                      {(promptDraft.trim() || (block.prompt ?? "").trim()) && (
+                        <div className="rounded-lg border border-border/60 bg-muted/20 px-2 py-1.5">
+                          <ScenarioTextHighlighter text={promptDraft.trim() || (block.prompt ?? "").trim()} assets={assets} className="text-sm min-h-0" hideIndicator />
                         </div>
                       )}
                     </div>
-                    {(promptDraft.trim() || (block.prompt ?? "").trim()) && (
-                      <div className="rounded-lg border border-border/60 bg-muted/20 px-2 py-1.5">
-                        <span className="text-xs text-muted-foreground">Mentions d'assets</span>
-                        <div className="mt-1 text-sm"><ScenarioTextHighlighter text={promptDraft.trim() || (block.prompt ?? "").trim()} assets={assets} className="min-h-[20px]" /></div>
-                      </div>
-                    )}
                     <div className="space-y-2">
                       <span className="text-xs font-medium text-muted-foreground">Dimensions</span>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <input type="number" min={100} max={PANEL_WIDTH} value={dimDraft.width} onChange={(e) => setBlockDimensionDrafts((prev) => ({ ...prev, [blockKey]: { ...dimDraft, width: Number(e.target.value) || 100 } }))} className="w-20 h-9 rounded-lg border border-border bg-background px-2 text-sm" />
-                        <input type="number" min={100} max={panelHeight} value={dimDraft.height} onChange={(e) => setBlockDimensionDrafts((prev) => ({ ...prev, [blockKey]: { ...dimDraft, height: Number(e.target.value) || 100 } }))} className="w-20 h-9 rounded-lg border border-border bg-background px-2 text-sm" />
-                        <Button size="sm" variant="outline" disabled={updatePanelMutation.isPending || !dimDirty} onClick={() => handleSaveBlockDimensions(block, dimDraft.width, dimDraft.height)}>Appliquer</Button>
-                      </div>
+                      <p className="text-sm text-foreground tabular-nums">{block.width} × {Math.round(block.height)}</p>
                     </div>
-                    {assets.length > 0 && (
-                      <div className="rounded-lg border border-border/60 bg-muted/20 px-2 py-1.5">
-                        <span className="text-xs text-muted-foreground">Assets pour ce bloc</span>
-                        <div className="mt-1.5 flex flex-wrap gap-2">
-                          {assets.map((asset) => {
-                            const refs = block.asset_refs ?? [];
-                            const checked = refs.includes(asset.id);
-                            return (
-                              <label key={asset.id} className="flex items-center gap-1.5 text-sm cursor-pointer">
-                                <input type="checkbox" checked={checked} onChange={() => { const nextRefs = checked ? refs.filter((id) => id !== asset.id) : [...refs, asset.id]; const nextBlocks = layout.blocks.map((b) => (b.id === block.id ? { ...b, asset_refs: nextRefs } : b)); updatePanelMutation.mutate({ id: panel.id, updates: { layout: { ...layout, blocks: nextBlocks } as unknown as Json } }); }} className="rounded border-border" />
-                                <span className="truncate max-w-[140px]" title={asset.name}>{asset.name}</span>
-                              </label>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
                     {project && (
                       <Button size="sm" variant="outline" className="w-full gap-1.5" disabled={(!(block.prompt?.trim()) && !(panel.prompt?.trim())) || (!(project.style_template?.trim()) && !(Array.isArray(project.style_image_urls) && project.style_image_urls.length > 0)) || isGenerating} onClick={() => handleGenerateBlock(block)}>
                         {isGenerating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}{block.image_url ? "Régénérer l'image" : "Générer l'image"}

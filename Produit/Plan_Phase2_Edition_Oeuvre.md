@@ -189,10 +189,11 @@ Référence : roadmap Phase 2 § 2.1, rapport § 3.2.
 | Livrable | Description |
 |----------|-------------|
 | **Bibliothèque de bulles** | **Mode Édition.** Bibliothèque de formes/types (parole, pensée, cri, chuchotement, narration). **Même comportement que les blocs** : glisser-déposer depuis la bibliothèque sur le panel. Par bulle : **texte éditable**, couleur contour/intérieur, police, taille. Stockage `panels.speech_bubbles` (JSONB). |
-| **Bibliothèque d'effets** | **Mode Édition.** Effets applicables sur le panel : transitions (fondu, coupure), lignes de mouvement. Choix dans la bibliothèque et application sur le panel. Positions, types, styles en JSONB (ex. `panels.effects`). |
+| **Menu Couleur** | **Mode Édition.** **Menu dédié** pour modifier la couleur de fond du panel : sélecteur de couleur (couleur unie ou dégradé), aperçu en temps réel. Stockage dans le panel (ex. `panels.background_color` ou `panels.background_style`). |
+| **Bibliothèque d'effets** | **Mode Édition.** **Bibliothèque d'éléments visuels** pour enrichir le panel et donner de la profondeur, douceur, émotion et vivant à l'œuvre. Effets organisés par catégories : **profondeur** (ombres portées, lumières directionnelles, atmosphère), **douceur** (flou artistique, transitions douces, brume), **émotion** (météo, ambiances colorées, filtres), **vivant** (lignes de mouvement, particules, dynamisme). Choix dans la bibliothèque et application sur le panel. Positions, types, styles, intensité en JSONB (ex. `panels.effects`). |
 | **Effets de transition** | **Ajout côté client** (hors des images, overlay). Effets entre panels ou à l’intérieur d’un panel (fondu, coupure, etc.). Positions, types, styles en JSONB par panel. |
 | **Lignes de mouvement** | **Ajout côté client** (hors des images, overlay). Lignes dynamiques (tension, intensité), lignes de vitesse, lignes d’impact, effets de vitesse. Positions, styles, types stockés en JSONB par panel (ex. `panels.motion_lines` ou `panels.effects`). Évolution possible : demander certaines lignes d’impact **dans le prompt d’image** (intégré). |
-| **Rendu final du panel** | Composition : image(s) des blocs + overlay (bulles + effets + texte libre) + fond. Dimensions panel 720×5000 respectées. |
+| **Rendu final du panel** | Composition : image(s) des blocs + overlay (bulles + effets + texte libre) + fond (couleur personnalisée via Menu Couleur). Dimensions panel 720×5000 respectées. |
 | **Lecteur webtoon** | Vue lecture : défilement vertical, succession de panels ; navigation entre chapitres (précédent / suivant). |
 
 ---
@@ -207,7 +208,7 @@ Référence : roadmap Phase 2 § 2.1, rapport § 3.2.
 | 4 | Liaison suggestion ↔ Édition de l'œuvre | Suggestion depuis la section Scénario (ou IA) ; import vers chapitre visuel (création/mise à jour des panels). Base optionnelle. | ✅ Livrée |
 | 5 | **Édition blocs + génération par bloc** | **Vue unifiée** : canvas 720×5000 + panneau latéral (prompt/dimensions par bloc). Ajout, position, dimensions des blocs (glisser-déposer, poignées) ; prompt par bloc ; génération par bloc (dimensions = bloc). Détection assets dans le prompt = prévue Étape 6. Voir `Edition_Panel_Blocs_Bulles.md`, `Edition_Panel_Deux_Modes.md`. | ✅ Livrée |
 | 6 | Mode Structuré (blocs) | **Bibliothèque de blocs** à placer sur le panel (mode Architecture) ; images **générées à l'intérieur** de chaque bloc ; prompt + assets par bloc (mode Édition). | 📋 À faire |
-| 7 | **Mode Édition : bulles, effets, fond, texte et lecture** | **Bibliothèque de bulles** (placement comme les blocs) ; **bibliothèque d'effets** ; **couleur de fond** ; **ajout de texte** (typo). Rendu panel = blocs + overlay ; lecteur webtoon vertical. | 📋 À faire |
+| 7 | **Mode Édition : bulles, effets, fond, texte et lecture** | **Bibliothèque de bulles** (placement comme les blocs) ; **Menu Couleur** (modification couleur de fond) ; **bibliothèque d'effets** (profondeur, douceur, émotion, vivant) ; **ajout de texte** (typo). Rendu panel = blocs + overlay + fond personnalisé ; lecteur webtoon vertical. | 📋 À faire |
 
 ---
 

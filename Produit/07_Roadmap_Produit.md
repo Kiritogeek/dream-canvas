@@ -140,6 +140,15 @@ Voir `Plan_Action_Developpement_Scénario.md` pour le détail des phases A à G.
 | **Personnalisation typographique** | Police, taille, couleur du texte | P2 | S |
 | **Génération IA de dialogues** | Suggestion de dialogues à partir du synopsis | P2 | L |
 
+#### 2.2.4 Personnalisation visuelle du panel
+
+| Tâche | Description | Priorité | Effort |
+|-------|------------|----------|--------|
+| **Menu Couleur** | Modification de la couleur de fond du panel (couleur unie ou dégradé) | P0 | M |
+| **Bibliothèque d'effets** | Bibliothèque d'éléments visuels pour donner de la profondeur, douceur, émotion et vivant à l'œuvre | P0 | L |
+| **Catégories d'effets** | Effets organisés par catégories : profondeur (ombres, lumières, atmosphère), douceur (flou, transitions douces), émotion (météo, ambiances), vivant (mouvement, dynamisme) | P0 | M |
+| **Application des effets** | Placement et personnalisation des effets sur le panel (position, intensité, paramètres) | P0 | M |
+
 #### 2.2.4 Lecteur webtoon amélioré
 
 | Tâche | Description | Priorité | Effort |
@@ -306,4 +315,4 @@ Jan     Fév     Mar     Avr     Mai     Juin    Jul     Aoû     Sep     Oct   
 
 ---
 
-*Dernière mise à jour : 17 février 2026 (Audit : mise à jour statut réel Phase 2 — Section Scénario ✅ complète, Édition de l'œuvre ✅ partiellement implémentée)*
+*Dernière mise à jour : 17 février 2026 — Roadmap : ajout § 2.2.4 Personnalisation visuelle du panel (Menu Couleur, Bibliothèque d'effets : profondeur, douceur, émotion, vivant).*

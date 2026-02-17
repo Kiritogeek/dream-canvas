@@ -140,6 +140,17 @@
 | US-8.2 | En tant qu'utilisateur, je veux ajouter de la narration à un panel | - Zone de narration en haut/bas<br>- Texte stylisé | 📋 Backlog |
 | US-8.3 | En tant qu'utilisateur, je veux personnaliser les polices des dialogues | - Choix de police<br>- Taille<br>- Couleur | 📋 Backlog |
 
+### E8b — Personnalisation visuelle du panel (à implémenter)
+
+| ID | User Story | Critères d'acceptation | Statut |
+|----|-----------|----------------------|--------|
+| US-8b.1 | En tant qu'utilisateur, je veux modifier la couleur de fond d'un panel | - **Menu Couleur** accessible en mode Édition<br>- Sélecteur de couleur (couleur unie ou dégradé)<br>- Aperçu en temps réel<br>- Sauvegarde de la couleur de fond | 📋 Backlog |
+| US-8b.2 | En tant qu'utilisateur, je veux ajouter des effets visuels à mon panel pour enrichir l'œuvre | - **Bibliothèque d'effets** accessible en mode Édition<br>- Effets organisés par catégories : profondeur, douceur, émotion, vivant<br>- Aperçu des effets avant application<br>- Application sur le panel avec personnalisation (position, intensité, paramètres) | 📋 Backlog |
+| US-8b.3 | En tant qu'utilisateur, je veux utiliser des effets de profondeur pour donner de la dimension à mon panel | - Effets disponibles : ombres portées, lumières directionnelles, atmosphère<br>- Personnalisation de l'intensité et de la position<br>- Application en overlay (sans régénérer les images) | 📋 Backlog |
+| US-8b.4 | En tant qu'utilisateur, je veux utiliser des effets de douceur pour adoucir l'ambiance de mon panel | - Effets disponibles : flou artistique, transitions douces, brume<br>- Personnalisation de l'intensité et de la position<br>- Application en overlay | 📋 Backlog |
+| US-8b.5 | En tant qu'utilisateur, je veux utiliser des effets émotionnels pour transmettre l'ambiance de la scène | - Effets disponibles : météo, ambiances colorées, filtres<br>- Personnalisation de l'intensité et de la position<br>- Application en overlay | 📋 Backlog |
+| US-8b.6 | En tant qu'utilisateur, je veux utiliser des effets vivants pour donner du dynamisme à mon panel | - Effets disponibles : lignes de mouvement, particules, dynamisme<br>- Personnalisation de l'intensité et de la position<br>- Application en overlay | 📋 Backlog |
+
 ---
 
 ## 3. Parcours Utilisateur Principal

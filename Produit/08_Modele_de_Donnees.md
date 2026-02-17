@@ -345,6 +345,8 @@ CREATE TYPE asset_type AS ENUM ('character', 'background', 'object');
 | `dialogue` | `TEXT` | NULL | Texte de dialogue (simple) |
 | `narration` | `TEXT` | NULL | Texte de narration |
 | `speech_bubbles` | `JSONB` | NULL | Bulles de dialogue (structure riche) — prévu mais UI non implémentée |
+| `background_color` ou `background_style` | `TEXT` / `JSONB` | NULL | Couleur de fond du panel (Menu Couleur) : couleur unie (hex) ou dégradé (JSON). Prévu pour mode Édition. |
+| `effects` | `JSONB` | NULL | Bibliothèque d'effets : éléments visuels pour profondeur, douceur, émotion, vivant (positions, types, styles, intensité). Prévu pour mode Édition. |
 | `motion_lines` | `JSONB` | NULL | Lignes de mouvement (effets visuels) — prévu mais non implémenté |
 | `transition_effects` | `JSONB` | NULL | Effets de transition entre panels — prévu mais non implémenté |
 | `created_at` | `TIMESTAMPTZ` | NOT NULL, DEFAULT now() | Date de création |

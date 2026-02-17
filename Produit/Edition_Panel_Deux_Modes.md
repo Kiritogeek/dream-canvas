@@ -36,8 +36,8 @@
 |----------------|-------------|
 | **Clic sur un bloc** | À terme : **popup** (dialog) pour saisir/modifier le prompt du bloc. **Actuellement** : le prompt est édité dans le **panneau latéral** (Textarea par bloc) ; **aperçu des mentions d'assets** sous le champ (surbrillance + hover, même composant que l'Aperçu scénario). |
 | **Bibliothèque de bulles de dialogue** | Même principe que les blocs : **bibliothèque** de formes/types (parole, pensée, cri, chuchotement, narration). L'utilisateur **place** les bulles sur le panel (glisser-déposer depuis la bibliothèque). Par bulle : **texte éditable**, position, style (couleur contour, intérieur, police, taille). Stockage `panels.speech_bubbles`. |
-| **Bibliothèque d'effets** | **Effets** applicables sur le panel (transitions, lignes de mouvement, etc.) : bibliothèque d'effets prédéfinis ; l'utilisateur **choisit et applique** un effet sur le panel (ou sur une zone). Positions/types/styles stockés en JSONB (ex. `panels.effects` ou champs dédiés). |
-| **Couleur de fond** | **Choix de la couleur de fond** du panel (couleur unie ou dégradé, selon implémentation). Stockage dans le panel (ex. `panels.background_style` ou champ dédié). |
+| **Menu Couleur** | **Menu dédié** pour modifier la couleur de fond du panel : sélecteur de couleur (couleur unie ou dégradé), aperçu en temps réel. Stockage dans le panel (ex. `panels.background_color` ou `panels.background_style`). |
+| **Bibliothèque d'effets** | **Bibliothèque d'éléments visuels** pour enrichir le panel et donner de la profondeur, douceur, émotion et vivant à l'œuvre. Effets organisés par catégories : **profondeur** (ombres portées, lumières directionnelles, atmosphère), **douceur** (flou artistique, transitions douces, brume), **émotion** (météo, ambiances colorées, filtres), **vivant** (lignes de mouvement, particules, dynamisme). L'utilisateur **choisit et applique** un effet sur le panel (ou sur une zone). Positions/types/styles/intensité stockés en JSONB (ex. `panels.effects` ou champs dédiés). |
 | **Ajout de texte** | Possibilité d'**ajouter du texte** sur le panel (texte libre, hors bulles) : **choix de la typographie** (police, taille, couleur). Position par glisser-déposer ou coordonnées. Stockage en overlay (ex. texte + position + style dans un tableau dédié par panel). |
 
 **Règle** : en mode Édition, on **ne déplace ni ne redimensionne** les blocs ; le canvas affiche les blocs en lecture seule. Toute l'édition de contenu (prompt, bulles, effets, fond, texte) se fait via popups, panneau latéral ou bibliothèques.
@@ -66,8 +66,8 @@
 | Éditer le prompt d'un bloc | Non | Oui (popup avec **détection des assets** comme dans le scénario) |
 | Générer l'image d'un bloc | Optionnel (depuis panneau) | Oui (depuis popup ou panneau) |
 | Bibliothèque de bulles | Non | Oui (placement + édition texte/style) |
-| Bibliothèque d'effets | Non | Oui (appliquer effets sur le panel) |
-| Couleur de fond du panel | Non | Oui |
+| Bibliothèque d'effets | Non | Oui (appliquer effets sur le panel : profondeur, douceur, émotion, vivant) |
+| Menu Couleur (fond du panel) | Non | Oui (sélecteur couleur unie/dégradé) |
 | Ajout de texte (typo) | Non | Oui |
 
 ---

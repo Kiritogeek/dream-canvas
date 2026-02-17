@@ -31,7 +31,7 @@ Le panel est donc une **surface fixe 720×5000** dans laquelle s'organisent :
 | Mode | Rôle | Détail |
 |------|------|--------|
 | **Architecture** | Structure du panel | Ajouter des blocs, **modifier la position** des blocs (glisser-déposer), **modifier les dimensions** des blocs (poignées ou champs). Aucune édition de prompt ni bulles dans ce mode. |
-| **Édition** | Contenu du panel | **Clic sur un bloc** → popup pour **saisir le prompt** (avec **détection des assets** dans le texte, comme dans le scénario). **Bibliothèque de bulles** (même comportement que les blocs : placement par glisser-déposer). **Bibliothèque d'effets**, **couleur de fond**, **ajout de texte** (choix de la typo). Canvas en lecture seule pour la structure. |
+| **Édition** | Contenu du panel | **Clic sur un bloc** → popup pour **saisir le prompt** (avec **détection des assets** dans le texte, comme dans le scénario). **Bibliothèque de bulles** (même comportement que les blocs : placement par glisser-déposer). **Menu Couleur** (modification couleur de fond), **Bibliothèque d'effets** (profondeur, douceur, émotion, vivant), **ajout de texte** (choix de la typo). Canvas en lecture seule pour la structure. |
 
 Spécification détaillée : **`Edition_Panel_Deux_Modes.md`**.
 

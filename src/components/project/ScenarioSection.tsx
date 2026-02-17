@@ -17,6 +17,10 @@ import {
   Eye,
   PenLine,
   LayoutPanelTop,
+  User,
+  ImageIcon,
+  Package,
+  MousePointer2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -68,9 +72,7 @@ const SCENARIO_RECENT_CHAPTERS_FOR_IA = 5;
 
 // ── Exemple « Chapitre Type » (en dur) ────────────────────────
 
-const CHAPITRE_TYPE_EXEMPLE = `### Chapitre 1 : La routine de Sami
-
-Lieu : Un petit appartement parisien au troisième étage, cuisine ouverte sur un salon encombré de livres et de plantes vertes. La lumière du matin filtre à travers des rideaux jaune pâle. Une cafetière italienne grésille sur la gazinière, diffusant une odeur de café torréfié dans tout l'espace.
+const CHAPITRE_TYPE_EXEMPLE = `Lieu : Un petit appartement parisien au troisième étage, cuisine ouverte sur un salon encombré de livres et de plantes vertes. La lumière du matin filtre à travers des rideaux jaune pâle. Une cafetière italienne grésille sur la gazinière, diffusant une odeur de café torréfié dans tout l'espace.
 
 Scène :
 SAMI (28 ans), cheveux en bataille, t-shirt froissé, se tient debout devant le plan de travail. Il fixe son téléphone d'un air absent. Sur la table, un bol de céréales entamé et un journal ouvert à la page des petites annonces. Sa colocataire, NORA (26 ans), entre dans la cuisine en nouant ses cheveux, son sac déjà sur l'épaule.
@@ -163,6 +165,20 @@ Dialogue - Action :
 
     Ils trinquent avec une bière tiède et un verre de jus de pomme douteux, assis par terre, le documentaire muet continuant de défiler devant eux. Pour la première fois depuis des semaines, le silence entre eux n'est pas lourd — il est léger.`;
 
+// Assets de démo pour l'exemple « Chapitre type » (personnages + décors + objets, surlignage réel)
+const CHAPITRE_TYPE_DEMO_ASSETS: Asset[] = [
+  { id: "demo-sami", name: "Sami", asset_type: "character", project_id: "", user_id: "", created_at: "", image_url: null, image_url_back: null, image_url_profile_left: null, image_url_profile_right: null, metadata: null, prompt: null },
+  { id: "demo-nora", name: "Nora", asset_type: "character", project_id: "", user_id: "", created_at: "", image_url: null, image_url_back: null, image_url_profile_left: null, image_url_profile_right: null, metadata: null, prompt: null },
+  { id: "demo-madeleine", name: "Madeleine", asset_type: "character", project_id: "", user_id: "", created_at: "", image_url: null, image_url_back: null, image_url_profile_left: null, image_url_profile_right: null, metadata: null, prompt: null },
+  { id: "demo-cuisine", name: "cuisine", asset_type: "background", project_id: "", user_id: "", created_at: "", image_url: null, image_url_back: null, image_url_profile_left: null, image_url_profile_right: null, metadata: null, prompt: null },
+  { id: "demo-salon", name: "salon", asset_type: "background", project_id: "", user_id: "", created_at: "", image_url: null, image_url_back: null, image_url_profile_left: null, image_url_profile_right: null, metadata: null, prompt: null },
+  { id: "demo-librairie", name: "librairie", asset_type: "background", project_id: "", user_id: "", created_at: "", image_url: null, image_url_back: null, image_url_profile_left: null, image_url_profile_right: null, metadata: null, prompt: null },
+  { id: "demo-telephone", name: "téléphone", asset_type: "object", project_id: "", user_id: "", created_at: "", image_url: null, image_url_back: null, image_url_profile_left: null, image_url_profile_right: null, metadata: null, prompt: null },
+  { id: "demo-journal", name: "journal", asset_type: "object", project_id: "", user_id: "", created_at: "", image_url: null, image_url_back: null, image_url_profile_left: null, image_url_profile_right: null, metadata: null, prompt: null },
+  { id: "demo-canape", name: "canapé", asset_type: "object", project_id: "", user_id: "", created_at: "", image_url: null, image_url_back: null, image_url_profile_left: null, image_url_profile_right: null, metadata: null, prompt: null },
+  { id: "demo-cafetiere", name: "cafetière", asset_type: "object", project_id: "", user_id: "", created_at: "", image_url: null, image_url_back: null, image_url_profile_left: null, image_url_profile_right: null, metadata: null, prompt: null },
+  { id: "demo-cv", name: "CV", asset_type: "object", project_id: "", user_id: "", created_at: "", image_url: null, image_url_back: null, image_url_profile_left: null, image_url_profile_right: null, metadata: null, prompt: null },
+];
 
 // ── Utilitaire : un prompt IA Scénario = un chapitre ───────────
 // À l'acceptation, le texte généré devient le contenu d'un seul chapitre.
@@ -669,8 +685,8 @@ export function ScenarioSection({ projectId, project, onNavigateToCreateAsset }:
         open={showChapitreType}
         onOpenChange={(open) => !open && setShowChapitreType(false)}
       >
-        <AlertDialogContent className="glass max-w-3xl max-h-[85vh] flex flex-col">
-          <AlertDialogHeader>
+        <AlertDialogContent className="glass max-w-3xl max-h-[85vh] flex flex-col overflow-hidden min-h-0">
+          <AlertDialogHeader className="shrink-0">
             <AlertDialogTitle className="flex items-center gap-2">
               <LayoutTemplate className="h-5 w-5 text-primary" />
               Structure type d'un chapitre
@@ -687,7 +703,7 @@ export function ScenarioSection({ projectId, project, onNavigateToCreateAsset }:
           </AlertDialogHeader>
 
           {/* Structure visuelle */}
-          <div className="flex items-center gap-2 px-1 py-2">
+          <div className="flex items-center gap-2 px-1 py-2 shrink-0">
             <span className="px-2.5 py-1 rounded-md text-xs font-semibold bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/20">
               Lieu
             </span>
@@ -704,17 +720,78 @@ export function ScenarioSection({ projectId, project, onNavigateToCreateAsset }:
             </span>
           </div>
 
-          {/* Exemple */}
-          <div className="flex-1 overflow-y-auto rounded-lg bg-background/80 border border-border/50 p-4">
-            <p className="text-xs text-muted-foreground mb-3 uppercase tracking-wide font-medium">
-              Exemple complet — 3 séquences dans un seul chapitre
+          {/* Assets dans le chapitre — détection, couleurs par type, visuel */}
+          <div className="rounded-lg border border-border/60 bg-muted/30 p-3 space-y-3 shrink-0">
+            <p className="text-xs font-medium text-foreground uppercase tracking-wide flex items-center gap-2">
+              <Package className="h-3.5 w-3.5 text-primary" />
+              Assets dans le chapitre
             </p>
-            <div className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
-              {CHAPITRE_TYPE_EXEMPLE}
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Les <strong className="text-foreground">personnages</strong>,{" "}
+              <strong className="text-foreground">décors</strong> et{" "}
+              <strong className="text-foreground">objets</strong> créés dans
+              l’onglet Assets sont détectés automatiquement dans le texte. Les
+              mentions sont <strong className="text-foreground">surlignées</strong>
+              ; au <strong className="text-foreground">survol</strong>, l’asset
+              s’affiche (image + infos). Ils servent de référence et alimentent
+              le <strong className="text-foreground">prompt de génération</strong>{" "}
+              des images (panels / blocs).
+            </p>
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-foreground">
+                Détection d’assets
+              </p>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Le système cherche dans le texte les <strong className="text-foreground">noms exacts</strong> des
+                assets du projet. Chaque mention trouvée est surlignée avec une{" "}
+                <strong className="text-foreground">couleur selon le type</strong> (voir ci‑dessous).
+                Au survol d’une mention, une infobulle affiche l’asset (image, type, nom).
+              </p>
+            </div>
+            <p className="text-xs font-medium text-foreground">
+              Couleurs par type (même code que dans l’aperçu)
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium bg-[hsl(var(--lavender)/0.2)] text-[hsl(var(--lavender))] dark:text-[hsl(var(--lavender))] border border-[hsl(var(--lavender)/0.5)]">
+                <User className="h-3.5 w-3.5" />
+                Personnages
+              </span>
+              <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium bg-[hsl(var(--mint)/0.25)] text-[hsl(170_40%_35%)] dark:text-[hsl(170_45%_75%)] border border-[hsl(var(--mint)/0.5)]">
+                <ImageIcon className="h-3.5 w-3.5" />
+                Décors
+              </span>
+              <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium bg-blue-500/15 text-blue-700 dark:text-blue-300 border border-blue-500/30">
+                <Package className="h-3.5 w-3.5" />
+                Objets
+              </span>
+              <span className="text-muted-foreground text-xs">→</span>
+              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs bg-muted text-muted-foreground border border-border/60">
+                <MousePointer2 className="h-3 w-3" />
+                dans le texte : surbrillance + hover
+              </span>
+              <span className="text-muted-foreground text-xs">→</span>
+              <span className="text-xs text-muted-foreground italic">
+                prompt de génération
+              </span>
             </div>
           </div>
 
-          <AlertDialogFooter>
+          {/* Exemple — zone scrollable pour tout le chapitre */}
+          <div className="flex-1 min-h-0 flex flex-col overflow-hidden rounded-lg bg-background/80 border border-border/50">
+            <p className="text-xs text-muted-foreground px-4 pt-3 pb-1 uppercase tracking-wide font-medium shrink-0">
+              Exemple complet — 3 séquences dans un seul chapitre
+            </p>
+            <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-4 pt-0">
+              <ScenarioTextHighlighter
+                text={CHAPITRE_TYPE_EXEMPLE}
+                assets={CHAPITRE_TYPE_DEMO_ASSETS}
+                hideIndicator
+                className="text-sm leading-relaxed whitespace-pre-wrap"
+              />
+            </div>
+          </div>
+
+          <AlertDialogFooter className="shrink-0">
             <AlertDialogCancel>Fermer</AlertDialogCancel>
           </AlertDialogFooter>
         </AlertDialogContent>

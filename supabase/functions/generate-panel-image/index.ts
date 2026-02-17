@@ -167,6 +167,8 @@ Deno.serve(async (req) => {
       style_template?: string;
       style_image_urls?: string[];
       context_chapter?: string;
+      block_asset_image_urls?: string[];
+      block_asset_names?: string[];
     };
     try {
       body = await req.json();
@@ -174,7 +176,7 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "Body JSON invalide" }, 400);
     }
 
-    const { panel_id, block_id, width: w, height: h, prompt, style_template, context_chapter } = body;
+    const { panel_id, block_id, width: w, height: h, prompt, style_template, context_chapter, block_asset_names } = body;
     if (!panel_id || !block_id || !prompt?.trim()) {
       return jsonResponse({ error: "panel_id, block_id et prompt requis" }, 400);
     }
@@ -222,13 +224,16 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "Projet introuvable" }, 404);
     }
 
-    // Construire le prompt : style + contexte chapitre + instruction cadre + prompt bloc
+    // Construire le prompt : style + contexte chapitre + assets du bloc (noms) + instruction cadre + prompt bloc
     let fullPrompt = prompt.trim();
     if (style_template?.trim()) {
       fullPrompt = `Style à appliquer : ${style_template.trim()}\n\n${fullPrompt}`;
     }
     if (context_chapter?.trim()) {
       fullPrompt = `Contexte de la scène : ${context_chapter.trim()}\n\n${fullPrompt}`;
+    }
+    if (Array.isArray(block_asset_names) && block_asset_names.length > 0) {
+      fullPrompt = `Éléments à inclure (références) : ${block_asset_names.join(", ")}.\n\n${fullPrompt}`;
     }
     fullPrompt += "\n\nIMPORTANT : Remplis tout le cadre, sans bandeaux ni bandes vides. L'illustration doit occuper toute la surface.";
 

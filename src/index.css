@@ -73,48 +73,52 @@
   }
 
   .dark {
-    --content-area: 270 18% 10%;
-    --background: 270 20% 8%;
-    --foreground: 30 20% 95%;
-    --card: 270 18% 12%;
-    --card-foreground: 30 20% 95%;
-    --popover: 270 18% 12%;
-    --popover-foreground: 30 20% 95%;
-    --primary: 275 50% 65%;
+    /* Fond plus contrasté mais chaud (teinte lavande douce, pas bleu froid) */
+    --content-area: 275 18% 9%;
+    --background: 275 20% 7%;
+    --foreground: 32 22% 96%;
+    --card: 275 16% 11%;
+    --card-foreground: 32 22% 96%;
+    --popover: 275 16% 11%;
+    --popover-foreground: 32 22% 96%;
+    --primary: 275 52% 68%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 28 50% 30%;
-    --secondary-foreground: 30 20% 95%;
-    --muted: 270 15% 18%;
-    --muted-foreground: 270 10% 60%;
-    --accent: 170 30% 30%;
-    --accent-foreground: 170 30% 90%;
+    --secondary: 28 45% 28%;
+    --secondary-foreground: 32 22% 96%;
+    --muted: 275 14% 16%;
+    --muted-foreground: 275 12% 58%;
+    --accent: 170 28% 32%;
+    --accent-foreground: 170 35% 92%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 100%;
-    --border: 270 15% 20%;
-    --input: 270 15% 20%;
-    --ring: 275 50% 65%;
-    --sidebar-background: 270 18% 10%;
-    --sidebar-foreground: 30 20% 90%;
-    --sidebar-primary: 275 50% 65%;
+    --border: 275 14% 22%;
+    --input: 275 14% 22%;
+    --ring: 275 52% 68%;
+    --sidebar-background: 275 18% 8%;
+    --sidebar-foreground: 32 22% 92%;
+    --sidebar-primary: 275 52% 68%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 270 15% 18%;
-    --sidebar-accent-foreground: 30 20% 90%;
-    --sidebar-border: 270 15% 20%;
-    --sidebar-ring: 275 50% 65%;
-    --lavender: 275 50% 65%;
-    --lavender-soft: 275 30% 20%;
-    --peach: 28 60% 35%;
-    --peach-deep: 20 50% 40%;
-    --mint: 170 30% 35%;
-    --mint-soft: 170 20% 18%;
-    --rose: 340 40% 40%;
-    --cream: 270 15% 12%;
-    --glow: 275 60% 50%;
+    --sidebar-accent: 275 14% 16%;
+    --sidebar-accent-foreground: 32 22% 92%;
+    --sidebar-border: 275 14% 22%;
+    --sidebar-ring: 275 52% 68%;
+    --lavender: 275 52% 68%;
+    --lavender-soft: 275 28% 18%;
+    --peach: 28 55% 36%;
+    --peach-deep: 22 48% 42%;
+    --mint: 170 28% 36%;
+    --mint-soft: 170 18% 16%;
+    --rose: 340 38% 42%;
+    --cream: 275 16% 11%;
+    --glow: 275 55% 55%;
 
-    /* Glass card tokens — dark mode */
-    --glass-bg-alpha: 0.7;
-    --glass-border-alpha: 0.5;
-    --glass-shadow: none;
+    /* Glass card tokens — dark mode (avec petite touche de folie) */
+    --glass-bg-alpha: 0.75;
+    --glass-border-alpha: 0.55;
+    --glass-shadow:
+      0 0 0 1px hsl(var(--lavender) / 0.12),
+      0 4px 24px -4px hsl(var(--lavender) / 0.08),
+      0 8px 32px -8px hsl(var(--peach) / 0.06);
   }
 }
 
@@ -189,6 +193,14 @@
   .scrollbar-none::-webkit-scrollbar {
     display: none;
   }
+
+  /* Délais pour animations en cascade (menus, listes) */
+  .stagger-1 { animation-delay: 0.05s; }
+  .stagger-2 { animation-delay: 0.1s; }
+  .stagger-3 { animation-delay: 0.15s; }
+  .stagger-4 { animation-delay: 0.2s; }
+  .stagger-5 { animation-delay: 0.25s; }
+  .stagger-6 { animation-delay: 0.3s; }
 }
 
 /* ===== Light mode: charte graphique — variété des surfaces ===== */
@@ -210,6 +222,46 @@
   box-shadow:
     0 4px 24px -4px hsl(var(--lavender) / 0.28),
     0 10px 48px -8px hsl(var(--peach) / 0.22);
+}
+
+/* ===== Dark mode: contrasté, chaleureux, petites touches de folie ===== */
+
+/* Fond avec dégradé très doux (lavande → touche pêche) pour éviter le plat */
+.dark body {
+  background: linear-gradient(
+    165deg,
+    hsl(var(--background)) 0%,
+    hsl(275 18% 8%) 45%,
+    hsl(28 18% 8%) 100%
+  );
+  background-attachment: fixed;
+}
+
+/* Glass en dark: bordure lavande douce + léger glow */
+.dark .glass {
+  border-color: hsl(var(--lavender) / 0.2);
+  box-shadow: var(--glass-shadow);
+}
+.dark .glass:hover {
+  border-color: hsl(var(--lavender) / 0.32);
+  box-shadow:
+    0 0 0 1px hsl(var(--lavender) / 0.18),
+    0 4px 24px -4px hsl(var(--lavender) / 0.12),
+    0 8px 40px -8px hsl(var(--peach) / 0.08);
+}
+
+/* Cartes / boutons primaires: petit halo lavande en dark */
+.dark .shadow-dream,
+.dark .hover\:shadow-dream:hover {
+  box-shadow:
+    0 0 0 1px hsl(var(--lavender) / 0.15),
+    0 4px 20px -4px hsl(var(--lavender) / 0.12),
+    0 8px 36px -8px hsl(var(--peach) / 0.08);
+}
+
+/* Touche de folie: léger glow sur focus / éléments actifs */
+.dark .shadow-glow {
+  box-shadow: 0 0 24px hsl(var(--glow) / 0.25), 0 0 48px hsl(var(--lavender) / 0.12);
 }
 
 /* Responsive touch device improvements */

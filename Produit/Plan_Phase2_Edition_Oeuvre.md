@@ -62,7 +62,7 @@ Un **panel** (720×5000) est constitué des éléments suivants. L'utilisateur *
 
 ## 2. Étapes du plan
 
-**État d'avancement** : **Étapes 1 à 5** = ✅ livrées (février 2026). **Étapes 6 à 7** = 📋 à faire. Voir § 3 (synthèse) et § 4 (tests à faire).
+**État d'avancement** : **Étapes 1 à 6** = ✅ livrées (février 2026). **Étape 7** = 📋 à faire. Voir § 3 (synthèse) et § 4 (tests à faire).
 
 **État réel du code (écarts connus)** :
 - **Étape 3** : L'utilisateur **crée librement** le nombre de panels (« Ajouter un panel »). **Suggestion de panels (IA)** et **Importer la suggestion** sont optionnels. Une **estimation indicative** du nombre de panels (à partir du contenu texte) peut être affichée ; elle n'est pas contraignante. La **répartition N/N+1** (prendre du chapitre N+1 / céder au N+1) n'est **pas implémentée** — à prévoir en complément ou en Étape ultérieure.
@@ -99,6 +99,21 @@ Un **panel** (720×5000) est constitué des éléments suivants. L'utilisateur *
 | **Lien chapitre visuel ↔ chapitre texte** | Si `chapters.linked_scenario_chapter_id` est renseigné : à l’ouverture du chapitre visuel, chargement et affichage automatique du contenu de ce chapitre de scénario. Sinon : **sélecteur** (liste des chapitres de scénario du projet) pour choisir quel chapitre afficher ; option d’**enregistrer** ce choix comme lien pour ce chapitre visuel. |
 | **Assets dans le texte** | Pas de panneau « Assets » séparé. Les assets sont **visibles dans le chapitre texte** via l’Aperçu (détection des mentions + surbrillance + hover pour voir l’élément). Cohérent avec la section Scénario (Chapitre → Aperçu). |
 | **Données** | Migration : `linked_scenario_chapter_id` sur `chapters` (FK → `scenario_chapters.id`, NULLABLE). |
+
+**Assets dans le chapitre texte — fonctionnement**
+
+- **Ce que c’est** : les **assets** = personnages, décors, objets du projet (créés dans l’onglet Assets). Ils sont **détectés dans le texte** du chapitre de scénario : dès qu’un nom d’asset apparaît dans le paragraphe, il est reconnu.
+- **Où on les voit** : dans le panneau « Chapitre texte » (à gauche en Édition de l’œuvre), **même rendu que l’Aperçu** en section Scénario : les mentions sont **surlignées** ; au **survol** (hover), une infobulle montre l’asset (image + infos). Pas de panneau « Assets » à part : tout passe par le texte.
+- **À quoi ça sert** : (1) **référence** pendant l’édition des panels et des blocs ; (2) **génération d’images** : le prompt = style + **assets** (sélectionnés par l’utilisateur pour le bloc ou le chapitre) + contexte du chapitre + description. Les assets servent à cadrer la scène et à ce que l’IA dessine les bons éléments.
+
+**Ce qui a été oublié / à compléter (résumé)**
+
+| Point | Explication courte |
+|-------|--------------------|
+| **Répartition N/N+1** | Répartir le contenu entre chapitre texte N et N+1 (trop court → prendre du N+1 ; trop long → céder au N+1). **Non implémenté** ; à prévoir en complément. |
+| **Éléments mentionnés non créés** | Dans le scénario, des noms peuvent apparaître sans qu’un asset existe encore. Détection prévue (section Scénario) ; **création depuis le texte** (panneau dédié, bouton « Créer l’asset ») = à finaliser / clarifier. |
+| **Mode Architecture / Édition** | Doc prévoit deux modes (Architecture = blocs ; Édition = prompt, bulles, effets). **Actuel** : vue unifiée (canvas + panneau latéral) ; pas de bascule explicite. |
+| **Étape 7** | Bulles (bibliothèque + placement), Menu Couleur (fond), effets (transitions, lignes de mouvement), lecteur webtoon = **à faire**. |
 
 **Implémentation livrée (détails)**  
 Suggestion par numéro à l'ouverture (chapitre visuel N → affichage par défaut du chapitre texte N). Libellé du sélecteur : « Chapitre N : Titre » sans « ✓ suggéré » dans le bouton ; « ✓ suggéré » uniquement dans la liste déroulante. Confirmation au changement puis sauvegarde du lien (persistance au retour sur la page).
@@ -169,7 +184,7 @@ Référence : roadmap Phase 2 § 2.1, rapport § 3.2.
 
 ---
 
-### Étape 6 — Mode Structuré (blocs) 📋 À faire
+### Étape 6 — Mode Structuré (blocs) ✅ Livrée
 
 **Objectif** : Chapitre visuel en mode **Structuré** : l’utilisateur **place** des **blocs** depuis une **bibliothèque de blocs** (formes / emplacements prédéfinis) sur chaque panel ; les **images sont générées à l'intérieur** de chaque bloc. Par bloc : description + **sélection d’assets** ; génération **1 image par bloc**.
 
@@ -179,6 +194,8 @@ Référence : roadmap Phase 2 § 2.1, rapport § 3.2.
 | **Remplissage des blocs** | Par bloc : champ **description** (éditable ; IA Panel réutilisable) + **sélection d’assets** pour ce bloc. |
 | **Génération 1 image par bloc** | Bouton de génération par bloc. Prompt = style + assets du bloc + **contexte du chapitre (lieu, scène, personnages)** + description du bloc. Les **images sont générées à l'intérieur** de chaque bloc ; image stockée et affichée **dans** le bloc. **OBLIGATOIRE** : l'espace de l'image doit prendre les **dimensions du bloc concerné** (largeur × hauteur) ; l'API reçoit ces dimensions. |
 | **Double visualisation** | Panneau Scénario + panneau Assets (par bloc ou par chapitre) disponible comme en mode Auto. |
+
+**Implémentation livrée** : Bibliothèque de blocs (presets 500×500, 400×600, 720×400, 350×500, 600×400) dans le panneau latéral ; glisser-déposer crée un bloc aux dimensions du preset. En mode Personalisation, « Assets pour ce bloc » (cases à cocher) ; `asset_refs` stocké dans le bloc. Edge Function reçoit `block_asset_names` et les injecte dans le prompt.
 
 ---
 
@@ -207,7 +224,7 @@ Référence : roadmap Phase 2 § 2.1, rapport § 3.2.
 | 3 | **Liberté de création des panels + suggestion optionnelle** | L'utilisateur crée le nombre de panels qu'il souhaite (« Ajouter un panel ») ; scénario = référence. **Optionnel** : suggestion de panels (IA), import de la suggestion. Estimation indicative (non contraignante). Répartition N/N+1 = non implémentée. | ✅ Livrée |
 | 4 | Liaison suggestion ↔ Édition de l'œuvre | Suggestion depuis la section Scénario (ou IA) ; import vers chapitre visuel (création/mise à jour des panels). Base optionnelle. | ✅ Livrée |
 | 5 | **Édition blocs + génération par bloc** | **Vue unifiée** : canvas 720×5000 + panneau latéral (prompt/dimensions par bloc). Ajout, position, dimensions des blocs (glisser-déposer, poignées) ; prompt par bloc ; génération par bloc (dimensions = bloc). Détection assets dans le prompt = prévue Étape 6. Voir `Edition_Panel_Blocs_Bulles.md`, `Edition_Panel_Deux_Modes.md`. | ✅ Livrée |
-| 6 | Mode Structuré (blocs) | **Bibliothèque de blocs** à placer sur le panel (mode Architecture) ; images **générées à l'intérieur** de chaque bloc ; prompt + assets par bloc (mode Édition). | 📋 À faire |
+| 6 | Mode Structuré (blocs) | **Bibliothèque de blocs** à placer sur le panel (mode Architecture) ; images **générées à l'intérieur** de chaque bloc ; prompt + **sélection d'assets par bloc** (mode Édition). | ✅ Livrée |
 | 7 | **Mode Édition : bulles, effets, fond, texte et lecture** | **Bibliothèque de bulles** (placement comme les blocs) ; **Menu Couleur** (modification couleur de fond) ; **bibliothèque d'effets** (profondeur, douceur, émotion, vivant) ; **ajout de texte** (typo). Rendu panel = blocs + overlay + fond personnalisé ; lecteur webtoon vertical. | 📋 À faire |
 
 ---
@@ -223,7 +240,7 @@ Tests de non-régression et critères d'acceptation par étape. À exécuter ou 
 | **3** ✅ | Création libre des panels (« Ajouter un panel ») ; message liberté de création (scénario = référence). Suggestion de panels (IA) et import de la suggestion (optionnels). Estimation indicative. Répartition N/N+1 = hors périmètre livré. |
 | **4** ✅ | Suggestion déclenchable depuis Scénario (ou IA) ; import vers chapitre visuel (bouton « Importer la suggestion ») ; panels créés/mis à jour ; édition des descriptions possible. |
 | **5** ✅ | Visualisation panel 720×5000 ; édition des blocs (position, taille, prompt par bloc) ; génération par bloc (dimensions = bloc) ; pas de génération tout le panel/chapitre ; régénération par bloc. |
-| **6** | Bibliothèque de blocs ; placement sur panel ; description + assets par bloc ; génération 1 image par bloc ; double visualisation (Scénario + assets). |
+| **6** ✅ | Bibliothèque de blocs (presets 500×500, 400×600, 720×400, etc.) ; placement sur panel par glisser-déposer ; description + **sélection d'assets par bloc** ; génération 1 image par bloc (avec noms des assets dans le prompt) ; double visualisation (Scénario + Assets pour ce bloc). |
 | **7** | Bulles (overlay, types, édition texte/couleurs) ; narration ; effets de transition ; lignes de mouvement ; rendu final ; lecteur webtoon (défilement vertical, navigation chapitres). |
 
 ---
@@ -241,4 +258,4 @@ Tests de non-régression et critères d'acceptation par étape. À exécuter ou 
 
 ---
 
-*Dernière mise à jour : 15 février 2026*
+*Dernière mise à jour : 17 février 2026 — Étape 6 (Mode Structuré) livrée : bibliothèque de blocs, sélection d'assets par bloc, API avec block_asset_names.*

@@ -25,6 +25,15 @@ export const PANELS_REFERENCE_PER_CHAPTER = 10;
 export const DEFAULT_BLOCK_WIDTH = 500;
 export const DEFAULT_BLOCK_HEIGHT = 500;
 
+/** Bibliothèque de blocs (Étape 6) : formes prédéfinies pour placement par glisser-déposer. */
+export const BLOCK_PRESETS = [
+  { label: "500×500", width: 500, height: 500 },
+  { label: "400×600", width: 400, height: 600 },
+  { label: "720×400", width: 720, height: 400 },
+  { label: "350×500", width: 350, height: 500 },
+  { label: "600×400", width: 600, height: 400 },
+] as const;
+
 // ── Helpers ──────────────────────────────────────────────────────
 
 /** Extrait les blocs du layout d'un panel (layout.blocks ou []). */
@@ -158,6 +167,12 @@ export interface GenerateBlockImageParams {
   prompt: string;
   project: Project;
   contextChapter?: string | null;
+  /** IDs des assets sélectionnés pour ce bloc (optionnel). */
+  blockAssetRefs?: string[];
+  /** URLs des images des assets du bloc (résolues côté client, envoyées à l'API). */
+  blockAssetImageUrls?: string[];
+  /** Noms des assets du bloc pour enrichir le prompt. */
+  blockAssetNames?: string[];
 }
 
 /**
@@ -193,6 +208,8 @@ export async function generatePanelBlockImage(
       style_template: params.project.style_template ?? undefined,
       style_image_urls: params.project.style_image_urls ?? undefined,
       context_chapter: params.contextChapter ?? undefined,
+      block_asset_image_urls: params.blockAssetImageUrls?.length ? params.blockAssetImageUrls : undefined,
+      block_asset_names: params.blockAssetNames?.length ? params.blockAssetNames : undefined,
     }),
   });
 

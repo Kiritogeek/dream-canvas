@@ -69,6 +69,7 @@ import {
   getPanelLayout,
   DEFAULT_BLOCK_WIDTH,
   DEFAULT_BLOCK_HEIGHT,
+  BLOCK_PRESETS,
   PANEL_HEIGHT_DEFAULT,
   PANEL_HEIGHT_MIN,
   PANEL_HEIGHT_MAX,
@@ -420,12 +421,14 @@ export default function ChapterDetail() {
       ? blocks.find((b) => b.id === selectedBlockIdInModal.blockId)
       : null;
 
-    const handleAddBlock = (atX?: number, atY?: number) => {
-      const x = Math.max(0, Math.min(PANEL_WIDTH - DEFAULT_BLOCK_WIDTH, atX ?? 0));
-      const y = Math.max(0, Math.min(panelHeight - DEFAULT_BLOCK_HEIGHT, atY ?? 0));
+    const handleAddBlock = (atX?: number, atY?: number, width = DEFAULT_BLOCK_WIDTH, height = DEFAULT_BLOCK_HEIGHT) => {
+      const w = Math.max(100, Math.min(PANEL_WIDTH, width));
+      const h = Math.max(100, Math.min(panelHeight, height));
+      const x = Math.max(0, Math.min(PANEL_WIDTH - w, atX ?? 0));
+      const y = Math.max(0, Math.min(panelHeight - h, atY ?? 0));
       const newBlock: PanelBlock = {
         id: crypto.randomUUID(),
-        x, y, width: DEFAULT_BLOCK_WIDTH, height: DEFAULT_BLOCK_HEIGHT,
+        x, y, width: w, height: h,
         name: `Bloc ${layout.blocks.length + 1}`,
         prompt: null, image_url: null,
       };
@@ -468,10 +471,12 @@ export default function ChapterDetail() {
       if (!raw) return;
       const canvasEl = canvasRefByPanel.current[panel.id];
       try {
-        const data = JSON.parse(raw) as { type: string; blockId?: string };
+        const data = JSON.parse(raw) as { type: string; blockId?: string; width?: number; height?: number };
         if (data.type === "new-block") {
-          const { x, y } = getCanvasDropPosition(e, canvasEl);
-          handleAddBlock(x, y);
+          const w = typeof data.width === "number" ? data.width : DEFAULT_BLOCK_WIDTH;
+          const h = typeof data.height === "number" ? data.height : DEFAULT_BLOCK_HEIGHT;
+          const { x, y } = getCanvasDropPosition(e, canvasEl, w, h);
+          handleAddBlock(x, y, w, h);
           setDraggingBlock(null);
           setDragPreview(null);
           return;
@@ -590,6 +595,14 @@ export default function ChapterDetail() {
       );
     };
 
+    const handleSaveBlockAssetRefs = (block: PanelBlock, assetIds: string[]) => {
+      const nextBlocks = layout.blocks.map((b) => (b.id === block.id ? { ...b, asset_refs: assetIds.length ? assetIds : undefined } : b));
+      updatePanelMutation.mutate(
+        { id: panel.id, updates: { layout: { ...layout, blocks: nextBlocks } as unknown as Json } },
+        { onSuccess: () => toast({ title: "Assets du bloc enregistrés" }), onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }) }
+      );
+    };
+
     const handleGenerateBlock = (block: PanelBlock) => {
       const promptToUse = (blockPromptDrafts[`${panel.id}-${block.id}`] ?? block.prompt ?? "").trim() || (panel.prompt ?? "").trim();
       if (!project) return;
@@ -603,8 +616,12 @@ export default function ChapterDetail() {
         return;
       }
       const contextChapter = panel.prompt?.trim() || null;
+      const refIds = block.asset_refs ?? [];
+      const refAssets = refIds.map((id) => assets.find((a) => a.id === id)).filter(Boolean) as typeof assets;
+      const blockAssetImageUrls = refAssets.map((a) => a.image_url).filter((url): url is string => !!url);
+      const blockAssetNames = refAssets.map((a) => a.name ?? a.id.slice(0, 8));
       generatePanelImage.mutate(
-        { panel: { id: panel.id, prompt: promptToUse }, block: { id: block.id, width: block.width, height: block.height }, project, contextChapter: contextChapter ?? undefined },
+        { panel: { id: panel.id, prompt: promptToUse }, block: { id: block.id, width: block.width, height: block.height }, project, contextChapter: contextChapter ?? undefined, blockAssetImageUrls: blockAssetImageUrls.length ? blockAssetImageUrls : undefined, blockAssetNames: blockAssetNames.length ? blockAssetNames : undefined },
         {
           onSuccess: (result) => {
             toast({ title: "Image générée" });
@@ -638,22 +655,30 @@ export default function ChapterDetail() {
                 <ToggleGroupItem value="edition" className="rounded-lg">Personalisation</ToggleGroupItem>
               </ToggleGroup>
             </div>
-            <div className="min-h-10 flex items-center rounded-xl border border-dashed border-border/70 bg-muted/30 px-3">
+            <div className="min-h-10 rounded-xl border border-dashed border-border/70 bg-muted/30 px-3 py-2">
               {mode === "architecture" ? (
-                <div
-                  draggable
-                  onDragStart={(e) => {
-                    e.dataTransfer.setData("application/json", JSON.stringify({ type: "new-block" }));
-                    e.dataTransfer.effectAllowed = "copy";
-                    const ghost = newBlockDragGhostRef.current;
-                    if (ghost) e.dataTransfer.setDragImage(ghost, 250, 250);
-                  }}
-                  className="cursor-grab active:cursor-grabbing w-full text-center text-sm text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  Glisser un bloc 500×500 →
+                <div className="space-y-1.5">
+                  <span className="text-xs font-medium text-muted-foreground block">Bibliothèque de blocs — glisser sur le panel</span>
+                  <div className="flex flex-wrap gap-2">
+                    {BLOCK_PRESETS.map((preset) => (
+                      <div
+                        key={preset.label}
+                        draggable
+                        onDragStart={(e) => {
+                          e.dataTransfer.setData("application/json", JSON.stringify({ type: "new-block", width: preset.width, height: preset.height }));
+                          e.dataTransfer.effectAllowed = "copy";
+                          const ghost = newBlockDragGhostRef.current;
+                          if (ghost) e.dataTransfer.setDragImage(ghost, Math.min(250, preset.width / 2), Math.min(250, preset.height / 2));
+                        }}
+                        className="cursor-grab active:cursor-grabbing rounded-lg border border-border/60 bg-background px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                      >
+                        {preset.label}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               ) : (
-                <span className="w-full text-center text-sm text-muted-foreground/80" aria-hidden>Cliquez sur un bloc dans le panel pour l'éditer</span>
+                <span className="w-full text-center text-sm text-muted-foreground/80 block py-1" aria-hidden>Cliquez sur un bloc dans le panel pour l'éditer</span>
               )}
             </div>
             {mode === "architecture" && (
@@ -724,7 +749,7 @@ export default function ChapterDetail() {
               {blocks.length === 0 ? (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-center p-6 text-muted-foreground text-sm">
                   <Square className="h-10 w-10 opacity-50" />
-                  <p>Aucun bloc. Glissez « Bloc 500×500 » ici ou ajoutez un premier bloc.</p>
+                  <p>Aucun bloc. Glissez un bloc depuis la bibliothèque (gauche) ou ajoutez un premier bloc.</p>
                   <Button size="sm" variant="outline" onClick={() => handleAddBlock(0, 0)} disabled={updatePanelMutation.isPending}>
                     <Plus className="h-4 w-4 mr-1.5" /> Ajouter un bloc
                   </Button>
@@ -956,6 +981,39 @@ export default function ChapterDetail() {
                     <div className="space-y-2">
                       <span className="text-xs font-medium text-muted-foreground">Dimensions</span>
                       <p className="text-sm text-foreground tabular-nums">{block.width} × {Math.round(block.height)}</p>
+                    </div>
+                    <div className="space-y-2">
+                      <span className="text-xs font-medium text-muted-foreground">Assets pour ce bloc</span>
+                      <p className="text-[11px] text-muted-foreground/80">Sélectionnez les personnages, décors et objets à inclure dans la génération.</p>
+                      {assets.length === 0 ? (
+                        <p className="text-sm text-muted-foreground italic">Aucun asset dans le projet.</p>
+                      ) : (
+                        <div className="max-h-[200px] overflow-y-auto space-y-1.5 rounded-lg border border-border/60 bg-muted/20 p-2">
+                          {assets.map((asset) => {
+                            const isChecked = (block.asset_refs ?? []).includes(asset.id);
+                            return (
+                              <label key={asset.id} className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 rounded px-2 py-1">
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  onChange={() => {
+                                    const refs = block.asset_refs ?? [];
+                                    const next = isChecked ? refs.filter((id) => id !== asset.id) : [...refs, asset.id];
+                                    handleSaveBlockAssetRefs(block, next);
+                                  }}
+                                  className="rounded border-border"
+                                />
+                                <span className="flex-1 min-w-0 truncate text-sm">{asset.name ?? asset.id.slice(0, 8)}</span>
+                                {asset.image_url && (
+                                  <div className="w-8 h-8 shrink-0 rounded overflow-hidden border border-border/60 bg-muted">
+                                    <ImageWithFallback src={asset.image_url} alt="" className="w-full h-full object-cover" />
+                                  </div>
+                                )}
+                              </label>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                     {project && (
                       <Button size="sm" variant="outline" className="w-full gap-1.5" disabled={(!(block.prompt?.trim()) && !(panel.prompt?.trim())) || (!(project.style_template?.trim()) && !(Array.isArray(project.style_image_urls) && project.style_image_urls.length > 0)) || isGenerating} onClick={() => handleGenerateBlock(block)}>

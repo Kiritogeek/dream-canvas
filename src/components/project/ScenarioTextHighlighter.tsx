@@ -53,15 +53,15 @@ const ASSET_COLORS: Record<
     bg: "hsl(var(--mint) / 0.55)",
     border: "hsl(var(--mint) / 0.6)",
     label: "Décor",
-    tagBg: "hsl(var(--mint) / 0.2)",
-    tagText: "hsl(170 40% 35%)",
+    tagBg: "hsl(170 45% 38% / 0.95)",
+    tagText: "hsl(0 0% 100%)",
   },
   object: {
     bg: "hsl(230 55% 88% / 0.65)",
     border: "hsl(230 50% 55% / 0.65)",
     label: "Objet",
-    tagBg: "hsl(230 45% 85% / 0.4)",
-    tagText: "hsl(230 45% 35%)",
+    tagBg: "hsl(230 55% 42% / 0.95)",
+    tagText: "hsl(0 0% 100%)",
   },
 };
 

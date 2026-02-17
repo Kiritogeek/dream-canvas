@@ -99,6 +99,8 @@ export interface GeneratePanelImageVariables {
   block: { id: string; width: number; height: number };
   project: Project;
   contextChapter?: string | null;
+  blockAssetImageUrls?: string[];
+  blockAssetNames?: string[];
 }
 
 /** Génération d'image par bloc (dimensions du bloc envoyées à l'API). */
@@ -115,6 +117,8 @@ export function useGeneratePanelImage(chapterId: string) {
         prompt: vars.panel.prompt,
         project: vars.project,
         contextChapter: vars.contextChapter,
+        blockAssetImageUrls: vars.blockAssetImageUrls,
+        blockAssetNames: vars.blockAssetNames,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: keys.list(chapterId) });

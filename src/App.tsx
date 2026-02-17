@@ -10,6 +10,8 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 // Lazy loading des pages
 const Landing = lazy(() => import("./pages/Landing"));
 const Auth = lazy(() => import("./pages/Auth"));
+const EmailVerification = lazy(() => import("./pages/EmailVerification"));
+const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Projects = lazy(() => import("./pages/Projects"));
 const ProjectDetail = lazy(() => import("./pages/ProjectDetail"));
@@ -51,6 +53,8 @@ const App = () => (
             <Routes>
               <Route path="/" element={<Landing />} />
               <Route path="/auth" element={<Auth />} />
+              <Route path="/auth/verify-email" element={<EmailVerification />} />
+              <Route path="/auth/reset-password" element={<ResetPassword />} />
               <Route
                 path="/dashboard"
                 element={

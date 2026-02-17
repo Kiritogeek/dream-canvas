@@ -46,6 +46,8 @@ Le modèle de données de DreamWeave est construit sur **PostgreSQL** via Supaba
                           │  style_template   │     TEXT — description du style
                           │  style_image_urls │     JSONB — URLs des images de réf.
                           │  cover_url        │     TEXT — URL de la couverture
+                          │  panels_target_   │     INTEGER — nombre cible panels/chapitre
+                          │   per_chapter     │
                           │  created_at       │
                           │  updated_at       │
                           └──┬────────────┬───┘
@@ -60,18 +62,18 @@ Le modèle de données de DreamWeave est construit sur **PostgreSQL** via Supaba
               │  project_id (FK) │  │  project_id (FK) │
               │  name            │  │  title           │
               │  asset_type      │  │  synopsis        │
-              │  prompt          │  │  scenario        │
-              │  ...             │  │  creation_mode   │
-              │                  │  │  chapter_number  │
-              │  image_url       │  │  created_at      │
+              │  prompt          │  │  chapter_number  │
+              │  image_url       │  │  linked_scenario │
+              │  image_url_      │  │   _chapter_id    │  FK → scenario_chapters.id
+              │   profile_left   │  │  created_at      │
               │  image_url_      │  │  updated_at      │
-              │   profile_left   │  └────────┬─────────┘
-              │  image_url_      │           │
-              │   profile_right  │           │ 1:N
-              │  image_url_back  │           ▼
-              │  metadata (JSONB)│  ┌──────────────────┐
-              │  created_at      │  │     panels       │
-              └──────────────────┘  │──────────────────│
+              │   profile_right  │  └────────┬─────────┘
+              │  image_url_back  │           │
+              │  metadata (JSONB)│           │ 1:N
+              │  created_at      │           ▼
+              └──────────────────┘  ┌──────────────────┐
+                                    │     panels       │
+                                    │──────────────────│
                                     │  id (UUID, PK)   │
                                     │  user_id (FK)    │
                                     │  chapter_id (FK) │
@@ -82,8 +84,41 @@ Le modèle de données de DreamWeave est construit sur **PostgreSQL** via Supaba
                                     │  dialogue        │
                                     │  narration       │
                                     │  speech_bubbles  │  JSONB
+                                    │  motion_lines    │  JSONB
+                                    │  transition_     │  JSONB
+                                    │   effects        │
                                     │  created_at      │
                                     └──────────────────┘
+
+                          ┌──────────────────┐
+                          │ scenario_chapters │
+                          │──────────────────│
+                          │  id (UUID, PK)    │
+                          │  project_id (FK)  │──── → projects.id
+                          │  user_id (FK)     │
+                          │  chapter_number   │
+                          │  title            │
+                          │  content          │
+                          │  panels_outline   │  JSONB — découpage panels
+                          │  created_at       │
+                          │  updated_at       │
+                          └────────┬──────────┘
+                                    │
+                                    │ 1:N
+                                    ▼
+                          ┌──────────────────┐
+                          │ scenario_versions │
+                          │──────────────────│
+                          │  id (UUID, PK)    │
+                          │  project_id (FK)  │
+                          │  scenario_        │
+                          │   chapter_id (FK) │──── → scenario_chapters.id (nullable)
+                          │  user_id (FK)     │
+                          │  content          │
+                          │  version_type     │  TEXT ('scenario'|'chapter')
+                          │  status           │  TEXT ('pending'|'accepted'|'rejected')
+                          │  created_at       │
+                          └──────────────────┘
 
                           ┌──────────────────┐
                           │      usage        │
@@ -147,8 +182,9 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 | `title` | `TEXT` | NOT NULL | Titre du projet |
 | `description` | `TEXT` | NULL | Description du projet |
 | `style_template` | `TEXT` | NULL | Template de style texte (prompt IA) |
-| `style_image_urls` | `JSONB` | NULL | Liste d'URLs d'images de référence |
+| `style_image_urls` | `JSONB` | NULL | Liste d'URLs d'images de référence (array de strings) |
 | `cover_url` | `TEXT` | NULL | URL de l'image de couverture |
+| `panels_target_per_chapter` | `INTEGER` | NULL | Nombre cible de panels par chapitre (guidance longueur) |
 | `created_at` | `TIMESTAMPTZ` | NOT NULL, DEFAULT now() | Date de création |
 | `updated_at` | `TIMESTAMPTZ` | NOT NULL, DEFAULT now() | Date de mise à jour |
 
@@ -169,7 +205,63 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 - UPDATE : `auth.uid() = user_id`
 - DELETE : `auth.uid() = user_id`
 
-**Note — Section Scénario (implémenté + à prévoir)** : Tables **`scenario_chapters`** (id, project_id, user_id, chapter_number, title, content) et **`scenario_versions`** — migration `20260214200000_add_scenario_chapters.sql`. La section « Scénario » permet à l'utilisateur d'écrire ou d'importer un scénario (texte) et de créer des **chapitres** qui **correspondent** aux chapitres webtoon (un chapitre écrit = un chapitre webtoon). **Découpage Chapitre → Panels** : dans chaque chapitre (texte), découpage en panels (liste + descriptions) directement dans la section Scénario ; règles de gestion à définir plus tard. **Deux types d'IA LLM** (même modèle, system prompts différents) : **(1) IA Scénario** — un prompt = un chapitre généré ; l'utilisateur construit son histoire **chapitre par chapitre**. La proposition est affichée en **texte simple** (pas de diff supprimé/ajouté). **Accepter** crée le chapitre, **Rejeter** annule. **(2) IA Chapitre** — sur chaque chapitre, une IA qui n'intervient que sur ce chapitre ; même flux accepter/rejeter. Prévoir persistance des **versions** (ancienne vs nouvelle) pour ce flux. **Dans l'éditeur de scénario** : (1) **détection des assets existants** : les mentions d'assets du projet (personnages, décors, objets) sont repérées dans le texte, mises en surbrillance, avec affichage de l'image de l'asset au survol (hover) ; (2) **détection par l'IA des éléments non créés** : les personnages, décors et objets mentionnés dans le scénario mais absents de la bibliothèque sont signalés (surbrillance « à créer » ou liste dédiée) pour inviter à créer les assets manquants. Aucune table supplémentaire obligatoire pour la détection en v1 (correspondance noms assets + texte scénario, éventuellement résultat LLM mis en cache). Le modèle pour stocker le scénario et ces chapitres de scénario reste à définir : ex. `projects.scenario` (TEXT) + table `scenario_chapters`, ou scénario avec JSON de découpage. **BDD — Scénarios approuvés** : prévoir la persistance de **tout ce qui a été approuvé** par l'utilisateur (versions de scénario, chapitres de scénario validés) ; historique / versions selon roadmap. Voir `11_Rapport_Chapitres_Flux_Blocs_Scenario.md` section 3 et 6 et `07_Roadmap_Produit.md` Phase 2. **À prévoir** : lors du renommage d'un asset, détecter les occurrences de l'ancien nom dans le `content` des chapitres et proposer/appliquer le remplacement — voir `Plan_Action_Developpement_Scénario.md` § 2.
+---
+
+### 2.6 `scenario_chapters`
+
+> Chapitres de scénario (texte narratif). Un chapitre écrit = un chapitre webtoon. Implémenté en février 2026.
+
+| Colonne | Type | Contraintes | Description |
+|---------|------|------------|-------------|
+| `id` | `UUID` | PK, DEFAULT gen_random_uuid() | Identifiant unique |
+| `project_id` | `UUID` | NOT NULL, FK → projects.id | Projet parent |
+| `user_id` | `UUID` | NOT NULL, FK → profiles.id | Propriétaire |
+| `chapter_number` | `INTEGER` | NOT NULL | Numéro du chapitre (ordonné) |
+| `title` | `TEXT` | NOT NULL | Titre du chapitre |
+| `content` | `TEXT` | NULL | Contenu textuel du chapitre (scénario) |
+| `panels_outline` | `JSONB` | NULL | Découpage en panels (liste + descriptions) — optionnel, à venir |
+| `created_at` | `TIMESTAMPTZ` | NOT NULL, DEFAULT now() | Date de création |
+| `updated_at` | `TIMESTAMPTZ` | NOT NULL, DEFAULT now() | Date de mise à jour |
+
+**Index** :
+- `idx_scenario_chapters_project_id` sur `project_id`
+
+**RLS** :
+- SELECT : `auth.uid() = user_id`
+- INSERT : `auth.uid() = user_id`
+- UPDATE : `auth.uid() = user_id`
+- DELETE : `auth.uid() = user_id`
+
+**Note** : La section Scénario permet à l'utilisateur d'écrire ou d'importer un scénario (texte) et de créer des **chapitres** qui **correspondent** aux chapitres webtoon (un chapitre écrit = un chapitre webtoon). **IA Scénario** : un prompt = un chapitre généré ; l'utilisateur construit son histoire **chapitre par chapitre**. **IA Chapitre** : sur chaque chapitre, réécriture avec diff visuel. **Détection assets** : surbrillance des noms d'assets existants dans le texte, hover (HoverCard), clic (Dialog). **Éléments non créés** : détection IA, panneau dédié, création depuis scénario. Voir `Plan_Action_Developpement_Scénario.md` et `07_Roadmap_Produit.md` Phase 2.
+
+---
+
+### 2.7 `scenario_versions`
+
+> Versions de scénario (ancienne vs nouvelle) pour le flux accepter/rejeter. Implémenté en février 2026.
+
+| Colonne | Type | Contraintes | Description |
+|---------|------|------------|-------------|
+| `id` | `UUID` | PK, DEFAULT gen_random_uuid() | Identifiant unique |
+| `project_id` | `UUID` | NOT NULL, FK → projects.id | Projet parent |
+| `scenario_chapter_id` | `UUID` | NULL, FK → scenario_chapters.id | Chapitre concerné (NULL si version scénario entier) |
+| `user_id` | `UUID` | NOT NULL, FK → profiles.id | Propriétaire |
+| `content` | `TEXT` | NOT NULL | Contenu de la version |
+| `version_type` | `TEXT` | NOT NULL | Type : `'scenario'` (IA Scénario) ou `'chapter'` (IA Chapitre) |
+| `status` | `TEXT` | NOT NULL, DEFAULT 'pending' | Statut : `'pending'` (en attente), `'accepted'` (acceptée), `'rejected'` (rejetée) |
+| `created_at` | `TIMESTAMPTZ` | NOT NULL, DEFAULT now() | Date de création |
+
+**RLS** :
+- SELECT : `auth.uid() = user_id`
+- INSERT : `auth.uid() = user_id`
+- UPDATE : `auth.uid() = user_id`
+- DELETE : `auth.uid() = user_id`
+
+**Note** : Persistance des versions pour le flux accepter/rejeter. **IA Chapitre** : comparaison ancienne vs nouvelle version avec diff visuel (texte supprimé en rouge, ajouté en vert). **IA Scénario** : texte proposé affiché tel quel, pas de diff.
+
+---
+
+**Note — Section Scénario (implémenté)** : ✅ **Complètement implémenté** (février 2026). Tables `scenario_chapters` et `scenario_versions` créées via migration `20260214200000_add_scenario_chapters.sql`. **À prévoir** : lors du renommage d'un asset, détecter les occurrences de l'ancien nom dans le `content` des chapitres et proposer/appliquer le remplacement — voir `Plan_Action_Developpement_Scénario.md` § 2.
 
 ---
 
@@ -219,9 +311,7 @@ CREATE TYPE asset_type AS ENUM ('character', 'background', 'object');
 | `user_id` | `UUID` | NOT NULL, FK → profiles.id | Propriétaire |
 | `project_id` | `UUID` | NOT NULL, FK → projects.id | Projet parent |
 | `title` | `TEXT` | NOT NULL | Titre du chapitre |
-| `synopsis` | `TEXT` | NULL | Résumé court du chapitre (référence ; découpage IA si pas de scénario). **Non utilisé dans les prompts d'image.** |
-| `scenario` | `TEXT` | NULL | Scénario détaillé (optionnel). Utilisé **uniquement pour le découpage IA** (scénario → chapitres → panels). **Jamais injecté dans le prompt de génération d'image.** |
-| `creation_mode` | `TEXT` | NULL | `'automatic'` \| `'structured'` — mode de création du chapitre |
+| `synopsis` | `TEXT` | NULL | Résumé court du chapitre (référence). **Non utilisé dans les prompts d'image.** |
 | `chapter_number` | `INTEGER` | NOT NULL | Numéro du chapitre (ordonné) |
 | `linked_scenario_chapter_id` | `UUID` | NULL, FK → scenario_chapters.id | Chapitre de scénario lié (double visualisation en Édition de l'œuvre). |
 | `created_at` | `TIMESTAMPTZ` | NOT NULL, DEFAULT now() | Date de création |
@@ -254,7 +344,9 @@ CREATE TYPE asset_type AS ENUM ('character', 'background', 'object');
 | `layout` | `JSONB` | NULL | En mode Structuré : définition des blocs (position, taille, prompt, refs assets, image_url par bloc). Voir format ci-dessous. |
 | `dialogue` | `TEXT` | NULL | Texte de dialogue (simple) |
 | `narration` | `TEXT` | NULL | Texte de narration |
-| `speech_bubbles` | `JSONB` | NULL | Bulles de dialogue (structure riche) |
+| `speech_bubbles` | `JSONB` | NULL | Bulles de dialogue (structure riche) — prévu mais UI non implémentée |
+| `motion_lines` | `JSONB` | NULL | Lignes de mouvement (effets visuels) — prévu mais non implémenté |
+| `transition_effects` | `JSONB` | NULL | Effets de transition entre panels — prévu mais non implémenté |
 | `created_at` | `TIMESTAMPTZ` | NOT NULL, DEFAULT now() | Date de création |
 
 **Format de `layout`** (mode Structuré — blocs) :
@@ -469,4 +561,4 @@ Suppression d'un chapitre
 
 ---
 
-*Dernière mise à jour : 14 février 2026*
+*Dernière mise à jour : 17 février 2026 (Audit : ajout tables scenario_chapters et scenario_versions dans ERD, colonne panels_target_per_chapter dans projects, colonnes motion_lines et transition_effects dans panels)*

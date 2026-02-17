@@ -63,7 +63,7 @@
 
 ---
 
-## Phase 2 : Panels & Dialogues (Q2 2026) — 🔜 NEXT
+## Phase 2 : Panels & Dialogues (Q2 2026) — 🔄 PARTIELLEMENT LIVRÉ
 
 > **Objectif** : (1) **Section Scénario** : écriture avec IA (un prompt = un chapitre généré, accepter/rejeter). (2) **Édition de l'œuvre** : chapitres visuels et panels (**deux flux** (Automatique et Structuré). Les images générées sont toujours des **illustrations pleines** ; elles sont affichées dans les panels ou dans des blocs (conteneurs de mise en page), sans « cases » dessinées dans l’image. Voir `11_Rapport_Chapitres_Flux_Blocs_Scenario.md`. **Règle impérative** : la génération doit s'appuyer sur les **assets sélectionnés par l'utilisateur** (chapitre en mode Auto, par bloc en mode Structuré) pour cadrer la scène et que l'IA comprenne les éléments à mettre dans le chapitre.
 
@@ -116,10 +116,10 @@ Voir `Plan_Action_Developpement_Scénario.md` pour le détail des phases A à G.
 
 #### 2.2.1 Double visualisation & IA Panel
 
-| Tâche | Description | Priorité | Effort |
-|-------|------------|----------|--------|
-| **Double visualisation** | À l'édition d'un panel : **côté scénario** chapitre de scénario (texte) affiché dès l'entrée dans le chapitre visuel (lien optionnel ou sélecteur) ; **côté assets** assets sélectionnés. Voir rapport § 3.4.1 (projection ouverture chapitre texte). | P0 | M |
-| **IA Panel** | Même modèle LLM, system prompt « IA Panel » : suggère ou **réécrit** la description du panel (contexte scénario + assets). Réécriture **directe** dans le champ ; **accepter** ou **rejeter**. Règle : prompt d'image = style + assets + description (jamais le scénario brut). | P0 | L |
+| Tâche | Description | Priorité | Effort | Statut |
+|-------|------------|----------|--------|--------|
+| **Double visualisation** | À l'édition d'un panel : **côté scénario** chapitre de scénario (texte) affiché dès l'entrée dans le chapitre visuel (lien optionnel ou sélecteur) ; **côté assets** assets sélectionnés. Voir rapport § 3.4.1 (projection ouverture chapitre texte). | P0 | M | ✅ Livré |
+| **IA Panel** | Même modèle LLM, system prompt « IA Panel » : suggère ou **réécrit** la description du panel (contexte scénario + assets). Réécriture **directe** dans le champ ; **accepter** ou **rejeter**. Règle : prompt d'image = style + assets + description (jamais le scénario brut). | P0 | L | 📋 À venir |
 
 #### 2.2.2 Mode Automatique (flux rapide)
 
@@ -320,4 +320,4 @@ Jan     Fév     Mar     Avr     Mai     Juin    Jul     Aoû     Sep     Oct   
 
 ---
 
-*Dernière mise à jour : 14 février 2026*
+*Dernière mise à jour : 17 février 2026 (Audit : mise à jour statut réel Phase 2 — Section Scénario ✅ complète, Édition de l'œuvre ✅ partiellement implémentée)*

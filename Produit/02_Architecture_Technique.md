@@ -32,8 +32,20 @@ DreamWeave est une application web monopage (SPA) basée sur une architecture **
 │  └───────────────┘  │         │  │  - Upload Storage         │  │
 │  ┌───────────────┐  │         │  │  - Mise à jour BDD        │  │
 │  │  Auth         │  │         │  └──────────────┬────────────┘  │
-│  │  (Supabase    │  │         └─────────────────┼───────────────┘
-│  │   Auth)       │  │                           │
+│  │  (Supabase    │  │         │  ┌───────────────────────────┐  │
+│  │   Auth)       │  │         │  │  generate-scenario-ai    │  │
+│  └───────────────┘  │         │  │  - IA Scénario/Chapitre   │  │
+│  ┌───────────────┐  │         │  │  - Découpage panels      │  │
+│  │  Storage      │  │         │  │  - Groq/Llama 3.3 70B    │  │
+│  │  (Bucket      │  │         │  └──────────────┬────────────┘  │
+│  │  dreamweave)  │  │         │  ┌───────────────────────────┐  │
+│  └───────────────┘  │         │  │  generate-panel-image    │  │
+│  ┌───────────────┐  │         │  │  - Génération par bloc   │  │
+│  │  Row Level    │  │         │  │  - Dimensions personnalisées│  │
+│  │  Security     │  │         │  │  - Appel API FAL.ai       │  │
+│  └───────────────┘  │         │  └──────────────┬────────────┘  │
+│                     │         └─────────────────┼───────────────┘
+│                     │                           │
 │  └───────────────┘  │                           ▼
 │  ┌───────────────┐  │         ┌─────────────────────────────────┐
 │  │  Storage      │  │         │       FAL.ai API             │
@@ -127,13 +139,21 @@ src/
 ├── services/
 │   ├── projects.ts                   # CRUD projets (Supabase)
 │   ├── assets.ts                     # CRUD assets + appel Edge Function
+│   ├── chapters.ts                   # CRUD chapitres visuels
+│   ├── panels.ts                     # CRUD panels + génération par bloc
+│   ├── scenarioChapters.ts           # CRUD chapitres de scénario
+│   ├── scenarioAI.ts                # Appels Edge Function IA Scénario/Chapitre
 │   └── storage.ts                    # Upload/delete images Storage
 │
 ├── hooks/
 │   ├── useAuth.tsx                   # AuthProvider + useAuth hook
 │   ├── useProjects.ts               # React Query hooks projets
 │   ├── useAssets.ts                  # React Query hooks assets
-│   ├── useAssetGeneration.ts        # Logique génération images
+│   ├── useChapters.ts                # React Query hooks chapitres visuels
+│   ├── usePanels.ts                  # React Query hooks panels
+│   ├── useScenarioChapters.ts        # React Query hooks chapitres de scénario
+│   ├── useScenarioAI.ts             # Hook IA Scénario/Chapitre
+│   ├── useAssetGeneration.ts        # Logique génération images assets
 │   ├── useUserPlan.ts               # Plan utilisateur + usage mensuel
 │   ├── useTheme.tsx                  # Thème clair/sombre
 │   ├── use-toast.ts                  # Notifications toast
@@ -148,6 +168,9 @@ src/
 │   │   ├── AssetLibrary.tsx          # Bibliothèque d'assets (onglets, CRUD, dialog édition, confirmations)
 │   │   ├── AssetCard.tsx             # Carte d'asset (actions hover : modifier, régénérer, supprimer)
 │   │   ├── StyleManager.tsx          # Gestion style (texte + images de référence)
+│   │   ├── ScenarioSection.tsx       # Section Scénario (IA Scénario/Chapitre, chapitres texte)
+│   │   ├── EditionSection.tsx        # Section Édition de l'œuvre (chapitres visuels)
+│   │   ├── ScenarioTextHighlighter.tsx # Surbrillance assets + détection éléments non créés
 │   │   └── CharacterViewDialog.tsx   # Vues multiples personnage
 │   └── ui/                           # 50+ composants shadcn/ui
 │       ├── button.tsx
@@ -163,10 +186,10 @@ src/
     ├── Auth.tsx                       # Inscription / Connexion
     ├── Dashboard.tsx                  # Tableau de bord (stats, usage, projets récents)
     ├── Projects.tsx                   # Liste des projets (recherche, CRUD)
-    ├── ProjectDetail.tsx             # Détail projet (assets, style)
+    ├── ProjectDetail.tsx             # Détail projet (onglets Style/Assets/Scénario/Édition)
+    ├── ChapterDetail.tsx             # Édition chapitre visuel (double visualisation + panels/blocs)
     ├── Profile.tsx                   # Profil utilisateur
     ├── Plans.tsx                     # Comparaison des plans Free / Pro
-    ├── ChapterDetail.tsx             # Détail chapitre (panels) — placeholder
     └── NotFound.tsx                  # Page 404
 ```
 
@@ -182,7 +205,9 @@ src/
           ├── "/auth" → <Auth />
           ├── "/dashboard" → <ProtectedRoute> → <Dashboard />
           ├── "/dashboard/projects" → <ProtectedRoute> → <Projects />
+          ├── "/dashboard/projects/new" → <ProtectedRoute> → <Projects />
           ├── "/dashboard/projects/:id" → <ProtectedRoute> → <ProjectDetail />
+          ├── "/dashboard/projects/:id/chapter/:chapterId" → <ProtectedRoute> → <ChapterDetail />
           ├── "/dashboard/profile" → <ProtectedRoute> → <Profile />
           ├── "/dashboard/plans" → <ProtectedRoute> → <Plans />
           └── "*" → <NotFound />
@@ -699,4 +724,4 @@ VITE_SUPABASE_PUBLISHABLE_KEY="eyJ..."
 
 ---
 
-*Dernière mise à jour : 14 février 2026*
+*Dernière mise à jour : 17 février 2026 (Audit : routes ChapterDetail, composants ScenarioSection/EditionSection, Edge Functions generate-scenario-ai et generate-panel-image)*

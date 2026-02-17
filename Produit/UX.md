@@ -50,9 +50,9 @@
 
 | Étape | Écran / action | Détail |
 |-------|----------------|--------|
-| 1 | **Détail projet** | Titre, description ; **onglets** : Style, Assets, Scénario, Edition de l'oeuvre (+ tard) |
+| 1 | **Détail projet** | Titre, description ; **onglets** : Style, Assets, Scénario, Édition de l'œuvre |
 | 2 | **Navigation** | Clic sur un onglet → contenu correspondant. Onglet actif mis en évidence. |
-| 3 | **Édition projet** | Modification du titre et de la description (sauvegarde). |
+| 3 | **Édition projet** | Modification du titre, description et nombre cible de panels par chapitre (sauvegarde). |
 
 ---
 
@@ -240,4 +240,4 @@ Onglet Assets : Renommage d’un asset
 
 ---
 
-*Dernière mise à jour : 14 février 2026*
+*Dernière mise à jour : 17 février 2026 (Audit : mise à jour statut réel Section Scénario ✅ et Édition de l'œuvre ✅ partiellement)*

@@ -742,4 +742,4 @@ const { data, error } = await supabase.storage
 
 ---
 
-*Dernière mise à jour : 15 février 2026*
+*Dernière mise à jour : 17 février 2026 (Audit : ajout Edge Functions generate-scenario-ai et generate-panel-image, documentation complète)*

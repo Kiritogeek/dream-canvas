@@ -9,6 +9,8 @@ interface AuthContextType {
   signUp: (email: string, password: string, displayName?: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
+  updatePassword: (newPassword: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -39,20 +41,134 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signUp = async (email: string, password: string, displayName?: string) => {
-    const { error } = await supabase.auth.signUp({
-      email,
+    // Validation supplémentaire côté hook
+    const trimmedEmail = email.trim().toLowerCase();
+    const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+    
+    if (!trimmedEmail || !emailRegex.test(trimmedEmail)) {
+      throw new Error("L'adresse email n'est pas valide");
+    }
+    
+    const { data, error } = await supabase.auth.signUp({
+      email: trimmedEmail,
       password,
       options: {
-        emailRedirectTo: window.location.origin,
+        emailRedirectTo: `${window.location.origin}/auth/verify-email`,
         data: { display_name: displayName },
       },
     });
-    if (error) throw error;
+    
+    if (error) {
+      // Détecter l'erreur user_already_exists (code d'erreur Supabase)
+      // Supabase peut retourner cette erreur de différentes manières :
+      // - Dans error.status (422)
+      // - Dans error.message
+      // - Dans les headers HTTP (x-sb-error-code: user_already_exists)
+      const errorCode = (error as any).code || (error as any).status;
+      const errorStatus = (error as any).status;
+      const errorMessage = (error.message || "").toLowerCase();
+      
+      // Vérifier si c'est une erreur 422 (Unprocessable Entity) qui indique souvent user_already_exists
+      // Le header x-sb-error-code contient "user_already_exists" pour cette erreur
+      const is422Error = errorStatus === 422 || errorCode === 422;
+      
+      // Vérifier les différents formats de message d'erreur et codes
+      // Note: Supabase retourne souvent error.status = 422 avec le header x-sb-error-code: user_already_exists
+      const isUserExistsError = 
+        errorCode === "user_already_exists" ||
+        (error as any).name === "AuthApiError" && is422Error ||
+        errorMessage.includes("already registered") ||
+        errorMessage.includes("already exists") ||
+        errorMessage.includes("user_already_exists") ||
+        errorMessage.includes("email already in use") ||
+        errorMessage.includes("user already registered") ||
+        (is422Error && (errorMessage.includes("user") || errorMessage.includes("email")));
+      
+      if (isUserExistsError || is422Error) {
+        // Créer une erreur personnalisée avec un flag pour indiquer qu'on peut basculer vers la connexion
+        const customError = new Error("Cet email est déjà utilisé. Connectez-vous ou utilisez un autre email.");
+        (customError as any).code = "USER_ALREADY_EXISTS";
+        (customError as any).status = 422;
+        throw customError;
+      }
+      throw error;
+    }
+    
+    // Vérifier que l'utilisateur a bien été créé
+    if (!data.user) {
+      throw new Error("Erreur lors de la création du compte. Veuillez réessayer.");
+    }
+    
+    // Si l'email n'est pas confirmé, retourner une information spéciale
+    // data.session sera null si l'email doit être confirmé
+    if (!data.session && data.user) {
+      const customError = new Error("Un email de vérification a été envoyé. Veuillez vérifier votre boîte de réception.");
+      (customError as any).code = "EMAIL_CONFIRMATION_REQUIRED";
+      (customError as any).user = data.user;
+      throw customError;
+    }
   };
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw error;
+    // Validation supplémentaire côté hook
+    const trimmedEmail = email.trim().toLowerCase();
+    const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+    
+    if (!trimmedEmail || !emailRegex.test(trimmedEmail)) {
+      throw new Error("L'adresse email n'est pas valide");
+    }
+    
+    const { data, error } = await supabase.auth.signInWithPassword({ 
+      email: trimmedEmail, 
+      password 
+    });
+    
+    if (error) {
+      // Détecter l'erreur invalid_credentials (code d'erreur Supabase)
+      // Supabase peut retourner cette erreur de différentes manières :
+      // - Dans error.status (400)
+      // - Dans error.message
+      // - Dans les headers HTTP (x-sb-error-code: invalid_credentials)
+      const errorCode = (error as any).code || (error as any).status;
+      const errorStatus = (error as any).status;
+      const errorMessage = (error.message || "").toLowerCase();
+      
+      // Vérifier si c'est une erreur 400 (Bad Request) qui peut indiquer invalid_credentials
+      const is400Error = errorStatus === 400 || errorCode === 400;
+      
+      // Vérifier les différents formats de message d'erreur et codes
+      const isInvalidCredentials = 
+        errorCode === "invalid_credentials" ||
+        (error as any).name === "AuthApiError" && errorMessage.includes("invalid") ||
+        errorMessage.includes("invalid login credentials") ||
+        errorMessage.includes("invalid credentials") ||
+        errorMessage.includes("email or password") ||
+        errorMessage.includes("incorrect password") ||
+        errorMessage.includes("wrong password") ||
+        (is400Error && (errorMessage.includes("password") || errorMessage.includes("credentials")));
+      
+      if (isInvalidCredentials) {
+        throw new Error("Email ou mot de passe incorrect. Vérifiez vos identifiants et réessayez.");
+      }
+      
+      if (
+        errorMessage.includes("email not confirmed") || 
+        errorMessage.includes("email_not_confirmed") ||
+        errorMessage.includes("email not verified") ||
+        errorCode === "email_not_confirmed"
+      ) {
+        const customError = new Error("Veuillez confirmer votre email avant de vous connecter. Vérifiez votre boîte de réception.");
+        (customError as any).code = "EMAIL_NOT_CONFIRMED";
+        throw customError;
+      }
+      
+      throw error;
+    }
+    
+    // Vérifier que la session a bien été créée
+    if (!data.session || !data.user) {
+      throw new Error("Erreur lors de la connexion. Veuillez réessayer.");
+    }
   };
 
   const signInWithGoogle = async () => {
@@ -70,13 +186,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) throw error;
   };
 
+  const resetPassword = async (email: string) => {
+    const trimmedEmail = email.trim().toLowerCase();
+    const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+    
+    if (!trimmedEmail || !emailRegex.test(trimmedEmail)) {
+      throw new Error("L'adresse email n'est pas valide");
+    }
+    
+    const { error } = await supabase.auth.resetPasswordForEmail(trimmedEmail, {
+      redirectTo: `${window.location.origin}/auth/reset-password`,
+    });
+    
+    if (error) {
+      if (error.message.includes("not found") || error.message.includes("does not exist")) {
+        throw new Error("Aucun compte n'est associé à cet email.");
+      }
+      throw error;
+    }
+  };
+
+  const updatePassword = async (newPassword: string) => {
+    if (!newPassword || newPassword.length < 6) {
+      throw new Error("Le mot de passe doit contenir au moins 6 caractères");
+    }
+    
+    const { error } = await supabase.auth.updateUser({
+      password: newPassword,
+    });
+    
+    if (error) {
+      throw error;
+    }
+  };
+
   const signOut = async () => {
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, signUp, signIn, signInWithGoogle, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, signUp, signIn, signInWithGoogle, resetPassword, updatePassword, signOut }}>
       {children}
     </AuthContext.Provider>
   );

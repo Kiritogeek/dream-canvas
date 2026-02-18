@@ -131,12 +131,23 @@ export function AssetLibrary({
 
   const handleCreateAsset = async (e: React.FormEvent) => {
     e.preventDefault();
+    const nameTrim = newAssetName.trim();
     const promptText = newAssetPrompt.trim() || null;
+
+    const nameLower = nameTrim.toLowerCase();
+    if (assets.some((a) => (a.name ?? "").trim().toLowerCase() === nameLower)) {
+      toast({
+        title: "Nom déjà utilisé",
+        description: "Un asset porte déjà ce nom. Choisissez un nom unique pour chaque asset.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     try {
       const newAsset = await createAssetMutation.mutateAsync({
         project_id: projectId,
-        name: newAssetName.trim(),
+        name: nameTrim,
         asset_type: newAssetType,
         prompt: promptText,
       });
@@ -173,6 +184,17 @@ export function AssetLibrary({
     if (!editTarget) return;
     const oldName = editTarget.name.trim();
     const newName = editName.trim();
+    const otherWithSameName = assets.some(
+      (a) => a.id !== editTarget.id && (a.name ?? "").trim().toLowerCase() === newName.toLowerCase()
+    );
+    if (otherWithSameName) {
+      toast({
+        title: "Nom déjà utilisé",
+        description: "Un autre asset porte déjà ce nom. Choisissez un nom unique pour chaque asset.",
+        variant: "destructive",
+      });
+      return;
+    }
     try {
       await updateAssetMutation.mutateAsync({
         id: editTarget.id,
@@ -205,6 +227,17 @@ export function AssetLibrary({
     if (!editTarget) return;
     const oldName = editTarget.name.trim();
     const newName = editName.trim();
+    const otherWithSameName = assets.some(
+      (a) => a.id !== editTarget.id && (a.name ?? "").trim().toLowerCase() === newName.toLowerCase()
+    );
+    if (otherWithSameName) {
+      toast({
+        title: "Nom déjà utilisé",
+        description: "Un autre asset porte déjà ce nom. Choisissez un nom unique pour chaque asset.",
+        variant: "destructive",
+      });
+      return;
+    }
     try {
       await updateAssetMutation.mutateAsync({
         id: editTarget.id,

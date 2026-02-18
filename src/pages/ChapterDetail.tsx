@@ -50,7 +50,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { ScenarioTextHighlighter } from "@/components/project/ScenarioTextHighlighter";
+import { ScenarioTextHighlighter, getDetectedAssets } from "@/components/project/ScenarioTextHighlighter";
 import { ImageWithFallback } from "@/components/ui/ImageWithFallback";
 import { useChapter, useUpdateChapter } from "@/hooks/useChapters";
 import { useScenarioChapters, useScenarioChapter } from "@/hooks/useScenarioChapters";
@@ -166,7 +166,9 @@ export default function ChapterDetail() {
   const [dragPreview, setDragPreview] = useState<{ panelId: string; blockId: string; x: number; y: number } | null>(null);
   /** Panel ouvert en modale « Edition » (id ou null) */
   const [expandedPanelId, setExpandedPanelId] = useState<string | null>(null);
-  /** Bloc sélectionné dans la modale (mode Personalisation) pour afficher le panneau droit */
+  /** Onglet du panneau gauche en modale : Architecture | Personalisation (chapitre affiché à droite en permanence) */
+  const [panelEditorLeftTab, setPanelEditorLeftTab] = useState<"architecture" | "personalisation">("architecture");
+  /** Bloc sélectionné dans la modale (mode Personalisation) pour afficher le panneau droit ou gauche */
   const [selectedBlockIdInModal, setSelectedBlockIdInModal] = useState<{ panelId: string; blockId: string } | null>(null);
   const [pendingOutline, setPendingOutline] = useState<Array<{ description: string; context?: { lieu?: string; scene?: string; personnages?: string } }> | null>(null);
   /** Valeur sentinelle pour "Aucun" (Radix Select n'accepte pas value="") */
@@ -616,9 +618,9 @@ export default function ChapterDetail() {
         return;
       }
       const contextChapter = panel.prompt?.trim() || null;
-      const refIds = block.asset_refs ?? [];
-      const refAssets = refIds.map((id) => assets.find((a) => a.id === id)).filter(Boolean) as typeof assets;
-      const blockAssetImageUrls = refAssets.map((a) => a.image_url).filter((url): url is string => !!url);
+      const refAssets = getDetectedAssets(promptToUse, assets);
+      const refIds = refAssets.map((a) => a.id);
+      const blockAssetImageUrls = refAssets.map((a) => a.image_url).filter((u): u is string => !!u);
       const blockAssetNames = refAssets.map((a) => a.name ?? a.id.slice(0, 8));
       generatePanelImage.mutate(
         { panel: { id: panel.id, prompt: promptToUse }, block: { id: block.id, width: block.width, height: block.height }, project, contextChapter: contextChapter ?? undefined, blockAssetImageUrls: blockAssetImageUrls.length ? blockAssetImageUrls : undefined, blockAssetNames: blockAssetNames.length ? blockAssetNames : undefined },
@@ -638,25 +640,11 @@ export default function ChapterDetail() {
 
     return (
       <div className="flex flex-1 min-h-0 overflow-hidden rounded-b-lg" style={{ maxHeight: "calc(95vh - 80px)" }}>
-        {/* Gauche : contrôles — contexte et hauteur du panel (pas la liste des blocs) */}
+        {/* Gauche : contenu selon l’onglet (Chapitre | Architecture | Personalisation) */}
         <aside className="w-[360px] shrink-0 flex flex-col border-r border-border bg-background overflow-y-auto">
-          <div className="p-4 space-y-4">
-            <div className="space-y-2">
-              <span className="text-xs font-medium text-muted-foreground">Mode</span>
-              <ToggleGroup
-                type="single"
-                value={mode}
-                onValueChange={(v) => { if (v) { setPanelEditModeByPanelId((prev) => ({ ...prev, [panel.id]: v as "architecture" | "edition" })); if (v === "architecture") setSelectedBlockIdInModal(null); } }}
-                variant="outline"
-                size="sm"
-                className="rounded-xl border border-border/60 bg-muted/20 p-1 w-full grid grid-cols-2"
-              >
-                <ToggleGroupItem value="architecture" className="rounded-lg">Architecture</ToggleGroupItem>
-                <ToggleGroupItem value="edition" className="rounded-lg">Personalisation</ToggleGroupItem>
-              </ToggleGroup>
-            </div>
-            <div className="min-h-10 rounded-xl border border-dashed border-border/70 bg-muted/30 px-3 py-2">
-              {mode === "architecture" ? (
+          {panelEditorLeftTab === "architecture" && (
+            <div className="p-4 space-y-4">
+              <div className="min-h-10 rounded-xl border border-dashed border-border/70 bg-muted/30 px-3 py-2">
                 <div className="space-y-1.5">
                   <span className="text-xs font-medium text-muted-foreground block">Bibliothèque de blocs — glisser sur le panel</span>
                   <div className="flex flex-wrap gap-2">
@@ -677,11 +665,7 @@ export default function ChapterDetail() {
                     ))}
                   </div>
                 </div>
-              ) : (
-                <span className="w-full text-center text-sm text-muted-foreground/80 block py-1" aria-hidden>Cliquez sur un bloc dans le panel pour l'éditer</span>
-              )}
-            </div>
-            {mode === "architecture" && (
+              </div>
               <div className="space-y-2 rounded-xl bg-muted/20 p-3 border border-border/50">
                 <span className="text-xs font-medium text-muted-foreground">Hauteur du panel</span>
                 <div className="flex items-center gap-2">
@@ -711,23 +695,97 @@ export default function ChapterDetail() {
                 </div>
                 <p className="text-[11px] text-muted-foreground/80">Min {PANEL_HEIGHT_MIN} — max {PANEL_HEIGHT_MAX}. Vide = min par défaut.</p>
               </div>
-            )}
-          </div>
-          <div className="p-4 border-t border-border/60 space-y-2">
-            <span className="text-xs font-medium text-muted-foreground">Scénario</span>
-            {loadingScenario ? (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Chargement...
-              </div>
-            ) : scenarioChapter?.content ? (
-              <div className="rounded-md border border-border bg-muted/30 p-3 min-h-[80px] max-h-[40vh] overflow-y-auto">
-                <ScenarioTextHighlighter text={scenarioChapter.content} assets={assets} className="text-sm" />
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground italic py-2">Aucun chapitre scénario lié.</p>
-            )}
-          </div>
+            </div>
+          )}
+          {panelEditorLeftTab === "personalisation" && (
+            <div className="p-4 flex-1 min-h-0 flex flex-col overflow-y-auto">
+              {selectedBlock ? (() => {
+                const block = selectedBlock;
+                const blockKey = `${panel.id}-${block.id}`;
+                const nameDraft = blockNameDrafts[blockKey] ?? block.name ?? "";
+                const promptDraft = blockPromptDrafts[blockKey] ?? block.prompt ?? "";
+                const isGenerating = generatePanelImage.isPending && generatePanelImage.variables?.panel?.id === panel.id;
+                return (
+                  <>
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <h4 className="text-sm font-medium text-foreground">Bloc sélectionné</h4>
+                      <Button size="sm" variant="ghost" className="h-8 w-8 p-0 rounded-lg" onClick={() => setSelectedBlockIdInModal(null)} aria-label="Fermer"><X className="h-4 w-4" /></Button>
+                    </div>
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <label className="text-xs font-medium text-muted-foreground">Nom du bloc</label>
+                        <input
+                          type="text"
+                          value={nameDraft}
+                          onChange={(e) => setBlockNameDrafts((prev) => ({ ...prev, [blockKey]: e.target.value }))}
+                          onBlur={() => { if (nameDraft.trim() !== (block.name ?? "")) handleSaveBlockName(block, nameDraft); }}
+                          placeholder="Ex. Bloc 1"
+                          className="w-full h-9 rounded-lg border border-border/60 bg-background px-3 text-sm"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-medium text-muted-foreground">Prompt visuel</label>
+                        <Textarea
+                          value={promptDraft}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            setBlockPromptDrafts((prev) => ({ ...prev, [blockKey]: v }));
+                            handleSaveBlockPrompt(block, v, { silent: true });
+                          }}
+                          placeholder="Description visuelle de ce bloc…"
+                          className="min-h-[100px] text-sm resize-y"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <span className="text-xs font-medium text-muted-foreground">Dimensions</span>
+                        <p className="text-sm text-foreground tabular-nums">{block.width} × {Math.round(block.height)}</p>
+                      </div>
+                      <div className="space-y-2">
+                        <span className="text-xs font-medium text-muted-foreground">Assets détectés</span>
+                        {(() => {
+                          const promptText = (promptDraft.trim() || (block.prompt ?? "").trim()) || "";
+                          const detected = getDetectedAssets(promptText, assets);
+                          if (detected.length === 0) {
+                            return (
+                              <p className="text-[11px] text-muted-foreground/80">
+                                Les personnages, décors et objets mentionnés dans le prompt apparaîtront ici (un par asset).
+                              </p>
+                            );
+                          }
+                          return (
+                            <div className="space-y-2 rounded-lg border border-border/60 bg-muted/20 p-2">
+                              {detected.map((asset) => (
+                                <div key={asset.id} className="flex items-center gap-2 rounded px-2 py-1.5">
+                                  <div className="w-10 h-10 shrink-0 rounded overflow-hidden border border-border/60 bg-muted">
+                                    {asset.image_url ? (
+                                      <ImageWithFallback src={asset.image_url} alt="" className="w-full h-full object-cover" />
+                                    ) : (
+                                      <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">—</div>
+                                    )}
+                                  </div>
+                                  <span className="flex-1 min-w-0 truncate text-sm font-medium">{asset.name ?? asset.id.slice(0, 8)}</span>
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        })()}
+                      </div>
+                      {project && (
+                        <Button size="sm" variant="outline" className="w-full gap-1.5" disabled={(!(block.prompt?.trim()) && !(panel.prompt?.trim())) || (!(project.style_template?.trim()) && !(Array.isArray(project.style_image_urls) && project.style_image_urls.length > 0)) || isGenerating} onClick={() => handleGenerateBlock(block)}>
+                          {isGenerating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}{block.image_url ? "Régénérer l'image" : "Générer l'image"}
+                        </Button>
+                      )}
+                      <Button size="sm" variant="ghost" className="w-full gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10" disabled={updatePanelMutation.isPending} onClick={() => handleDeleteBlock(block)}><Trash2 className="h-3 w-3" /> Supprimer le bloc</Button>
+                    </div>
+                  </>
+                );
+              })() : (
+                <div className="rounded-xl border border-dashed border-border/70 bg-muted/30 px-4 py-8 text-center">
+                  <p className="text-sm text-muted-foreground">Cliquez sur un bloc dans le panel pour l'éditer (passez en mode Personalisation dans l'onglet Architecture si besoin).</p>
+                </div>
+              )}
+            </div>
+          )}
         </aside>
         {/* Centre : panel 800px de large exactement */}
         <div className="flex-1 min-w-0 flex items-start justify-center overflow-auto p-6 bg-background">
@@ -933,100 +991,24 @@ export default function ChapterDetail() {
             </div>
           </div>
         </div>
-        {/* Droite : détail du bloc sélectionné (mode Personalisation) */}
-        {mode === "edition" && selectedBlock && (
-          <aside className="w-[340px] shrink-0 flex flex-col border-l border-border bg-background overflow-y-auto">
-            <div className="p-4 space-y-4">
-              <div className="flex items-center justify-between gap-2">
-                <h4 className="text-sm font-medium text-foreground">Bloc sélectionné</h4>
-                <Button size="sm" variant="ghost" className="h-8 w-8 p-0 rounded-lg" onClick={() => setSelectedBlockIdInModal(null)} aria-label="Fermer"><X className="h-4 w-4" /></Button>
+        {/* Droite : chapitre (scénario) affiché en permanence */}
+        <aside className="w-[340px] shrink-0 flex flex-col border-l border-border bg-background overflow-y-auto">
+          <div className="p-4 space-y-2 flex-1 min-h-0 flex flex-col">
+            <span className="text-xs font-medium text-muted-foreground">Scénario</span>
+            {loadingScenario ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Chargement...
               </div>
-              {(() => {
-                const block = selectedBlock;
-                const blockKey = `${panel.id}-${block.id}`;
-                const nameDraft = blockNameDrafts[blockKey] ?? block.name ?? "";
-                const promptDraft = blockPromptDrafts[blockKey] ?? block.prompt ?? "";
-                const isGenerating = generatePanelImage.isPending && generatePanelImage.variables?.panel?.id === panel.id;
-                return (
-                  <>
-                    <div className="space-y-2">
-                      <label className="text-xs font-medium text-muted-foreground">Nom du bloc</label>
-                      <input
-                        type="text"
-                        value={nameDraft}
-                        onChange={(e) => setBlockNameDrafts((prev) => ({ ...prev, [blockKey]: e.target.value }))}
-                        onBlur={() => { if (nameDraft.trim() !== (block.name ?? "")) handleSaveBlockName(block, nameDraft); }}
-                        placeholder="Ex. Bloc 1"
-                        className="w-full h-9 rounded-lg border border-border/60 bg-background px-3 text-sm"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-xs font-medium text-muted-foreground">Prompt visuel</label>
-                      <Textarea
-                        value={promptDraft}
-                        onChange={(e) => {
-                          const v = e.target.value;
-                          setBlockPromptDrafts((prev) => ({ ...prev, [blockKey]: v }));
-                          handleSaveBlockPrompt(block, v, { silent: true });
-                        }}
-                        placeholder="Description visuelle de ce bloc…"
-                        className="min-h-[100px] text-sm resize-y"
-                      />
-                      {(promptDraft.trim() || (block.prompt ?? "").trim()) && (
-                        <div className="rounded-lg border border-border/60 bg-muted/20 px-2 py-1.5">
-                          <ScenarioTextHighlighter text={promptDraft.trim() || (block.prompt ?? "").trim()} assets={assets} className="text-sm min-h-0" hideIndicator />
-                        </div>
-                      )}
-                    </div>
-                    <div className="space-y-2">
-                      <span className="text-xs font-medium text-muted-foreground">Dimensions</span>
-                      <p className="text-sm text-foreground tabular-nums">{block.width} × {Math.round(block.height)}</p>
-                    </div>
-                    <div className="space-y-2">
-                      <span className="text-xs font-medium text-muted-foreground">Assets pour ce bloc</span>
-                      <p className="text-[11px] text-muted-foreground/80">Sélectionnez les personnages, décors et objets à inclure dans la génération.</p>
-                      {assets.length === 0 ? (
-                        <p className="text-sm text-muted-foreground italic">Aucun asset dans le projet.</p>
-                      ) : (
-                        <div className="max-h-[200px] overflow-y-auto space-y-1.5 rounded-lg border border-border/60 bg-muted/20 p-2">
-                          {assets.map((asset) => {
-                            const isChecked = (block.asset_refs ?? []).includes(asset.id);
-                            return (
-                              <label key={asset.id} className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 rounded px-2 py-1">
-                                <input
-                                  type="checkbox"
-                                  checked={isChecked}
-                                  onChange={() => {
-                                    const refs = block.asset_refs ?? [];
-                                    const next = isChecked ? refs.filter((id) => id !== asset.id) : [...refs, asset.id];
-                                    handleSaveBlockAssetRefs(block, next);
-                                  }}
-                                  className="rounded border-border"
-                                />
-                                <span className="flex-1 min-w-0 truncate text-sm">{asset.name ?? asset.id.slice(0, 8)}</span>
-                                {asset.image_url && (
-                                  <div className="w-8 h-8 shrink-0 rounded overflow-hidden border border-border/60 bg-muted">
-                                    <ImageWithFallback src={asset.image_url} alt="" className="w-full h-full object-cover" />
-                                  </div>
-                                )}
-                              </label>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                    {project && (
-                      <Button size="sm" variant="outline" className="w-full gap-1.5" disabled={(!(block.prompt?.trim()) && !(panel.prompt?.trim())) || (!(project.style_template?.trim()) && !(Array.isArray(project.style_image_urls) && project.style_image_urls.length > 0)) || isGenerating} onClick={() => handleGenerateBlock(block)}>
-                        {isGenerating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}{block.image_url ? "Régénérer l'image" : "Générer l'image"}
-                      </Button>
-                    )}
-                    <Button size="sm" variant="ghost" className="w-full gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10" disabled={updatePanelMutation.isPending} onClick={() => handleDeleteBlock(block)}><Trash2 className="h-3 w-3" /> Supprimer le bloc</Button>
-                  </>
-                );
-              })()}
-            </div>
-          </aside>
-        )}
+            ) : scenarioChapter?.content ? (
+              <div className="rounded-md border border-border bg-muted/30 p-3 min-h-[80px] flex-1 overflow-y-auto">
+                <ScenarioTextHighlighter text={scenarioChapter.content} assets={assets} className="text-sm" />
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground italic py-2">Aucun chapitre scénario lié.</p>
+            )}
+          </div>
+        </aside>
       </div>
     );
   };
@@ -1410,12 +1392,38 @@ export default function ChapterDetail() {
       </AlertDialog>
 
       {/* Modale Edition : architecture et personnalisation du panel */}
-      <Dialog open={!!expandedPanelId} onOpenChange={(open) => { if (!open) { setExpandedPanelId(null); setSelectedBlockIdInModal(null); setPanelHeightDraft(null); } }}>
+      <Dialog open={!!expandedPanelId} onOpenChange={(open) => { if (!open) { setExpandedPanelId(null); setSelectedBlockIdInModal(null); setPanelHeightDraft(null); setPanelEditorLeftTab("architecture"); } }}>
         <DialogContent className="max-w-[95vw] w-full max-h-[95vh] overflow-hidden flex flex-col gap-0 p-0 bg-background border-border" aria-describedby={undefined}>
-          <DialogHeader className="px-6 py-4 border-b border-border bg-background shrink-0">
-            <DialogTitle className="text-base font-medium">
-              Edition du panel {expandedPanelId ? `— Panel ${panels.find((p) => p.id === expandedPanelId)?.panel_number ?? ""}` : ""}
-            </DialogTitle>
+          <DialogHeader className="px-6 pt-4 pb-0 border-b border-border bg-background shrink-0 space-y-4">
+            <div className="flex items-center justify-between gap-4">
+              <DialogTitle className="text-base font-medium">
+                Edition du panel {expandedPanelId ? `— Panel ${panels.find((p) => p.id === expandedPanelId)?.panel_number ?? ""}` : ""}
+              </DialogTitle>
+            </div>
+            <div className="flex flex-col gap-1.5 w-fit">
+              <span className="text-xs text-muted-foreground">Étapes de conception (gauche → droite)</span>
+              <ToggleGroup
+                type="single"
+                value={panelEditorLeftTab}
+                onValueChange={(v) => {
+                  if (!v) return;
+                setPanelEditorLeftTab(v as "architecture" | "personalisation");
+                if (v === "personalisation" && expandedPanelId)
+                  setPanelEditModeByPanelId((prev) => ({ ...prev, [expandedPanelId]: "edition" }));
+                if (v === "architecture" && expandedPanelId) {
+                  setPanelEditModeByPanelId((prev) => ({ ...prev, [expandedPanelId]: "architecture" }));
+                  setSelectedBlockIdInModal(null);
+                }
+              }}
+              variant="outline"
+              size="sm"
+              className="w-fit inline-flex rounded-xl border border-border/60 bg-muted/20 p-1 gap-1.5 [&>button]:px-3 [&>button]:min-w-0"
+              aria-label="Étapes de conception du panel"
+            >
+              <ToggleGroupItem value="architecture" className="rounded-lg shrink-0">Architecture</ToggleGroupItem>
+              <ToggleGroupItem value="personalisation" className="rounded-lg shrink-0">Personalisation</ToggleGroupItem>
+              </ToggleGroup>
+            </div>
           </DialogHeader>
           {expandedPanelId && (() => {
             const panel = panels.find((p) => p.id === expandedPanelId);

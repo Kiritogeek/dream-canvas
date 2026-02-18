@@ -329,6 +329,30 @@ function buildAllFragments(
   return { fragments, detectedAssetCount: detectedAssetIds.size, missingNames };
 }
 
+/** Retourne la liste unique des assets détectés dans le texte (ordre de première occurrence). Seul le nom complet de l'asset compte (pas une partie du nom). */
+export function getDetectedAssets(text: string, assets: Asset[]): Asset[] {
+  if (!text.trim()) return [];
+  const withIndex: { asset: Asset; index: number }[] = [];
+  for (const asset of assets) {
+    const name = asset.name?.trim();
+    if (!name || name.length < 2) continue;
+    const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const regex = new RegExp(`${NOT_BEFORE}${escaped}${NOT_AFTER}`, "gi");
+    const idx = text.search(regex);
+    if (idx >= 0) withIndex.push({ asset, index: idx });
+  }
+  withIndex.sort((a, b) => a.index - b.index);
+  const seen = new Set<string>();
+  const result: Asset[] = [];
+  for (const { asset } of withIndex) {
+    if (!seen.has(asset.id)) {
+      seen.add(asset.id);
+      result.push(asset);
+    }
+  }
+  return result;
+}
+
 // ── Bouton « Créer comme asset » dans un HoverCard ───────────
 
 function CreateAssetHover({

@@ -985,35 +985,6 @@ export default function ChapterDetail() {
                   </div>
                 </div>
               </div>
-              <div className="space-y-2 rounded-xl bg-muted/20 p-3 border border-border/50">
-                <span className="text-xs font-medium text-muted-foreground">Hauteur du panel</span>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    value={panelHeightDraft !== null ? panelHeightDraft : String(layout.panelHeight ?? PANEL_HEIGHT_DEFAULT)}
-                    onChange={(e) => setPanelHeightDraft(e.target.value)}
-                    className="w-24 h-9 rounded-lg border border-border/60 bg-background px-2 text-sm"
-                  />
-                  <span className="text-xs text-muted-foreground">px</span>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="shrink-0 rounded-lg"
-                    onClick={() => {
-                      const raw = panelHeightDraft !== null ? panelHeightDraft.trim() : null;
-                      const num = raw === null
-                        ? (layout.panelHeight ?? PANEL_HEIGHT_DEFAULT)
-                        : (raw === "" ? PANEL_HEIGHT_MIN : Math.max(PANEL_HEIGHT_MIN, Math.min(PANEL_HEIGHT_MAX, Number(raw) || PANEL_HEIGHT_MIN)));
-                      handlePanelHeightChange(num);
-                      setPanelHeightDraft(null);
-                    }}
-                  >
-                    Appliquer
-                  </Button>
-                </div>
-                <p className="text-[11px] text-muted-foreground/80">Min {PANEL_HEIGHT_MIN} — max {PANEL_HEIGHT_MAX}. Vide = min par défaut.</p>
-              </div>
               {selectedColorBlock ? (
                 <>
                   <div className="flex items-center justify-between gap-2 mb-2">
@@ -1079,14 +1050,14 @@ export default function ChapterDetail() {
                   <div
                     key={cb.id}
                     ref={isResizingThis ? (el) => { if (el) resizingColorBlockElRef.current = el; } : undefined}
-                    className={`group absolute overflow-visible border border-border/80 transition-all duration-150 ${mode === "couleurs" ? "cursor-grab active:cursor-grabbing ring-2 ring-primary/60" : ""} ${isSelected ? "ring-2 ring-primary ring-offset-2 ring-offset-background z-10" : ""}`}
+                    className={`group absolute overflow-visible border border-border/80 transition-all duration-150 ${mode === "couleurs" ? "cursor-grab active:cursor-grabbing ring-2 ring-primary/60" : ""} ${isSelected ? "ring-2 ring-primary ring-offset-2 ring-offset-background" : ""}`}
                     style={{
                       left: geom.x,
                       top: geom.y,
                       width: geom.width,
                       height: geom.height,
                       ...bgStyle,
-                      zIndex: isSelected ? 5 : 1,
+                      zIndex: 0,
                       pointerEvents: mode === "couleurs" ? "auto" : "none",
                     }}
                     onPointerDown={mode === "couleurs" && !isResizingThis && !isResizingColorBlockRef.current ? (e) => {
@@ -1339,8 +1310,8 @@ export default function ChapterDetail() {
                         document.addEventListener("pointerup", onPointerUp, true);
                       } : undefined}
                       onClick={mode === "edition" ? (e) => { e.stopPropagation(); setSelectedBlockIdInModal({ panelId: panel.id, blockId: block.id }); } : undefined}
-                      className={`group absolute overflow-visible bg-background border border-border shadow-md transition-all duration-150 ${mode === "architecture" ? "cursor-grab active:cursor-grabbing ring-2 ring-primary/60" : `cursor-pointer ${isSelected ? "ring-2 ring-primary shadow-lg ring-offset-2 ring-offset-background" : "ring-1 ring-border/80 hover:ring-2 hover:ring-primary/50 hover:shadow-md"}`}`}
-                      style={{ left: geom.x, top: geom.y, width: geom.width, height: geom.height }}
+                      className={`group absolute overflow-visible bg-background border border-border shadow-md transition-all duration-150 ${mode === "couleurs" ? "pointer-events-none" : mode === "architecture" ? "cursor-grab active:cursor-grabbing ring-2 ring-primary/60" : `cursor-pointer ${isSelected ? "ring-2 ring-primary shadow-lg ring-offset-2 ring-offset-background" : "ring-1 ring-border/80 hover:ring-2 hover:ring-primary/50 hover:shadow-md"}`}`}
+                      style={{ left: geom.x, top: geom.y, width: geom.width, height: geom.height, zIndex: 10, pointerEvents: mode === "couleurs" ? "none" : "auto" }}
                       title={mode === "edition" ? `Clique — ${block.name ?? `Bloc ${blockIndex + 1}`}` : mode === "architecture" ? `Déplacer — ${block.name ?? `Bloc ${blockIndex + 1}`}` : `Bloc ${blockIndex + 1}`}
                     >
                       {mode === "architecture" && (
@@ -1356,7 +1327,7 @@ export default function ChapterDetail() {
                       )}
                       <div className="w-full h-full overflow-hidden pointer-events-none">
                         {block.image_url ? (
-                          <ImageWithFallback src={block.image_url} alt="" className="w-full h-full object-cover" />
+                          <ImageWithFallback src={block.image_url} alt="" className="w-full h-full object-fill" />
                         ) : (
                           <div className="w-full h-full flex flex-col items-center justify-center text-xs text-muted-foreground p-2 text-center bg-muted/50 gap-1">
                             <div>{mode === "architecture" ? "Déplacer" : mode === "edition" ? "Clique" : block.prompt ? "Prompt défini — Générer ci-dessous" : "Saisir le prompt ci-dessous"}</div>
@@ -1692,6 +1663,7 @@ export default function ChapterDetail() {
                 <div className="space-y-4">
                   {panels.map((panel) => {
                     const blocks = getPanelBlocks(panel);
+                    const previewColorBlocks = getPanelColorBlocks(panel);
                     return (
                       <div
                         key={panel.id}
@@ -1740,8 +1712,28 @@ export default function ChapterDetail() {
                                   backgroundColor: "hsl(var(--muted))",
                                 }}
                               >
+                              {/* Blocs de couleur (arrière-plan) — prévisualisation = tout ce qui sera exporté (ex. PDF) */}
+                              {previewColorBlocks.map((cb) => {
+                                const bgStyle = cb.fill.type === "solid"
+                                  ? { backgroundColor: cb.fill.color }
+                                  : { background: `linear-gradient(${cb.fill.angle ?? 90}deg, ${cb.fill.from}, ${cb.fill.to})` };
+                                return (
+                                  <div
+                                    key={cb.id}
+                                    className="absolute border border-border/80"
+                                    style={{
+                                      left: cb.x,
+                                      top: cb.y,
+                                      width: cb.width,
+                                      height: cb.height,
+                                      ...bgStyle,
+                                      zIndex: 0,
+                                    }}
+                                  />
+                                );
+                              })}
                               {blocks.length === 0 ? (
-                                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-center p-6 text-muted-foreground text-sm">
+                                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-center p-6 text-muted-foreground text-sm" style={{ zIndex: 10 }}>
                                   <Square className="h-10 w-10 opacity-50" />
                                   <p>Aucun bloc. Cliquez sur Edition pour configurer le panel.</p>
                                 </div>
@@ -1750,10 +1742,10 @@ export default function ChapterDetail() {
                                   <div
                                     key={block.id}
                                     className="absolute overflow-hidden ring-1 ring-border bg-background/95"
-                                    style={{ left: block.x, top: block.y, width: block.width, height: block.height }}
+                                    style={{ left: block.x, top: block.y, width: block.width, height: block.height, zIndex: 10 }}
                                   >
                                     {block.image_url ? (
-                                      <ImageWithFallback src={block.image_url} alt="" className="w-full h-full object-cover" />
+                                      <ImageWithFallback src={block.image_url} alt="" className="w-full h-full object-fill" />
                                     ) : (
                                       <div className="w-full h-full flex items-center justify-center text-xs text-muted-foreground p-2 bg-muted/50">
                                         Bloc

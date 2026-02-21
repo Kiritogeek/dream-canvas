@@ -160,7 +160,14 @@ Voir `Plan_Action_Developpement_Scénario.md` pour le détail des phases A à G.
 | **Catégories d'effets** | Effets organisés par catégories : profondeur (ombres, lumières, atmosphère), douceur (flou, transitions douces), émotion (météo, ambiances), vivant (mouvement, dynamisme) | P0 | M |
 | **Application des effets** | Placement et personnalisation des effets sur le panel (position, intensité, paramètres) | P0 | M |
 
-#### 2.2.6 Lecteur webtoon amélioré
+#### 2.2.6 Prévisualisation et téléchargement chapitre visuel
+
+| Tâche | Description | Priorité | Effort |
+|-------|------------|----------|--------|
+| **Prévisualisation complète** | La **prévisualisation** (vue lecture des panels) doit **inclure tous les éléments édités** : blocs image, **blocs de couleurs** (arrière-plan), et à terme bulles, texte brut, effets. Objectif : **cohérence avec le rendu exporté** (ex. PDF). | P0 | M |
+| **Téléchargement chapitre visuel (PDF)** | À terme (Phase 3) : **télécharger le chapitre en PDF** — succession des panels avec tous les éléments (blocs, couleurs, bulles, texte). La prévisualisation actuelle reflète ce qui sera inclus dans l’export. | P0 | — (Phase 3) |
+
+#### 2.2.7 Lecteur webtoon amélioré
 
 | Tâche | Description | Priorité | Effort |
 |-------|------------|----------|--------|
@@ -184,12 +191,12 @@ Voir `Plan_Action_Developpement_Scénario.md` pour le détail des phases A à G.
 
 > **Objectif** : Permettre aux utilisateurs de sortir leur contenu de la plateforme et de le publier.
 
-### 3.1 Export
+### 3.1 Export et téléchargement chapitre visuel
 
 | Tâche | Description | Priorité | Effort |
 |-------|------------|----------|--------|
-| **Export PDF** | Chapitre complet en PDF avec panels et dialogues | P0 | M |
-| **Export PNG** | Images individuelles des panels | P0 | S |
+| **Téléchargement chapitre visuel (PDF)** | **Export PDF** du chapitre complet : succession des panels avec **tous les éléments édités** (blocs image, blocs de couleurs, bulles, texte brut, effets). Le rendu doit être identique à la prévisualisation (Phase 2). | P0 | M |
+| **Export PNG** | Images individuelles des panels (ou par bloc) | P0 | S |
 | **Export format Webtoon** | Format optimisé pour les plateformes (bandes verticales continues) | P1 | L |
 | **Résolution haute** | Upscaling des images (1024×1024 ou plus) | P1 | M |
 | **Export batch** | Exporter tous les chapitres d'un coup | P2 | M |

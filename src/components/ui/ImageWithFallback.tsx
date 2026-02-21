@@ -168,7 +168,7 @@ export function ImageWithFallback({
   }
 
   return (
-    <div className="relative" style={style}>
+    <div className="relative w-full h-full min-w-0 min-h-0" style={style}>
       {isLoading && (
         <div
           className={`absolute inset-0 flex items-center justify-center bg-muted/40 animate-pulse ${fallbackClassName || className}`}

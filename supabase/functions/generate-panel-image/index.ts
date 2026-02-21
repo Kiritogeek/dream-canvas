@@ -235,7 +235,7 @@ Deno.serve(async (req) => {
     if (Array.isArray(block_asset_names) && block_asset_names.length > 0) {
       fullPrompt = `Éléments à inclure (références) : ${block_asset_names.join(", ")}.\n\n${fullPrompt}`;
     }
-    fullPrompt += "\n\nIMPORTANT : Remplis tout le cadre, sans bandeaux ni bandes vides. L'illustration doit occuper toute la surface.";
+    fullPrompt += `\n\nIMPORTANT : L'image doit être générée exactement au format ${width}×${height} pixels. Remplis tout le cadre, sans bandeaux ni bandes vides. L'illustration doit occuper toute la surface.`;
 
     const result = await generateImage(fullPrompt, falKey, width, height);
     if ("error" in result) {

@@ -61,6 +61,11 @@ Un **panel** (720×5000) est constitué des éléments suivants. L'utilisateur *
 
 **Recommandation** : **bulles et effets = toujours côté client** (couche d’ajout, overlay). Pas d’intégration des bulles ou des effets dynamiques dans l’image générée pour la version courante ; évolution possible plus tard pour certains effets visuels optionnels (option B partielle).
 
+### 1.5 Prévisualisation et téléchargement chapitre visuel
+
+- **Prévisualisation** : La **prévisualisation** (vue lecture des panels dans l’édition du chapitre) doit **reprendre tous les éléments édités** — blocs image, **blocs de couleurs**, et à terme bulles, texte brut, effets — pour que l’utilisateur voie exactement le rendu final.
+- **Téléchargement chapitre visuel (PDF)** : Objectif à terme (Phase 3) : **télécharger le chapitre en PDF**, avec la succession des panels et tous les éléments (blocs, couleurs, bulles, texte). La prévisualisation est alignée sur ce rendu exporté.
+
 ---
 
 ## 2. Étapes du plan

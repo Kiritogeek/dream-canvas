@@ -75,7 +75,14 @@
 
 ---
 
-## 6. Références
+## 6. Prévisualisation et export
+
+- **Prévisualisation** : La **vue lecture** (prévisualisation) de chaque panel affiche **tous les éléments édités** : blocs de couleurs (arrière-plan), blocs image, et à terme bulles, texte brut, effets. Objectif : **cohérence avec le futur export** (téléchargement chapitre visuel en PDF).
+- **Téléchargement chapitre visuel (PDF)** : Prévu en Phase 3 ; le PDF reprendra la succession des panels avec le même rendu que la prévisualisation.
+
+---
+
+## 7. Références
 
 - **Blocs et bulles** : `Edition_Panel_Blocs_Bulles.md` — workflow, format blocs, génération par bloc, bulles.
 - **Plan Phase 2** : `Plan_Phase2_Edition_Oeuvre.md` — Étapes 5 (blocs + génération), 6 (mode Structuré), 7 (blocs de couleurs, bulles, texte brut, effets).
@@ -86,7 +93,7 @@
 
 ---
 
-## 7. Détails d'implémentation (livrés)
+## 8. Détails d'implémentation (livrés)
 
 | Élément | Détail |
 |--------|--------|
@@ -95,6 +102,7 @@
 | **Suppression** | Bouton au survol du bloc (milieu / moitié bas), plus panneau latéral. |
 | **Poignées de redimensionnement** | Hitbox élargie (bordures 9 px, coins 15 px) ; style au survol pour indiquer la zone. |
 | **Génération par bloc** | Edge Function `generate-panel-image` ; dimensions (width, height) du bloc envoyées à l'API ; instruction « remplir tout le cadre » dans le prompt ; stockage `{user_id}/projects/{project_id}/panels/{panel_id}/blocks/{block_id}.png`. Voir `09_Specifications_API.md` § 3.2. |
+| **Prévisualisation** | Vue lecture des panels : **blocs de couleurs** (z-index 0) puis **blocs image** (z-index 10) — tous les éléments édités affichés, alignés avec le futur export PDF. |
 
 ---
 

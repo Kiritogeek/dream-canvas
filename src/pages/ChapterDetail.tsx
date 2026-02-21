@@ -71,7 +71,6 @@ import {
   DEFAULT_BLOCK_WIDTH,
   DEFAULT_BLOCK_HEIGHT,
   BLOCK_PRESETS,
-  COLOR_BLOCK_PRESETS,
   DEFAULT_COLOR_BLOCK_FILL,
   PANEL_HEIGHT_DEFAULT,
   PANEL_HEIGHT_MIN,
@@ -79,7 +78,7 @@ import {
 } from "@/services/panels";
 import { updateScenarioChapter } from "@/services/scenarioChapters";
 import type { Json } from "@/integrations/supabase/types";
-import type { Chapter, Panel, PanelBlock, PanelLayout, ColorBlock } from "@/types";
+import type { Chapter, Panel, PanelBlock, PanelLayout, ColorBlock, ColorBlockFill } from "@/types";
 
 const PANEL_WIDTH = 800;
 
@@ -601,7 +600,7 @@ export default function ChapterDetail() {
       if (!raw) return;
       const canvasEl = canvasRefByPanel.current[panel.id];
       try {
-        const data = JSON.parse(raw) as { type: string; blockId?: string; width?: number; height?: number };
+        const data = JSON.parse(raw) as { type: string; blockId?: string; width?: number; height?: number; fill?: ColorBlockFill };
         if (data.type === "new-block") {
           const w = typeof data.width === "number" ? data.width : DEFAULT_BLOCK_WIDTH;
           const h = typeof data.height === "number" ? data.height : DEFAULT_BLOCK_HEIGHT;
@@ -612,10 +611,11 @@ export default function ChapterDetail() {
           return;
         }
         if (data.type === "new-color-block") {
-          const w = typeof data.width === "number" ? data.width : 500;
-          const h = typeof data.height === "number" ? data.height : 500;
+          const w = typeof data.width === "number" ? data.width : 300;
+          const h = typeof data.height === "number" ? data.height : 300;
+          const fill: ColorBlockFill = data.fill && (data.fill as ColorBlockFill).type ? (data.fill as ColorBlockFill) : { type: "solid", color: "#ffffff" };
           const { x, y } = getCanvasDropPosition(e, canvasEl, w, h);
-          handleAddColorBlock(x, y, w, h);
+          handleAddColorBlock(x, y, w, h, fill);
           setDraggingBlock(null);
           setDragPreview(null);
           return;
@@ -717,7 +717,7 @@ export default function ChapterDetail() {
       );
     };
 
-    const handleAddColorBlock = (atX: number, atY: number, width: number, height: number) => {
+    const handleAddColorBlock = (atX: number, atY: number, width: number, height: number, fill?: ColorBlockFill) => {
       const w = Math.max(50, Math.min(PANEL_WIDTH, width));
       const h = Math.max(50, Math.min(panelHeight, height));
       const x = Math.max(0, Math.min(PANEL_WIDTH - w, atX));
@@ -725,7 +725,7 @@ export default function ChapterDetail() {
       const newBlock: ColorBlock = {
         id: crypto.randomUUID(),
         x, y, width: w, height: h,
-        fill: DEFAULT_COLOR_BLOCK_FILL,
+        fill: fill ?? DEFAULT_COLOR_BLOCK_FILL,
       };
       const next = [...colorBlocks, newBlock];
       updatePanelMutation.mutate(
@@ -965,23 +965,17 @@ export default function ChapterDetail() {
             <div className="p-4 space-y-4">
               <div className="min-h-10 rounded-xl border border-dashed border-border/70 bg-muted/30 px-3 py-2">
                 <div className="space-y-1.5">
-                  <span className="text-xs font-medium text-muted-foreground block">Bibliothèque de blocs — glisser sur le panel</span>
-                  <div className="flex flex-wrap gap-2">
-                    {COLOR_BLOCK_PRESETS.map((preset) => (
-                      <div
-                        key={preset.label}
-                        draggable
-                        onDragStart={(e) => {
-                          e.dataTransfer.setData("application/json", JSON.stringify({ type: "new-color-block", width: preset.width, height: preset.height }));
-                          e.dataTransfer.effectAllowed = "copy";
-                          const ghost = newBlockDragGhostRef.current;
-                          if (ghost) e.dataTransfer.setDragImage(ghost, Math.min(250, preset.width / 2), Math.min(250, preset.height / 2));
-                        }}
-                        className="cursor-grab active:cursor-grabbing rounded-lg border border-border/60 bg-background px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-                      >
-                        {preset.label}
-                      </div>
-                    ))}
+                  <span className="text-xs font-medium text-muted-foreground block">Bloc de couleur — glisser sur le panel</span>
+                  <div
+                    draggable
+                    onDragStart={(e) => {
+                      e.dataTransfer.setData("application/json", JSON.stringify({ type: "new-color-block", width: 300, height: 300, fill: { type: "solid", color: "#ffffff" } }));
+                      e.dataTransfer.effectAllowed = "copy";
+                    }}
+                    className="cursor-grab active:cursor-grabbing rounded-lg border border-border/80 bg-white shadow-sm px-4 py-3 text-sm text-muted-foreground hover:text-foreground hover:shadow-md transition-all flex items-center justify-center gap-2 min-h-[56px]"
+                  >
+                    <span className="font-medium">Bloc blanc</span>
+                    <span className="text-xs opacity-80">(glisser-déposer)</span>
                   </div>
                 </div>
               </div>

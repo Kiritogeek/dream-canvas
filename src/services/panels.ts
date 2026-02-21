@@ -1,6 +1,6 @@
 // Service — Panels (table panels), découpage, génération par bloc
 import { supabase } from "@/integrations/supabase/client";
-import type { Panel, PanelInsert, PanelUpdate, PanelLayout, PanelBlock, PanelOutlineItem, ColorBlock } from "@/types";
+import type { Panel, PanelInsert, PanelUpdate, PanelLayout, PanelBlock, PanelOutlineItem, ColorBlock, SpeechBubble } from "@/types";
 import type { Project } from "@/types";
 
 // ── Constantes ───────────────────────────────────────────────────
@@ -66,6 +66,13 @@ export function getPanelColorBlocks(panel: Panel | null | undefined): ColorBlock
   const raw = panel?.color_blocks;
   if (!Array.isArray(raw)) return [];
   return raw as ColorBlock[];
+}
+
+/** Extrait les bulles de dialogue d'un panel (panels.speech_bubbles ou []). */
+export function getPanelSpeechBubbles(panel: Panel | null | undefined): SpeechBubble[] {
+  const raw = panel?.speech_bubbles;
+  if (!Array.isArray(raw)) return [];
+  return raw as SpeechBubble[];
 }
 
 /**

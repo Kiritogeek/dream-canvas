@@ -139,12 +139,20 @@ export interface ColorBlock {
   fill: ColorBlockFill;
 }
 
+/** Dimensions par défaut d'une nouvelle bulle de dialogue. */
+export const DEFAULT_SPEECH_BUBBLE_WIDTH = 160;
+export const DEFAULT_SPEECH_BUBBLE_HEIGHT = 56;
+
 /** Bulle de dialogue / pensée (overlay sur le panel). Stocké dans panels.speech_bubbles. */
 export interface SpeechBubble {
   id: string;
   type: "speech" | "thought" | "shout" | "whisper" | "narration";
   text: string;
   position: { x: number; y: number };
+  /** Largeur de la bulle (ovale). Défaut: DEFAULT_SPEECH_BUBBLE_WIDTH. */
+  width?: number;
+  /** Hauteur de la bulle (ovale). Défaut: DEFAULT_SPEECH_BUBBLE_HEIGHT. */
+  height?: number;
   style?: { font?: string; size?: number; color?: string; stroke?: string; fill?: string };
   character?: string;
 }

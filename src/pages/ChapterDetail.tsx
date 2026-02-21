@@ -68,6 +68,7 @@ import {
   getPanelHeight,
   getPanelLayout,
   getPanelColorBlocks,
+  getPanelSpeechBubbles,
   DEFAULT_BLOCK_WIDTH,
   DEFAULT_BLOCK_HEIGHT,
   BLOCK_PRESETS,
@@ -78,9 +79,95 @@ import {
 } from "@/services/panels";
 import { updateScenarioChapter } from "@/services/scenarioChapters";
 import type { Json } from "@/integrations/supabase/types";
-import type { Chapter, Panel, PanelBlock, PanelLayout, ColorBlock, ColorBlockFill } from "@/types";
+import type { Chapter, Panel, PanelBlock, PanelLayout, ColorBlock, ColorBlockFill, SpeechBubble } from "@/types";
+import { DEFAULT_SPEECH_BUBBLE_WIDTH, DEFAULT_SPEECH_BUBBLE_HEIGHT } from "@/types";
 
 const PANEL_WIDTH = 800;
+const SPEECH_BUBBLE_TAIL_H = 14;
+
+/** ViewBox normalisé pour bulles avec queue (corps 0–100, queue 100–120). Redimensionnement propre. */
+const SPEECH_BUBBLE_VIEWBOX_WITH_TAIL = "0 0 100 120";
+/** ViewBox pour narration (rectangle, pas de queue). */
+const SPEECH_BUBBLE_VIEWBOX_NARRATION = "0 0 100 100";
+
+/** Rendu SVG de la forme de bulle (coordonnées normalisées 0–100). Styles BD/manga les plus utilisés. */
+function SpeechBubbleShape(props: {
+  type: SpeechBubble["type"];
+  fill: string;
+  stroke: string;
+}) {
+  const { type, fill, stroke } = props;
+  const sw = 2; // strokeWidth en unités viewBox, scale avec la forme
+
+  // Parole (dialogue) : ovale + queue triangulaire pointant vers le personnage (standard BD/manga)
+  if (type === "speech") {
+    return (
+      <>
+        <ellipse cx={50} cy={50} rx={48} ry={46} fill={fill} stroke={stroke} strokeWidth={sw} />
+        <path d="M 28 98 L 18 118 L 38 98 Z" fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" />
+      </>
+    );
+  }
+
+  // Chuchotement : même forme que parole, contour en pointillés (convention comics/manga)
+  if (type === "whisper") {
+    return (
+      <>
+        <ellipse cx={50} cy={50} rx={48} ry={46} fill={fill} stroke={stroke} strokeWidth={sw} strokeDasharray="5 4" />
+        <path d="M 28 98 L 18 118 L 38 98 Z" fill={fill} stroke={stroke} strokeWidth={sw} strokeDasharray="5 4" strokeLinejoin="round" />
+      </>
+    );
+  }
+
+  // Pensée : nuage (plusieurs bulles reliées, queue en chaîne de cercles — standard “thought bubble”)
+  if (type === "thought") {
+    return (
+      <>
+        <ellipse cx={50} cy={46} rx={44} ry={38} fill={fill} stroke={stroke} strokeWidth={sw} />
+        <circle cx={78} cy={58} r={12} fill={fill} stroke={stroke} strokeWidth={sw} />
+        <circle cx={24} cy={68} r={14} fill={fill} stroke={stroke} strokeWidth={sw} />
+        <circle cx={24} cy={88} r={9} fill={fill} stroke={stroke} strokeWidth={sw} />
+        <circle cx={24} cy={106} r={6} fill={fill} stroke={stroke} strokeWidth={sw} />
+      </>
+    );
+  }
+
+  // Narration / légende : rectangle arrondi sans queue (caption style)
+  if (type === "narration") {
+    return (
+      <rect x={3} y={3} width={94} height={94} rx={8} ry={8} fill={fill} stroke={stroke} strokeWidth={sw} />
+    );
+  }
+
+  // Cri / shout : contour en dents (explosion) + queue en éclair + petite étoile (style “scream bubble”)
+  if (type === "shout") {
+    const n = 16;
+    const points: string[] = [];
+    for (let i = 0; i < n; i++) {
+      const angle = (i / n) * 2 * Math.PI - Math.PI / 2;
+      const r = i % 2 === 0 ? 46 : 54;
+      points.push(`${50 + r * Math.cos(angle)},${50 + r * Math.sin(angle)}`);
+    }
+    const jagged = `M ${points.join(" L ")} Z`;
+    const lightning = "M 28 98 L 20 106 L 30 110 L 16 118 L 28 120 L 26 112 L 32 106 Z";
+    const starPoints: string[] = [];
+    for (let i = 0; i < 10; i++) {
+      const a = (i / 10) * 2 * Math.PI - Math.PI / 2;
+      const r = i % 2 === 0 ? 5 : 2.2;
+      starPoints.push(`${82 + r * Math.cos(a)},${14 + r * Math.sin(a)}`);
+    }
+    const star = `M ${starPoints.join(" L ")} Z`;
+    return (
+      <>
+        <path d={jagged} fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" />
+        <path d={lightning} fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" />
+        <path d={star} fill="none" stroke={stroke} strokeWidth={sw} />
+      </>
+    );
+  }
+
+  return null;
+}
 
 export default function ChapterDetail() {
   const { id: projectId, chapterId } = useParams<{ id: string; chapterId: string }>();
@@ -169,11 +256,13 @@ export default function ChapterDetail() {
   /** Panel ouvert en modale « Edition » (id ou null) */
   const [expandedPanelId, setExpandedPanelId] = useState<string | null>(null);
   /** Onglet du panneau gauche en modale : Architecture | Personalisation | Couleurs */
-  const [panelEditorLeftTab, setPanelEditorLeftTab] = useState<"architecture" | "personalisation" | "couleurs">("architecture");
+  const [panelEditorLeftTab, setPanelEditorLeftTab] = useState<"architecture" | "personalisation" | "couleurs" | "dialogue">("architecture");
   /** Bloc sélectionné dans la modale (mode Personalisation) pour afficher le panneau droit ou gauche */
   const [selectedBlockIdInModal, setSelectedBlockIdInModal] = useState<{ panelId: string; blockId: string } | null>(null);
   /** Bloc de couleur sélectionné (onglet Couleurs) pour éditer la couleur */
   const [selectedColorBlockIdInModal, setSelectedColorBlockIdInModal] = useState<{ panelId: string; colorBlockId: string } | null>(null);
+  /** Bulle de dialogue sélectionnée (onglet Dialogue) pour éditer le texte et le style */
+  const [selectedSpeechBubbleIdInModal, setSelectedSpeechBubbleIdInModal] = useState<{ panelId: string; bubbleId: string } | null>(null);
   /** Ref vers l’élément DOM du bloc de couleur en cours de déplacement (opacity pendant le drag) */
   const draggingColorBlockElRef = useRef<HTMLDivElement | null>(null);
   /** Ghost de drag pour blocs de couleur : un div par panel, position mis à jour en direct (comme blocs image) */
@@ -206,6 +295,24 @@ export default function ChapterDetail() {
   const lastResizeColorBlockMouseRef = useRef<{ x: number; y: number } | null>(null);
   const resizeColorBlockDraftRef = useRef<{ x: number; y: number; width: number; height: number } | null>(null);
   const isResizingColorBlockRef = useRef(false);
+  /** Ghost de drag pour bulles de dialogue */
+  const dragSpeechBubbleGhostRefByPanel = useRef<Record<string, HTMLDivElement | null>>({});
+  const draggingSpeechBubbleDataRef = useRef<{
+    panelId: string; bubbleId: string; startX: number; startY: number; startMouseX: number; startMouseY: number; width: number; height: number; rectLeft: number; rectTop: number;
+  } | null>(null);
+  const draggingSpeechBubbleElRef = useRef<HTMLDivElement | null>(null);
+  /** Resize d'une bulle de dialogue */
+  const [resizingSpeechBubbleState, setResizingSpeechBubbleState] = useState<{
+    panelId: string; bubbleId: string; edge: "t" | "b" | "l" | "r" | "tl" | "tr" | "bl" | "br";
+    start: { x: number; y: number; w: number; h: number }; startMouse: { x: number; y: number };
+  } | null>(null);
+  const [resizeSpeechBubbleDraft, setResizeSpeechBubbleDraft] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
+  const resizeSpeechBubbleDraftRef = useRef<{ x: number; y: number; width: number; height: number } | null>(null);
+  const isResizingSpeechBubbleRef = useRef(false);
+  const resizingSpeechBubbleElRef = useRef<HTMLDivElement | null>(null);
+  const resizeSpeechBubbleCaptureTargetRef = useRef<HTMLElement | null>(null);
+  const lastResizeSpeechBubbleMouseRef = useRef<{ x: number; y: number } | null>(null);
+  const saveResizeSpeechBubbleRef = useRef<((draft: { x: number; y: number; width: number; height: number }) => void) | null>(null);
   const [pendingOutline, setPendingOutline] = useState<Array<{ description: string; context?: { lieu?: string; scene?: string; personnages?: string } }> | null>(null);
   /** Valeur sentinelle pour "Aucun" (Radix Select n'accepte pas value="") */
   const SCENARIO_NONE_VALUE = "__none__";
@@ -485,6 +592,94 @@ export default function ChapterDetail() {
     };
   }, [resizingColorBlockState, panels]);
 
+  /** Resize des bulles de dialogue (même logique que blocs de couleur — listeners sur document pour recevoir tous les events). */
+  useEffect(() => {
+    if (!resizingSpeechBubbleState) return;
+    const { edge, start, panelId } = resizingSpeechBubbleState;
+    const minW = 60;
+    const minH = 28;
+    const rightFixed = start.x + start.w;
+    const bottomFixed = start.y + start.h;
+    const panel = panels.find((p) => p.id === panelId);
+    const panelH = panel ? getPanelHeight(panel) : PANEL_HEIGHT_DEFAULT;
+    const listenTarget = document.body;
+
+    const computeFromMouse = (clientX: number, clientY: number) => {
+      const canvasEl = canvasRefByPanel.current[panelId];
+      if (!canvasEl) return { x: start.x, y: start.y, width: start.w, height: start.h };
+      const mouse = viewportToCanvas(canvasEl, clientX, clientY);
+      let x = start.x, y = start.y, w = start.w, h = start.h;
+      switch (edge) {
+        case "r": w = mouse.x - start.x; break;
+        case "l": x = mouse.x; w = rightFixed - mouse.x; break;
+        case "b": h = mouse.y - start.y; break;
+        case "t": y = mouse.y; h = bottomFixed - mouse.y; break;
+        case "tr": y = mouse.y; w = mouse.x - start.x; h = bottomFixed - mouse.y; break;
+        case "br": w = mouse.x - start.x; h = mouse.y - start.y; break;
+        case "bl": x = mouse.x; w = rightFixed - mouse.x; h = mouse.y - start.y; break;
+        case "tl": x = mouse.x; y = mouse.y; w = rightFixed - mouse.x; h = bottomFixed - mouse.y; break;
+      }
+      const leftFixed = edge === "r" || edge === "tr" || edge === "br";
+      const topFixed = edge === "r" || edge === "b" || edge === "br" || edge === "bl";
+      const rightAnchored = edge === "l" || edge === "bl" || edge === "tl";
+      const bottomAnchored = edge === "t" || edge === "tr" || edge === "tl";
+      w = Math.max(minW, Math.min(PANEL_WIDTH, w));
+      h = Math.max(minH, Math.min(panelH, h));
+      if (leftFixed) w = Math.min(w, PANEL_WIDTH - start.x);
+      if (topFixed) h = Math.min(h, panelH - start.y);
+      if (rightAnchored) { w = Math.min(w, rightFixed); x = rightFixed - w; }
+      if (bottomAnchored) { h = Math.min(h, bottomFixed); y = bottomFixed - h; }
+      if (leftFixed) x = start.x;
+      else if (rightAnchored) x = rightFixed - w;
+      else x = Math.max(0, Math.min(PANEL_WIDTH - w, x));
+      if (topFixed) y = start.y;
+      else if (bottomAnchored) y = bottomFixed - h;
+      else y = Math.max(0, Math.min(panelH - h, y));
+      return { x: Math.round(x), y: Math.round(y), width: Math.round(w), height: Math.round(h) };
+    };
+
+    const tailH = 14;
+    const onMove = (e: PointerEvent) => {
+      if (e.buttons !== 1) return;
+      lastResizeSpeechBubbleMouseRef.current = { x: e.clientX, y: e.clientY };
+      const result = computeFromMouse(e.clientX, e.clientY);
+      resizeSpeechBubbleDraftRef.current = result;
+      setResizeSpeechBubbleDraft(result);
+      const el = resizingSpeechBubbleElRef.current;
+      if (el) {
+        el.style.left = `${result.x}px`;
+        el.style.top = `${result.y}px`;
+        el.style.width = `${result.width}px`;
+        el.style.height = `${result.height + tailH}px`;
+      }
+    };
+    const onUp = () => {
+      const lastClient = lastResizeSpeechBubbleMouseRef.current;
+      const rawResult = lastClient
+        ? computeFromMouse(lastClient.x, lastClient.y)
+        : resizeSpeechBubbleDraftRef.current ?? { x: start.x, y: start.y, width: start.w, height: start.h };
+      const result = { x: Math.round(rawResult.x), y: Math.round(rawResult.y), width: Math.round(rawResult.width), height: Math.round(rawResult.height) };
+      const hadSave = !!saveResizeSpeechBubbleRef.current;
+      saveResizeSpeechBubbleRef.current?.(result);
+      saveResizeSpeechBubbleRef.current = null;
+      if (!hadSave) {
+        setResizingSpeechBubbleState(null);
+        setResizeSpeechBubbleDraft(null);
+        resizeSpeechBubbleDraftRef.current = null;
+        lastResizeSpeechBubbleMouseRef.current = null;
+        resizeSpeechBubbleCaptureTargetRef.current = null;
+        resizingSpeechBubbleElRef.current = null;
+        isResizingSpeechBubbleRef.current = false;
+      }
+    };
+    listenTarget.addEventListener("pointermove", onMove, true);
+    listenTarget.addEventListener("pointerup", onUp, true);
+    return () => {
+      listenTarget.removeEventListener("pointermove", onMove, true);
+      listenTarget.removeEventListener("pointerup", onUp, true);
+    };
+  }, [resizingSpeechBubbleState, panels]);
+
   const handleSaveScenarioLink = () => {
     const idToSave = displayedScenarioChapterId;
     if (!chapterId) return;
@@ -541,6 +736,7 @@ export default function ChapterDetail() {
     const layout = getPanelLayout(panel);
     const blocks = getPanelBlocks(panel);
     const colorBlocks = getPanelColorBlocks(panel);
+    const speechBubbles = getPanelSpeechBubbles(panel);
     const panelHeight = getPanelHeight(panel);
     const mode = panelEditModeByPanelId[panel.id] ?? "architecture";
     const selectedBlock = selectedBlockIdInModal?.panelId === panel.id && selectedBlockIdInModal?.blockId
@@ -548,6 +744,9 @@ export default function ChapterDetail() {
       : null;
     const selectedColorBlock = selectedColorBlockIdInModal?.panelId === panel.id && selectedColorBlockIdInModal?.colorBlockId
       ? colorBlocks.find((c) => c.id === selectedColorBlockIdInModal.colorBlockId)
+      : null;
+    const selectedSpeechBubble = selectedSpeechBubbleIdInModal?.panelId === panel.id && selectedSpeechBubbleIdInModal?.bubbleId
+      ? speechBubbles.find((b) => b.id === selectedSpeechBubbleIdInModal.bubbleId)
       : null;
 
     const handleAddBlock = (atX?: number, atY?: number, width = DEFAULT_BLOCK_WIDTH, height = DEFAULT_BLOCK_HEIGHT) => {
@@ -595,12 +794,20 @@ export default function ChapterDetail() {
     const handleCanvasDrop = (e: React.DragEvent) => {
       e.preventDefault();
       e.stopPropagation();
-      if (mode === "edition") return;
       const raw = e.dataTransfer.getData("application/json");
       if (!raw) return;
       const canvasEl = canvasRefByPanel.current[panel.id];
       try {
-        const data = JSON.parse(raw) as { type: string; blockId?: string; width?: number; height?: number; fill?: ColorBlockFill };
+        const data = JSON.parse(raw) as { type: string; blockId?: string; width?: number; height?: number; fill?: ColorBlockFill; bubbleType?: SpeechBubble["type"] };
+        if (data.type === "speech-bubble" && data.bubbleType) {
+          if (panelEditorLeftTab !== "dialogue") return;
+          const { x, y } = getCanvasDropPosition(e, canvasEl, DEFAULT_SPEECH_BUBBLE_WIDTH, DEFAULT_SPEECH_BUBBLE_HEIGHT);
+          handleAddSpeechBubble(data.bubbleType, x, y);
+          setDraggingBlock(null);
+          setDragPreview(null);
+          return;
+        }
+        if (mode === "edition") return;
         if (data.type === "new-block") {
           const w = typeof data.width === "number" ? data.width : DEFAULT_BLOCK_WIDTH;
           const h = typeof data.height === "number" ? data.height : DEFAULT_BLOCK_HEIGHT;
@@ -731,6 +938,44 @@ export default function ChapterDetail() {
       updatePanelMutation.mutate(
         { id: panel.id, updates: { color_blocks: next as unknown as Json } },
         { onSuccess: () => toast({ title: "Bloc de couleur ajouté" }), onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }) }
+      );
+    };
+
+    const handleAddSpeechBubble = (bubbleType: SpeechBubble["type"], x: number, y: number) => {
+      const w = DEFAULT_SPEECH_BUBBLE_WIDTH;
+      const h = DEFAULT_SPEECH_BUBBLE_HEIGHT;
+      const clampedX = Math.max(0, Math.min(PANEL_WIDTH - w, x));
+      const clampedY = Math.max(0, Math.min(panelHeight - h, y));
+      const newBubble: SpeechBubble = {
+        id: crypto.randomUUID(),
+        type: bubbleType,
+        text: "",
+        position: { x: clampedX, y: clampedY },
+        width: w,
+        height: h,
+        style: { font: "inherit", size: 14, color: "#000000" },
+      };
+      const next = [...speechBubbles, newBubble];
+      updatePanelMutation.mutate(
+        { id: panel.id, updates: { speech_bubbles: next as unknown as Json } },
+        { onSuccess: () => toast({ title: "Bulle ajoutée" }), onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }) }
+      );
+    };
+
+    const handleUpdateSpeechBubbles = (next: SpeechBubble[]) => {
+      queryClient.setQueryData<Panel[]>(panelsQueryKey, (old) => (!old ? old : old.map((p) => (p.id === panel.id ? { ...p, speech_bubbles: next as unknown as Json } : p))));
+      updatePanelMutation.mutate(
+        { id: panel.id, updates: { speech_bubbles: next as unknown as Json } },
+        { onError: (err) => { toast({ title: "Erreur", description: err.message, variant: "destructive" }); queryClient.invalidateQueries({ queryKey: panelsQueryKey }); } }
+      );
+    };
+
+    const handleDeleteSpeechBubble = (bubble: SpeechBubble) => {
+      const next = speechBubbles.filter((b) => b.id !== bubble.id);
+      setSelectedSpeechBubbleIdInModal(null);
+      updatePanelMutation.mutate(
+        { id: panel.id, updates: { speech_bubbles: next as unknown as Json } },
+        { onSuccess: () => toast({ title: "Bulle supprimée" }), onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }) }
       );
     };
 
@@ -1008,6 +1253,109 @@ export default function ChapterDetail() {
               ) : (
                 <div className="rounded-xl border border-dashed border-border/70 bg-muted/30 px-4 py-8 text-center">
                   <p className="text-sm text-muted-foreground">Cliquez sur un bloc dans le panel pour l&apos;éditer (bloc de couleur).</p>
+                </div>
+              )}
+            </div>
+          )}
+          {panelEditorLeftTab === "dialogue" && (
+            <div className="p-4 space-y-4">
+              <div className="min-h-10 rounded-xl border border-dashed border-border/70 bg-muted/30 px-3 py-2">
+                <div className="space-y-1.5">
+                  <span className="text-xs font-medium text-muted-foreground block">Bulles de dialogue — glisser sur le panel</span>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { type: "speech" as const, label: "Parole", icon: "💬" },
+                      { type: "thought" as const, label: "Pensée", icon: "💭" },
+                      { type: "shout" as const, label: "Cri", icon: "📢" },
+                      { type: "whisper" as const, label: "Chuchotement", icon: "🔇" },
+                      { type: "narration" as const, label: "Narration", icon: "📝" },
+                    ].map((bubble) => (
+                      <div
+                        key={bubble.type}
+                        draggable
+                        onDragStart={(e) => {
+                          e.dataTransfer.setData("application/json", JSON.stringify({ type: "speech-bubble", bubbleType: bubble.type }));
+                          e.dataTransfer.effectAllowed = "copy";
+                        }}
+                        className="cursor-grab active:cursor-grabbing rounded-lg border border-border/60 bg-background px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors flex items-center gap-2 justify-center"
+                      >
+                        <span>{bubble.icon}</span>
+                        <span className="text-xs">{bubble.label}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              {selectedSpeechBubble ? (
+                <>
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <h4 className="text-sm font-medium text-foreground">Bulle sélectionnée</h4>
+                    <Button size="sm" variant="ghost" className="h-8 w-8 p-0 rounded-lg" onClick={() => setSelectedSpeechBubbleIdInModal(null)} aria-label="Fermer"><X className="h-4 w-4" /></Button>
+                  </div>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <span className="text-xs font-medium text-muted-foreground">Dimensions</span>
+                      <p className="text-sm text-foreground tabular-nums">{selectedSpeechBubble.width ?? DEFAULT_SPEECH_BUBBLE_WIDTH} × {selectedSpeechBubble.height ?? DEFAULT_SPEECH_BUBBLE_HEIGHT}</p>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium text-muted-foreground">Texte</label>
+                      <textarea
+                        value={selectedSpeechBubble.text}
+                        onChange={(e) => {
+                          const next = speechBubbles.map((b) => b.id === selectedSpeechBubble.id ? { ...b, text: e.target.value } : b);
+                          handleUpdateSpeechBubbles(next);
+                        }}
+                        className="w-full min-h-[80px] rounded-lg border border-border/60 bg-background px-3 py-2 text-sm resize-y"
+                        placeholder="Saisir le dialogue…"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium text-muted-foreground">Police / taille / couleur</label>
+                      <div className="flex flex-wrap gap-2 items-center">
+                        <select
+                          value={selectedSpeechBubble.style?.font ?? "inherit"}
+                          onChange={(e) => {
+                            const next = speechBubbles.map((b) => b.id === selectedSpeechBubble.id ? { ...b, style: { ...b.style, font: e.target.value || undefined } } : b);
+                            handleUpdateSpeechBubbles(next);
+                          }}
+                          className="h-9 rounded-lg border border-border/60 bg-background px-2 text-sm"
+                        >
+                          <option value="inherit">Par défaut</option>
+                          <option value="sans-serif">Sans-serif</option>
+                          <option value="serif">Serif</option>
+                          <option value="monospace">Monospace</option>
+                        </select>
+                        <input
+                          type="number"
+                          min={8}
+                          max={72}
+                          value={selectedSpeechBubble.style?.size ?? 14}
+                          onChange={(e) => {
+                            const n = parseInt(e.target.value, 10);
+                            if (!Number.isNaN(n)) {
+                              const next = speechBubbles.map((b) => b.id === selectedSpeechBubble.id ? { ...b, style: { ...b.style, size: n } } : b);
+                              handleUpdateSpeechBubbles(next);
+                            }
+                          }}
+                          className="w-16 h-9 rounded-lg border border-border/60 bg-background px-2 text-sm tabular-nums"
+                        />
+                        <input
+                          type="color"
+                          value={selectedSpeechBubble.style?.color ?? "#000000"}
+                          onChange={(e) => {
+                            const next = speechBubbles.map((b) => b.id === selectedSpeechBubble.id ? { ...b, style: { ...b.style, color: e.target.value } } : b);
+                            handleUpdateSpeechBubbles(next);
+                          }}
+                          className="h-9 w-10 rounded border border-border/60 cursor-pointer bg-background"
+                        />
+                      </div>
+                    </div>
+                    <Button size="sm" variant="ghost" className="w-full gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10" disabled={updatePanelMutation.isPending} onClick={() => handleDeleteSpeechBubble(selectedSpeechBubble)}><Trash2 className="h-3 w-3" /> Supprimer la bulle</Button>
+                  </div>
+                </>
+              ) : (
+                <div className="rounded-xl border border-dashed border-border/70 bg-muted/30 px-4 py-8 text-center">
+                  <p className="text-sm text-muted-foreground">Cliquez sur une bulle dans le panel pour éditer le texte et le style.</p>
                 </div>
               )}
             </div>
@@ -1304,8 +1652,8 @@ export default function ChapterDetail() {
                         document.addEventListener("pointerup", onPointerUp, true);
                       } : undefined}
                       onClick={mode === "edition" ? (e) => { e.stopPropagation(); setSelectedBlockIdInModal({ panelId: panel.id, blockId: block.id }); } : undefined}
-                      className={`group absolute overflow-visible bg-background border border-border shadow-md transition-all duration-150 ${mode === "couleurs" ? "pointer-events-none" : mode === "architecture" ? "cursor-grab active:cursor-grabbing ring-2 ring-primary/60" : `cursor-pointer ${isSelected ? "ring-2 ring-primary shadow-lg ring-offset-2 ring-offset-background" : "ring-1 ring-border/80 hover:ring-2 hover:ring-primary/50 hover:shadow-md"}`}`}
-                      style={{ left: geom.x, top: geom.y, width: geom.width, height: geom.height, zIndex: 10, pointerEvents: mode === "couleurs" ? "none" : "auto" }}
+                      className={`group absolute overflow-visible bg-background border border-border shadow-md transition-all duration-150 ${mode === "couleurs" || panelEditorLeftTab === "dialogue" ? "pointer-events-none" : mode === "architecture" ? "cursor-grab active:cursor-grabbing ring-2 ring-primary/60" : `cursor-pointer ${isSelected ? "ring-2 ring-primary shadow-lg ring-offset-2 ring-offset-background" : "ring-1 ring-border/80 hover:ring-2 hover:ring-primary/50 hover:shadow-md"}`}`}
+                      style={{ left: geom.x, top: geom.y, width: geom.width, height: geom.height, zIndex: 10, pointerEvents: mode === "couleurs" || panelEditorLeftTab === "dialogue" ? "none" : "auto" }}
                       title={mode === "edition" ? `Clique — ${block.name ?? `Bloc ${blockIndex + 1}`}` : mode === "architecture" ? `Déplacer — ${block.name ?? `Bloc ${blockIndex + 1}`}` : `Bloc ${blockIndex + 1}`}
                     >
                       {mode === "architecture" && (
@@ -1387,6 +1735,176 @@ export default function ChapterDetail() {
                                 );
                                 })
                               )}
+              {/* Bulles de dialogue (overlay) — forme ovale + queue, déplaçables et redimensionnables */}
+              {speechBubbles.map((bubble) => {
+                const isSelected = panelEditorLeftTab === "dialogue" && selectedSpeechBubbleIdInModal?.panelId === panel.id && selectedSpeechBubbleIdInModal?.bubbleId === bubble.id;
+                const isResizingThis = resizingSpeechBubbleState?.panelId === panel.id && resizingSpeechBubbleState?.bubbleId === bubble.id;
+                const useResizeDraft = isResizingThis && resizeSpeechBubbleDraft != null;
+                const bw = bubble.width ?? DEFAULT_SPEECH_BUBBLE_WIDTH;
+                const bh = bubble.height ?? DEFAULT_SPEECH_BUBBLE_HEIGHT;
+                const geom = useResizeDraft
+                  ? { x: resizeSpeechBubbleDraft.x, y: resizeSpeechBubbleDraft.y, width: resizeSpeechBubbleDraft.width, height: resizeSpeechBubbleDraft.height }
+                  : { x: bubble.position.x, y: bubble.position.y, width: bw, height: bh };
+                const fontSize = bubble.style?.size ?? 14;
+                const fontFamily = bubble.style?.font ?? "inherit";
+                const color = bubble.style?.color ?? "#000000";
+                const strokeColor = bubble.style?.stroke ?? "#000000";
+                const fillColor = bubble.style?.fill ?? "#ffffff";
+                const tailH = bubble.type === "narration" ? 0 : SPEECH_BUBBLE_TAIL_H;
+                const totalH = geom.height + tailH;
+                return (
+                  <div
+                    key={bubble.id}
+                    ref={isResizingThis ? (el) => { if (el) resizingSpeechBubbleElRef.current = el; } : undefined}
+                    role={panelEditorLeftTab === "dialogue" && !isResizingThis ? "button" : undefined}
+                    className={`group absolute z-20 overflow-visible transition-all duration-150 ${panelEditorLeftTab === "dialogue" ? "cursor-grab active:cursor-grabbing ring-2 ring-primary/60" : ""} ${isSelected ? "ring-2 ring-primary ring-offset-2 ring-offset-background" : ""}`}
+                    style={{ left: geom.x, top: geom.y, width: geom.width, height: totalH, pointerEvents: panelEditorLeftTab === "dialogue" ? "auto" : "none" }}
+                    onPointerDown={panelEditorLeftTab === "dialogue" && !isResizingThis && !isResizingSpeechBubbleRef.current ? (e) => {
+                      if (e.button !== 0) return;
+                      e.preventDefault();
+                      const canvasEl = canvasRefByPanel.current[panel.id];
+                      if (!canvasEl) return;
+                      const rect = canvasEl.getBoundingClientRect();
+                      const startMouseX = e.clientX - rect.left;
+                      const startMouseY = e.clientY - rect.top;
+                      const el = e.currentTarget as HTMLDivElement;
+                      draggingSpeechBubbleElRef.current = el;
+                      draggingSpeechBubbleDataRef.current = { panelId: panel.id, bubbleId: bubble.id, startX: geom.x, startY: geom.y, startMouseX, startMouseY, width: geom.width, height: totalH, rectLeft: rect.left, rectTop: rect.top };
+                      const ghost = dragSpeechBubbleGhostRefByPanel.current[panel.id];
+                      if (ghost) {
+                        ghost.style.display = "block";
+                        ghost.style.left = `${geom.x}px`;
+                        ghost.style.top = `${geom.y}px`;
+                        ghost.style.width = `${geom.width}px`;
+                        ghost.style.height = `${totalH}px`;
+                      }
+                      el.style.opacity = "0.35";
+                      const panelH = getPanelHeight(panel);
+                      const onPointerMove = (ev: PointerEvent) => {
+                        const data = draggingSpeechBubbleDataRef.current;
+                        if (!data) return;
+                        const canvas = canvasRefByPanel.current[data.panelId];
+                        const r = canvas?.getBoundingClientRect();
+                        const canvasMouseX = r ? ev.clientX - r.left : ev.clientX - data.rectLeft;
+                        const canvasMouseY = r ? ev.clientY - r.top : ev.clientY - data.rectTop;
+                        const newX = Math.max(0, Math.min(PANEL_WIDTH - data.width, data.startX + (canvasMouseX - data.startMouseX)));
+                        const newY = Math.max(0, Math.min(panelH - data.height, data.startY + (canvasMouseY - data.startMouseY)));
+                        const g = dragSpeechBubbleGhostRefByPanel.current[data.panelId];
+                        if (g) { g.style.left = `${newX}px`; g.style.top = `${newY}px`; }
+                      };
+                      const onPointerUp = (ev: PointerEvent) => {
+                        if (ev.button !== 0) return;
+                        document.removeEventListener("pointermove", onPointerMove, true);
+                        document.removeEventListener("pointerup", onPointerUp, true);
+                        const data = draggingSpeechBubbleDataRef.current;
+                        draggingSpeechBubbleDataRef.current = null;
+                        const dragEl = draggingSpeechBubbleElRef.current;
+                        if (dragEl) { dragEl.style.opacity = ""; draggingSpeechBubbleElRef.current = null; }
+                        const g = data && dragSpeechBubbleGhostRefByPanel.current[data.panelId];
+                        if (g) g.style.display = "none";
+                        if (!data) return;
+                        const canvas = canvasRefByPanel.current[data.panelId];
+                        const currentPanels = queryClient.getQueryData<Panel[]>(panelsQueryKey) ?? [];
+                        const panelUp = currentPanels.find((p) => p.id === data.panelId);
+                        const speechBubblesUp = getPanelSpeechBubbles(panelUp ?? panel);
+                        if (!canvas) return;
+                        const { x: canvasMouseX, y: canvasMouseY } = viewportToCanvas(canvas, ev.clientX, ev.clientY);
+                        const clampedX = Math.max(0, Math.min(PANEL_WIDTH - data.width, Math.round(data.startX + (canvasMouseX - data.startMouseX))));
+                        const clampedY = Math.max(0, Math.min(getPanelHeight(panelUp ?? panel) - data.height, Math.round(data.startY + (canvasMouseY - data.startMouseY))));
+                        const next = speechBubblesUp.map((b) => b.id === data.bubbleId ? { ...b, position: { x: clampedX, y: clampedY } } : b);
+                        queryClient.cancelQueries({ queryKey: panelsQueryKey });
+                        const previousPanels = queryClient.getQueryData<Panel[]>(panelsQueryKey);
+                        queryClient.setQueryData<Panel[]>(panelsQueryKey, (old) => (!old ? old : old.map((p) => (p.id === data.panelId ? { ...p, speech_bubbles: next as unknown as Json } : p))));
+                        updatePanelMutation.mutate(
+                          { id: data.panelId, updates: { speech_bubbles: next as unknown as Json } },
+                          {
+                            onSuccess: () => queryClient.refetchQueries({ queryKey: panelsQueryKey }),
+                            onError: (err) => {
+                              if (previousPanels != null) queryClient.setQueryData(panelsQueryKey, previousPanels);
+                              toast({ title: "Erreur", description: err.message, variant: "destructive" });
+                            },
+                          }
+                        );
+                      };
+                      document.addEventListener("pointermove", onPointerMove, { capture: true, passive: true });
+                      document.addEventListener("pointerup", onPointerUp, true);
+                    } : undefined}
+                    onClick={panelEditorLeftTab === "dialogue" ? (e) => { e.stopPropagation(); setSelectedSpeechBubbleIdInModal({ panelId: panel.id, bubbleId: bubble.id }); } : undefined}
+                  >
+                    <svg width="100%" height="100%" viewBox={bubble.type === "narration" ? SPEECH_BUBBLE_VIEWBOX_NARRATION : SPEECH_BUBBLE_VIEWBOX_WITH_TAIL} className="absolute inset-0 pointer-events-none" preserveAspectRatio="none">
+                      <SpeechBubbleShape type={bubble.type} fill={fillColor} stroke={strokeColor} />
+                    </svg>
+                    <div
+                      className="absolute inset-0 flex items-center justify-center text-center px-2 py-1 pointer-events-none"
+                      style={{ fontSize: `${fontSize}px`, fontFamily: fontFamily === "inherit" ? undefined : fontFamily, color, height: bubble.type === "narration" ? geom.height : (totalH * 100) / 120 }}
+                    >
+                      <span className="line-clamp-3 break-words">{bubble.text || "…"}</span>
+                    </div>
+                    {panelEditorLeftTab === "dialogue" && isSelected && !isResizingThis && [
+                      { edge: "r" as const, style: { right: 0, top: 0, bottom: 0, width: 8 }, cursor: "ew-resize" },
+                      { edge: "b" as const, style: { bottom: 0, left: 0, right: 0, height: 8 }, cursor: "ns-resize" },
+                      { edge: "l" as const, style: { left: 0, top: 0, bottom: 0, width: 8 }, cursor: "ew-resize" },
+                      { edge: "t" as const, style: { top: 0, left: 0, right: 0, height: 8 }, cursor: "ns-resize" },
+                      { edge: "tl" as const, style: { left: 0, top: 0, width: 12, height: 12 }, cursor: "nwse-resize" },
+                      { edge: "tr" as const, style: { right: 0, top: 0, width: 12, height: 12 }, cursor: "nesw-resize" },
+                      { edge: "br" as const, style: { right: 0, bottom: 0, width: 12, height: 12 }, cursor: "nwse-resize" },
+                      { edge: "bl" as const, style: { left: 0, bottom: 0, width: 12, height: 12 }, cursor: "nesw-resize" },
+                    ].map(({ edge, style, cursor }) => (
+                      <div
+                        key={edge}
+                        className="absolute z-10 rounded-sm bg-primary/30 hover:bg-primary/50"
+                        style={{ ...style, cursor }}
+                        onPointerDown={(ev) => {
+                          if (ev.button !== 0) return;
+                          ev.preventDefault();
+                          ev.stopPropagation();
+                          isResizingSpeechBubbleRef.current = true;
+                          resizeSpeechBubbleCaptureTargetRef.current = ev.currentTarget as HTMLElement;
+                          (ev.currentTarget as HTMLElement).setPointerCapture(ev.pointerId);
+                          setResizingSpeechBubbleState({ panelId: panel.id, bubbleId: bubble.id, edge, start: { x: geom.x, y: geom.y, w: geom.width, h: geom.height }, startMouse: { x: ev.clientX, y: ev.clientY } });
+                          setResizeSpeechBubbleDraft({ x: geom.x, y: geom.y, width: geom.width, height: geom.height });
+                          resizeSpeechBubbleDraftRef.current = { x: geom.x, y: geom.y, width: geom.width, height: geom.height };
+                          saveResizeSpeechBubbleRef.current = (draft) => {
+                            const roundedDraft = { x: Math.round(draft.x), y: Math.round(draft.y), width: Math.round(draft.width), height: Math.round(draft.height) };
+                            const currentPanels = queryClient.getQueryData<Panel[]>(panelsQueryKey) ?? [];
+                            const currentPanel = currentPanels.find((p) => p.id === panel.id);
+                            const list = getPanelSpeechBubbles(currentPanel ?? panel);
+                            const next = list.map((b) => b.id === bubble.id ? { ...b, position: { x: roundedDraft.x, y: roundedDraft.y }, width: roundedDraft.width, height: roundedDraft.height } : b);
+                            queryClient.cancelQueries({ queryKey: panelsQueryKey });
+                            const previousPanels = queryClient.getQueryData<Panel[]>(panelsQueryKey);
+                            queryClient.setQueryData<Panel[]>(panelsQueryKey, (old) => (!old ? old : old.map((p) => (p.id === panel.id ? { ...p, speech_bubbles: next as unknown as Json } : p))));
+                            setResizingSpeechBubbleState(null);
+                            setResizeSpeechBubbleDraft(null);
+                            resizeSpeechBubbleDraftRef.current = null;
+                            lastResizeSpeechBubbleMouseRef.current = null;
+                            resizeSpeechBubbleCaptureTargetRef.current = null;
+                            resizingSpeechBubbleElRef.current = null;
+                            isResizingSpeechBubbleRef.current = false;
+                            updatePanelMutation.mutate(
+                              { id: panel.id, updates: { speech_bubbles: next as unknown as Json } },
+                              {
+                                onSuccess: () => {},
+                                onError: (err) => {
+                                  if (previousPanels != null) queryClient.setQueryData(panelsQueryKey, previousPanels);
+                                  toast({ title: "Erreur", description: err.message, variant: "destructive" });
+                                },
+                              }
+                            );
+                          };
+                        }}
+                        aria-label="Redimensionner la bulle"
+                      />
+                    ))}
+                  </div>
+                );
+              })}
+              {/* Ghost de drag pour bulles de dialogue */}
+              <div
+                ref={(el) => { if (el) dragSpeechBubbleGhostRefByPanel.current[panel.id] = el; }}
+                aria-hidden
+                className="pointer-events-none absolute z-50 border-2 border-primary border-dashed bg-white/50 rounded-[50%] box-border"
+                style={{ display: "none", left: 0, top: 0, width: 100, height: 100 }}
+              />
               {/* Ghost de drag : position mis à jour uniquement en JS (temps réel, aucun re-render) */}
               <div
                 ref={(el) => { if (el) dragGhostRefByPanel.current[panel.id] = el; }}
@@ -1835,19 +2353,27 @@ export default function ChapterDetail() {
                 value={panelEditorLeftTab}
                 onValueChange={(v) => {
                   if (!v) return;
-                setPanelEditorLeftTab(v as "architecture" | "personalisation" | "couleurs");
+                setPanelEditorLeftTab(v as "architecture" | "personalisation" | "couleurs" | "dialogue");
                 if (v === "personalisation" && expandedPanelId) {
                   setPanelEditModeByPanelId((prev) => ({ ...prev, [expandedPanelId]: "edition" }));
                   setSelectedColorBlockIdInModal(null);
+                  setSelectedSpeechBubbleIdInModal(null);
                 }
                 if (v === "architecture" && expandedPanelId) {
                   setPanelEditModeByPanelId((prev) => ({ ...prev, [expandedPanelId]: "architecture" }));
                   setSelectedBlockIdInModal(null);
                   setSelectedColorBlockIdInModal(null);
+                  setSelectedSpeechBubbleIdInModal(null);
                 }
                 if (v === "couleurs" && expandedPanelId) {
                   setPanelEditModeByPanelId((prev) => ({ ...prev, [expandedPanelId]: "couleurs" }));
                   setSelectedBlockIdInModal(null);
+                  setSelectedSpeechBubbleIdInModal(null);
+                }
+                if (v === "dialogue" && expandedPanelId) {
+                  setPanelEditModeByPanelId((prev) => ({ ...prev, [expandedPanelId]: "edition" }));
+                  setSelectedBlockIdInModal(null);
+                  setSelectedColorBlockIdInModal(null);
                 }
               }}
               variant="outline"
@@ -1858,6 +2384,7 @@ export default function ChapterDetail() {
               <ToggleGroupItem value="architecture" className="rounded-lg shrink-0">Architecture</ToggleGroupItem>
               <ToggleGroupItem value="personalisation" className="rounded-lg shrink-0">Personalisation</ToggleGroupItem>
               <ToggleGroupItem value="couleurs" className="rounded-lg shrink-0">Couleurs</ToggleGroupItem>
+              <ToggleGroupItem value="dialogue" className="rounded-lg shrink-0">Dialogue</ToggleGroupItem>
               </ToggleGroup>
             </div>
           </DialogHeader>

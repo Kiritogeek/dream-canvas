@@ -121,6 +121,7 @@ export type Database = {
       panels: {
         Row: {
           chapter_id: string
+          color_blocks: Json | null
           created_at: string
           dialogue: string | null
           id: string
@@ -136,6 +137,7 @@ export type Database = {
         }
         Insert: {
           chapter_id: string
+          color_blocks?: Json | null
           created_at?: string
           dialogue?: string | null
           id?: string
@@ -151,6 +153,7 @@ export type Database = {
         }
         Update: {
           chapter_id?: string
+          color_blocks?: Json | null
           created_at?: string
           dialogue?: string | null
           id?: string

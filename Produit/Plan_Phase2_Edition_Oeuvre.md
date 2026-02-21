@@ -44,7 +44,8 @@ Un **panel** (720×5000) est constitué des éléments suivants. L'utilisateur *
 | Composant | Description |
 |-----------|-------------|
 | **Blocs** | Zones du panel contenant des **images** (illustrations générées). **C'est dans les blocs que les images sont générées.** Un panel contient une ou plusieurs blocs. **Mode Automatique** : agencement automatique. **Mode Structuré** : l'utilisateur travaille en **deux modes** — **Architecture** (ajout, position, dimensions des blocs) et **Édition** (prompt par bloc avec détection des assets, bulles, effets, fond, texte). Bibliothèque de blocs à placer ; images générées **à l'intérieur** de chaque bloc. Chaque bloc : position, taille, prompt, assets, image_url. |
-| **Texte (bulles)** | **Bulles de dialogue** (parole, pensée, cri, chuchotement), **narration**. Ajout **côté client** : l'utilisateur place des bulles depuis une **base de bulles** (formes/types prédéfinis). Chaque bulle : **texte éditable**, **couleur du contour**, **couleur de l'intérieur** (personnalisables). Position par drag & drop. |
+| **Blocs de couleurs** | **Même système que les blocs d'architecture** (position, dimensions), mais pour la **couleur** : remplir les **espaces entre les blocs d'image** par des zones de couleur. Le fond du panel est important en webtoon pour signifier l'ambiance (nuit, tension, flash-back). Par bloc couleur : couleur unie ou dégradé ; pas de génération d'image. Rendu : blocs couleur en arrière-plan, blocs image par-dessus. |
+| **Texte (bulles et brut)** | **Bulles de dialogue** (parole, pensée, cri, chuchotement), **narration** — placement depuis une base de bulles (formes/types prédéfinis). **Texte brut (sans bulle)** : texte libre dans le panel (narration, titres, onomatopées) avec **choix police / font, taille**, couleur. Les deux : position par drag & drop, **personnalisation typographique** (police, taille, couleur). |
 | **Effets de transition** | Effets visuels entre moments ou entre panels (à définir : fondu, coupure, etc.). Ajout **côté client** (hors image), en overlay. |
 | **Lignes de mouvement** | Effets graphiques pour l’intensité et le dynamisme : **lignes dynamiques** (tension, intensité), **lignes de vitesse** (course, coup rapide), **lignes d’impact** (coup, explosion, choc), **effets de vitesse** (terme général). Ajout **côté client** (hors image), en overlay. |
 
@@ -54,6 +55,8 @@ Un **panel** (720×5000) est constitué des éléments suivants. L'utilisateur *
 |--------|-------------|--------|
 | **Blocs (mode Structuré)** | **Bibliothèque de blocs** à placer sur le panel. | Base de blocs (formes / layouts prédéfinis) ; l'utilisateur **place** les blocs (drag & drop) ; les **images sont générées à l'intérieur** de chaque bloc. Données : `panels.layout` (JSONB) avec positions, tailles, type_bloc, prompt, image_url par bloc. |
 | **Bulles de dialogue** | **Ajout côté client** (overlay sur le panel). | Création d’une **base de bulles** (bibliothèque de formes/types : parole, pensée, cri, chuchotement, narration). L’utilisateur **place** les bulles sur le panel ; pour chaque bulle : **texte éditable**, **couleur du contour**, **couleur de l’intérieur** (personnalisables). Données : positions, styles, contenu (JSONB par panel, ex. `speech_bubbles`). |
+| **Texte brut (sans bulle)** | **Ajout côté client** (overlay sur le panel). | Texte libre dans le panel **sans forme de bulle** (narration, titres, onomatopées). **Police / font**, **taille**, couleur éditables. Placement par drag & drop. Stockage : ex. `panel_text_elements` ou tableau dédié (JSONB). |
+| **Blocs de couleurs** | **Même principe que blocs architecture** (position, dimensions). | Zones de **couleur** (unie ou dégradé) pour remplir les **espaces entre les blocs d'image** ; ambiance du panel (webtoon). Pas de génération d'image. Stockage : ex. `color_blocks` (JSONB) ou extension de `layout`. Rendu : calque arrière-plan sous les blocs image. |
 | **Effets (transitions, lignes de mouvement)** | **Ajout côté client** (hors des images, en overlay). | Couches superposées aux images ; positions, types, styles stockés en JSONB par panel. Modifiable sans régénérer l’image. L’intégration de certains effets *dans* l’image (ex. lignes d’impact via prompt) reste une **évolution ultérieure**. |
 
 **Recommandation** : **bulles et effets = toujours côté client** (couche d’ajout, overlay). Pas d’intégration des bulles ou des effets dynamiques dans l’image générée pour la version courante ; évolution possible plus tard pour certains effets visuels optionnels (option B partielle).
@@ -225,7 +228,7 @@ Référence : roadmap Phase 2 § 2.1, rapport § 3.2.
 | 4 | Liaison suggestion ↔ Édition de l'œuvre | Suggestion depuis la section Scénario (ou IA) ; import vers chapitre visuel (création/mise à jour des panels). Base optionnelle. | ✅ Livrée |
 | 5 | **Édition blocs + génération par bloc** | **Vue unifiée** : canvas 720×5000 + panneau latéral (prompt/dimensions par bloc). Ajout, position, dimensions des blocs (glisser-déposer, poignées) ; prompt par bloc ; génération par bloc (dimensions = bloc). Détection assets dans le prompt = prévue Étape 6. Voir `Edition_Panel_Blocs_Bulles.md`, `Edition_Panel_Deux_Modes.md`. | ✅ Livrée |
 | 6 | Mode Structuré (blocs) | **Bibliothèque de blocs** à placer sur le panel (mode Architecture) ; images **générées à l'intérieur** de chaque bloc ; prompt + **sélection d'assets par bloc** (mode Édition). | ✅ Livrée |
-| 7 | **Mode Édition : bulles, effets, fond, texte et lecture** | **Bibliothèque de bulles** (placement comme les blocs) ; **Menu Couleur** (modification couleur de fond) ; **bibliothèque d'effets** (profondeur, douceur, émotion, vivant) ; **ajout de texte** (typo). Rendu panel = blocs + overlay + fond personnalisé ; lecteur webtoon vertical. | 📋 À faire |
+| 7 | **Mode Édition : blocs de couleurs, bulles, texte brut, effets, fond et lecture** | **Blocs de couleurs** (même principe que blocs architecture, remplir espaces entre blocs pour ambiance) ; **Menu Couleur** (fond global) ; **bulles** (dans le panel, police/taille) ; **texte brut sans bulle** (police, taille) ; **bibliothèque d'effets** ; rendu = blocs couleur + blocs image + overlay ; lecteur webtoon vertical. | 📋 À faire |
 
 ---
 
@@ -241,7 +244,7 @@ Tests de non-régression et critères d'acceptation par étape. À exécuter ou 
 | **4** ✅ | Suggestion déclenchable depuis Scénario (ou IA) ; import vers chapitre visuel (bouton « Importer la suggestion ») ; panels créés/mis à jour ; édition des descriptions possible. |
 | **5** ✅ | Visualisation panel 720×5000 ; édition des blocs (position, taille, prompt par bloc) ; génération par bloc (dimensions = bloc) ; pas de génération tout le panel/chapitre ; régénération par bloc. |
 | **6** ✅ | Bibliothèque de blocs (presets 500×500, 400×600, 720×400, etc.) ; placement sur panel par glisser-déposer ; description + **sélection d'assets par bloc** ; génération 1 image par bloc (avec noms des assets dans le prompt) ; double visualisation (Scénario + Assets pour ce bloc). |
-| **7** | Bulles (overlay, types, édition texte/couleurs) ; narration ; effets de transition ; lignes de mouvement ; rendu final ; lecteur webtoon (défilement vertical, navigation chapitres). |
+| **7** | Blocs de couleurs (remplir espaces entre blocs, ambiance) ; Menu Couleur (fond global) ; bulles (texte, police, taille) ; texte brut sans bulle (police, taille) ; effets de transition ; lignes de mouvement ; rendu final ; lecteur webtoon (défilement vertical, navigation chapitres). |
 
 ---
 
@@ -258,4 +261,4 @@ Tests de non-régression et critères d'acceptation par étape. À exécuter ou 
 
 ---
 
-*Dernière mise à jour : 17 février 2026 — Étape 6 (Mode Structuré) livrée : bibliothèque de blocs, sélection d'assets par bloc, API avec block_asset_names.*
+*Dernière mise à jour : 21 février 2026 — Étape 7 précisée : blocs de couleurs (ambiance panel), bulles + texte brut (police/taille) dans le panel. Réf. roadmap § 2.2.3, 2.2.4.*

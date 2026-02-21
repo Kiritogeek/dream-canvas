@@ -67,16 +67,19 @@ import {
   getPanelBlocks,
   getPanelHeight,
   getPanelLayout,
+  getPanelColorBlocks,
   DEFAULT_BLOCK_WIDTH,
   DEFAULT_BLOCK_HEIGHT,
   BLOCK_PRESETS,
+  COLOR_BLOCK_PRESETS,
+  DEFAULT_COLOR_BLOCK_FILL,
   PANEL_HEIGHT_DEFAULT,
   PANEL_HEIGHT_MIN,
   PANEL_HEIGHT_MAX,
 } from "@/services/panels";
 import { updateScenarioChapter } from "@/services/scenarioChapters";
 import type { Json } from "@/integrations/supabase/types";
-import type { Chapter, Panel, PanelBlock, PanelLayout } from "@/types";
+import type { Chapter, Panel, PanelBlock, PanelLayout, ColorBlock } from "@/types";
 
 const PANEL_WIDTH = 800;
 
@@ -109,7 +112,7 @@ export default function ChapterDetail() {
   /** Brouillon dimensions par bloc : clé = `${panelId}-${blockId}` → { width, height } */
   const [blockDimensionDrafts, setBlockDimensionDrafts] = useState<Record<string, { width: number; height: number }>>({});
   /** Mode d'édition par panel : chaque panel a son propre mode (Architecture ou Édition) */
-  const [panelEditModeByPanelId, setPanelEditModeByPanelId] = useState<Record<string, "architecture" | "edition">>({});
+  const [panelEditModeByPanelId, setPanelEditModeByPanelId] = useState<Record<string, "architecture" | "edition" | "couleurs">>({});
   /** Refs du canvas par panel (pour calcul position de dépôt quand on drop sur un bloc) */
   const canvasRefByPanel = useRef<Record<string, HTMLDivElement | null>>({});
   /** Élément ghost pour le drag « nouveau bloc » (setDragImage) */
@@ -166,10 +169,44 @@ export default function ChapterDetail() {
   const [dragPreview, setDragPreview] = useState<{ panelId: string; blockId: string; x: number; y: number } | null>(null);
   /** Panel ouvert en modale « Edition » (id ou null) */
   const [expandedPanelId, setExpandedPanelId] = useState<string | null>(null);
-  /** Onglet du panneau gauche en modale : Architecture | Personalisation (chapitre affiché à droite en permanence) */
-  const [panelEditorLeftTab, setPanelEditorLeftTab] = useState<"architecture" | "personalisation">("architecture");
+  /** Onglet du panneau gauche en modale : Architecture | Personalisation | Couleurs */
+  const [panelEditorLeftTab, setPanelEditorLeftTab] = useState<"architecture" | "personalisation" | "couleurs">("architecture");
   /** Bloc sélectionné dans la modale (mode Personalisation) pour afficher le panneau droit ou gauche */
   const [selectedBlockIdInModal, setSelectedBlockIdInModal] = useState<{ panelId: string; blockId: string } | null>(null);
+  /** Bloc de couleur sélectionné (onglet Couleurs) pour éditer la couleur */
+  const [selectedColorBlockIdInModal, setSelectedColorBlockIdInModal] = useState<{ panelId: string; colorBlockId: string } | null>(null);
+  /** Ref vers l’élément DOM du bloc de couleur en cours de déplacement (opacity pendant le drag) */
+  const draggingColorBlockElRef = useRef<HTMLDivElement | null>(null);
+  /** Ghost de drag pour blocs de couleur : un div par panel, position mis à jour en direct (comme blocs image) */
+  const dragColorBlockGhostRefByPanel = useRef<Record<string, HTMLDivElement | null>>({});
+  /** Données du bloc de couleur en cours de déplacement (tout en ref = zéro re-render pendant le move) */
+  const draggingColorBlockDataRef = useRef<{
+    panelId: string;
+    colorBlockId: string;
+    startX: number;
+    startY: number;
+    startMouseX: number;
+    startMouseY: number;
+    width: number;
+    height: number;
+    rectLeft: number;
+    rectTop: number;
+  } | null>(null);
+  /** Resize d'un bloc de couleur (comme pour les blocs image) */
+  const [resizingColorBlockState, setResizingColorBlockState] = useState<{
+    panelId: string;
+    colorBlockId: string;
+    edge: "t" | "b" | "l" | "r" | "tl" | "tr" | "bl" | "br";
+    start: { x: number; y: number; w: number; h: number };
+    startMouse: { x: number; y: number };
+  } | null>(null);
+  const [resizeColorBlockDraft, setResizeColorBlockDraft] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
+  const resizeColorBlockCaptureTargetRef = useRef<HTMLElement | null>(null);
+  const resizingColorBlockElRef = useRef<HTMLDivElement | null>(null);
+  const saveResizeColorBlockRef = useRef<((draft: { x: number; y: number; width: number; height: number }) => void) | null>(null);
+  const lastResizeColorBlockMouseRef = useRef<{ x: number; y: number } | null>(null);
+  const resizeColorBlockDraftRef = useRef<{ x: number; y: number; width: number; height: number } | null>(null);
+  const isResizingColorBlockRef = useRef(false);
   const [pendingOutline, setPendingOutline] = useState<Array<{ description: string; context?: { lieu?: string; scene?: string; personnages?: string } }> | null>(null);
   /** Valeur sentinelle pour "Aucun" (Radix Select n'accepte pas value="") */
   const SCENARIO_NONE_VALUE = "__none__";
@@ -362,6 +399,93 @@ export default function ChapterDetail() {
     };
   }, [resizingState, panels]);
 
+  /** Resize des blocs de couleur (même logique que blocs image). */
+  useEffect(() => {
+    const target = resizeColorBlockCaptureTargetRef.current;
+    if (!resizingColorBlockState || !target) return;
+    const { edge, start, panelId } = resizingColorBlockState;
+    const minW = 100;
+    const minH = 100;
+    const rightFixed = start.x + start.w;
+    const bottomFixed = start.y + start.h;
+    const panel = panels.find((p) => p.id === panelId);
+    const panelH = getPanelHeight(panel);
+
+    const computeFromMouse = (clientX: number, clientY: number) => {
+      const canvasEl = canvasRefByPanel.current[panelId];
+      if (!canvasEl) return { x: start.x, y: start.y, width: start.w, height: start.h };
+      const mouse = viewportToCanvas(canvasEl, clientX, clientY);
+      let x = start.x, y = start.y, w = start.w, h = start.h;
+      switch (edge) {
+        case "r": w = mouse.x - start.x; break;
+        case "l": x = mouse.x; w = rightFixed - mouse.x; break;
+        case "b": h = mouse.y - start.y; break;
+        case "t": y = mouse.y; h = bottomFixed - mouse.y; break;
+        case "tr": y = mouse.y; w = mouse.x - start.x; h = bottomFixed - mouse.y; break;
+        case "br": w = mouse.x - start.x; h = mouse.y - start.y; break;
+        case "bl": x = mouse.x; w = rightFixed - mouse.x; h = mouse.y - start.y; break;
+        case "tl": x = mouse.x; y = mouse.y; w = rightFixed - mouse.x; h = bottomFixed - mouse.y; break;
+      }
+      const leftFixed = edge === "r" || edge === "tr" || edge === "br";
+      const topFixed = edge === "r" || edge === "b" || edge === "br" || edge === "bl";
+      const rightAnchored = edge === "l" || edge === "bl" || edge === "tl";
+      const bottomAnchored = edge === "t" || edge === "tr" || edge === "tl";
+      w = Math.max(minW, Math.min(PANEL_WIDTH, w));
+      h = Math.max(minH, Math.min(panelH, h));
+      if (leftFixed) w = Math.min(w, PANEL_WIDTH - start.x);
+      if (topFixed) h = Math.min(h, panelH - start.y);
+      if (rightAnchored) { w = Math.min(w, rightFixed); x = rightFixed - w; }
+      if (bottomAnchored) { h = Math.min(h, bottomFixed); y = bottomFixed - h; }
+      if (leftFixed) x = start.x;
+      else if (rightAnchored) x = rightFixed - w;
+      else x = Math.max(0, Math.min(PANEL_WIDTH - w, x));
+      if (topFixed) y = start.y;
+      else if (bottomAnchored) y = bottomFixed - h;
+      else y = Math.max(0, Math.min(panelH - h, y));
+      return { x: Math.round(x), y: Math.round(y), width: Math.round(w), height: Math.round(h) };
+    };
+
+    const onMove = (e: PointerEvent) => {
+      if (e.buttons !== 1) return;
+      lastResizeColorBlockMouseRef.current = { x: e.clientX, y: e.clientY };
+      const result = computeFromMouse(e.clientX, e.clientY);
+      resizeColorBlockDraftRef.current = result;
+      setResizeColorBlockDraft(result);
+      const el = resizingColorBlockElRef.current;
+      if (el) {
+        el.style.left = `${result.x}px`;
+        el.style.top = `${result.y}px`;
+        el.style.width = `${result.width}px`;
+        el.style.height = `${result.height}px`;
+      }
+    };
+    const onUp = () => {
+      const lastClient = lastResizeColorBlockMouseRef.current;
+      const rawResult = lastClient
+        ? computeFromMouse(lastClient.x, lastClient.y)
+        : resizeColorBlockDraftRef.current ?? { x: start.x, y: start.y, width: start.w, height: start.h };
+      const result = { x: Math.round(rawResult.x), y: Math.round(rawResult.y), width: Math.round(rawResult.width), height: Math.round(rawResult.height) };
+      const hadSave = !!saveResizeColorBlockRef.current;
+      saveResizeColorBlockRef.current?.(result);
+      saveResizeColorBlockRef.current = null;
+      if (!hadSave) {
+        setResizingColorBlockState(null);
+        setResizeColorBlockDraft(null);
+        resizeColorBlockDraftRef.current = null;
+        lastResizeColorBlockMouseRef.current = null;
+        resizeColorBlockCaptureTargetRef.current = null;
+        resizingColorBlockElRef.current = null;
+        isResizingColorBlockRef.current = false;
+      }
+    };
+    target.addEventListener("pointermove", onMove);
+    target.addEventListener("pointerup", onUp);
+    return () => {
+      target.removeEventListener("pointermove", onMove);
+      target.removeEventListener("pointerup", onUp);
+    };
+  }, [resizingColorBlockState, panels]);
+
   const handleSaveScenarioLink = () => {
     const idToSave = displayedScenarioChapterId;
     if (!chapterId) return;
@@ -417,10 +541,14 @@ export default function ChapterDetail() {
   const renderPanelEditor = (panel: Panel) => {
     const layout = getPanelLayout(panel);
     const blocks = getPanelBlocks(panel);
+    const colorBlocks = getPanelColorBlocks(panel);
     const panelHeight = getPanelHeight(panel);
     const mode = panelEditModeByPanelId[panel.id] ?? "architecture";
     const selectedBlock = selectedBlockIdInModal?.panelId === panel.id && selectedBlockIdInModal?.blockId
       ? blocks.find((b) => b.id === selectedBlockIdInModal.blockId)
+      : null;
+    const selectedColorBlock = selectedColorBlockIdInModal?.panelId === panel.id && selectedColorBlockIdInModal?.colorBlockId
+      ? colorBlocks.find((c) => c.id === selectedColorBlockIdInModal.colorBlockId)
       : null;
 
     const handleAddBlock = (atX?: number, atY?: number, width = DEFAULT_BLOCK_WIDTH, height = DEFAULT_BLOCK_HEIGHT) => {
@@ -479,6 +607,15 @@ export default function ChapterDetail() {
           const h = typeof data.height === "number" ? data.height : DEFAULT_BLOCK_HEIGHT;
           const { x, y } = getCanvasDropPosition(e, canvasEl, w, h);
           handleAddBlock(x, y, w, h);
+          setDraggingBlock(null);
+          setDragPreview(null);
+          return;
+        }
+        if (data.type === "new-color-block") {
+          const w = typeof data.width === "number" ? data.width : 500;
+          const h = typeof data.height === "number" ? data.height : 500;
+          const { x, y } = getCanvasDropPosition(e, canvasEl, w, h);
+          handleAddColorBlock(x, y, w, h);
           setDraggingBlock(null);
           setDragPreview(null);
           return;
@@ -578,6 +715,44 @@ export default function ChapterDetail() {
           onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }),
         }
       );
+    };
+
+    const handleAddColorBlock = (atX: number, atY: number, width: number, height: number) => {
+      const w = Math.max(50, Math.min(PANEL_WIDTH, width));
+      const h = Math.max(50, Math.min(panelHeight, height));
+      const x = Math.max(0, Math.min(PANEL_WIDTH - w, atX));
+      const y = Math.max(0, Math.min(panelHeight - h, atY));
+      const newBlock: ColorBlock = {
+        id: crypto.randomUUID(),
+        x, y, width: w, height: h,
+        fill: DEFAULT_COLOR_BLOCK_FILL,
+      };
+      const next = [...colorBlocks, newBlock];
+      updatePanelMutation.mutate(
+        { id: panel.id, updates: { color_blocks: next as unknown as Json } },
+        { onSuccess: () => toast({ title: "Bloc de couleur ajouté" }), onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }) }
+      );
+    };
+
+    const handleUpdateColorBlocks = (next: ColorBlock[]) => {
+      updatePanelMutation.mutate(
+        { id: panel.id, updates: { color_blocks: next as unknown as Json } },
+        { onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }) }
+      );
+    };
+
+    const handleDeleteColorBlock = (cb: ColorBlock) => {
+      const next = colorBlocks.filter((c) => c.id !== cb.id);
+      if (selectedColorBlockIdInModal?.colorBlockId === cb.id) setSelectedColorBlockIdInModal(null);
+      updatePanelMutation.mutate(
+        { id: panel.id, updates: { color_blocks: next as unknown as Json } },
+        { onSuccess: () => toast({ title: "Bloc de couleur supprimé" }), onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }) }
+      );
+    };
+
+    const handleColorBlockFillChange = (cb: ColorBlock, fill: ColorBlock["fill"]) => {
+      const next = colorBlocks.map((c) => (c.id === cb.id ? { ...c, fill } : c));
+      handleUpdateColorBlocks(next);
     };
 
     const handleSaveBlockPrompt = (block: PanelBlock, newPrompt: string, options?: { silent?: boolean }) => {
@@ -786,6 +961,92 @@ export default function ChapterDetail() {
               )}
             </div>
           )}
+          {panelEditorLeftTab === "couleurs" && (
+            <div className="p-4 space-y-4">
+              <div className="min-h-10 rounded-xl border border-dashed border-border/70 bg-muted/30 px-3 py-2">
+                <div className="space-y-1.5">
+                  <span className="text-xs font-medium text-muted-foreground block">Bibliothèque de blocs — glisser sur le panel</span>
+                  <div className="flex flex-wrap gap-2">
+                    {COLOR_BLOCK_PRESETS.map((preset) => (
+                      <div
+                        key={preset.label}
+                        draggable
+                        onDragStart={(e) => {
+                          e.dataTransfer.setData("application/json", JSON.stringify({ type: "new-color-block", width: preset.width, height: preset.height }));
+                          e.dataTransfer.effectAllowed = "copy";
+                          const ghost = newBlockDragGhostRef.current;
+                          if (ghost) e.dataTransfer.setDragImage(ghost, Math.min(250, preset.width / 2), Math.min(250, preset.height / 2));
+                        }}
+                        className="cursor-grab active:cursor-grabbing rounded-lg border border-border/60 bg-background px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                      >
+                        {preset.label}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-2 rounded-xl bg-muted/20 p-3 border border-border/50">
+                <span className="text-xs font-medium text-muted-foreground">Hauteur du panel</span>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={panelHeightDraft !== null ? panelHeightDraft : String(layout.panelHeight ?? PANEL_HEIGHT_DEFAULT)}
+                    onChange={(e) => setPanelHeightDraft(e.target.value)}
+                    className="w-24 h-9 rounded-lg border border-border/60 bg-background px-2 text-sm"
+                  />
+                  <span className="text-xs text-muted-foreground">px</span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="shrink-0 rounded-lg"
+                    onClick={() => {
+                      const raw = panelHeightDraft !== null ? panelHeightDraft.trim() : null;
+                      const num = raw === null
+                        ? (layout.panelHeight ?? PANEL_HEIGHT_DEFAULT)
+                        : (raw === "" ? PANEL_HEIGHT_MIN : Math.max(PANEL_HEIGHT_MIN, Math.min(PANEL_HEIGHT_MAX, Number(raw) || PANEL_HEIGHT_MIN)));
+                      handlePanelHeightChange(num);
+                      setPanelHeightDraft(null);
+                    }}
+                  >
+                    Appliquer
+                  </Button>
+                </div>
+                <p className="text-[11px] text-muted-foreground/80">Min {PANEL_HEIGHT_MIN} — max {PANEL_HEIGHT_MAX}. Vide = min par défaut.</p>
+              </div>
+              {selectedColorBlock ? (
+                <>
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <h4 className="text-sm font-medium text-foreground">Bloc sélectionné</h4>
+                    <Button size="sm" variant="ghost" className="h-8 w-8 p-0 rounded-lg" onClick={() => setSelectedColorBlockIdInModal(null)} aria-label="Fermer"><X className="h-4 w-4" /></Button>
+                  </div>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <span className="text-xs font-medium text-muted-foreground">Dimensions</span>
+                      <p className="text-sm text-foreground tabular-nums">{selectedColorBlock.width} × {Math.round(selectedColorBlock.height)}</p>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium text-muted-foreground">Couleur</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          value={selectedColorBlock.fill.type === "solid" ? selectedColorBlock.fill.color : selectedColorBlock.fill.from}
+                          onChange={(e) => handleColorBlockFillChange(selectedColorBlock, { type: "solid", color: e.target.value })}
+                          className="h-9 w-14 rounded border border-border/60 cursor-pointer bg-background"
+                        />
+                        <span className="text-xs text-muted-foreground tabular-nums">{selectedColorBlock.fill.type === "solid" ? selectedColorBlock.fill.color : selectedColorBlock.fill.from}</span>
+                      </div>
+                    </div>
+                    <Button size="sm" variant="ghost" className="w-full gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10" disabled={updatePanelMutation.isPending} onClick={() => handleDeleteColorBlock(selectedColorBlock)}><Trash2 className="h-3 w-3" /> Supprimer le bloc</Button>
+                  </div>
+                </>
+              ) : (
+                <div className="rounded-xl border border-dashed border-border/70 bg-muted/30 px-4 py-8 text-center">
+                  <p className="text-sm text-muted-foreground">Cliquez sur un bloc dans le panel pour l&apos;éditer (bloc de couleur).</p>
+                </div>
+              )}
+            </div>
+          )}
         </aside>
         {/* Centre : panel 800px de large exactement */}
         <div className="flex-1 min-w-0 flex items-start justify-center overflow-auto p-6 bg-background">
@@ -804,6 +1065,187 @@ export default function ChapterDetail() {
                 onDragOver={handleCanvasDragOver}
                 onDrop={handleCanvasDrop}
               >
+              {/* Blocs de couleur (arrière-plan) */}
+              {colorBlocks.map((cb) => {
+                const isResizingThis = resizingColorBlockState?.panelId === panel.id && resizingColorBlockState?.colorBlockId === cb.id;
+                const geom = isResizingThis && resizeColorBlockDraft
+                  ? { x: Math.round(resizeColorBlockDraft.x), y: Math.round(resizeColorBlockDraft.y), width: Math.round(resizeColorBlockDraft.width), height: Math.round(resizeColorBlockDraft.height) }
+                  : { x: cb.x, y: cb.y, width: cb.width, height: cb.height };
+                const isSelected = mode === "couleurs" && selectedColorBlockIdInModal?.panelId === panel.id && selectedColorBlockIdInModal?.colorBlockId === cb.id;
+                const bgStyle = cb.fill.type === "solid"
+                  ? { backgroundColor: cb.fill.color }
+                  : { background: `linear-gradient(${cb.fill.angle ?? 90}deg, ${cb.fill.from}, ${cb.fill.to})` };
+                return (
+                  <div
+                    key={cb.id}
+                    ref={isResizingThis ? (el) => { if (el) resizingColorBlockElRef.current = el; } : undefined}
+                    className={`group absolute overflow-visible border border-border/80 transition-all duration-150 ${mode === "couleurs" ? "cursor-grab active:cursor-grabbing ring-2 ring-primary/60" : ""} ${isSelected ? "ring-2 ring-primary ring-offset-2 ring-offset-background z-10" : ""}`}
+                    style={{
+                      left: geom.x,
+                      top: geom.y,
+                      width: geom.width,
+                      height: geom.height,
+                      ...bgStyle,
+                      zIndex: isSelected ? 5 : 1,
+                      pointerEvents: mode === "couleurs" ? "auto" : "none",
+                    }}
+                    onPointerDown={mode === "couleurs" && !isResizingThis && !isResizingColorBlockRef.current ? (e) => {
+                      if (e.button !== 0) return;
+                      e.preventDefault();
+                      const canvasEl = canvasRefByPanel.current[panel.id];
+                      if (!canvasEl) return;
+                      const rect = canvasEl.getBoundingClientRect();
+                      const startMouseX = e.clientX - rect.left;
+                      const startMouseY = e.clientY - rect.top;
+                      const el = e.currentTarget as HTMLDivElement;
+                      draggingColorBlockElRef.current = el;
+                      draggingColorBlockDataRef.current = { panelId: panel.id, colorBlockId: cb.id, startX: cb.x, startY: cb.y, startMouseX, startMouseY, width: cb.width, height: cb.height, rectLeft: rect.left, rectTop: rect.top };
+                      const ghost = dragColorBlockGhostRefByPanel.current[panel.id];
+                      if (ghost) {
+                        ghost.style.display = "block";
+                        ghost.style.left = `${cb.x}px`;
+                        ghost.style.top = `${cb.y}px`;
+                        ghost.style.width = `${cb.width}px`;
+                        ghost.style.height = `${cb.height}px`;
+                        if (cb.fill.type === "solid") {
+                          ghost.style.backgroundColor = cb.fill.color;
+                          ghost.style.background = "";
+                        } else {
+                          ghost.style.background = `linear-gradient(${cb.fill.angle ?? 90}deg, ${cb.fill.from}, ${cb.fill.to})`;
+                          ghost.style.backgroundColor = "";
+                        }
+                      }
+                      el.style.opacity = "0.35";
+                      const panelH = getPanelHeight(panel);
+                      const onPointerMove = (ev: PointerEvent) => {
+                        const data = draggingColorBlockDataRef.current;
+                        if (!data) return;
+                        const canvas = canvasRefByPanel.current[data.panelId];
+                        const r = canvas?.getBoundingClientRect();
+                        const canvasMouseX = r ? ev.clientX - r.left : ev.clientX - data.rectLeft;
+                        const canvasMouseY = r ? ev.clientY - r.top : ev.clientY - data.rectTop;
+                        const newX = Math.max(0, Math.min(PANEL_WIDTH - data.width, data.startX + (canvasMouseX - data.startMouseX)));
+                        const newY = Math.max(0, Math.min(panelH - data.height, data.startY + (canvasMouseY - data.startMouseY)));
+                        const g = dragColorBlockGhostRefByPanel.current[data.panelId];
+                        if (g) { g.style.left = `${newX}px`; g.style.top = `${newY}px`; }
+                      };
+                      const onPointerUp = (ev: PointerEvent) => {
+                        if (ev.button !== 0) return;
+                        document.removeEventListener("pointermove", onPointerMove, true);
+                        document.removeEventListener("pointerup", onPointerUp, true);
+                        const data = draggingColorBlockDataRef.current;
+                        draggingColorBlockDataRef.current = null;
+                        const dragEl = draggingColorBlockElRef.current;
+                        if (dragEl) { dragEl.style.opacity = ""; draggingColorBlockElRef.current = null; }
+                        const g = data && dragColorBlockGhostRefByPanel.current[data.panelId];
+                        if (g) g.style.display = "none";
+                        if (!data) return;
+                        const canvas = canvasRefByPanel.current[data.panelId];
+                        const currentPanels = queryClient.getQueryData<Panel[]>(panelsQueryKey) ?? [];
+                        const panelUp = currentPanels.find((p) => p.id === data.panelId);
+                        const colorBlocksUp = getPanelColorBlocks(panelUp ?? panel);
+                        if (!canvas) return;
+                        const { x: canvasMouseX, y: canvasMouseY } = viewportToCanvas(canvas, ev.clientX, ev.clientY);
+                        const clampedX = Math.max(0, Math.min(PANEL_WIDTH - data.width, Math.round(data.startX + (canvasMouseX - data.startMouseX))));
+                        const clampedY = Math.max(0, Math.min(getPanelHeight(panelUp ?? panel) - data.height, Math.round(data.startY + (canvasMouseY - data.startMouseY))));
+                        const next = colorBlocksUp.map((c) => (c.id === data.colorBlockId ? { ...c, x: clampedX, y: clampedY } : c));
+                        queryClient.cancelQueries({ queryKey: panelsQueryKey });
+                        const previousPanels = queryClient.getQueryData<Panel[]>(panelsQueryKey);
+                        queryClient.setQueryData<Panel[]>(panelsQueryKey, (old) => (!old ? old : old.map((p) => (p.id === data.panelId ? { ...p, color_blocks: next as unknown as Json } : p))));
+                        updatePanelMutation.mutate(
+                          { id: data.panelId, updates: { color_blocks: next as unknown as Json } },
+                          {
+                            onSuccess: () => queryClient.refetchQueries({ queryKey: panelsQueryKey }),
+                            onError: (err) => {
+                              if (previousPanels != null) queryClient.setQueryData(panelsQueryKey, previousPanels);
+                              toast({ title: "Erreur", description: err.message, variant: "destructive" });
+                            },
+                          }
+                        );
+                      };
+                      document.addEventListener("pointermove", onPointerMove, { capture: true, passive: true });
+                      document.addEventListener("pointerup", onPointerUp, true);
+                    } : undefined}
+                    onClick={mode === "couleurs" ? (e) => { e.stopPropagation(); setSelectedColorBlockIdInModal({ panelId: panel.id, colorBlockId: cb.id }); } : undefined}
+                  >
+                    {mode === "couleurs" && (
+                      <>
+                        <button
+                          type="button"
+                          className="absolute bottom-[25%] left-1/2 z-20 flex h-8 w-8 -translate-x-1/2 items-center justify-center rounded-md bg-destructive/90 text-destructive-foreground opacity-0 shadow-md transition-opacity hover:bg-destructive group-hover:opacity-100"
+                          title="Supprimer le bloc de couleur"
+                          onPointerDown={(ev) => ev.stopPropagation()}
+                          onClick={(ev) => { ev.preventDefault(); ev.stopPropagation(); handleDeleteColorBlock(cb); }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                        {[
+                          { edge: "r" as const, style: { right: 0, top: 0, bottom: 0, width: 9 }, cursor: "ew-resize" },
+                          { edge: "b" as const, style: { bottom: 0, left: 0, right: 0, height: 9 }, cursor: "ns-resize" },
+                          { edge: "l" as const, style: { left: 0, top: 0, bottom: 0, width: 9 }, cursor: "ew-resize" },
+                          { edge: "t" as const, style: { top: 0, left: 0, right: 0, height: 9 }, cursor: "ns-resize" },
+                          { edge: "tl" as const, style: { left: 0, top: 0, width: 15, height: 15 }, cursor: "nwse-resize" },
+                          { edge: "tr" as const, style: { right: 0, top: 0, width: 15, height: 15 }, cursor: "nesw-resize" },
+                          { edge: "br" as const, style: { right: 0, bottom: 0, width: 15, height: 15 }, cursor: "nwse-resize" },
+                          { edge: "bl" as const, style: { left: 0, bottom: 0, width: 15, height: 15 }, cursor: "nesw-resize" },
+                        ].map(({ edge, style, cursor }) => (
+                          <div
+                            key={edge}
+                            className="absolute z-10 rounded-sm transition-colors hover:bg-primary/30"
+                            style={{ ...style, cursor }}
+                            onPointerDown={(ev) => {
+                              if (ev.button !== 0) return;
+                              ev.preventDefault();
+                              ev.stopPropagation();
+                              isResizingColorBlockRef.current = true;
+                              resizeColorBlockCaptureTargetRef.current = ev.currentTarget as HTMLElement;
+                              (ev.currentTarget as HTMLElement).setPointerCapture(ev.pointerId);
+                              setResizingColorBlockState({ panelId: panel.id, colorBlockId: cb.id, edge, start: { x: cb.x, y: cb.y, w: cb.width, h: cb.height }, startMouse: { x: ev.clientX, y: ev.clientY } });
+                              setResizeColorBlockDraft({ x: cb.x, y: cb.y, width: cb.width, height: cb.height });
+                              resizeColorBlockDraftRef.current = { x: cb.x, y: cb.y, width: cb.width, height: cb.height };
+                              saveResizeColorBlockRef.current = (draft) => {
+                                const roundedDraft = { x: Math.round(draft.x), y: Math.round(draft.y), width: Math.round(draft.width), height: Math.round(draft.height) };
+                                const currentPanels = queryClient.getQueryData<Panel[]>(panelsQueryKey) ?? [];
+                                const currentPanel = currentPanels.find((p) => p.id === panel.id);
+                                const currentColorBlocks = getPanelColorBlocks(currentPanel ?? panel);
+                                const next = currentColorBlocks.map((c) => (c.id === cb.id ? { ...c, x: roundedDraft.x, y: roundedDraft.y, width: roundedDraft.width, height: roundedDraft.height } : c));
+                                queryClient.cancelQueries({ queryKey: panelsQueryKey });
+                                const previousPanels = queryClient.getQueryData<Panel[]>(panelsQueryKey);
+                                queryClient.setQueryData<Panel[]>(panelsQueryKey, (old) => (!old ? old : old.map((p) => (p.id === panel.id ? { ...p, color_blocks: next as unknown as Json } : p))));
+                                setResizingColorBlockState(null);
+                                setResizeColorBlockDraft(null);
+                                resizeColorBlockDraftRef.current = null;
+                                lastResizeColorBlockMouseRef.current = null;
+                                resizeColorBlockCaptureTargetRef.current = null;
+                                resizingColorBlockElRef.current = null;
+                                isResizingColorBlockRef.current = false;
+                                updatePanelMutation.mutate(
+                                  { id: panel.id, updates: { color_blocks: next as unknown as Json } },
+                                  {
+                                    onSuccess: () => {},
+                                    onError: (err) => {
+                                      if (previousPanels != null) queryClient.setQueryData(panelsQueryKey, previousPanels);
+                                      toast({ title: "Erreur", description: err.message, variant: "destructive" });
+                                    },
+                                  }
+                                );
+                              };
+                            }}
+                            aria-label="Redimensionner"
+                          />
+                        ))}
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+              {/* Ghost de drag pour blocs de couleur : position mis à jour uniquement en JS (temps réel, aucun re-render) */}
+              <div
+                ref={(el) => { if (el) dragColorBlockGhostRefByPanel.current[panel.id] = el; }}
+                aria-hidden
+                className="pointer-events-none absolute z-50 rounded-lg border-2 border-primary shadow-lg box-border"
+                style={{ display: "none", left: 0, top: 0, width: 0, height: 0 }}
+              />
               {blocks.length === 0 ? (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-center p-6 text-muted-foreground text-sm">
                   <Square className="h-10 w-10 opacity-50" />
@@ -1392,7 +1834,7 @@ export default function ChapterDetail() {
       </AlertDialog>
 
       {/* Modale Edition : architecture et personnalisation du panel */}
-      <Dialog open={!!expandedPanelId} onOpenChange={(open) => { if (!open) { setExpandedPanelId(null); setSelectedBlockIdInModal(null); setPanelHeightDraft(null); setPanelEditorLeftTab("architecture"); } }}>
+      <Dialog open={!!expandedPanelId} onOpenChange={(open) => { if (!open) { setExpandedPanelId(null); setSelectedBlockIdInModal(null); setSelectedColorBlockIdInModal(null); setPanelHeightDraft(null); setPanelEditorLeftTab("architecture"); } }}>
         <DialogContent className="max-w-[95vw] w-full max-h-[95vh] overflow-hidden flex flex-col gap-0 p-0 bg-background border-border" aria-describedby={undefined}>
           <DialogHeader className="px-6 pt-4 pb-0 border-b border-border bg-background shrink-0 space-y-4">
             <div className="flex items-center justify-between gap-4">
@@ -1407,11 +1849,18 @@ export default function ChapterDetail() {
                 value={panelEditorLeftTab}
                 onValueChange={(v) => {
                   if (!v) return;
-                setPanelEditorLeftTab(v as "architecture" | "personalisation");
-                if (v === "personalisation" && expandedPanelId)
+                setPanelEditorLeftTab(v as "architecture" | "personalisation" | "couleurs");
+                if (v === "personalisation" && expandedPanelId) {
                   setPanelEditModeByPanelId((prev) => ({ ...prev, [expandedPanelId]: "edition" }));
+                  setSelectedColorBlockIdInModal(null);
+                }
                 if (v === "architecture" && expandedPanelId) {
                   setPanelEditModeByPanelId((prev) => ({ ...prev, [expandedPanelId]: "architecture" }));
+                  setSelectedBlockIdInModal(null);
+                  setSelectedColorBlockIdInModal(null);
+                }
+                if (v === "couleurs" && expandedPanelId) {
+                  setPanelEditModeByPanelId((prev) => ({ ...prev, [expandedPanelId]: "couleurs" }));
                   setSelectedBlockIdInModal(null);
                 }
               }}
@@ -1422,6 +1871,7 @@ export default function ChapterDetail() {
             >
               <ToggleGroupItem value="architecture" className="rounded-lg shrink-0">Architecture</ToggleGroupItem>
               <ToggleGroupItem value="personalisation" className="rounded-lg shrink-0">Personalisation</ToggleGroupItem>
+              <ToggleGroupItem value="couleurs" className="rounded-lg shrink-0">Couleurs</ToggleGroupItem>
               </ToggleGroup>
             </div>
           </DialogHeader>

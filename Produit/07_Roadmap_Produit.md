@@ -129,27 +129,38 @@ Voir `Plan_Action_Developpement_Scénario.md` pour le détail des phases A à G.
 | **Génération 1 image par bloc** | Image pleine par bloc à partir du prompt et des **assets sélectionnés** pour ce bloc, stockage URL, affichage dans le bloc | P0 | L |
 | **Régénération / édition** | Régénérer un bloc, modifier prompt ou refs, réorganisation blocs | P1 | M |
 
-#### 2.2.3 Système de dialogues et narration
+#### 2.2.3 Système de dialogues et texte dans le panel
 
 | Tâche | Description | Priorité | Effort |
 |-------|------------|----------|--------|
-| **Bulles de dialogue** | Overlay de bulles sur les panels | P0 | L |
-| **Positionnement des bulles** | Placement par drag & drop | P0 | M |
+| **Bulles de dialogue** | Bulles directement dans le panel ; overlay sur les blocs | P0 | L |
+| **Positionnement des bulles** | Placement par drag & drop dans le panel | P0 | M |
 | **Types de bulles** | Parole, pensée, cri, chuchotement | P1 | M |
-| **Narration** | Blocs de narration en haut/bas des panels | P1 | S |
-| **Personnalisation typographique** | Police, taille, couleur du texte | P2 | S |
+| **Texte brut (sans bulle)** | Texte libre dans le panel, sans forme de bulle (narration, titres, onomatopées) | P0 | M |
+| **Personnalisation typographique** | **Police / font**, **taille**, couleur du texte — pour bulles et texte brut | P0 | M |
+| **Narration** | Blocs de narration en haut/bas des panels (texte brut ou bulle narration) | P1 | S |
 | **Génération IA de dialogues** | Suggestion de dialogues à partir du synopsis | P2 | L |
 
-#### 2.2.4 Personnalisation visuelle du panel
+#### 2.2.4 Blocs de couleurs (ambiance du panel)
+
+> **Objectif** : Même système de blocs que pour l’architecture (position, dimensions), mais pour la **couleur** — remplir les **espaces entre les blocs d’image** par des zones de couleur. Dans les webtoons, le fond du panel est essentiel pour signifier l’ambiance (nuit, tension, flash-back, etc.).
 
 | Tâche | Description | Priorité | Effort |
 |-------|------------|----------|--------|
-| **Menu Couleur** | Modification de la couleur de fond du panel (couleur unie ou dégradé) | P0 | M |
+| **Blocs de couleurs** | Blocs dédiés à la couleur (même principe que blocs architecture : position, largeur, hauteur) ; remplissent les **interstices** entre les blocs d’image | P0 | L |
+| **Remplissage par couleur** | Par bloc couleur : couleur unie ou dégradé ; pas de génération d’image | P0 | M |
+| **Ordre des calques** | Gestion du rendu : blocs couleur en arrière-plan, blocs image par-dessus ; ou ordre configurable | P0 | M |
+| **Menu Couleur (fond global)** | En complément : couleur de fond du panel (couleur unie ou dégradé) pour les zones non couvertes | P0 | S |
+
+#### 2.2.5 Personnalisation visuelle du panel (effets)
+
+| Tâche | Description | Priorité | Effort |
+|-------|------------|----------|--------|
 | **Bibliothèque d'effets** | Bibliothèque d'éléments visuels pour donner de la profondeur, douceur, émotion et vivant à l'œuvre | P0 | L |
 | **Catégories d'effets** | Effets organisés par catégories : profondeur (ombres, lumières, atmosphère), douceur (flou, transitions douces), émotion (météo, ambiances), vivant (mouvement, dynamisme) | P0 | M |
 | **Application des effets** | Placement et personnalisation des effets sur le panel (position, intensité, paramètres) | P0 | M |
 
-#### 2.2.4 Lecteur webtoon amélioré
+#### 2.2.6 Lecteur webtoon amélioré
 
 | Tâche | Description | Priorité | Effort |
 |-------|------------|----------|--------|
@@ -315,4 +326,4 @@ Jan     Fév     Mar     Avr     Mai     Juin    Jul     Aoû     Sep     Oct   
 
 ---
 
-*Dernière mise à jour : 17 février 2026 — Roadmap : ajout § 2.2.4 Personnalisation visuelle du panel (Menu Couleur, Bibliothèque d'effets : profondeur, douceur, émotion, vivant).*
+*Dernière mise à jour : 21 février 2026 — Suite de la roadmap Phase 2 : (1) Blocs de couleurs (même système que blocs architecture, remplir espaces entre blocs pour ambiance webtoon) ; (2) Bulles de dialogue + texte brut dans le panel (sans bulle) avec police / font / taille.*

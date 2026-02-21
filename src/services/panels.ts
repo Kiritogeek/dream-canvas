@@ -1,6 +1,6 @@
 // Service — Panels (table panels), découpage, génération par bloc
 import { supabase } from "@/integrations/supabase/client";
-import type { Panel, PanelInsert, PanelUpdate, PanelLayout, PanelBlock, PanelOutlineItem } from "@/types";
+import type { Panel, PanelInsert, PanelUpdate, PanelLayout, PanelBlock, PanelOutlineItem, ColorBlock } from "@/types";
 import type { Project } from "@/types";
 
 // ── Constantes ───────────────────────────────────────────────────
@@ -34,6 +34,18 @@ export const BLOCK_PRESETS = [
   { label: "600×400", width: 600, height: 400 },
 ] as const;
 
+/** Couleur par défaut d'un nouveau bloc de couleur. */
+export const DEFAULT_COLOR_BLOCK_FILL = { type: "solid" as const, color: "#1e293b" };
+
+/** Bibliothèque de blocs de couleur (mêmes presets que blocs image). */
+export const COLOR_BLOCK_PRESETS = [
+  { label: "500×500", width: 500, height: 500 },
+  { label: "400×600", width: 400, height: 600 },
+  { label: "720×400", width: 720, height: 400 },
+  { label: "350×500", width: 350, height: 500 },
+  { label: "600×400", width: 600, height: 400 },
+] as const;
+
 // ── Helpers ──────────────────────────────────────────────────────
 
 /** Extrait les blocs du layout d'un panel (layout.blocks ou []). */
@@ -47,6 +59,13 @@ export function getPanelBlocks(panel: Panel | null | undefined): PanelBlock[] {
 export function getPanelLayout(panel: Panel | null | undefined): PanelLayout {
   if (!panel?.layout || typeof panel.layout !== "object") return { blocks: [] };
   return panel.layout as PanelLayout;
+}
+
+/** Extrait les blocs de couleur d'un panel (panels.color_blocks ou []). */
+export function getPanelColorBlocks(panel: Panel | null | undefined): ColorBlock[] {
+  const raw = panel?.color_blocks;
+  if (!Array.isArray(raw)) return [];
+  return raw as ColorBlock[];
 }
 
 /**

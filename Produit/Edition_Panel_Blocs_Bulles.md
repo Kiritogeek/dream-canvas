@@ -21,7 +21,8 @@
 
 Le panel est donc une **surface fixe 720×5000** dans laquelle s'organisent :
 - les **blocs** (zones d'images),
-- les **bulles de texte** (dialogue, pensée, narration),
+- les **blocs de couleurs** (zones de couleur pour remplir les espaces entre les blocs — ambiance du panel),
+- les **bulles de texte** (dialogue, pensée, narration) et le **texte brut** (sans bulle),
 - et plus tard les effets (transitions, lignes de mouvement).
 
 ---
@@ -31,7 +32,7 @@ Le panel est donc une **surface fixe 720×5000** dans laquelle s'organisent :
 | Mode | Rôle | Détail |
 |------|------|--------|
 | **Architecture** | Structure du panel | Ajouter des blocs, **modifier la position** des blocs (glisser-déposer), **modifier les dimensions** des blocs (poignées ou champs). Aucune édition de prompt ni bulles dans ce mode. |
-| **Édition** | Contenu du panel | **Clic sur un bloc** → popup pour **saisir le prompt** (avec **détection des assets** dans le texte, comme dans le scénario). **Bibliothèque de bulles** (même comportement que les blocs : placement par glisser-déposer). **Menu Couleur** (modification couleur de fond), **Bibliothèque d'effets** (profondeur, douceur, émotion, vivant), **ajout de texte** (choix de la typo). Canvas en lecture seule pour la structure. |
+| **Édition** | Contenu du panel | **Clic sur un bloc** → popup pour **saisir le prompt** (avec **détection des assets** dans le texte, comme dans le scénario). **Blocs de couleurs** (même principe que les blocs d'architecture : position, dimensions, remplir les espaces entre blocs pour l'ambiance). **Bibliothèque de bulles** (placement par glisser-déposer) ; **texte brut (sans bulle)** avec **police, taille**, couleur. **Menu Couleur** (couleur de fond), **Bibliothèque d'effets** (profondeur, douceur, émotion, vivant). Canvas en lecture seule pour la structure. |
 
 Spécification détaillée : **`Edition_Panel_Deux_Modes.md`**.
 
@@ -94,39 +95,52 @@ L'ordre de travail est le suivant :
 
 ---
 
-## 6. Système d'édition — Bulles de texte (mode Édition)
+## 6. Blocs de couleurs (mode Édition)
+
+> **Objectif** : Même système que les blocs d'architecture (position, dimensions), mais pour la **couleur**. Remplir les **espaces entre les blocs d'image** par des zones de couleur — dans les webtoons, le fond du panel est important pour signifier l'ambiance (nuit, tension, flash-back).
 
 | Fonctionnalité | Description |
 |----------------|-------------|
-| **Stockage** | `panels.speech_bubbles` (JSONB) : tableau de bulles. |
-| **Types** | Parole, pensée, cri, chuchotement, narration (bibliothèque de formes prédéfinies). |
-| **Par bulle** | **Texte** éditable, **position** (x, y) sur le panel 720×5000, **style** (couleur contour, couleur intérieur, police, taille). |
-| **Placement** | **Bibliothèque de bulles** : même comportement que les blocs — glisser-déposer depuis la bibliothèque sur le panel. Les bulles sont en **overlay** au-dessus des blocs (couche client, pas dans l'image générée). |
-
-Format prévu (voir `08_Modele_de_Donnees.md`) : `id`, `type`, `text`, `position`, `style`, optionnel `character`.
-
-Les bulles sont **éditables** (texte, position, style) dans l'éditeur de panel. Rendu final : composition blocs + bulles en overlay, dimensions 720×5000.
+| **Principe** | **Blocs de couleurs** : position (x, y), largeur, hauteur comme les blocs d'image. Pas de génération d'image ; remplissage par **couleur unie** ou **dégradé**. |
+| **Remplissage** | Par bloc couleur : sélecteur de couleur (unie ou dégradé). Les blocs couleur servent à remplir les **interstices** entre les blocs d'image. |
+| **Ordre de rendu** | Blocs de couleurs en **arrière-plan** ; blocs image par-dessus. Option : ordre des calques configurable. |
+| **Stockage** | Ex. `panels.color_blocks` (JSONB) ou extension de `layout`. Format par bloc : `id`, `x`, `y`, `width`, `height`, `fill` (couleur ou dégradé). |
+| **Menu Couleur (fond global)** | En complément : couleur de fond du panel pour les zones non couvertes par blocs couleur ou image (`panels.background_style`). |
 
 ---
 
-## 7. Récapitulatif — Ordre des opérations
+## 7. Système d'édition — Bulles et texte brut (mode Édition)
+
+| Fonctionnalité | Description |
+|----------------|-------------|
+| **Bulles de dialogue** | **Stockage** : `panels.speech_bubbles` (JSONB). **Types** : parole, pensée, cri, chuchotement, narration (bibliothèque de formes prédéfinies). **Par bulle** : **texte** éditable, **position** (x, y), **style** (couleur contour, couleur intérieur, **police/font**, **taille**). Placement : glisser-déposer depuis la bibliothèque sur le panel (overlay). |
+| **Texte brut (sans bulle)** | Texte libre dans le panel **sans forme de bulle** (narration, titres, onomatopées). **Police / font**, **taille**, couleur éditables. Placement par drag & drop. Stockage dédié (ex. `panels.text_elements` JSONB). |
+| **Personnalisation typographique** | Pour **bulles et texte brut** : choix de la **police** (font), **taille**, couleur du texte. |
+
+Format prévu bulles (voir `08_Modele_de_Donnees.md`) : `id`, `type`, `text`, `position`, `style` (incl. `fontFamily`, `fontSize`, `color`), optionnel `character`.
+
+Rendu final : composition blocs (images) + blocs de couleurs (arrière-plan) + overlay (bulles + texte brut), dimensions 720×5000.
+
+---
+
+## 8. Récapitulatif — Ordre des opérations
 
 1. **Créer les panels** (à la main ou en important une suggestion). Par défaut **aucun bloc**.  
 2. **Pour chaque panel** :  
    - **Mode Architecture** : visualisation 720×5000, **ajouter des blocs** (glisser « Bloc 500×500 » ou « Ajouter en (0,0) »), **déplacer** les blocs (glisser-déposer), **éditer les dimensions** (poignées ou champs).  
-   - **Mode Édition** : **clic sur un bloc** → popup pour **prompt** (détection des assets comme dans le scénario) ; **bibliothèque de bulles** (placement + texte/style) ; **bibliothèque d'effets** ; **couleur de fond** ; **ajout de texte** (typo). **Générer les images** bloc par bloc (chaque image dans son bloc).  
-3. **Rendu final** : panel 720×5000 = blocs (images) + overlay (bulles + effets + texte).
+   - **Mode Édition** : **clic sur un bloc** → popup pour **prompt** (détection des assets comme dans le scénario) ; **blocs de couleurs** (remplir espaces entre blocs, ambiance) ; **bibliothèque de bulles** (placement + texte, police, taille) ; **texte brut (sans bulle)** (police, taille) ; **bibliothèque d'effets** ; **couleur de fond** (Menu Couleur). **Générer les images** bloc par bloc (chaque image dans son bloc).  
+3. **Rendu final** : panel 720×5000 = blocs de couleurs (arrière-plan) + blocs (images) + overlay (bulles + texte brut + effets).
 
 ---
 
-## 8. Références
+## 9. Références
 
 - **Deux modes (Architecture / Édition)** : `Edition_Panel_Deux_Modes.md` — détail des deux modes et des fonctionnalités par mode.
-- **Plan Phase 2** : `Plan_Phase2_Edition_Oeuvre.md` — Étapes 5 (blocs + génération) ✅ livrée, 6 (mode Structuré), 7 (bulles, effets, fond, texte).
+- **Plan Phase 2** : `Plan_Phase2_Edition_Oeuvre.md` — Étapes 5 (blocs + génération) ✅ livrée, 6 (mode Structuré), 7 (blocs de couleurs, bulles, texte brut, effets, fond, lecture).
 - **API génération par bloc** : `09_Specifications_API.md` § 3.2 — Edge Function `generate-panel-image`.
 - **Modèle de données** : `08_Modele_de_Donnees.md` — `panels.layout`, `panels.speech_bubbles`.
 - **Rapport flux** : `11_Rapport_Chapitres_Flux_Blocs_Scenario.md`.
 
 ---
 
-*Dernière mise à jour : février 2026*
+*Dernière mise à jour : 21 février 2026 — Blocs de couleurs (ambiance panel), bulles + texte brut (police, taille).*

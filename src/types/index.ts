@@ -124,6 +124,21 @@ export interface PanelLayout {
   panelHeight?: number;
 }
 
+/** Remplissage d'un bloc de couleur (couleur unie ou dégradé). */
+export type ColorBlockFill =
+  | { type: "solid"; color: string }
+  | { type: "gradient"; from: string; to: string; angle?: number };
+
+/** Bloc de couleur dans un panel (même principe qu'architecture : position, dimensions). Remplit les espaces entre blocs image. */
+export interface ColorBlock {
+  id: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  fill: ColorBlockFill;
+}
+
 /** Bulle de dialogue / pensée (overlay sur le panel). Stocké dans panels.speech_bubbles. */
 export interface SpeechBubble {
   id: string;

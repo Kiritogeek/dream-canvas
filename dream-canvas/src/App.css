@@ -1,0 +1,6 @@
+/* DreamWeave — Global overrides */
+
+/* Reset Vite defaults – let Tailwind handle layout */
+#root {
+  min-height: 100vh;
+}

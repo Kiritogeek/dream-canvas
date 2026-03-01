@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title>Confirmez votre email - DreamWeave</title>
+  <!--[if mso]>
+  <style type="text/css">
+    body, table, td {font-family: Arial, sans-serif !important;}
+  </style>
+  <![endif]-->
+</head>
+<body style="margin: 0; padding: 0; background: linear-gradient(135deg, #E8E0F5 0%, rgba(244, 194, 161, 0.3) 50%, #E0F0E8 100%); font-family: 'Nunito', 'Quicksand', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;">
+  <!-- Wrapper avec fond gradient -->
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background: linear-gradient(135deg, #E8E0F5 0%, rgba(244, 194, 161, 0.3) 50%, #E0F0E8 100%); padding: 40px 20px;">
+    <tr>
+      <td align="center">
+        <!-- Container principal (max-width 600px) -->
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="max-width: 600px; width: 100%; background: rgba(255, 255, 255, 0.95); border-radius: 24px; box-shadow: 0 4px 24px rgba(177, 156, 217, 0.28), 0 10px 48px rgba(244, 194, 161, 0.22); overflow: hidden;">
+          
+          <!-- Header avec gradient -->
+          <tr>
+            <td style="background: linear-gradient(135deg, #B19CD9 0%, #D4A082 100%); padding: 40px 40px 30px; text-align: center;">
+              <!-- Logo / Icône -->
+              <div style="display: inline-block; width: 64px; height: 64px; background: rgba(255, 255, 255, 0.2); border-radius: 16px; margin-bottom: 16px; line-height: 64px; font-size: 32px; color: #FFFFFF;">
+                ✨
+              </div>
+              <h1 style="margin: 0; font-family: 'Nunito', sans-serif; font-size: 32px; font-weight: 700; color: #FFFFFF; letter-spacing: -0.5px;">
+                DreamWeave
+              </h1>
+            </td>
+          </tr>
+
+          <!-- Contenu principal -->
+          <tr>
+            <td style="padding: 40px 40px 30px;">
+              <!-- Titre -->
+              <h2 style="margin: 0 0 16px; font-family: 'Nunito', sans-serif; font-size: 28px; font-weight: 700; color: #1A1625; line-height: 1.3;">
+                Bienvenue ! Confirmez votre email
+              </h2>
+              
+              <!-- Message principal -->
+              <p style="margin: 0 0 24px; font-family: 'Quicksand', sans-serif; font-size: 16px; line-height: 1.6; color: #4A4458;">
+                Bonjour <strong style="color: #1A1625;">{{ .Email }}</strong>,
+              </p>
+              
+              <p style="margin: 0 0 32px; font-family: 'Quicksand', sans-serif; font-size: 16px; line-height: 1.6; color: #4A4458;">
+                Merci de vous être inscrit sur <strong style="color: #B19CD9;">DreamWeave</strong> ! Pour commencer à créer vos webtoons, veuillez confirmer votre adresse email en cliquant sur le bouton ci-dessous.
+              </p>
+
+              <!-- Bouton CTA -->
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                <tr>
+                  <td align="center" style="padding: 0 0 32px;">
+                    <a href="{{ .ConfirmationURL }}" style="display: inline-block; padding: 16px 32px; background: linear-gradient(135deg, #B19CD9 0%, #D4A082 100%); color: #FFFFFF; text-decoration: none; border-radius: 12px; font-family: 'Nunito', sans-serif; font-size: 16px; font-weight: 600; box-shadow: 0 4px 20px rgba(177, 156, 217, 0.3), 0 8px 40px rgba(244, 194, 161, 0.2);">
+                      ✨ Confirmer mon email
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Lien alternatif -->
+              <p style="margin: 0 0 32px; font-family: 'Quicksand', sans-serif; font-size: 14px; line-height: 1.6; color: #6B6578; text-align: center;">
+                Si le bouton ne fonctionne pas, copiez et collez ce lien dans votre navigateur :<br>
+                <a href="{{ .ConfirmationURL }}" style="color: #B19CD9; text-decoration: underline; word-break: break-all;">{{ .ConfirmationURL }}</a>
+              </p>
+
+              <!-- Séparateur décoratif -->
+              <div style="height: 1px; background: linear-gradient(90deg, transparent, #D4C5E8 50%, transparent); margin: 32px 0;"></div>
+
+              <!-- Informations supplémentaires -->
+              <div style="background: rgba(177, 156, 217, 0.08); border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+                <p style="margin: 0 0 12px; font-family: 'Nunito', sans-serif; font-size: 14px; font-weight: 600; color: #1A1625;">
+                  💡 Ce que vous pouvez faire ensuite :
+                </p>
+                <ul style="margin: 0; padding-left: 20px; font-family: 'Quicksand', sans-serif; font-size: 14px; line-height: 1.8; color: #4A4458;">
+                  <li>Créer votre premier projet webtoon</li>
+                  <li>Générer des personnages, décors et objets avec l'IA</li>
+                  <li>Définir un style visuel unique pour vos créations</li>
+                  <li>Commencer à tisser vos rêves en webtoons !</li>
+                </ul>
+              </div>
+
+              <!-- Note de sécurité -->
+              <p style="margin: 0; font-family: 'Quicksand', sans-serif; font-size: 12px; line-height: 1.6; color: #6B6578; text-align: center;">
+                ⏱️ Ce lien expire dans 24 heures. Si vous n'avez pas créé de compte, vous pouvez ignorer cet email.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background: rgba(177, 156, 217, 0.05); padding: 30px 40px; text-align: center; border-top: 1px solid rgba(177, 156, 217, 0.15);">
+              <p style="margin: 0 0 12px; font-family: 'Quicksand', sans-serif; font-size: 14px; font-weight: 600; color: #1A1625;">
+                DreamWeave
+              </p>
+              <p style="margin: 0 0 16px; font-family: 'Quicksand', sans-serif; font-size: 12px; line-height: 1.6; color: #6B6578;">
+                Tissez vos rêves en webtoons grâce à l'intelligence artificielle
+              </p>
+              <p style="margin: 0; font-family: 'Quicksand', sans-serif; font-size: 11px; color: #8B8499;">
+                © 2026 DreamWeave. Tous droits réservés.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

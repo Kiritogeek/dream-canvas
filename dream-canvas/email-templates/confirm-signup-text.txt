@@ -1,0 +1,20 @@
+✨ Bienvenue sur DreamWeave ! ✨
+
+Bonjour {{ .Email }},
+
+Merci de vous être inscrit sur DreamWeave ! Pour commencer à créer vos webtoons, veuillez confirmer votre adresse email en cliquant sur le lien ci-dessous :
+
+{{ .ConfirmationURL }}
+
+💡 Ce que vous pouvez faire ensuite :
+• Créer votre premier projet webtoon
+• Générer des personnages, décors et objets avec l'IA
+• Définir un style visuel unique pour vos créations
+• Commencer à tisser vos rêves en webtoons !
+
+⏱️ Ce lien expire dans 24 heures. Si vous n'avez pas créé de compte, vous pouvez ignorer cet email.
+
+---
+DreamWeave
+Tissez vos rêves en webtoons grâce à l'intelligence artificielle
+© 2026 DreamWeave. Tous droits réservés.

@@ -111,13 +111,42 @@ L'ordre de travail est le suivant :
 
 ## 7. Système d'édition — Bulles et texte brut (mode Édition)
 
-| Fonctionnalité | Description |
-|----------------|-------------|
-| **Bulles de dialogue** | **Stockage** : `panels.speech_bubbles` (JSONB). **Types** : parole, pensée, cri, chuchotement, narration (bibliothèque de formes prédéfinies). **Par bulle** : **texte** éditable, **position** (x, y), **style** (couleur contour, couleur intérieur, **police/font**, **taille**). Placement : glisser-déposer depuis la bibliothèque sur le panel (overlay). |
-| **Texte brut (sans bulle)** | Texte libre dans le panel **sans forme de bulle** (narration, titres, onomatopées). **Police / font**, **taille**, couleur éditables. Placement par drag & drop. Stockage dédié (ex. `panels.text_elements` JSONB). |
-| **Personnalisation typographique** | Pour **bulles et texte brut** : choix de la **police** (font), **taille**, couleur du texte. |
+### 7.1 Types de bulles
 
-Format prévu bulles (voir `08_Modele_de_Donnees.md`) : `id`, `type`, `text`, `position`, `style` (incl. `fontFamily`, `fontSize`, `color`), optionnel `character`.
+| Type | Label UI | Description |
+|------|----------|-------------|
+| **dialogue** | 💬 Dialogue | Bulle de parole avec **queue** (pointe orientable) ; corps arrondi (border-radius 0–50 %) ; remplissage uni ou dégradé. |
+| **thought** | 💭 Pensée | Bulle de pensée : chaîne de **petits cercles** vers la pointe (queue « nuage ») ; style italique par défaut. |
+| **shout** | 💥 Cri | Bulle en **starburst** (pointes 6–22) avec queue ; souvent fond jaune/orange, bordure rouge. |
+| **caption** | 📋 Narrative | Bloc **sans queue** (narration / sous-titre) ; barre verticale à gauche ; fond sombre par défaut. |
+
+### 7.2 Éditeur avancé (référence)
+
+Le composant **SpeechBubbleEditor** (`src/components/project/SpeechBubbleEditor.tsx`) fournit une édition complète des bulles :
+
+- **Ajout** : boutons par type (Dialogue, Pensée, Cri, Narrative).
+- **Position et taille** : glisser-déposer pour déplacer ; **poignées de redimensionnement** (8 points : N, S, E, W, coins).
+- **Queue (dialogue / pensée / cri)** : pointe déplaçable via un **handle violet (✛)** ; réglage **pointe X/Y** et **largeur de base** dans le panneau.
+- **Bulle connectée** : une bulle (dialogue ou pensée) peut avoir une **sous-bulle connectée** (ex. « Aah... ») reliée par un **cou** (courbes de Bézier). La sous-bulle est déplaçable et redimensionnable ; réglage de la **largeur du cou (neck)** en px.
+- **Texte** : zone de saisie ; **style de texte** : police (Système, Manga, Serif, Mono, Rounded), taille (8–40 px), couleur, espacement des lettres (em), **gras / italique**, casse (majuscules / minuscules), alignement (gauche / centre / droite), **ombre de texte** (couleur + flou).
+- **Forme** : **arrondi** (0–50 %), **bordure** (épaisseur 0–8 px, couleur).
+- **Remplissage** : **uni** ou **dégradé** ; couleur 1 / couleur 2 ; direction du dégradé (↓ bas, → droite, ↘, ↙).
+- **Cri** : nombre de **pointes** (6–22).
+- **Calques** : liste des bulles à droite ; sélection au clic ; raccourcis (Suppr pour supprimer, 2× clic pour éditer le texte).
+
+Rendu : géométrie par **périmètre paramétré** (coins arrondis diagonaux), queue découpée dans le contour, cou en courbes de Bézier pour les bulles connectées.
+
+### 7.3 Stockage et format (aligné modèle)
+
+- **Stockage** : `panels.speech_bubbles` (JSONB).
+- **Format minimal** (compatible écran chapitre actuel) : `id`, `type` (speech | thought | shout | whisper | narration), `text`, `position` (x, y), `width`, `height`, `style` (font, size, color).
+- **Format étendu** (éditeur avancé) : en plus, `borderRadius`, `tailX`, `tailY`, `tailBaseWidth`, `bgFill`, `bgColor`, `bgColor2`, `gradientDir`, `borderColor`, `borderWidth`, `textStyle` (complet), `spikes` (cri), `connected` (sous-bulle avec offset, dimensions, cou, texte et style). Voir `08_Modele_de_Donnees.md` pour le schéma détaillé.
+
+### 7.4 Texte brut (sans bulle)
+
+Texte libre dans le panel **sans forme de bulle** (narration, titres, onomatopées). **Police / font**, **taille**, couleur éditables. Placement par drag & drop. Stockage dédié (ex. `panels.text_elements` JSONB).
+
+**Personnalisation typographique** : pour **bulles et texte brut** : choix de la **police** (font), **taille**, couleur du texte (étendu dans l’éditeur avancé : graisse, italique, alignement, espacement, ombre).
 
 Rendu final : composition blocs (images) + blocs de couleurs (arrière-plan) + overlay (bulles + texte brut), dimensions 720×5000.
 
@@ -136,11 +165,12 @@ Rendu final : composition blocs (images) + blocs de couleurs (arrière-plan) + o
 ## 9. Références
 
 - **Deux modes (Architecture / Édition)** : `Edition_Panel_Deux_Modes.md` — détail des deux modes et des fonctionnalités par mode.
+- **Éditeur avancé bulles** : composant `src/components/project/SpeechBubbleEditor.tsx` — types dialogue, pensée, cri, narrative ; bulles connectées ; queue ; style texte complet (police, taille, gras, italique, alignement, ombre) ; forme (arrondi, bordure, remplissage uni/dégradé) ; calques.
 - **Plan Phase 2** : `Plan_Phase2_Edition_Oeuvre.md` — Étapes 5 (blocs + génération) ✅ livrée, 6 (mode Structuré), 7 (blocs de couleurs, bulles, texte brut, effets, fond, lecture).
 - **API génération par bloc** : `09_Specifications_API.md` § 3.2 — Edge Function `generate-panel-image`.
-- **Modèle de données** : `08_Modele_de_Donnees.md` — `panels.layout`, `panels.speech_bubbles`.
+- **Modèle de données** : `08_Modele_de_Donnees.md` — `panels.layout`, `panels.speech_bubbles` (format minimal et étendu).
 - **Rapport flux** : `11_Rapport_Chapitres_Flux_Blocs_Scenario.md`.
 
 ---
 
-*Dernière mise à jour : 21 février 2026 — Blocs de couleurs (ambiance panel), bulles + texte brut (police, taille).*
+*Dernière mise à jour : 1er mars 2026 — Éditeur avancé bulles (SpeechBubbleEditor), types dialogue/pensée/cri/narrative, bulles connectées, queue, style texte complet, mise à jour format speech_bubbles dans 08_Modele_de_Donnees.md.*

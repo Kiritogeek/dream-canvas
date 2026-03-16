@@ -370,29 +370,75 @@ CREATE TYPE asset_type AS ENUM ('character', 'background', 'object');
 ```
 **Édition des panels** (voir `Edition_Panel_Blocs_Bulles.md`, `Edition_Panel_Deux_Modes.md`) : **deux modes** — **Architecture** (ajout, position, dimensions des blocs ; placement par centre ; suppression au survol ; poignées avec hitbox élargie et hover) et **Édition** (prompt avec détection assets, bulles, effets, fond, texte). **Génération par bloc** : l'API reçoit les dimensions du bloc et une instruction « utiliser toute la place » ; images stockées sous `panels/{panel_id}/blocks/{block_id}.png`. Par défaut **aucun bloc** (`blocks: []`) ; l’utilisateur **ajoute des blocs par glisser-déposer** (bloc **500×500** déposé sur le panel), **déplace** les blocs par glisser-déposer, **édite** largeur/hauteur, puis saisit le prompt et génère l’image par bloc. Chaque image générée est une **illustration pleine** affichée **dans** le rectangle du bloc. **Les dimensions de l’image = dimensions du bloc** (width × height). **OBLIGATOIRE** : la génération d'image dans un bloc doit utiliser les dimensions de ce bloc pour l'espace de l'image. **La sélection d'assets (asset_refs)** est optionnelle mais recommandée pour cadrer la scène.
 
-**Format de `speech_bubbles`** (prévu) :
+**Format de `speech_bubbles`** (prévu — format minimal et étendu) :
+
+**Format minimal** (compatible écran chapitre actuel) :
 ```json
 [
   {
     "id": "bubble_1",
-    "type": "speech",        // "speech" | "thought" | "shout" | "whisper"
+    "type": "speech",
     "text": "Bonjour !",
     "character": "Luna",
     "position": { "x": 150, "y": 80 },
+    "width": 160,
+    "height": 56,
     "style": {
       "font": "Comic Sans",
       "size": 14,
       "color": "#000000"
     }
-  },
-  {
-    "id": "bubble_2",
-    "type": "thought",
-    "text": "Que fait-il ici ?",
-    "character": "Marc",
-    "position": { "x": 300, "y": 200 }
   }
 ]
+```
+
+**Types** : `"speech"` (parole), `"thought"` (pensée), `"shout"` (cri), `"whisper"` (chuchotement), `"narration"` (narration). Pour l’éditeur avancé, les types sont aussi exposés comme **dialogue** (= speech), **caption** (= narration).
+
+**Format étendu** (éditeur avancé — `SpeechBubbleEditor`) : en plus des champs ci-dessus, chaque bulle peut comporter :
+- `borderRadius` (0–50, en %)
+- `tailX`, `tailY`, `tailBaseWidth` (queue : pointe et largeur de base)
+- `bgFill` ("solid" | "gradient"), `bgColor`, `bgColor2`, `gradientDir` ("to bottom" | "to right" | "to bottom right" | "to bottom left")
+- `borderColor`, `borderWidth`
+- `textStyle` : `fontSize`, `fontWeight`, `fontStyle`, `textAlign`, `textTransform`, `letterSpacing`, `textShadow`, `textShadowColor`, `textShadowBlur`, `textColor`, `fontFamily`
+- `spikes` (pour type shout, nombre de pointes 6–22)
+- `connected` : sous-bulle connectée (objet avec `id`, `offsetX`, `offsetY`, `width`, `height`, `borderRadius`, `text`, `textStyle`, `bgFill`, `bgColor`, `bgColor2`, `gradientDir`, `borderColor`, `borderWidth`, `neckWidth`)
+
+Exemple (bulle dialogue avec sous-bulle connectée) :
+```json
+{
+  "id": "b1",
+  "type": "speech",
+  "text": "Tu viens ?",
+  "position": { "x": 100, "y": 50 },
+  "width": 240,
+  "height": 200,
+  "borderRadius": 50,
+  "tailX": 120,
+  "tailY": 260,
+  "tailBaseWidth": 22,
+  "bgFill": "solid",
+  "bgColor": "#ffffff",
+  "bgColor2": "#e8e8ff",
+  "gradientDir": "to bottom",
+  "borderColor": "#000000",
+  "borderWidth": 3,
+  "textStyle": { "fontSize": 15, "fontWeight": "bold", "textAlign": "center", "textColor": "#000000", "fontFamily": "'Segoe UI', system-ui, sans-serif" },
+  "connected": {
+    "id": "conn-xyz",
+    "offsetX": 20,
+    "offsetY": 80,
+    "width": 120,
+    "height": 60,
+    "borderRadius": 50,
+    "text": "Aah...",
+    "textStyle": { "fontSize": 12, "textAlign": "center", "textColor": "#000000" },
+    "bgFill": "solid",
+    "bgColor": "#ffffff",
+    "borderColor": "#000000",
+    "borderWidth": 2.5,
+    "neckWidth": 40
+  }
+}
 ```
 
 **Index** :

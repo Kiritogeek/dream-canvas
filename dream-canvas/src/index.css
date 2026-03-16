@@ -7,15 +7,15 @@
 @layer base {
   :root {
     /* Fond principal : crème doux (charte) au lieu de blanc pur */
-    --background: 40 38% 97%;
+    --background: 40 38% 95%;
     --foreground: 270 22% 14%;
 
     /* Cartes / surfaces : lavande très légère */
-    --card: 275 28% 96%;
+    --card: 275 28% 94%;
     --card-foreground: 270 20% 15%;
 
     /* Popovers : proche card avec touche pêche */
-    --popover: 30 35% 96%;
+    --popover: 30 35% 95%;
     --popover-foreground: 270 20% 15%;
 
     --primary: 275 45% 72%;
@@ -62,7 +62,7 @@
     --glow: 275 60% 80%;
 
     /* Zone contenu principal (light) : crème / pêche très léger */
-    --content-area: 35 45% 97%;
+    --content-area: 35 45% 96%;
 
     /* Glass card tokens — light mode */
     --glass-bg-alpha: 0.9;

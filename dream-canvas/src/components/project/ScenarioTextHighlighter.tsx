@@ -261,12 +261,18 @@ function buildAllFragments(
     assetLookup.set(a.name.trim().toLowerCase(), a);
   }
   // Prénom / nom seul → asset (ex. "Marcus" ou "Blackwood" → personnage "Marcus Blackwood")
+  // MAIS : on ignore les mots vides, très courts ou mots outils (ex. "le" dans "Le vieux")
   for (const a of assetsSorted) {
     const name = a.name.trim();
     if (name.includes(" ")) {
       for (const part of name.split(/\s+/)) {
         const p = part.trim().toLowerCase();
-        if (p && !assetLookup.has(p)) assetLookup.set(p, a);
+        if (!p) continue;
+        if (p.length < 3) continue;
+        if (STOP_WORDS.has(p)) continue;
+        if (!assetLookup.has(p)) {
+          assetLookup.set(p, a);
+        }
       }
     }
   }
@@ -283,7 +289,11 @@ function buildAllFragments(
     if (name.includes(" ")) {
       for (const part of name.split(/\s+/)) {
         const p = part.trim();
-        if (p) assetNamePartsForMatch.push(p);
+        const lower = p.toLowerCase();
+        if (!p) continue;
+        if (lower.length < 3) continue;
+        if (STOP_WORDS.has(lower)) continue;
+        assetNamePartsForMatch.push(p);
       }
     }
   }
@@ -374,22 +384,27 @@ function CreateAssetHover({
     <HoverCard open={open} onOpenChange={setOpen} openDelay={150} closeDelay={200}>
       <HoverCardTrigger asChild>{children}</HoverCardTrigger>
       <HoverCardContent
-        className="w-56 p-3 bg-background border border-border shadow-lg"
+        className="w-60 p-3.5 glass border border-border/70 shadow-lg rounded-xl"
         side="top"
         sideOffset={8}
       >
-        <div className="space-y-2">
-          <p className="text-sm font-semibold">{name}</p>
+        <div className="space-y-2.5">
+          <div className="flex items-start justify-between gap-2">
+            <p className="text-sm font-semibold font-display truncate">{name}</p>
+            <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground/80">
+              Asset
+            </span>
+          </div>
           {onCreateAsset && (
             <>
               <p className="text-xs text-muted-foreground">
                 Créer comme asset :
               </p>
-              <div className="flex flex-col gap-1">
+              <div className="grid grid-cols-1 gap-1.5">
                 <Button
                   variant="outline"
                   size="sm"
-                  className="justify-start gap-2 h-7 text-xs"
+                  className="justify-start gap-2 h-8 text-xs rounded-lg border-lavender/50 hover:border-lavender hover:bg-lavender/10"
                   onClick={() => {
                     onCreateAsset(name, "character");
                     setOpen(false);
@@ -401,7 +416,7 @@ function CreateAssetHover({
                 <Button
                   variant="outline"
                   size="sm"
-                  className="justify-start gap-2 h-7 text-xs"
+                  className="justify-start gap-2 h-8 text-xs rounded-lg border-mint/50 hover:border-mint hover:bg-mint/10"
                   onClick={() => {
                     onCreateAsset(name, "background");
                     setOpen(false);
@@ -413,7 +428,7 @@ function CreateAssetHover({
                 <Button
                   variant="outline"
                   size="sm"
-                  className="justify-start gap-2 h-7 text-xs"
+                  className="justify-start gap-2 h-8 text-xs rounded-lg border-indigo-500/50 hover:border-indigo-500 hover:bg-indigo-500/10"
                   onClick={() => {
                     onCreateAsset(name, "object");
                     setOpen(false);
@@ -427,9 +442,9 @@ function CreateAssetHover({
           )}
           {onDismiss && (
             <Button
-              variant="ghost"
+              variant="outline"
               size="sm"
-              className="justify-start gap-2 h-7 text-xs text-muted-foreground hover:text-muted-foreground border-t mt-1 pt-1.5 w-full"
+              className="justify-start gap-2 h-8 text-xs border-destructive/80 bg-destructive/90 text-white hover:border-destructive hover:bg-destructive mt-1 w-full rounded-lg"
               onClick={() => {
                 onDismiss(name);
                 setOpen(false);

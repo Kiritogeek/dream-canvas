@@ -213,10 +213,43 @@ export function ScenarioSection({ projectId, project, onNavigateToCreateAsset }:
   const [openChapterId, setOpenChapterId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ScenarioChapter | null>(null);
   const [showChapitreType, setShowChapitreType] = useState(false);
-  /** Noms exclus de la liste « éléments non créés » (après « Ne pas créer ») */
+  /** Noms exclus de la liste « éléments non créés » (après « Ne pas créer »).
+   *  Persisté par projet dans localStorage pour ne pas reproposer les mêmes termes.
+   */
   const [dismissedMissingNames, setDismissedMissingNames] = useState<Set<string>>(new Set());
+
+  // Charger les noms ignorés depuis localStorage à l'initialisation du projet
+  useEffect(() => {
+    const key = `dreamweave:dismissed-missing:${projectId}`;
+    try {
+      const raw = window.localStorage.getItem(key);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as string[];
+      if (Array.isArray(parsed)) {
+        setDismissedMissingNames(new Set(parsed.map((n) => n.toLowerCase())));
+      }
+    } catch {
+      // En cas d'erreur de parsing, on ignore simplement et on repart d'un set vide
+    }
+  }, [projectId]);
+
+  // Persister les noms ignorés à chaque changement
+  useEffect(() => {
+    const key = `dreamweave:dismissed-missing:${projectId}`;
+    try {
+      const arr = Array.from(dismissedMissingNames);
+      window.localStorage.setItem(key, JSON.stringify(arr));
+    } catch {
+      // localStorage indisponible (mode privé, quota...) → on ne fait rien
+    }
+  }, [projectId, dismissedMissingNames]);
+
   const handleDismissMissing = useCallback((name: string) => {
-    setDismissedMissingNames((prev) => new Set(prev).add(name.toLowerCase()));
+    setDismissedMissingNames((prev) => {
+      const next = new Set(prev);
+      next.add(name.toLowerCase());
+      return next;
+    });
   }, []);
 
   // IA Scénario state

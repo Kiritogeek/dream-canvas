@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Sparkles, RefreshCw, Trash2, Pencil } from "lucide-react";
+import { Sparkles, RefreshCw, Trash2, Pencil, Plus } from "lucide-react";
 import { ImageWithFallback } from "@/components/ui/ImageWithFallback";
 import type { Asset } from "@/types";
 
@@ -26,9 +26,7 @@ export function AssetCard({
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
-      className={`glass rounded-lg sm:rounded-xl p-3 sm:p-4 group relative ${isCharacter ? "cursor-pointer" : ""}`}
-      onClick={isCharacter ? onClick : undefined}
-      role={isCharacter ? "button" : undefined}
+      className="glass rounded-lg sm:rounded-xl p-3 sm:p-4 group relative flex flex-col h-full"
     >
       {isGenerating ? (
         <div className="w-full aspect-[2/3] rounded-lg mb-2 sm:mb-3 gradient-dream flex items-center justify-center relative">
@@ -38,31 +36,54 @@ export function AssetCard({
           </span>
         </div>
       ) : (
-        <ImageWithFallback
-          src={asset.image_url}
-          alt={asset.name}
-          className="w-full aspect-[2/3] object-cover rounded-lg mb-2 sm:mb-3"
-          fallbackClassName="w-full aspect-[2/3] rounded-lg mb-2 sm:mb-3"
-        />
+        <div className="w-full aspect-[2/3] mb-2 sm:mb-3">
+          <ImageWithFallback
+            src={asset.image_url}
+            alt={asset.name}
+            className="w-full h-full object-cover rounded-lg"
+            fallbackClassName="w-full h-full rounded-lg"
+          />
+        </div>
       )}
 
-      <h4 className="font-display font-semibold text-xs sm:text-sm">{asset.name}</h4>
-      {asset.prompt && (
-        <p className="text-xs text-muted-foreground mt-0.5 sm:mt-1 line-clamp-1 sm:line-clamp-2">
-          {asset.prompt}
+      <div className="mt-0.5 sm:mt-1 space-y-0.5 sm:space-y-1 min-h-[2.75rem] sm:min-h-[3.25rem] flex flex-col">
+        <h4 className="font-display font-semibold text-xs sm:text-sm line-clamp-1">
+          {asset.name}
+        </h4>
+
+        <p
+          className={`text-xs text-muted-foreground line-clamp-1 sm:line-clamp-2 ${
+            asset.prompt ? "" : "invisible"
+          }`}
+        >
+          {asset.prompt || "Placeholder"}
         </p>
-      )}
-      {isCharacter && (
-        <p className="text-xs text-primary mt-0.5 sm:mt-1 hidden sm:block">
+
+        <p
+          className={`text-xs text-primary hidden sm:block ${
+            isCharacter ? "" : "invisible"
+          }`}
+        >
           Cliquer pour gérer les vues
         </p>
-      )}
+      </div>
 
       {/* Actions — toujours visibles sur mobile, au survol sur desktop */}
       <div
         className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 flex gap-1 sm:gap-1.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
         onClick={(e) => e.stopPropagation()}
       >
+        {isCharacter && onClick && (
+          <button
+            onClick={onClick}
+            disabled={isGenerating}
+            className="p-1 sm:p-1.5 rounded-md sm:rounded-lg bg-emerald-500/90 text-white shadow-md hover:bg-emerald-500 transition-colors disabled:opacity-50 disabled:pointer-events-none"
+            title="Voir les différentes vues du personnage"
+          >
+            <Plus className="h-3 w-3 sm:h-4 sm:w-4" />
+          </button>
+        )}
+
         <button
           onClick={onEdit}
           disabled={isGenerating}

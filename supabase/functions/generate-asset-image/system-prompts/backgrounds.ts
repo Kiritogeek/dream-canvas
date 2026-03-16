@@ -18,8 +18,8 @@ ${userDescription}
 CADRAGE ET COMPOSITION :
 - Environnement, lieu ou paysage uniquement
 - AUCUN personnage ni créature visible
-- L'image doit REMPLIR ENTIÈREMENT le cadre, sans espace blanc, sans bande vide, sans marge
-- Le décor couvre 100% de la surface de l'image, bord à bord
+- L'image doit REMPLIR ENTIÈREMENT le cadre, sans espace blanc, sans bande vide, sans marge : le décor doit coïncider exactement avec la taille de la card
+- Le décor couvre 100% de la surface de l'image, bord à bord, aucune zone transparente ou vide ne doit être visible autour
 - Composition lisible avec profondeur de champ
 - Lumière claire et bien définie
 - PAS de bordures, PAS de format "carte postale", l'illustration va d'un bord à l'autre`;

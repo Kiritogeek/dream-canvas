@@ -21,7 +21,7 @@ CADRAGE ET COMPOSITION :
 - L'objet doit occuper environ 70-80% de l'image, avec des marges suffisantes tout autour
 - Cadrage serré mais complet : on voit l'objet EN ENTIER sous tous ses angles
 - Fond 100% transparent, sans décor, personnage, texte ou watermark
-- L'image doit remplir tout le cadre sans espaces blancs ni bandes vides
+- L'image doit remplir tout le cadre sans espaces blancs ni bandes vides : l'illustration doit coïncider exactement avec la taille de la card, sans bord ni marge visibles
 - Très haute qualité de détails (contours, volumes, textures, matériaux)`;
 
   // Ajout du style textuel

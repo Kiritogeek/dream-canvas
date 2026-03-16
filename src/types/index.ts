@@ -143,16 +143,94 @@ export interface ColorBlock {
 export const DEFAULT_SPEECH_BUBBLE_WIDTH = 160;
 export const DEFAULT_SPEECH_BUBBLE_HEIGHT = 56;
 
-/** Bulle de dialogue / pensée (overlay sur le panel). Stocké dans panels.speech_bubbles. */
+/** Types de bulles (format stockage). dialogue = speech, caption = narration en UI. */
+export type SpeechBubbleType = "speech" | "thought" | "shout" | "whisper" | "narration";
+
+/** Style de texte étendu (éditeur avancé). */
+export interface SpeechBubbleTextStyle {
+  fontSize?: number;
+  fontWeight?: "normal" | "bold";
+  fontStyle?: "normal" | "italic";
+  textAlign?: "left" | "center" | "right";
+  textTransform?: "none" | "uppercase" | "lowercase";
+  letterSpacing?: number;
+  textShadow?: boolean;
+  textShadowColor?: string;
+  textShadowBlur?: number;
+  textColor?: string;
+  fontFamily?: string;
+}
+
+/** Sous-bulle connectée (format étendu). */
+export interface SpeechBubbleConnected {
+  id: string;
+  offsetX: number;
+  offsetY: number;
+  width: number;
+  height: number;
+  borderRadius?: number;
+  text: string;
+  textStyle?: SpeechBubbleTextStyle;
+  bgFill?: "solid" | "gradient";
+  bgColor?: string;
+  bgColor2?: string;
+  gradientDir?: "to bottom" | "to right" | "to bottom right" | "to bottom left";
+  borderColor?: string;
+  borderWidth?: number;
+  neckWidth?: number;
+}
+
+/** Bulle de dialogue / pensée (overlay sur le panel). Stocké dans panels.speech_bubbles. Format minimal + optionnel étendu (éditeur avancé). */
 export interface SpeechBubble {
   id: string;
-  type: "speech" | "thought" | "shout" | "whisper" | "narration";
+  type: SpeechBubbleType;
   text: string;
   position: { x: number; y: number };
-  /** Largeur de la bulle (ovale). Défaut: DEFAULT_SPEECH_BUBBLE_WIDTH. */
+  /** Largeur de la bulle. Défaut: DEFAULT_SPEECH_BUBBLE_WIDTH. */
   width?: number;
-  /** Hauteur de la bulle (ovale). Défaut: DEFAULT_SPEECH_BUBBLE_HEIGHT. */
+  /** Hauteur de la bulle. Défaut: DEFAULT_SPEECH_BUBBLE_HEIGHT. */
   height?: number;
+  /** Style minimal (compatible écran chapitre). */
   style?: { font?: string; size?: number; color?: string; stroke?: string; fill?: string };
   character?: string;
+  // ── Format étendu (Edition_Panel_Blocs_Bulles.md, 08_Modele_de_Donnees.md)
+  borderRadius?: number;
+  tailX?: number;
+  tailY?: number;
+  tailBaseWidth?: number;
+  bgFill?: "solid" | "gradient";
+  bgColor?: string;
+  bgColor2?: string;
+  gradientDir?: "to bottom" | "to right" | "to bottom right" | "to bottom left";
+  borderColor?: string;
+  borderWidth?: number;
+  textStyle?: SpeechBubbleTextStyle;
+  spikes?: number;
+  connected?: SpeechBubbleConnected | null;
+}
+
+/** Libellés UI des types de bulles (alignés Edition_Panel_Blocs_Bulles.md § 7.1). */
+export const SPEECH_BUBBLE_TYPE_LABELS: Record<SpeechBubbleType, string> = {
+  speech: "💬 Dialogue",
+  thought: "💭 Pensée",
+  shout: "💥 Cri",
+  whisper: "🔇 Chuchotement",
+  narration: "📋 Narrative",
+};
+
+/** Couleurs par défaut (fond, contour) par type de bulle — alignées Edition_Panel_Blocs_Bulles.md § 7.1. */
+export const SPEECH_BUBBLE_DEFAULT_STYLE: Record<SpeechBubbleType, { fill: string; stroke: string }> = {
+  speech: { fill: "#ffffff", stroke: "#000000" },
+  thought: { fill: "#f0f8ff", stroke: "#4a90d9" },
+  shout: { fill: "#fff3cd", stroke: "#e63946" },
+  whisper: { fill: "#ffffff", stroke: "#666666" },
+  narration: { fill: "#1a1a2e", stroke: "#e94560" },
+};
+
+/** Retourne fill et stroke pour le rendu d'une bulle (étendu puis style minimal puis défaut par type). */
+export function getSpeechBubbleFillStroke(bubble: SpeechBubble): { fill: string; stroke: string } {
+  const defaults = SPEECH_BUBBLE_DEFAULT_STYLE[bubble.type];
+  const fill = bubble.bgColor ?? bubble.style?.fill ?? defaults.fill;
+  const stroke = bubble.borderColor ?? bubble.style?.stroke ?? defaults.stroke;
+  return { fill, stroke };
 }

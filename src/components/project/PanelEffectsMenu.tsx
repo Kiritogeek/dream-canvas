@@ -9,7 +9,8 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { Button } from "@/components/ui/button";
-import type { Panel, PanelBackgroundStyle, SpeechBubble } from "@/types";
+import type { Panel, PanelBackgroundStyle, SpeechBubble, SpeechBubbleType } from "@/types";
+import { SPEECH_BUBBLE_TYPE_LABELS } from "@/types";
 
 /** Blocs de couleurs prédéfinis pour le fond du panel */
 const COLOR_BLOCKS = [
@@ -90,30 +91,23 @@ export function PanelEffectsMenu({ panel, onUpdate }: PanelEffectsMenuProps) {
           <ChevronDown className="h-4 w-4 text-muted-foreground data-[state=open]:rotate-180 transition-transform" />
         </CollapsibleTrigger>
         <CollapsibleContent>
-          <div className="p-3 pt-0 space-y-3 border-t border-border/60">
+            <div className="p-3 pt-0 space-y-3 border-t border-border/60">
             <p className="text-xs text-muted-foreground/80">Glisser-déposer sur le panel</p>
             <div className="grid grid-cols-2 gap-2">
-              {[
-                { type: "speech", label: "Parole", icon: "💬" },
-                { type: "thought", label: "Pensée", icon: "💭" },
-                { type: "shout", label: "Cri", icon: "📢" },
-                { type: "whisper", label: "Chuchotement", icon: "🔇" },
-                { type: "narration", label: "Narration", icon: "📝" },
-              ].map((bubble) => (
+              {(Object.entries(SPEECH_BUBBLE_TYPE_LABELS) as [SpeechBubbleType, string][]).map(([bubbleType, label]) => (
                 <div
-                  key={bubble.type}
+                  key={bubbleType}
                   draggable
                   onDragStart={(e) => {
                     e.dataTransfer.setData(
                       "application/json",
-                      JSON.stringify({ type: "speech-bubble", bubbleType: bubble.type })
+                      JSON.stringify({ type: "speech-bubble", bubbleType })
                     );
                     e.dataTransfer.effectAllowed = "copy";
                   }}
                   className="cursor-grab active:cursor-grabbing rounded-lg border border-border/60 bg-background px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors flex items-center gap-2 justify-center"
                 >
-                  <span>{bubble.icon}</span>
-                  <span className="text-xs">{bubble.label}</span>
+                  <span className="text-xs">{label}</span>
                 </div>
               ))}
             </div>

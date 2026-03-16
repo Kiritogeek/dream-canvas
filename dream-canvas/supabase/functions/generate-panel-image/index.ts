@@ -8,8 +8,11 @@ declare const Deno: {
   env: { get: (key: string) => string | undefined };
 };
 
+import { buildPanelPrompt } from "./system-prompts/panels.ts";
+
 const FAL_SCHNELL = "https://fal.run/fal-ai/flux/schnell";
 const FAL_TEXT_TO_IMAGE = "https://fal.run/fal-ai/flux-2-pro";
+const FAL_IMAGE_EDIT = "https://fal.run/fal-ai/flux-2-pro/edit";
 const BUCKET = "dreamweave";
 const FAL_TIMEOUT_MS = 120_000;
 const MAX_DIMENSION = 1024; // FAL limite souvent à 1024
@@ -100,6 +103,51 @@ async function generateImage(
   return { url };
 }
 
+async function generateImageWithReferences(
+  prompt: string,
+  imageUrls: string[],
+  falKey: string,
+  width: number,
+  height: number
+): Promise<{ url: string } | { error: string }> {
+  const cleanUrls = imageUrls.filter((u) => !!u);
+  if (cleanUrls.length === 0) {
+    return generateImage(prompt, falKey, width, height);
+  }
+
+  const res = await fetchWithTimeout(
+    FAL_IMAGE_EDIT,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Key ${falKey}` },
+      body: JSON.stringify({
+        prompt,
+        image_urls: cleanUrls,
+        image_size: { width, height },
+        num_images: 1,
+        output_format: "png",
+        safety_tolerance: "3",
+        enable_safety_checker: true,
+      }),
+    },
+    FAL_TIMEOUT_MS
+  );
+
+  const text = await res.text();
+  if (!res.ok) {
+    return { error: `FAL.ai (edit) ${res.status}: ${text.slice(0, 200)}` };
+  }
+  let json: { images?: Array<{ url: string }> };
+  try {
+    json = JSON.parse(text);
+  } catch {
+    return { error: "Réponse FAL (edit) invalide" };
+  }
+  const url = json.images?.[0]?.url;
+  if (!url) return { error: "FAL (edit) n'a pas retourné d'image" };
+  return { url };
+}
+
 async function downloadAndUpload(
   imageUrl: string,
   storagePath: string,
@@ -176,7 +224,18 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "Body JSON invalide" }, 400);
     }
 
-    const { panel_id, block_id, width: w, height: h, prompt, style_template, context_chapter, block_asset_names } = body;
+    const {
+      panel_id,
+      block_id,
+      width: w,
+      height: h,
+      prompt,
+      style_template,
+      style_image_urls,
+      context_chapter,
+      block_asset_image_urls,
+      block_asset_names,
+    } = body;
     if (!panel_id || !block_id || !prompt?.trim()) {
       return jsonResponse({ error: "panel_id, block_id et prompt requis" }, 400);
     }
@@ -224,20 +283,78 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "Projet introuvable" }, 404);
     }
 
-    // Construire le prompt : style + contexte chapitre + assets du bloc (noms) + instruction cadre + prompt bloc
-    let fullPrompt = prompt.trim();
-    if (style_template?.trim()) {
-      fullPrompt = `Style à appliquer : ${style_template.trim()}\n\n${fullPrompt}`;
+    // Récupérer le plan utilisateur (free / pro) pour appliquer les restrictions
+    let userPlan: "free" | "pro" = "free";
+    try {
+      const profileRes = await fetch(
+        `${supabaseUrl}/rest/v1/profiles?user_id=eq.${userId}&select=plan`,
+        {
+          headers: {
+            apikey: serviceKey,
+            Authorization: `Bearer ${serviceKey}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+      if (profileRes.ok) {
+        const profiles = (await profileRes.json()) as { plan?: string }[];
+        if (profiles?.[0]?.plan === "pro") {
+          userPlan = "pro";
+        }
+      }
+    } catch {
+      // En cas d'erreur on reste sur "free" par défaut
     }
-    if (context_chapter?.trim()) {
-      fullPrompt = `Contexte de la scène : ${context_chapter.trim()}\n\n${fullPrompt}`;
-    }
-    if (Array.isArray(block_asset_names) && block_asset_names.length > 0) {
-      fullPrompt = `Éléments à inclure (références) : ${block_asset_names.join(", ")}.\n\n${fullPrompt}`;
-    }
-    fullPrompt += `\n\nIMPORTANT : L'image doit être générée exactement au format ${width}×${height} pixels. Remplis tout le cadre, sans bandeaux ni bandes vides. L'illustration doit occuper toute la surface.`;
 
-    const result = await generateImage(fullPrompt, falKey, width, height);
+    // Si plusieurs assets sont référencés pour ce bloc, restreindre au plan Pro (max 2 en Free)
+    const assetsCount = Array.isArray(block_asset_names)
+      ? block_asset_names.filter((n) => !!n?.trim()).length
+      : 0;
+
+    if (
+      assetsCount > 2 &&
+      userPlan !== "pro"
+    ) {
+      return jsonResponse(
+        {
+          error: "Fonctionnalité réservée au plan Pro",
+          details:
+            "Ce bloc fait référence à plus de 2 assets (personnages, décors ou objets). En plan Free, vous pouvez utiliser au maximum 2 assets par bloc. Désélectionnez-en ou passez au plan Pro pour combiner davantage d'assets.",
+          upgrade_required: true,
+          plan: userPlan,
+        },
+        403
+      );
+    }
+
+    // Construire un prompt robuste pour un panel de webtoon via le builder dédié
+    const fullPrompt = buildPanelPrompt(
+      prompt.trim(),
+      style_template?.trim(),
+      style_image_urls,
+      context_chapter,
+      block_asset_names,
+      block_asset_image_urls,
+      width,
+      height
+    );
+
+    // Si l'utilisateur est Pro et a fourni des images d'assets pour ce bloc,
+    // utiliser l'endpoint "edit" de FAL pour réellement prendre ces images en compte.
+    const hasBlockAssetImages =
+      Array.isArray(block_asset_image_urls) &&
+      block_asset_image_urls.filter((u) => !!u).length > 0;
+
+    const result =
+      userPlan === "pro" && hasBlockAssetImages
+        ? await generateImageWithReferences(
+            fullPrompt,
+            block_asset_image_urls!.filter((u): u is string => !!u),
+            falKey,
+            width,
+            height
+          )
+        : await generateImage(fullPrompt, falKey, width, height);
     if ("error" in result) {
       return jsonResponse({ error: result.error }, 502);
     }

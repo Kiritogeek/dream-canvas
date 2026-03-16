@@ -79,7 +79,9 @@ import {
 } from "@/services/panels";
 import { updateScenarioChapter } from "@/services/scenarioChapters";
 import type { Json } from "@/integrations/supabase/types";
-import type { Chapter, Panel, PanelBlock, PanelLayout, ColorBlock, ColorBlockFill, SpeechBubble } from "@/types";
+import type { Chapter, Panel, PanelBlock, PanelLayout, ColorBlock, ColorBlockFill, SpeechBubble, SpeechBubbleType } from "@/types";
+import { DEFAULT_SPEECH_BUBBLE_WIDTH, getSpeechBubbleFillStroke, SPEECH_BUBBLE_DEFAULT_STYLE, SPEECH_BUBBLE_TYPE_LABELS } from "@/types";
+import SpeechBubbleEditor from "@/components/project/SpeechBubbleEditor";
 import { DEFAULT_SPEECH_BUBBLE_WIDTH, DEFAULT_SPEECH_BUBBLE_HEIGHT } from "@/types";
 
 const PANEL_WIDTH = 800;
@@ -263,6 +265,8 @@ export default function ChapterDetail() {
   const [selectedColorBlockIdInModal, setSelectedColorBlockIdInModal] = useState<{ panelId: string; colorBlockId: string } | null>(null);
   /** Bulle de dialogue sélectionnée (onglet Dialogue) pour éditer le texte et le style */
   const [selectedSpeechBubbleIdInModal, setSelectedSpeechBubbleIdInModal] = useState<{ panelId: string; bubbleId: string } | null>(null);
+  /** Panel dont l'éditeur de bulles avancé est ouvert (modale plein écran). */
+  const [bubbleEditorPanelId, setBubbleEditorPanelId] = useState<string | null>(null);
   /** Ref vers l’élément DOM du bloc de couleur en cours de déplacement (opacity pendant le drag) */
   const draggingColorBlockElRef = useRef<HTMLDivElement | null>(null);
   /** Ghost de drag pour blocs de couleur : un div par panel, position mis à jour en direct (comme blocs image) */
@@ -946,6 +950,7 @@ export default function ChapterDetail() {
       const h = DEFAULT_SPEECH_BUBBLE_HEIGHT;
       const clampedX = Math.max(0, Math.min(PANEL_WIDTH - w, x));
       const clampedY = Math.max(0, Math.min(panelHeight - h, y));
+      const defaultStyle = SPEECH_BUBBLE_DEFAULT_STYLE[bubbleType];
       const newBubble: SpeechBubble = {
         id: crypto.randomUUID(),
         type: bubbleType,
@@ -953,7 +958,7 @@ export default function ChapterDetail() {
         position: { x: clampedX, y: clampedY },
         width: w,
         height: h,
-        style: { font: "inherit", size: 14, color: "#000000" },
+        style: { font: "inherit", size: 14, color: "#000000", fill: defaultStyle.fill, stroke: defaultStyle.stroke },
       };
       const next = [...speechBubbles, newBubble];
       updatePanelMutation.mutate(
@@ -1263,27 +1268,29 @@ export default function ChapterDetail() {
                 <div className="space-y-1.5">
                   <span className="text-xs font-medium text-muted-foreground block">Bulles de dialogue — glisser sur le panel</span>
                   <div className="grid grid-cols-2 gap-2">
-                    {[
-                      { type: "speech" as const, label: "Parole", icon: "💬" },
-                      { type: "thought" as const, label: "Pensée", icon: "💭" },
-                      { type: "shout" as const, label: "Cri", icon: "📢" },
-                      { type: "whisper" as const, label: "Chuchotement", icon: "🔇" },
-                      { type: "narration" as const, label: "Narration", icon: "📝" },
-                    ].map((bubble) => (
+                    {(Object.entries(SPEECH_BUBBLE_TYPE_LABELS) as [SpeechBubbleType, string][]).map(([type, label]) => (
                       <div
-                        key={bubble.type}
+                        key={type}
                         draggable
                         onDragStart={(e) => {
-                          e.dataTransfer.setData("application/json", JSON.stringify({ type: "speech-bubble", bubbleType: bubble.type }));
+                          e.dataTransfer.setData("application/json", JSON.stringify({ type: "speech-bubble", bubbleType: type }));
                           e.dataTransfer.effectAllowed = "copy";
                         }}
                         className="cursor-grab active:cursor-grabbing rounded-lg border border-border/60 bg-background px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors flex items-center gap-2 justify-center"
                       >
-                        <span>{bubble.icon}</span>
-                        <span className="text-xs">{bubble.label}</span>
+                        <span className="text-xs">{label}</span>
                       </div>
                     ))}
                   </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="w-full mt-2"
+                    onClick={() => setBubbleEditorPanelId(panel.id)}
+                  >
+                    Ouvrir l’éditeur de bulles
+                  </Button>
                 </div>
               </div>
               {selectedSpeechBubble ? (
@@ -1294,8 +1301,42 @@ export default function ChapterDetail() {
                   </div>
                   <div className="space-y-4">
                     <div className="space-y-2">
+                      <span className="text-xs font-medium text-muted-foreground">Type</span>
+                      <p className="text-sm text-foreground">{SPEECH_BUBBLE_TYPE_LABELS[selectedSpeechBubble.type]}</p>
+                    </div>
+                    <div className="space-y-2">
                       <span className="text-xs font-medium text-muted-foreground">Dimensions</span>
                       <p className="text-sm text-foreground tabular-nums">{selectedSpeechBubble.width ?? DEFAULT_SPEECH_BUBBLE_WIDTH} × {selectedSpeechBubble.height ?? DEFAULT_SPEECH_BUBBLE_HEIGHT}</p>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium text-muted-foreground flex items-center gap-2">
+                        Fond bulle
+                        <input
+                          type="color"
+                          value={selectedSpeechBubble.bgColor ?? selectedSpeechBubble.style?.fill ?? SPEECH_BUBBLE_DEFAULT_STYLE[selectedSpeechBubble.type].fill}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            const next = speechBubbles.map((b) => b.id === selectedSpeechBubble.id ? { ...b, style: { ...b.style, fill: v }, bgColor: v } : b);
+                            handleUpdateSpeechBubbles(next);
+                          }}
+                          className="h-6 w-8 rounded border border-border/60 cursor-pointer"
+                        />
+                      </label>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium text-muted-foreground flex items-center gap-2">
+                        Contour bulle
+                        <input
+                          type="color"
+                          value={selectedSpeechBubble.borderColor ?? selectedSpeechBubble.style?.stroke ?? SPEECH_BUBBLE_DEFAULT_STYLE[selectedSpeechBubble.type].stroke}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            const next = speechBubbles.map((b) => b.id === selectedSpeechBubble.id ? { ...b, style: { ...b.style, stroke: v }, borderColor: v } : b);
+                            handleUpdateSpeechBubbles(next);
+                          }}
+                          className="h-6 w-8 rounded border border-border/60 cursor-pointer"
+                        />
+                      </label>
                     </div>
                     <div className="space-y-2">
                       <label className="text-xs font-medium text-muted-foreground">Texte</label>
@@ -1748,8 +1789,7 @@ export default function ChapterDetail() {
                 const fontSize = bubble.style?.size ?? 14;
                 const fontFamily = bubble.style?.font ?? "inherit";
                 const color = bubble.style?.color ?? "#000000";
-                const strokeColor = bubble.style?.stroke ?? "#000000";
-                const fillColor = bubble.style?.fill ?? "#ffffff";
+                const { fill: fillColor, stroke: strokeColor } = getSpeechBubbleFillStroke(bubble);
                 const tailH = bubble.type === "narration" ? 0 : SPEECH_BUBBLE_TAIL_H;
                 const totalH = geom.height + tailH;
                 return (
@@ -2386,12 +2426,53 @@ export default function ChapterDetail() {
               <ToggleGroupItem value="couleurs" className="rounded-lg shrink-0">Couleurs</ToggleGroupItem>
               <ToggleGroupItem value="dialogue" className="rounded-lg shrink-0">Dialogue</ToggleGroupItem>
               </ToggleGroup>
+              {expandedPanelId && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0"
+                  onClick={() => setBubbleEditorPanelId(expandedPanelId)}
+                >
+                  Éditeur de bulles
+                </Button>
+              )}
             </div>
           </DialogHeader>
           {expandedPanelId && (() => {
             const panel = panels.find((p) => p.id === expandedPanelId);
             if (!panel) return null;
             return renderPanelEditor(panel);
+          })()}
+        </DialogContent>
+      </Dialog>
+
+      {/* Éditeur de bulles avancé (plein écran) */}
+      <Dialog open={bubbleEditorPanelId != null} onOpenChange={(open) => !open && setBubbleEditorPanelId(null)}>
+        <DialogContent className="max-w-[100vw] w-[100vw] h-[100vh] max-h-[100vh] p-0 gap-0 overflow-hidden border-0 rounded-none">
+          {bubbleEditorPanelId && (() => {
+            const panel = panels.find((p) => p.id === bubbleEditorPanelId);
+            if (!panel) return null;
+            const speechBubbles = getPanelSpeechBubbles(panel);
+            return (
+              <SpeechBubbleEditor
+                initialBubbles={speechBubbles}
+                onSave={(next) => {
+                  updatePanelMutation.mutate(
+                    { id: panel.id, updates: { speech_bubbles: next as unknown as Json } },
+                    {
+                      onSuccess: () => {
+                        toast({ title: "Bulles enregistrées" });
+                        setBubbleEditorPanelId(null);
+                        queryClient.invalidateQueries({ queryKey: panelsQueryKey });
+                      },
+                      onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }),
+                    }
+                  );
+                }}
+                onClose={() => setBubbleEditorPanelId(null)}
+              />
+            );
           })()}
         </DialogContent>
       </Dialog>

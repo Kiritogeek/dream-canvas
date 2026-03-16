@@ -51,6 +51,7 @@ import {
 } from "@/components/ui/dialog";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { ScenarioTextHighlighter, getDetectedAssets } from "@/components/project/ScenarioTextHighlighter";
+import { useUserPlan } from "@/hooks/useUserPlan";
 import { ImageWithFallback } from "@/components/ui/ImageWithFallback";
 import { useChapter, useUpdateChapter } from "@/hooks/useChapters";
 import { useScenarioChapters, useScenarioChapter } from "@/hooks/useScenarioChapters";
@@ -189,8 +190,8 @@ export default function ChapterDetail() {
   const [editingBlockKey, setEditingBlockKey] = useState<string | null>(null);
   /** Brouillon dimensions par bloc : clé = `${panelId}-${blockId}` → { width, height } */
   const [blockDimensionDrafts, setBlockDimensionDrafts] = useState<Record<string, { width: number; height: number }>>({});
-  /** Mode d'édition par panel : chaque panel a son propre mode (Architecture ou Édition) */
-  const [panelEditModeByPanelId, setPanelEditModeByPanelId] = useState<Record<string, "architecture" | "edition" | "couleurs">>({});
+  /** Mode d'édition par panel : structure (blocs/images) ou couleurs (blocs couleur) */
+  const [panelEditModeByPanelId, setPanelEditModeByPanelId] = useState<Record<string, "edition" | "couleurs">>({});
   /** Refs du canvas par panel (pour calcul position de dépôt quand on drop sur un bloc) */
   const canvasRefByPanel = useRef<Record<string, HTMLDivElement | null>>({});
   /** Élément ghost pour le drag « nouveau bloc » (setDragImage) */
@@ -247,8 +248,8 @@ export default function ChapterDetail() {
   const [dragPreview, setDragPreview] = useState<{ panelId: string; blockId: string; x: number; y: number } | null>(null);
   /** Panel ouvert en modale « Edition » (id ou null) */
   const [expandedPanelId, setExpandedPanelId] = useState<string | null>(null);
-  /** Onglet du panneau gauche en modale : Architecture | Personalisation | Couleurs */
-  const [panelEditorLeftTab, setPanelEditorLeftTab] = useState<"architecture" | "personalisation" | "couleurs" | "dialogue">("architecture");
+  /** Onglet du panneau gauche en modale : Architecture (structure + contenu), Couleurs, Dialogue */
+  const [panelEditorLeftTab, setPanelEditorLeftTab] = useState<"architecture" | "couleurs" | "dialogue">("architecture");
   /** Bloc sélectionné dans la modale (mode Personalisation) pour afficher le panneau droit ou gauche */
   const [selectedBlockIdInModal, setSelectedBlockIdInModal] = useState<{ panelId: string; blockId: string } | null>(null);
   /** Bloc de couleur sélectionné (onglet Couleurs) pour éditer la couleur */
@@ -305,6 +306,9 @@ export default function ChapterDetail() {
   const resizeSpeechBubbleCaptureTargetRef = useRef<HTMLElement | null>(null);
   const lastResizeSpeechBubbleMouseRef = useRef<{ x: number; y: number } | null>(null);
   const saveResizeSpeechBubbleRef = useRef<((draft: { x: number; y: number; width: number; height: number }) => void) | null>(null);
+  /** Sélection d'assets par bloc pour la génération d'image (clé = panelId-blockId → ids assets) */
+  const [blockSelectedAssetIds, setBlockSelectedAssetIds] = useState<Record<string, string[]>>({});
+  const { plan: userPlan } = useUserPlan();
   const [pendingOutline, setPendingOutline] = useState<Array<{ description: string; context?: { lieu?: string; scene?: string; personnages?: string } }> | null>(null);
   /** Valeur sentinelle pour "Aucun" (Radix Select n'accepte pas value="") */
   const SCENARIO_NONE_VALUE = "__none__";
@@ -730,7 +734,7 @@ export default function ChapterDetail() {
     const colorBlocks = getPanelColorBlocks(panel);
     const speechBubbles = getPanelSpeechBubbles(panel);
     const panelHeight = getPanelHeight(panel);
-    const mode = panelEditModeByPanelId[panel.id] ?? "architecture";
+    const mode = panelEditModeByPanelId[panel.id] ?? "edition";
     const selectedBlock = selectedBlockIdInModal?.panelId === panel.id && selectedBlockIdInModal?.blockId
       ? blocks.find((b) => b.id === selectedBlockIdInModal.blockId)
       : null;
@@ -799,8 +803,9 @@ export default function ChapterDetail() {
           setDragPreview(null);
           return;
         }
-        if (mode === "edition") return;
+        // Nouveaux blocs image : uniquement en onglet « Architecture »
         if (data.type === "new-block") {
+          if (panelEditorLeftTab !== "architecture") return;
           const w = typeof data.width === "number" ? data.width : DEFAULT_BLOCK_WIDTH;
           const h = typeof data.height === "number" ? data.height : DEFAULT_BLOCK_HEIGHT;
           const { x, y } = getCanvasDropPosition(e, canvasEl, w, h);
@@ -809,7 +814,9 @@ export default function ChapterDetail() {
           setDragPreview(null);
           return;
         }
+        // Nouveaux blocs de couleur : uniquement en onglet « Couleurs »
         if (data.type === "new-color-block") {
+          if (panelEditorLeftTab !== "couleurs") return;
           const w = typeof data.width === "number" ? data.width : 300;
           const h = typeof data.height === "number" ? data.height : 300;
           const fill: ColorBlockFill = data.fill && (data.fill as ColorBlockFill).type ? (data.fill as ColorBlockFill) : { type: "solid", color: "#ffffff" };
@@ -1030,12 +1037,33 @@ export default function ChapterDetail() {
         return;
       }
       const contextChapter = panel.prompt?.trim() || null;
-      const refAssets = getDetectedAssets(promptToUse, assets);
-      const refIds = refAssets.map((a) => a.id);
-      const blockAssetImageUrls = refAssets.map((a) => a.image_url).filter((u): u is string => !!u);
+      const allDetected = getDetectedAssets(promptToUse, assets);
+      const key = `${panel.id}-${block.id}`;
+      const isFree = userPlan === "free";
+      const maxFreeAssets = 2;
+
+      // En plan Free, si plus de 2 assets détectés, on applique la sélection utilisateur
+      // (ou par défaut les 2 premiers). Sinon on utilise simplement tous les assets détectés.
+      let refAssets = allDetected;
+      if (isFree && allDetected.length > maxFreeAssets) {
+        const currentSelected = blockSelectedAssetIds[key];
+        const defaultSelection = allDetected.slice(0, maxFreeAssets).map((a) => a.id);
+        const selectedIds = currentSelected ?? defaultSelection;
+        refAssets = allDetected.filter((a) => selectedIds.includes(a.id));
+      }
+      const blockAssetImageUrls = refAssets.map((a) => a.image_url || "");
       const blockAssetNames = refAssets.map((a) => a.name ?? a.id.slice(0, 8));
       generatePanelImage.mutate(
-        { panel: { id: panel.id, prompt: promptToUse }, block: { id: block.id, width: block.width, height: block.height }, project, contextChapter: contextChapter ?? undefined, blockAssetImageUrls: blockAssetImageUrls.length ? blockAssetImageUrls : undefined, blockAssetNames: blockAssetNames.length ? blockAssetNames : undefined },
+        {
+          panel: { id: panel.id, prompt: promptToUse },
+          block: { id: block.id, width: block.width, height: block.height },
+          project,
+          contextChapter: contextChapter ?? undefined,
+          blockAssetImageUrls: blockAssetImageUrls.some((u) => !!u)
+            ? blockAssetImageUrls.filter((u) => !!u)
+            : undefined,
+          blockAssetNames: blockAssetNames.length ? blockAssetNames : undefined,
+        },
         {
           onSuccess: (result) => {
             toast({ title: "Image générée" });
@@ -1107,10 +1135,9 @@ export default function ChapterDetail() {
                 </div>
                 <p className="text-[11px] text-muted-foreground/80">Min {PANEL_HEIGHT_MIN} — max {PANEL_HEIGHT_MAX}. Vide = min par défaut.</p>
               </div>
-            </div>
-          )}
-          {panelEditorLeftTab === "personalisation" && (
-            <div className="p-4 flex-1 min-h-0 flex flex-col overflow-y-auto">
+              <div className="border-t border-border/60 my-2" />
+              {/* Édition du bloc sélectionné (fusion Architecture + Personalisation) */}
+              <div className="flex-1 min-h-0 flex flex-col overflow-y-auto">
               {selectedBlock ? (() => {
                 const block = selectedBlock;
                 const blockKey = `${panel.id}-${block.id}`;
@@ -1164,18 +1191,110 @@ export default function ChapterDetail() {
                               </p>
                             );
                           }
+                          const key = `${panel.id}-${block.id}`;
+                          const isFree = userPlan === "free";
+                          const maxFreeAssets = 2;
+
+                          // Si on est en Free ET qu'il y a plus de 2 assets détectés,
+                          // on affiche la sélection par checkbox pour permettre de choisir lesquels utiliser.
+                          if (isFree && detected.length > maxFreeAssets) {
+                            const currentSelected = blockSelectedAssetIds[key];
+                            const defaultSelection = detected.slice(0, maxFreeAssets).map((a) => a.id);
+                            const selectedIds = currentSelected ?? defaultSelection;
+
+                            return (
+                              <div className="space-y-2 rounded-lg border border-border/60 bg-muted/20 p-2">
+                                <p className="text-[11px] text-amber-600 dark:text-amber-400">
+                                  Plan Free : vous pouvez utiliser au maximum {maxFreeAssets} assets (images de référence) pour ce bloc.
+                                  Sélectionnez ci-dessous les assets à utiliser. Pour utiliser plus de 2 images de référence en même temps,
+                                  passez au plan Pro.
+                                </p>
+                                {detected.map((asset) => {
+                                  const checked = selectedIds.includes(asset.id);
+                                  const disabled = !checked && selectedIds.length >= maxFreeAssets;
+                                  return (
+                                    <label
+                                      key={asset.id}
+                                      className={`flex items-center gap-2 rounded px-2 py-1.5 cursor-pointer ${
+                                        checked
+                                          ? "bg-background/80 border border-primary/60"
+                                          : "border border-transparent hover:border-border/60"
+                                      } ${disabled ? "opacity-60 cursor-not-allowed" : ""}`}
+                                    >
+                                      <input
+                                        type="checkbox"
+                                        className="h-3.5 w-3.5 accent-primary"
+                                        checked={checked}
+                                        disabled={disabled}
+                                        onChange={(e) => {
+                                          setBlockSelectedAssetIds((prev) => {
+                                            const prevIds = prev[key] ?? defaultSelection;
+                                            if (e.target.checked) {
+                                              if (prevIds.length >= maxFreeAssets && !prevIds.includes(asset.id)) {
+                                                return prev;
+                                              }
+                                              return {
+                                                ...prev,
+                                                [key]: [...prevIds, asset.id],
+                                              };
+                                            }
+                                            return {
+                                              ...prev,
+                                              [key]: prevIds.filter((id) => id !== asset.id),
+                                            };
+                                          });
+                                        }}
+                                      />
+                                      <div className="w-10 h-10 shrink-0 rounded overflow-hidden border border-border/60 bg-muted">
+                                        {asset.image_url ? (
+                                          <ImageWithFallback
+                                            src={asset.image_url}
+                                            alt=""
+                                            className="w-full h-full object-cover"
+                                          />
+                                        ) : (
+                                          <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">
+                                            —
+                                          </div>
+                                        )}
+                                      </div>
+                                      <span className="flex-1 min-w-0 truncate text-sm font-medium">
+                                        {asset.name ?? asset.id.slice(0, 8)}
+                                      </span>
+                                    </label>
+                                  );
+                                })}
+                              </div>
+                            );
+                          }
+
+                          // Sinon (Pro, ou 1–2 assets seulement), simple liste sans checkbox,
+                          // tous les assets détectés seront utilisés pour la génération.
                           return (
                             <div className="space-y-2 rounded-lg border border-border/60 bg-muted/20 p-2">
+                              {!isFree && detected.length > maxFreeAssets && (
+                                <p className="text-[11px] text-muted-foreground/80">
+                                  Plan Pro : tous les assets détectés ci-dessous seront utilisés comme références pour ce bloc.
+                                </p>
+                              )}
                               {detected.map((asset) => (
                                 <div key={asset.id} className="flex items-center gap-2 rounded px-2 py-1.5">
                                   <div className="w-10 h-10 shrink-0 rounded overflow-hidden border border-border/60 bg-muted">
                                     {asset.image_url ? (
-                                      <ImageWithFallback src={asset.image_url} alt="" className="w-full h-full object-cover" />
+                                      <ImageWithFallback
+                                        src={asset.image_url}
+                                        alt=""
+                                        className="w-full h-full object-cover"
+                                      />
                                     ) : (
-                                      <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">—</div>
+                                      <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">
+                                        —
+                                      </div>
                                     )}
                                   </div>
-                                  <span className="flex-1 min-w-0 truncate text-sm font-medium">{asset.name ?? asset.id.slice(0, 8)}</span>
+                                  <span className="flex-1 min-w-0 truncate text-sm font-medium">
+                                    {asset.name ?? asset.id.slice(0, 8)}
+                                  </span>
                                 </div>
                               ))}
                             </div>
@@ -1192,10 +1311,13 @@ export default function ChapterDetail() {
                   </>
                 );
               })() : (
-                <div className="rounded-xl border border-dashed border-border/70 bg-muted/30 px-4 py-8 text-center">
-                  <p className="text-sm text-muted-foreground">Cliquez sur un bloc dans le panel pour l'éditer (passez en mode Personalisation dans l'onglet Architecture si besoin).</p>
+                <div className="rounded-xl border border-dashed border-border/70 bg-muted/30 px-4 py-6 text-center">
+                  <p className="text-sm text-muted-foreground">
+                    Cliquez sur un bloc dans le panel pour l&apos;éditer (un clic simple sélectionne, un appui prolongé déplace le bloc).
+                  </p>
                 </div>
               )}
+              </div>
             </div>
           )}
           {panelEditorLeftTab === "couleurs" && (
@@ -1565,13 +1687,19 @@ export default function ChapterDetail() {
                   const useResizeDraft = isThisResizing && resizeDraft != null && isResizingRef.current;
                   const rawGeom = useResizeDraft ? resizeDraft : { x: block.x, y: block.y, width: block.width, height: block.height };
                   const geom = { x: Math.round(rawGeom.x), y: Math.round(rawGeom.y), width: Math.round(rawGeom.width), height: Math.round(rawGeom.height) };
-                  const isSelected = mode === "edition" && selectedBlockIdInModal?.panelId === panel.id && selectedBlockIdInModal?.blockId === block.id;
+                  const isSelected =
+                    selectedBlockIdInModal?.panelId === panel.id &&
+                    selectedBlockIdInModal?.blockId === block.id;
                   return (
                     <div
                       key={block.id}
                       ref={isThisResizing ? (el) => { if (el) resizingBlockElRef.current = el; } : undefined}
                       draggable={false}
-                      onPointerDown={mode === "architecture" && !isThisResizing ? (e) => {
+                      onClick={panelEditorLeftTab === "architecture" ? (e) => {
+                        e.stopPropagation();
+                        setSelectedBlockIdInModal({ panelId: panel.id, blockId: block.id });
+                      } : undefined}
+                      onPointerDown={panelEditorLeftTab === "architecture" && !isThisResizing ? (e) => {
                         if (e.button !== 0 || isResizingRef.current) return;
                         e.preventDefault();
                         const canvasEl = canvasRefByPanel.current[panel.id];
@@ -1643,12 +1771,11 @@ export default function ChapterDetail() {
                         document.addEventListener("pointermove", onPointerMove, { capture: true, passive: true });
                         document.addEventListener("pointerup", onPointerUp, true);
                       } : undefined}
-                      onClick={mode === "edition" ? (e) => { e.stopPropagation(); setSelectedBlockIdInModal({ panelId: panel.id, blockId: block.id }); } : undefined}
-                      className={`group absolute overflow-visible bg-background border border-border shadow-md transition-all duration-150 ${mode === "couleurs" || panelEditorLeftTab === "dialogue" ? "pointer-events-none" : mode === "architecture" ? "cursor-grab active:cursor-grabbing ring-2 ring-primary/60" : `cursor-pointer ${isSelected ? "ring-2 ring-primary shadow-lg ring-offset-2 ring-offset-background" : "ring-1 ring-border/80 hover:ring-2 hover:ring-primary/50 hover:shadow-md"}`}`}
+                      className={`group absolute overflow-visible bg-background border border-border shadow-md transition-all duration-150 ${mode === "couleurs" || panelEditorLeftTab === "dialogue" ? "pointer-events-none" : panelEditorLeftTab === "architecture" ? "cursor-grab active:cursor-grabbing ring-2 ring-primary/60" : `cursor-pointer ${isSelected ? "ring-2 ring-primary shadow-lg ring-offset-2 ring-offset-background" : "ring-1 ring-border/80 hover:ring-2 hover:ring-primary/50 hover:shadow-md"}`}`}
                       style={{ left: geom.x, top: geom.y, width: geom.width, height: geom.height, zIndex: 10, pointerEvents: mode === "couleurs" || panelEditorLeftTab === "dialogue" ? "none" : "auto" }}
-                      title={mode === "edition" ? `Clique — ${block.name ?? `Bloc ${blockIndex + 1}`}` : mode === "architecture" ? `Déplacer — ${block.name ?? `Bloc ${blockIndex + 1}`}` : `Bloc ${blockIndex + 1}`}
+                      title={panelEditorLeftTab === "architecture" ? `Déplacer — ${block.name ?? `Bloc ${blockIndex + 1}`}` : `Bloc ${blockIndex + 1}`}
                     >
-                      {mode === "architecture" && (
+                      {panelEditorLeftTab === "architecture" && (
                         <button
                           type="button"
                           className="absolute bottom-[25%] left-1/2 z-20 flex h-8 w-8 -translate-x-1/2 items-center justify-center rounded-md bg-destructive/90 text-destructive-foreground opacity-0 shadow-md transition-opacity hover:bg-destructive group-hover:opacity-100"
@@ -1664,12 +1791,12 @@ export default function ChapterDetail() {
                           <ImageWithFallback src={block.image_url} alt="" className="w-full h-full object-fill" />
                         ) : (
                           <div className="w-full h-full flex flex-col items-center justify-center text-xs text-muted-foreground p-2 text-center bg-muted/50 gap-1">
-                            <div>{mode === "architecture" ? "Déplacer" : mode === "edition" ? "Clique" : block.prompt ? "Prompt défini — Générer ci-dessous" : "Saisir le prompt ci-dessous"}</div>
+                            <div>{panelEditorLeftTab === "architecture" ? "Déplacer" : mode === "edition" ? "Clique" : block.prompt ? "Prompt défini — Générer ci-dessous" : "Saisir le prompt ci-dessous"}</div>
                             <div className="text-[10px] opacity-70">{Math.round(geom.width)} × {Math.round(geom.height)}</div>
                           </div>
                         )}
                       </div>
-                      {mode === "architecture" && [
+                      {panelEditorLeftTab === "architecture" && [
                         { edge: "r" as const, style: { right: 0, top: 0, bottom: 0, width: 9 }, cursor: "ew-resize" },
                         { edge: "b" as const, style: { bottom: 0, left: 0, right: 0, height: 9 }, cursor: "ns-resize" },
                         { edge: "l" as const, style: { left: 0, top: 0, bottom: 0, width: 9 }, cursor: "ew-resize" },
@@ -2345,38 +2472,33 @@ export default function ChapterDetail() {
                 value={panelEditorLeftTab}
                 onValueChange={(v) => {
                   if (!v) return;
-                setPanelEditorLeftTab(v as "architecture" | "personalisation" | "couleurs" | "dialogue");
-                if (v === "personalisation" && expandedPanelId) {
-                  setPanelEditModeByPanelId((prev) => ({ ...prev, [expandedPanelId]: "edition" }));
-                  setSelectedColorBlockIdInModal(null);
-                  setSelectedSpeechBubbleIdInModal(null);
-                }
-                if (v === "architecture" && expandedPanelId) {
-                  setPanelEditModeByPanelId((prev) => ({ ...prev, [expandedPanelId]: "architecture" }));
-                  setSelectedBlockIdInModal(null);
-                  setSelectedColorBlockIdInModal(null);
-                  setSelectedSpeechBubbleIdInModal(null);
-                }
-                if (v === "couleurs" && expandedPanelId) {
-                  setPanelEditModeByPanelId((prev) => ({ ...prev, [expandedPanelId]: "couleurs" }));
-                  setSelectedBlockIdInModal(null);
-                  setSelectedSpeechBubbleIdInModal(null);
-                }
-                if (v === "dialogue" && expandedPanelId) {
-                  setPanelEditModeByPanelId((prev) => ({ ...prev, [expandedPanelId]: "edition" }));
-                  setSelectedBlockIdInModal(null);
-                  setSelectedColorBlockIdInModal(null);
-                }
-              }}
-              variant="outline"
-              size="sm"
-              className="w-fit inline-flex rounded-xl border border-border/60 bg-muted/20 p-1 gap-1.5 [&>button]:px-3 [&>button]:min-w-0"
-              aria-label="Étapes de conception du panel"
-            >
-              <ToggleGroupItem value="architecture" className="rounded-lg shrink-0">Architecture</ToggleGroupItem>
-              <ToggleGroupItem value="personalisation" className="rounded-lg shrink-0">Personalisation</ToggleGroupItem>
-              <ToggleGroupItem value="couleurs" className="rounded-lg shrink-0">Couleurs</ToggleGroupItem>
-              <ToggleGroupItem value="dialogue" className="rounded-lg shrink-0">Dialogue</ToggleGroupItem>
+                  setPanelEditorLeftTab(v as "architecture" | "couleurs" | "dialogue");
+                  if (!expandedPanelId) return;
+
+                  if (v === "architecture") {
+                    setPanelEditModeByPanelId((prev) => ({ ...prev, [expandedPanelId]: "edition" }));
+                    setSelectedColorBlockIdInModal(null);
+                    setSelectedSpeechBubbleIdInModal(null);
+                  }
+                  if (v === "couleurs") {
+                    setPanelEditModeByPanelId((prev) => ({ ...prev, [expandedPanelId]: "couleurs" }));
+                    setSelectedBlockIdInModal(null);
+                    setSelectedSpeechBubbleIdInModal(null);
+                  }
+                  if (v === "dialogue") {
+                    setPanelEditModeByPanelId((prev) => ({ ...prev, [expandedPanelId]: "edition" }));
+                    setSelectedBlockIdInModal(null);
+                    setSelectedColorBlockIdInModal(null);
+                  }
+                }}
+                variant="outline"
+                size="sm"
+                className="w-fit inline-flex rounded-xl border border-border/60 bg-muted/20 p-1 gap-1.5 [&>button]:px-3 [&>button]:min-w-0"
+                aria-label="Étapes de conception du panel"
+              >
+                <ToggleGroupItem value="architecture" className="rounded-lg shrink-0">Architecture</ToggleGroupItem>
+                <ToggleGroupItem value="couleurs" className="rounded-lg shrink-0">Couleurs</ToggleGroupItem>
+                <ToggleGroupItem value="dialogue" className="rounded-lg shrink-0">Dialogue</ToggleGroupItem>
               </ToggleGroup>
             </div>
           </DialogHeader>

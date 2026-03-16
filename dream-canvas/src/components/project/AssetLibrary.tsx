@@ -293,83 +293,6 @@ export function AssetLibrary({
             Utile surtout pour les éléments récurrents de votre scénario.
           </p>
         </div>
-        <Dialog open={assetDialogOpen} onOpenChange={setAssetDialogOpen}>
-          <Button
-            size="sm"
-            type="button"
-            className="gradient-primary text-primary-foreground"
-            onClick={() => {
-              if (!onCanGenerate()) return;
-              setNewAssetType(activeAssetTab);
-              setAssetDialogOpen(true);
-            }}
-          >
-            <Plus className="h-4 w-4 mr-1" /> Ajouter
-          </Button>
-          <DialogContent className="glass">
-            <DialogHeader>
-              <DialogTitle className="font-display">Nouvel asset</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleCreateAsset} className="space-y-4">
-              <div className="space-y-2">
-                <Label>Type</Label>
-                <div className="flex flex-wrap gap-2">
-                  {assetTabs.map((t) => (
-                    <Button
-                      key={t.type}
-                      type="button"
-                      size="sm"
-                      variant={newAssetType === t.type ? "default" : "outline"}
-                      onClick={() => setNewAssetType(t.type)}
-                      className={`text-xs sm:text-sm ${
-                        newAssetType === t.type
-                          ? "gradient-primary text-primary-foreground"
-                          : ""
-                      }`}
-                    >
-                      <t.icon className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> {t.label}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Nom</Label>
-                <Input
-                  value={newAssetName}
-                  onChange={(e) => setNewAssetName(e.target.value)}
-                  placeholder="Ex: Héros principal"
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Description / Prompt</Label>
-                <Textarea
-                  value={newAssetPrompt}
-                  onChange={(e) => setNewAssetPrompt(e.target.value)}
-                  placeholder="Décrivez l'asset pour la génération IA..."
-                  rows={3}
-                />
-              </div>
-              <Button
-                type="submit"
-                disabled={createAssetMutation.isPending || !canCreateAsset}
-                className={`w-full text-primary-foreground ${
-                  canCreateAsset
-                    ? "gradient-primary"
-                    : "bg-muted/60 cursor-not-allowed"
-                }`}
-              >
-                {createAssetMutation.isPending
-                  ? "Création..."
-                  : newAssetType === "character"
-                    ? "Créer le personnage"
-                    : newAssetType === "background"
-                      ? "Créer le décor"
-                      : "Créer l'objet"}
-              </Button>
-            </form>
-          </DialogContent>
-        </Dialog>
       </div>
 
       {/* Onglets par type */}
@@ -377,13 +300,98 @@ export function AssetLibrary({
         value={activeAssetTab}
         onValueChange={(value) => setActiveAssetTab(value as AssetType)}
       >
-        <TabsList className="glass w-full sm:w-auto">
-          {assetTabs.map((t) => (
-            <TabsTrigger key={t.type} value={t.type} className="flex-1 sm:flex-none text-xs sm:text-sm">
-              <t.icon className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> {t.label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <TabsList className="glass w-full sm:w-auto">
+            {assetTabs.map((t) => (
+              <TabsTrigger
+                key={t.type}
+                value={t.type}
+                className="flex-1 sm:flex-none text-xs sm:text-sm"
+              >
+                <t.icon className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> {t.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+
+          <Dialog open={assetDialogOpen} onOpenChange={setAssetDialogOpen}>
+            <Button
+              size="sm"
+              type="button"
+              className="gradient-primary text-primary-foreground"
+              onClick={() => {
+                if (!onCanGenerate()) return;
+                setNewAssetType(activeAssetTab);
+                setAssetDialogOpen(true);
+              }}
+            >
+              <Plus className="h-4 w-4 mr-1" /> Ajouter
+            </Button>
+            <DialogContent className="glass">
+              <DialogHeader>
+                <DialogTitle className="font-display">Nouvel asset</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleCreateAsset} className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Type</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {assetTabs.map((t) => (
+                      <Button
+                        key={t.type}
+                        type="button"
+                        size="sm"
+                        variant={newAssetType === t.type ? "default" : "outline"}
+                        onClick={() => setNewAssetType(t.type)}
+                        className={`text-xs sm:text-sm ${
+                          newAssetType === t.type
+                            ? "gradient-primary text-primary-foreground"
+                            : ""
+                        }`}
+                      >
+                        <t.icon className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" />{" "}
+                        {t.label}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Nom</Label>
+                  <Input
+                    value={newAssetName}
+                    onChange={(e) => setNewAssetName(e.target.value)}
+                    placeholder="Ex: Héros principal"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Description / Prompt</Label>
+                  <Textarea
+                    value={newAssetPrompt}
+                    onChange={(e) => setNewAssetPrompt(e.target.value)}
+                    placeholder="Décrivez l'asset pour la génération IA..."
+                    rows={3}
+                  />
+                </div>
+                <Button
+                  type="submit"
+                  disabled={createAssetMutation.isPending || !canCreateAsset}
+                  className={`w-full text-primary-foreground ${
+                    canCreateAsset
+                      ? "gradient-primary"
+                      : "bg-muted/60 cursor-not-allowed"
+                  }`}
+                >
+                  {createAssetMutation.isPending
+                    ? "Création..."
+                    : newAssetType === "character"
+                      ? "Créer le personnage"
+                      : newAssetType === "background"
+                        ? "Créer le décor"
+                        : "Créer l'objet"}
+                </Button>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
 
         {assetTabs.map((t) => {
           const filtered = assets.filter((a) => a.asset_type === t.type);

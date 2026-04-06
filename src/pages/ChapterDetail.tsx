@@ -80,9 +80,14 @@ import {
 import { updateScenarioChapter } from "@/services/scenarioChapters";
 import type { Json } from "@/integrations/supabase/types";
 import type { Chapter, Panel, PanelBlock, PanelLayout, ColorBlock, ColorBlockFill, SpeechBubble, SpeechBubbleType } from "@/types";
-import { DEFAULT_SPEECH_BUBBLE_WIDTH, getSpeechBubbleFillStroke, SPEECH_BUBBLE_DEFAULT_STYLE, SPEECH_BUBBLE_TYPE_LABELS } from "@/types";
+import {
+  DEFAULT_SPEECH_BUBBLE_WIDTH,
+  DEFAULT_SPEECH_BUBBLE_HEIGHT,
+  getSpeechBubbleFillStroke,
+  SPEECH_BUBBLE_DEFAULT_STYLE,
+  SPEECH_BUBBLE_TYPE_LABELS,
+} from "@/types";
 import SpeechBubbleEditor from "@/components/project/SpeechBubbleEditor";
-import { DEFAULT_SPEECH_BUBBLE_WIDTH, DEFAULT_SPEECH_BUBBLE_HEIGHT } from "@/types";
 
 const PANEL_WIDTH = 800;
 const SPEECH_BUBBLE_TAIL_H = 14;

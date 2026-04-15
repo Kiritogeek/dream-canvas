@@ -9,6 +9,19 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
+type AuthUiError = Error & {
+  code?: string | number;
+  status?: number;
+};
+
+function getErrorCode(err: Error): string | number | undefined {
+  return (err as AuthUiError).code;
+}
+
+function getErrorStatus(err: Error): number | undefined {
+  return (err as AuthUiError).status;
+}
+
 // Regex plus strict pour validation email : format valide avec domaine valide
 const EMAIL_REGEX = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
 const MIN_PASSWORD_LENGTH = 6;
@@ -192,7 +205,7 @@ export default function Auth() {
           navigate("/dashboard");
         } catch (signUpError: unknown) {
           // Vérifier si c'est une erreur de confirmation d'email requise
-          if (signUpError instanceof Error && (signUpError as any).code === "EMAIL_CONFIRMATION_REQUIRED") {
+          if (signUpError instanceof Error && getErrorCode(signUpError) === "EMAIL_CONFIRMATION_REQUIRED") {
             // Ne pas afficher d'erreur destructive, mais un message informatif
             toast({
               title: "Email de vérification envoyé",
@@ -231,13 +244,14 @@ export default function Auth() {
       
       if (err instanceof Error) {
         // Vérifier le code d'erreur personnalisé
-        const errorCode = (err as any).code;
+        const errorCode = getErrorCode(err);
+        const errorStatus = getErrorStatus(err);
         const errorMsg = err.message.toLowerCase();
         
         // Détecter l'erreur user_already_exists (peut venir de plusieurs sources)
         const isUserExistsError = 
           errorCode === "USER_ALREADY_EXISTS" ||
-          (err as any).status === 422 ||
+          errorStatus === 422 ||
           errorMsg.includes("déjà utilisé") ||
           errorMsg.includes("already exists") ||
           errorMsg.includes("already registered");

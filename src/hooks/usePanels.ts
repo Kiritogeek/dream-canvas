@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import * as panelsService from "@/services/panels";
 import { callSplitChapterIntoPanels } from "@/services/scenarioAI";
-import type { Panel, PanelOutlineItem, Project } from "@/types";
+import type { PanelOutlineItem, Project } from "@/types";
 import type { PanelsAIRequest } from "@/services/scenarioAI";
 
 const keys = {
@@ -75,7 +75,7 @@ export function useUpdatePanel(chapterId: string) {
   return useMutation({
     mutationFn: ({ id, updates }: { id: string; updates: Parameters<typeof panelsService.updatePanel>[1] }) =>
       panelsService.updatePanel(id, updates),
-    onSuccess: (_, { id }) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: keys.list(chapterId) });
     },
   });

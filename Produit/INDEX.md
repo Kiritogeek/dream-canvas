@@ -31,8 +31,9 @@
 | — | [Plan d'action Section Scénario](./Plan_Action_Developpement_Scénario.md) | Scénario : réalisé (phases A–G) + à prévoir (renommage assets) |
 | — | [Plan d'action TextHighlighter](./Plan_Action_TextHighligh_No_Assets.md) | Détection éléments non créés : règles, répétition, stop-words, évolutions |
 | — | [**Plan Phase 2 — Édition de l'œuvre**](./Plan_Phase2_Edition_Oeuvre.md) | **Plan détaillé Phase 2 : section Édition de l'œuvre, lien textuel↔visuel, IA Panel, transformation chapitre texte → visuel** |
-| — | [**Édition panel — Blocs et bulles**](./Edition_Panel_Blocs_Bulles.md) | Workflow édition panel : agencement blocs, prompt par bloc, **génération par bloc (images dans les blocs)**, bulles, visualisation 720×5000 |
-| — | [**Édition panel — Deux modes**](./Edition_Panel_Deux_Modes.md) | **Mode Architecture** (ajout, position, dimensions des blocs) et **Mode Édition** (prompt avec détection assets, bulles, effets, fond, texte) |
+| — | [**Édition panel — Blocs et bulles**](./Edition_Panel_Blocs_Bulles.md) | Workflow édition panel : agencement blocs, prompt par bloc, **génération par bloc (images dans les blocs)**, bulles, visualisation **800×H** et UI immersive |
+| — | [**Édition panel — Deux modes**](./Edition_Panel_Deux_Modes.md) | Édition panel par **sous-menus** (Personnalisation, Couleurs, Dialogue), actions structurelles et suivi chapitre textuel |
+| — | [Guide maintenance des styles](./Guide_Maintenance_Styles.md) | Procédure d'ajout, modification et suppression des styles (UI + templates + Edge Functions) |
 
 ### Architecture Technique
 
@@ -104,6 +105,7 @@ Produit/
 ├── 07_Roadmap_Produit.md             ← Roadmap 4 phases (2026)
 ├── Plan_Action_Developpement_Scénario.md  ← Section Scénario : réalisé + à prévoir
 ├── Plan_Action_TextHighligh_No_Assets.md ← Détection éléments non créés (assets)
+├── Guide_Maintenance_Styles.md       ← Guide d'évolution des styles (ajout/modification/suppression)
 ├── 08_Modele_de_Donnees.md           ← Schéma BDD & Storage
 ├── 09_Specifications_API.md          ← Documentation API
 ├── 10_Securite_Infrastructure.md     ← Sécurité, infra & monitoring
@@ -167,9 +169,10 @@ Cet audit fait le point sur l'état réel du code par rapport à la documentatio
 - Onglet "Édition de l'œuvre" dans ProjectDetail
 - Chapitres visuels (`chapters` table) avec lien optionnel vers chapitres texte (`linked_scenario_chapter_id`)
 - Panels (`panels` table) avec layout JSONB (blocs)
-- Page `ChapterDetail` : double visualisation (chapitre texte à gauche, panels à droite)
-- Mode Architecture : ajout blocs (500×500 par défaut), position (drag & drop), dimensions (poignées), suppression
-- Mode Édition : prompt par bloc avec détection assets, génération par bloc
+- Page `ChapterDetail` : édition immersive plein écran avec panel centré fixe + suivi chapitre textuel à droite
+- Sous-menus d’édition : Personnalisation, Couleurs, Dialogue (pictos)
+- Actions structurelles : ajout blocs (500×500 par défaut), position (drag & drop), dimensions (poignées), suppression
+- Génération visuelle : prompt par bloc avec détection assets, génération par bloc
 - Edge Function `generate-panel-image` : génération d'image avec dimensions du bloc
 - Stockage : `panels/{panel_id}/blocks/{block_id}.png`
 

@@ -1,5 +1,6 @@
 // Service layer — Assets
 import { supabase } from "@/integrations/supabase/client";
+import { messageFromFunctionsInvokeError } from "@/lib/edgeFunctionInvokeError";
 import type { Asset, AssetInsert, AssetUpdate, GenerateAssetPayload, GenerationResult } from "@/types";
 import { deleteAssetImages } from "./storage";
 
@@ -70,32 +71,32 @@ export async function countAssets(): Promise<number> {
 export async function generateAssetImage(
   payload: GenerateAssetPayload
 ): Promise<GenerationResult> {
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+  const { error: refreshError } = await supabase.auth.refreshSession();
+  if (refreshError) {
+    console.warn("[assets] refreshSession:", refreshError.message);
+  }
 
-  const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-asset-image`;
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: session?.access_token
-        ? `Bearer ${session.access_token}`
-        : "",
-      apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? "",
-    },
-    body: JSON.stringify(payload),
-  });
-
-  const resBody = await res.json().catch(() => ({}));
-
-  if (!res.ok) {
-    const msg =
-      resBody?.details ?? resBody?.error ?? res.statusText;
+  const { data: sessionData } = await supabase.auth.getSession();
+  if (!sessionData?.session?.access_token) {
     throw new Error(
-      typeof msg === "string" ? msg : JSON.stringify(msg)
+      "Session expirée ou invalide. Reconnectez-vous pour générer une image."
     );
   }
 
-  return resBody as GenerationResult;
+  // invoke utilise fetchWithAuth : apikey + JWT alignés sur le client Supabase (évite les 401 passerelle)
+  const { data, error } = await supabase.functions.invoke<GenerationResult>(
+    "generate-asset-image",
+    { body: payload }
+  );
+
+  if (error) {
+    const msg = await messageFromFunctionsInvokeError(error);
+    throw new Error(msg);
+  }
+
+  if (!data?.image_url) {
+    throw new Error("Réponse invalide : image_url manquant");
+  }
+
+  return data;
 }

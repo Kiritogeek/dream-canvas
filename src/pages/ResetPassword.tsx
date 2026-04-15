@@ -55,12 +55,9 @@ export default function ResetPassword() {
       const tokenHash = urlParams.token_hash;
       const type = urlParams.type;
 
-      console.log("Paramètres URL détectés:", { accessToken, refreshToken, tokenHash, type, urlParams });
-
       // Si on a un access_token dans le hash, Supabase a déjà vérifié le lien
       if (accessToken && refreshToken) {
         try {
-          console.log("Tentative de création de session avec access_token");
           const { data, error } = await supabase.auth.setSession({
             access_token: accessToken,
             refresh_token: refreshToken,
@@ -74,7 +71,6 @@ export default function ResetPassword() {
           }
 
           if (data.session && data.user) {
-            console.log("Session créée avec succès, prêt pour la réinitialisation");
             setStatus("ready");
             setMessage("");
             // Nettoyer le hash de l'URL
@@ -92,7 +88,6 @@ export default function ResetPassword() {
       // Si on a un token_hash, essayer de vérifier avec verifyOtp
       if (tokenHash && type === "recovery") {
         try {
-          console.log("Tentative de vérification avec token_hash");
           const { data, error } = await supabase.auth.verifyOtp({
             token_hash: tokenHash,
             type: "recovery",
@@ -111,7 +106,6 @@ export default function ResetPassword() {
           }
 
           if (data.user && data.session) {
-            console.log("Token vérifié avec succès");
             setStatus("ready");
             setMessage("");
             window.history.replaceState(null, "", window.location.pathname);
@@ -128,7 +122,6 @@ export default function ResetPassword() {
       // Vérifier si l'utilisateur est déjà connecté avec une session valide
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
-        console.log("Utilisateur déjà connecté, prêt pour la réinitialisation");
         setStatus("ready");
         setMessage("");
         return;

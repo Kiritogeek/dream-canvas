@@ -2,6 +2,18 @@ import { createContext, useContext, useEffect, useState, ReactNode } from "react
 import { supabase } from "@/integrations/supabase/client";
 import type { User, Session } from "@supabase/supabase-js";
 
+type AuthErrorCode =
+  | "USER_ALREADY_EXISTS"
+  | "EMAIL_CONFIRMATION_REQUIRED"
+  | "EMAIL_NOT_CONFIRMED";
+
+type AuthErrorWithMeta = Error & {
+  code?: string | number;
+  status?: number;
+  user?: User;
+  name?: string;
+};
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
@@ -64,8 +76,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // - Dans error.status (422)
       // - Dans error.message
       // - Dans les headers HTTP (x-sb-error-code: user_already_exists)
-      const errorCode = (error as any).code || (error as any).status;
-      const errorStatus = (error as any).status;
+      const authError = error as AuthErrorWithMeta;
+      const errorCode = authError.code ?? authError.status;
+      const errorStatus = authError.status;
       const errorMessage = (error.message || "").toLowerCase();
       
       // Vérifier si c'est une erreur 422 (Unprocessable Entity) qui indique souvent user_already_exists
@@ -76,7 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Note: Supabase retourne souvent error.status = 422 avec le header x-sb-error-code: user_already_exists
       const isUserExistsError = 
         errorCode === "user_already_exists" ||
-        (error as any).name === "AuthApiError" && is422Error ||
+        authError.name === "AuthApiError" && is422Error ||
         errorMessage.includes("already registered") ||
         errorMessage.includes("already exists") ||
         errorMessage.includes("user_already_exists") ||
@@ -86,9 +99,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       if (isUserExistsError || is422Error) {
         // Créer une erreur personnalisée avec un flag pour indiquer qu'on peut basculer vers la connexion
-        const customError = new Error("Cet email est déjà utilisé. Connectez-vous ou utilisez un autre email.");
-        (customError as any).code = "USER_ALREADY_EXISTS";
-        (customError as any).status = 422;
+        const customError = new Error(
+          "Cet email est déjà utilisé. Connectez-vous ou utilisez un autre email."
+        ) as AuthErrorWithMeta;
+        customError.code = "USER_ALREADY_EXISTS" satisfies AuthErrorCode;
+        customError.status = 422;
         throw customError;
       }
       throw error;
@@ -102,9 +117,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Si l'email n'est pas confirmé, retourner une information spéciale
     // data.session sera null si l'email doit être confirmé
     if (!data.session && data.user) {
-      const customError = new Error("Un email de vérification a été envoyé. Veuillez vérifier votre boîte de réception.");
-      (customError as any).code = "EMAIL_CONFIRMATION_REQUIRED";
-      (customError as any).user = data.user;
+      const customError = new Error(
+        "Un email de vérification a été envoyé. Veuillez vérifier votre boîte de réception."
+      ) as AuthErrorWithMeta;
+      customError.code = "EMAIL_CONFIRMATION_REQUIRED" satisfies AuthErrorCode;
+      customError.user = data.user;
       throw customError;
     }
   };
@@ -129,8 +146,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // - Dans error.status (400)
       // - Dans error.message
       // - Dans les headers HTTP (x-sb-error-code: invalid_credentials)
-      const errorCode = (error as any).code || (error as any).status;
-      const errorStatus = (error as any).status;
+      const authError = error as AuthErrorWithMeta;
+      const errorCode = authError.code ?? authError.status;
+      const errorStatus = authError.status;
       const errorMessage = (error.message || "").toLowerCase();
       
       // Vérifier si c'est une erreur 400 (Bad Request) qui peut indiquer invalid_credentials
@@ -139,7 +157,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Vérifier les différents formats de message d'erreur et codes
       const isInvalidCredentials = 
         errorCode === "invalid_credentials" ||
-        (error as any).name === "AuthApiError" && errorMessage.includes("invalid") ||
+        authError.name === "AuthApiError" && errorMessage.includes("invalid") ||
         errorMessage.includes("invalid login credentials") ||
         errorMessage.includes("invalid credentials") ||
         errorMessage.includes("email or password") ||
@@ -157,8 +175,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         errorMessage.includes("email not verified") ||
         errorCode === "email_not_confirmed"
       ) {
-        const customError = new Error("Veuillez confirmer votre email avant de vous connecter. Vérifiez votre boîte de réception.");
-        (customError as any).code = "EMAIL_NOT_CONFIRMED";
+        const customError = new Error(
+          "Veuillez confirmer votre email avant de vous connecter. Vérifiez votre boîte de réception."
+        ) as AuthErrorWithMeta;
+        customError.code = "EMAIL_NOT_CONFIRMED" satisfies AuthErrorCode;
         throw customError;
       }
       
@@ -172,7 +192,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signInWithGoogle = async () => {
-    await supabase.auth.signOut();
+    // Nettoyer la session locale avant OAuth pour éviter l'utilisation d'un refresh token obsolète.
+    await supabase.auth.signOut({ scope: "local" });
+    Object.keys(localStorage)
+      .filter((key) => key.startsWith("sb-") && key.endsWith("-auth-token"))
+      .forEach((key) => localStorage.removeItem(key));
+
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {

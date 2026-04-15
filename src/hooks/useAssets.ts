@@ -39,7 +39,7 @@ export function useCreateAsset() {
 export function useUpdateAsset() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, projectId, updates }: { id: string; projectId: string; updates: AssetUpdate }) =>
+    mutationFn: ({ id, projectId: _projectId, updates }: { id: string; projectId: string; updates: AssetUpdate }) =>
       assetService.updateAsset(id, updates),
     onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ["assets", variables.projectId] });

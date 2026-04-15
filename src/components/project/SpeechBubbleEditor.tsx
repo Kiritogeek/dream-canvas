@@ -904,9 +904,18 @@ export interface SpeechBubbleEditorProps {
   onSave?: (bubbles: SpeechBubble[]) => void;
   /** Appelé quand l'utilisateur clique Fermer / Annuler. */
   onClose?: () => void;
+  /** Dimensions logiques du panel pour positionner correctement les bulles. */
+  canvasWidth?: number;
+  canvasHeight?: number;
 }
 
-export default function SpeechBubbleEditor({ initialBubbles, onSave, onClose }: SpeechBubbleEditorProps = {}) {
+export default function SpeechBubbleEditor({
+  initialBubbles,
+  onSave,
+  onClose,
+  canvasWidth = 800,
+  canvasHeight = 5000,
+}: SpeechBubbleEditorProps = {}) {
   const isControlled = initialBubbles != null && (onSave != null || onClose != null);
 
   // En mode contrôlé, état initial uniquement (la modale se démonte à la fermeture)
@@ -922,6 +931,11 @@ export default function SpeechBubbleEditor({ initialBubbles, onSave, onClose }: 
   const nextId = useRef(1);
 
   const selected = bubbles.find(b => b.id === selectedId) ?? null;
+
+  useEffect(() => {
+    if (!initialBubbles) return;
+    setBubbles(speechBubblesToEditorBubbles(initialBubbles));
+  }, [initialBubbles]);
 
   const updateBubble = useCallback((id: string, patch: Partial<Bubble>) => {
     setBubbles(prev => prev.map(b => b.id === id ? { ...b, ...patch } : b));
@@ -944,8 +958,8 @@ export default function SpeechBubbleEditor({ initialBubbles, onSave, onClose }: 
 
   const addBubble = useCallback((type: BubbleType) => {
     const id = `b${nextId.current++}`;
-    const cw = containerRef.current?.offsetWidth ?? 700;
-    const ch = containerRef.current?.offsetHeight ?? 500;
+    const cw = canvasWidth;
+    const ch = canvasHeight;
     const d = BUBBLE_DEFAULTS[type];
     const w = d.width, h = d.height;
     const bub: Bubble = {
@@ -966,7 +980,7 @@ export default function SpeechBubbleEditor({ initialBubbles, onSave, onClose }: 
     setBubbles(prev => [...prev, bub]);
     setSelectedId(id);
     setConnSelected(false);
-  }, []);
+  }, [canvasHeight, canvasWidth]);
 
   const addConnected = useCallback(() => {
     if (!selectedId) return;
@@ -1101,7 +1115,7 @@ export default function SpeechBubbleEditor({ initialBubbles, onSave, onClose }: 
       : null;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100vh", fontFamily: "'Segoe UI', system-ui, sans-serif",
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", fontFamily: "'Segoe UI', system-ui, sans-serif",
       background: "#0d0d14", color: "#e8e8f0" }}>
       {isControlled && (onSave != null || onClose != null) && (
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 16px",
@@ -1273,7 +1287,8 @@ export default function SpeechBubbleEditor({ initialBubbles, onSave, onClose }: 
                 <input type="range" min={0} max={50} value={activeBubble.borderRadius}
                   onChange={e => {
                     const v = +e.target.value;
-                    connSelected ? updateConn(selectedId!, { borderRadius: v }) : updateBubble(selectedId!, { borderRadius: v });
+                    if (connSelected) updateConn(selectedId!, { borderRadius: v });
+                    else updateBubble(selectedId!, { borderRadius: v });
                   }}
                   style={{ accentColor: "#818cf8" }} />
 
@@ -1283,7 +1298,8 @@ export default function SpeechBubbleEditor({ initialBubbles, onSave, onClose }: 
                     <input type="range" min={0} max={8} step={0.5} value={activeBubble.borderWidth}
                       onChange={e => {
                         const v = +e.target.value;
-                        connSelected ? updateConn(selectedId!, { borderWidth: v }) : updateBubble(selectedId!, { borderWidth: v });
+                        if (connSelected) updateConn(selectedId!, { borderWidth: v });
+                        else updateBubble(selectedId!, { borderWidth: v });
                       }}
                       style={{ accentColor: "#818cf8" }} />
                   </div>
@@ -1291,8 +1307,8 @@ export default function SpeechBubbleEditor({ initialBubbles, onSave, onClose }: 
                     <div style={lbl}>Bordure</div>
                     <input type="color" value={activeBubble.borderColor}
                       onChange={e => {
-                        connSelected ? updateConn(selectedId!, { borderColor: e.target.value })
-                          : updateBubble(selectedId!, { borderColor: e.target.value });
+                        if (connSelected) updateConn(selectedId!, { borderColor: e.target.value });
+                        else updateBubble(selectedId!, { borderColor: e.target.value });
                       }}
                       style={{ width: 32, height: 28, border: "none", borderRadius: 4, cursor: "pointer" }} />
                   </div>
@@ -1304,7 +1320,8 @@ export default function SpeechBubbleEditor({ initialBubbles, onSave, onClose }: 
                 <div style={{ display: "flex", gap: 4 }}>
                   {(["solid", "gradient"] as FillMode[]).map(m => (
                     <button key={m} onClick={() => {
-                      connSelected ? updateConn(selectedId!, { bgFill: m }) : updateBubble(selectedId!, { bgFill: m });
+                      if (connSelected) updateConn(selectedId!, { bgFill: m });
+                      else updateBubble(selectedId!, { bgFill: m });
                     }}
                       style={{ ...btn, flex: 1, fontSize: 11,
                         background: activeBubble.bgFill === m ? "#6366f1" : "#1c1c2e" }}>
@@ -1318,8 +1335,8 @@ export default function SpeechBubbleEditor({ initialBubbles, onSave, onClose }: 
                     <div style={lbl}>{activeBubble.bgFill === "gradient" ? "Couleur 1" : "Fond"}</div>
                     <input type="color" value={activeBubble.bgColor}
                       onChange={e => {
-                        connSelected ? updateConn(selectedId!, { bgColor: e.target.value })
-                          : updateBubble(selectedId!, { bgColor: e.target.value });
+                        if (connSelected) updateConn(selectedId!, { bgColor: e.target.value });
+                        else updateBubble(selectedId!, { bgColor: e.target.value });
                       }}
                       style={{ width: 32, height: 28, border: "none", borderRadius: 4, cursor: "pointer" }} />
                   </div>
@@ -1329,8 +1346,8 @@ export default function SpeechBubbleEditor({ initialBubbles, onSave, onClose }: 
                         <div style={lbl}>Couleur 2</div>
                         <input type="color" value={activeBubble.bgColor2}
                           onChange={e => {
-                            connSelected ? updateConn(selectedId!, { bgColor2: e.target.value })
-                              : updateBubble(selectedId!, { bgColor2: e.target.value });
+                            if (connSelected) updateConn(selectedId!, { bgColor2: e.target.value });
+                            else updateBubble(selectedId!, { bgColor2: e.target.value });
                           }}
                           style={{ width: 32, height: 28, border: "none", borderRadius: 4, cursor: "pointer" }} />
                       </div>
@@ -1339,7 +1356,8 @@ export default function SpeechBubbleEditor({ initialBubbles, onSave, onClose }: 
                         <select value={activeBubble.gradientDir}
                           onChange={e => {
                             const v = e.target.value as GradientDir;
-                            connSelected ? updateConn(selectedId!, { gradientDir: v }) : updateBubble(selectedId!, { gradientDir: v });
+                            if (connSelected) updateConn(selectedId!, { gradientDir: v });
+                            else updateBubble(selectedId!, { gradientDir: v });
                           }}
                           style={{ ...inp, padding: "4px 5px", fontSize: 11 }}>
                           {GRAD_DIRS.map(d => <option key={d} value={d}>{GRAD_DIR_LABELS[d]}</option>)}
@@ -1410,33 +1428,44 @@ export default function SpeechBubbleEditor({ initialBubbles, onSave, onClose }: 
       </div>
 
       {/* CANVAS */}
-      <div ref={containerRef} style={{ flex: 1, position: "relative", overflow: "hidden" }}
-        onClick={() => { setSelectedId(null); setConnSelected(false); setEditTarget(null); }}>
+      <div
+        ref={containerRef}
+        style={{ flex: 1, position: "relative", overflow: "auto", background: "#10101a" }}
+        onClick={() => { setSelectedId(null); setConnSelected(false); setEditTarget(null); }}
+      >
+        <div
+          style={{
+            width: canvasWidth,
+            height: canvasHeight,
+            margin: "20px auto",
+            position: "relative",
+            overflow: "hidden",
+            borderRadius: 12,
+            border: "1px solid #222234",
+            boxShadow: "0 12px 40px rgba(0,0,0,0.35)",
+            background: "linear-gradient(135deg, #1a1a2e 0%, #16213e 45%, #0f3460 100%)",
+          }}
+        >
+          <svg style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: 0.05, pointerEvents: "none" }}>
+            <defs>
+              <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+                <path d="M 40 0 L 0 0 0 40" fill="none" stroke="white" strokeWidth="0.5" />
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#grid)" />
+          </svg>
 
-        <div style={{ position: "absolute", inset: 0,
-          background: "linear-gradient(135deg, #1a1a2e 0%, #16213e 45%, #0f3460 100%)" }} />
-        <svg style={{ position: "absolute", inset: 0, width: "100%", height: "100%",
-          opacity: 0.05, pointerEvents: "none" }}>
-          <defs>
-            <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-              <path d="M 40 0 L 0 0 0 40" fill="none" stroke="white" strokeWidth="0.5" />
-            </pattern>
-          </defs>
-          <rect width="100%" height="100%" fill="url(#grid)" />
-        </svg>
-
-        {bubbles.length === 0 && (
-          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center",
-            justifyContent: "center", pointerEvents: "none" }}>
-            <div style={{ textAlign: "center", color: "rgba(255,255,255,0.1)", userSelect: "none" }}>
-              <div style={{ fontSize: 52 }}>🖼</div>
-              <div style={{ fontSize: 14, marginTop: 8 }}>Image du panel</div>
-              <div style={{ fontSize: 11, marginTop: 4, opacity: 0.7 }}>← Ajoutez des bulles</div>
+          {bubbles.length === 0 && (
+            <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
+              <div style={{ textAlign: "center", color: "rgba(255,255,255,0.12)", userSelect: "none" }}>
+                <div style={{ fontSize: 52 }}>💬</div>
+                <div style={{ fontSize: 14, marginTop: 8 }}>Canvas du panel ({canvasWidth}×{canvasHeight})</div>
+                <div style={{ fontSize: 11, marginTop: 4, opacity: 0.7 }}>← Ajoutez des bulles</div>
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {bubbles.map(bub => {
+          {bubbles.map(bub => {
           const isSel = bub.id === selectedId && !connSelected;
           const isConnSel = bub.id === selectedId && connSelected;
           const svgProps: BubbleSVGProps = {
@@ -1447,17 +1476,17 @@ export default function SpeechBubbleEditor({ initialBubbles, onSave, onClose }: 
             onConnClick: e => { e.stopPropagation(); setSelectedId(bub.id); setConnSelected(true); },
           };
 
-          return (
-            <div key={bub.id}
-              style={{ position: "absolute", left: bub.x, top: bub.y,
-                width: bub.width, height: bub.height, cursor: "grab", userSelect: "none" }}
-              onMouseDown={e => startDrag(e, bub)}
-              onDoubleClick={e => {
-                e.stopPropagation();
-                setSelectedId(bub.id); setConnSelected(false);
-                setEditTarget("main"); setEditText(bub.text);
-              }}
-              onClick={e => { e.stopPropagation(); setSelectedId(bub.id); setConnSelected(false); }}>
+            return (
+              <div key={bub.id}
+                style={{ position: "absolute", left: bub.x, top: bub.y,
+                  width: bub.width, height: bub.height, cursor: "grab", userSelect: "none" }}
+                onMouseDown={e => startDrag(e, bub)}
+                onDoubleClick={e => {
+                  e.stopPropagation();
+                  setSelectedId(bub.id); setConnSelected(false);
+                  setEditTarget("main"); setEditText(bub.text);
+                }}
+                onClick={e => { e.stopPropagation(); setSelectedId(bub.id); setConnSelected(false); }}>
 
               {isSel && (
                 <div style={{ position: "absolute", inset: -3,
@@ -1470,10 +1499,11 @@ export default function SpeechBubbleEditor({ initialBubbles, onSave, onClose }: 
               {bub.type === "shout"    && <ShoutSVG    {...svgProps} />}
               {bub.type === "caption"  && <CaptionSVG  b={bub} />}
 
-              {isSel && <ResizeHandles onDown={(e, h) => startResize(e, h, bub)} />}
-            </div>
-          );
-        })}
+                {isSel && <ResizeHandles onDown={(e, h) => startResize(e, h, bub)} />}
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* RIGHT LAYERS */}

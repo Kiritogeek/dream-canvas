@@ -55,7 +55,7 @@ interface AssetLibraryProps {
 
 export function AssetLibrary({
   projectId,
-  project,
+  project: _project,
   assets,
   generatingAssetId,
   generatingView,

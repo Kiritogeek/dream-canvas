@@ -7,7 +7,7 @@
 
 ## 1. Rappel de l’objectif
 
-L’étape 5 vise à ce que **les images soient générées dans les blocs** : l’utilisateur ajoute des blocs sur le panel (720×5000), les positionne et redimensionne, saisit un **prompt par bloc**, puis lance la **génération par bloc** (dimensions du bloc envoyées à l’API). Pas de génération « tout le panel » ni « tout le chapitre ».
+L’étape 5 vise à ce que **les images soient générées dans les blocs** : l’utilisateur ajoute des blocs sur le panel (désormais 800×H), les positionne et redimensionne, saisit un **prompt par bloc**, puis lance la **génération par bloc** (dimensions du bloc envoyées à l’API). Pas de génération « tout le panel » ni « tout le chapitre ».
 
 ---
 
@@ -19,7 +19,7 @@ L’étape 5 vise à ce que **les images soient générées dans les blocs** : l
 - **Blocs** : ajout par glisser-déposer (source « Bloc 500×500 ») ou bouton « Ajouter un bloc » ; placement par centre ; déplacement par glisser-déposer ; **poignées de redimensionnement** (8 : bordures 9 px, coins 15 px) ; champs largeur/hauteur + « Appliquer dimensions » ; **suppression** (bouton au survol sur le bloc + bouton dans le panneau latéral).
 - **Prompt par bloc** : Textarea dans le panneau latéral (par panel), bouton Générer par bloc.
 - **Génération** : Edge Function `generate-panel-image`, dimensions du bloc envoyées, stockage `{user_id}/projects/{project_id}/panels/{panel_id}/blocks/{block_id}.png`.
-- Visualisation panel 720×5000 (fond quadrillé, marges 20 px L/R, 15 px haut/bas, scroll vertical).
+- Visualisation panel en largeur 800 px, hauteur configurable (fond quadrillé, scroll vertical).
 
 **Manquait encore (écarts documentés)** :
 1. **Contexte chapitre** : l’API accepte `context_chapter` mais le frontend ne l’envoyait pas.

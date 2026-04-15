@@ -9,7 +9,7 @@ Plateforme web de création de webtoons assistée par intelligence artificielle.
 - **Backend** : Supabase (PostgreSQL + Auth + Storage + Edge Functions Deno)
 - **IA** : FAL.ai (FLUX.1 Schnell / FLUX.2 Pro / FLUX.2 Pro Edit)
 - **State** : TanStack React Query 5
-- **Routing** : React Router DOM 7 (lazy loading)
+- **Routing** : React Router DOM 6 (lazy loading)
 
 ## Démarrage rapide
 

@@ -1,6 +1,9 @@
-// Edge Function: génération d'image via FAL.ai
+﻿// Edge Function: génération d'image via FAL.ai
 // Secrets requis :
 //   - FAL_API_KEY (Supabase → Edge Functions → Secrets)
+//
+// Style : uniquement `projects.style_template` et `projects.style_image_urls` (lues en service role).
+// Le corps de requête ne doit pas servir de source de vérité pour le style (évite brouillon UI / cache).
 //
 // Trois modes selon le tier utilisateur :
 //   Free → FLUX.1 Schnell (text-to-image uniquement, pas d'images de référence)
@@ -58,9 +61,9 @@ import { buildObjectPrompt } from "./system-prompts/objects.ts";
 
 // CORS — Restreindre en production via ALLOWED_ORIGIN
 function getCorsHeaders(): Record<string, string> {
-  const allowedOrigin = Deno.env.get("ALLOWED_ORIGIN") || "*";
+  const allowedOrigin = Deno.env.get("ALLOWED_ORIGIN")?.trim();
   return {
-    "Access-Control-Allow-Origin": allowedOrigin,
+    ...(allowedOrigin ? { "Access-Control-Allow-Origin": allowedOrigin } : {}),
     "Access-Control-Allow-Headers":
       "authorization, x-client-info, apikey, content-type",
   };
@@ -71,6 +74,17 @@ function jsonResponse(body: object, status: number) {
     status,
     headers: { ...getCorsHeaders(), "Content-Type": "application/json" },
   });
+}
+
+function isUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value
+  );
+}
+
+function extractStyleKeyFromTemplate(text: string): string | null {
+  const m = text.match(/style_key:\s*(\S+)/);
+  return m?.[1]?.trim() ?? null;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -86,11 +100,14 @@ async function verifyUserFromToken(
     const token = authHeader.replace(/^Bearer\s+/i, "").trim();
     if (!token) return null;
 
-    // Appeler l'endpoint Supabase Auth pour vérifier le token
+    // /auth/v1/user attend en général la clé anon en apikey (comme le client JS)
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
+    const apiKey = anonKey?.trim() || serviceKey;
+
     const res = await fetch(`${supabaseUrl}/auth/v1/user`, {
       headers: {
         Authorization: `Bearer ${token}`,
-        apikey: serviceKey,
+        apikey: apiKey,
       },
     });
 
@@ -339,6 +356,17 @@ async function downloadAndUploadToStorage(
 // ═══════════════════════════════════════════════════════════════
 
 Deno.serve(async (req) => {
+  const allowedOrigin = Deno.env.get("ALLOWED_ORIGIN")?.trim();
+  if (!allowedOrigin) {
+    return jsonResponse(
+      {
+        error:
+          "ALLOWED_ORIGIN non configurée. Configurez ce secret pour autoriser les requêtes CORS.",
+      },
+      500
+    );
+  }
+
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: getCorsHeaders() });
   }
@@ -452,8 +480,6 @@ Deno.serve(async (req) => {
     let body: {
       asset_id?: string;
       prompt?: string;
-      style_template?: string;
-      style_image_urls?: string[];
       asset_type?: "character" | "background" | "object";
       image_view?: "front" | "profile_left" | "profile_right" | "back";
     };
@@ -463,36 +489,108 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "Body JSON invalide" }, 400);
     }
 
-    const {
-      asset_id,
-      prompt,
-      style_template,
-      style_image_urls,
-      asset_type,
-      image_view,
-    } = body;
+    const { asset_id, prompt, asset_type, image_view } = body;
     if (!asset_id || !prompt?.trim()) {
       return jsonResponse({ error: "asset_id et prompt requis" }, 400);
     }
+    if (!isUuid(asset_id)) {
+      return jsonResponse({ error: "asset_id invalide (UUID attendu)" }, 400);
+    }
 
-    // Limiter les images de référence à 2 max (sécurité côté serveur)
     const MAX_STYLE_IMAGES = 2;
-    if (
-      Array.isArray(style_image_urls) &&
-      style_image_urls.length > MAX_STYLE_IMAGES
-    ) {
-      return jsonResponse(
-        {
-          error: `Maximum ${MAX_STYLE_IMAGES} images de référence autorisées`,
-          details: `Vous avez envoyé ${style_image_urls.length} images. Limitez à ${MAX_STYLE_IMAGES}.`,
+
+    // 5a. Asset + projet — style = uniquement la ligne projet en BDD
+    const assetRes = await fetch(
+      `${supabaseUrl}/rest/v1/assets?id=eq.${encodeURIComponent(asset_id)}&select=id,user_id,project_id`,
+      {
+        headers: {
+          apikey: serviceKey,
+          Authorization: `Bearer ${serviceKey}`,
+          "Content-Type": "application/json",
         },
-        400
+      }
+    );
+    if (!assetRes.ok) {
+      const errT = await assetRes.text();
+      return jsonResponse(
+        { error: "Erreur lecture asset", details: errT.slice(0, 200) },
+        502
+      );
+    }
+    const assets = (await assetRes.json()) as {
+      id: string;
+      user_id: string;
+      project_id: string;
+    }[];
+    const asset = assets?.[0];
+    if (!asset || asset.user_id !== userId) {
+      return jsonResponse(
+        { error: "Asset introuvable ou accès refusé" },
+        403
       );
     }
 
-    const hasStyleText = !!style_template?.trim();
+    const projectRes = await fetch(
+      `${supabaseUrl}/rest/v1/projects?id=eq.${encodeURIComponent(asset.project_id)}&select=id,user_id,style_template,style_image_urls`,
+      {
+        headers: {
+          apikey: serviceKey,
+          Authorization: `Bearer ${serviceKey}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+    if (!projectRes.ok) {
+      const errT = await projectRes.text();
+      return jsonResponse(
+        { error: "Erreur lecture projet", details: errT.slice(0, 200) },
+        502
+      );
+    }
+    const projects = (await projectRes.json()) as {
+      id: string;
+      user_id: string;
+      style_template: string | null;
+      style_image_urls: unknown;
+    }[];
+    const projRow = projects?.[0];
+    if (!projRow || projRow.user_id !== userId) {
+      return jsonResponse(
+        { error: "Projet introuvable ou accès refusé" },
+        403
+      );
+    }
+
+    const dbText = (projRow.style_template ?? "").trim();
+    const dbUrlsRaw = Array.isArray(projRow.style_image_urls)
+      ? projRow.style_image_urls
+      : [];
+    const dbUrls = dbUrlsRaw.filter(
+      (u): u is string => typeof u === "string" && u.trim().length > 0
+    );
+
+    let style_image_urls_merged: string[] | undefined =
+      dbUrls.length > 0 ? dbUrls.slice(0, MAX_STYLE_IMAGES) : undefined;
+
+    const mergedStyleKey = extractStyleKeyFromTemplate(dbText);
+    // Preset manga = N&B : les refs couleur (souvent webtoon) imposent un rendu full-color au modèle
+    if (mergedStyleKey === "manga") {
+      if (style_image_urls_merged && style_image_urls_merged.length > 0) {
+        console.log(
+          `[generate-asset-image] preset=manga: ${style_image_urls_merged.length} image(s) de reference ignorees (evite derive webtoon / couleur)`
+        );
+      }
+      style_image_urls_merged = undefined;
+    }
+
+    console.log(
+      `[generate-asset-image] asset=${asset_id} style_key=${mergedStyleKey ?? "none"} text_chars=${dbText.length} refs=${style_image_urls_merged?.length ?? 0}`
+    );
+
+    const hasStyleText = !!dbText;
     const hasStyleImages =
-      Array.isArray(style_image_urls) && style_image_urls.length > 0;
+      Array.isArray(style_image_urls_merged) &&
+      style_image_urls_merged.length > 0;
     if (!hasStyleText && !hasStyleImages) {
       return jsonResponse(
         {
@@ -504,7 +602,16 @@ Deno.serve(async (req) => {
       );
     }
 
-    const userStyleText = style_template?.trim() ?? "";
+    const MANGA_RENDER_LOCK =
+      "\n\n[CONTRAINTE RENDU MANGA] Sortie STRICTEMENT monochrome noir et blanc (encre, trames / screentone). " +
+      "Interdit : couleurs, peau coloree, degrades peints type webtoon, digital painting full-color, rendu 3D lisse. " +
+      "Ne pas produire un style webtoon coreen colore.";
+
+    let userStyleText = dbText;
+    if (mergedStyleKey === "manga") {
+      userStyleText += MANGA_RENDER_LOCK;
+    }
+    const style_image_urls = style_image_urls_merged;
     const type_ = asset_type ?? "character";
 
     // ═══════════════════════════════════════════════════════════
@@ -549,37 +656,9 @@ Deno.serve(async (req) => {
 
     if (hasStyleImages) {
       fullPrompt +=
-        "\n\nIMPORTANT : Reproduis EXACTEMENT le style graphique des images de référence fournies (traits, ombrage, couleurs, proportions, rendu). Crée un contenu 100% original dans ce style.";
-    }
-
-    // 5. Vérifier que l'asset appartient à l'utilisateur
-    const assetRes = await fetch(
-      `${supabaseUrl}/rest/v1/assets?id=eq.${asset_id}&select=id,user_id`,
-      {
-        headers: {
-          apikey: serviceKey,
-          Authorization: `Bearer ${serviceKey}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
-    if (!assetRes.ok) {
-      const errT = await assetRes.text();
-      return jsonResponse(
-        { error: "Erreur lecture asset", details: errT.slice(0, 200) },
-        502
-      );
-    }
-    const assets = (await assetRes.json()) as {
-      id: string;
-      user_id: string;
-    }[];
-    const asset = assets?.[0];
-    if (!asset || asset.user_id !== userId) {
-      return jsonResponse(
-        { error: "Asset introuvable ou accès refusé" },
-        403
-      );
+        "\n\nIMPORTANT : Les images de référence guident surtout trait, ombrage et matière. " +
+        "Le bloc STYLE_SYSTEM (style_key, style_principal, description_style) ci-dessus définit le GENRE et la direction artistique : il est prioritaire si une ambiguïté apparaît avec les visuels. " +
+        "Reproduis un rendu cohérent avec ces consignes. Crée un contenu 100% original.";
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -680,7 +759,7 @@ Deno.serve(async (req) => {
             : "image_url";
 
     const updateRes = await fetch(
-      `${supabaseUrl}/rest/v1/assets?id=eq.${asset_id}`,
+      `${supabaseUrl}/rest/v1/assets?id=eq.${encodeURIComponent(asset_id)}`,
       {
         method: "PATCH",
         headers: {

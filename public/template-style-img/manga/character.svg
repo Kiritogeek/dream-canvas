@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 640 360">
+  <rect width="640" height="360" fill="#1a1a1a"/>
+  <circle cx="320" cy="160" r="70" fill="#f2d3b1"/>
+  <path d="M250 125 C280 70, 360 70, 390 125" fill="none" stroke="#0f0f0f" stroke-width="18"/>
+  <rect x="250" y="220" width="140" height="100" rx="20" fill="#2d3748"/>
+  <text x="24" y="330" fill="#f5f5f5" font-family="Arial, sans-serif" font-size="26">Manga " Personnage</text>
+</svg>

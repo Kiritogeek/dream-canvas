@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 640 360">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0ea5e9"/>
+      <stop offset="100%" stop-color="#312e81"/>
+    </linearGradient>
+  </defs>
+  <rect width="640" height="360" fill="url(#sky)"/>
+  <rect x="60" y="120" width="120" height="180" fill="#1f2937"/>
+  <rect x="200" y="90" width="140" height="210" fill="#334155"/>
+  <rect x="360" y="105" width="120" height="195" fill="#475569"/>
+  <rect x="500" y="70" width="90" height="230" fill="#1e293b"/>
+  <text x="24" y="330" fill="#ffffff" font-family="Arial, sans-serif" font-size="24">Webtoon Coreen " Decor</text>
+</svg>

@@ -52,7 +52,7 @@ interface EditionSectionProps {
   project: Project;
 }
 
-export function EditionSection({ projectId, project }: EditionSectionProps) {
+export function EditionSection({ projectId, project: _project }: EditionSectionProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { data: chapters = [], isLoading } = useChapters(projectId);

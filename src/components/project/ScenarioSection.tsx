@@ -16,7 +16,6 @@ import {
   LayoutTemplate,
   Eye,
   PenLine,
-  LayoutPanelTop,
   User,
   ImageIcon,
   Package,
@@ -920,6 +919,39 @@ function ChapterCard({
     [isDirty, saveContent]
   );
 
+  const runChapterAI = useCallback(() => {
+    if (!chapterAIPrompt.trim() || !content.trim()) return;
+
+    chapterAI.mutate(
+      {
+        mode: "chapter",
+        prompt: chapterAIPrompt.trim(),
+        chapter_title: chapter.title,
+        chapter_content: content,
+        chapter_number: chapter.chapter_number,
+      },
+      {
+        onSuccess: (data) => {
+          setChapterAIResult(data.text);
+          toast({ title: "Chapitre révisé par l'IA" });
+        },
+        onError: (err) =>
+          toast({
+            title: "Erreur IA",
+            description: err.message,
+            variant: "destructive",
+          }),
+      }
+    );
+  }, [
+    chapter.title,
+    chapter.chapter_number,
+    chapterAIPrompt,
+    content,
+    chapterAI,
+    toast,
+  ]);
+
   return (
     <Collapsible open={isOpen} onOpenChange={onToggle}>
       <div className="rounded-xl border border-border bg-card/50 overflow-hidden transition-colors hover:bg-card/80">
@@ -1070,29 +1102,7 @@ function ChapterCard({
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && !e.shiftKey) {
                       e.preventDefault();
-                      if (chapterAIPrompt.trim() && content.trim()) {
-                        chapterAI.mutate(
-                          {
-                            mode: "chapter",
-                            prompt: chapterAIPrompt.trim(),
-                            chapter_title: chapter.title,
-                            chapter_content: content,
-                            chapter_number: chapter.chapter_number,
-                          },
-                          {
-                            onSuccess: (data) => {
-                              setChapterAIResult(data.text);
-                              toast({ title: "Chapitre révisé par l'IA" });
-                            },
-                            onError: (err) =>
-                              toast({
-                                title: "Erreur IA",
-                                description: err.message,
-                                variant: "destructive",
-                              }),
-                          }
-                        );
-                      }
+                      runChapterAI();
                     }
                   }}
                   placeholder="Ex : « Allonger la scène du duel, plus de dialogues »"
@@ -1108,29 +1118,7 @@ function ChapterCard({
                     !chapterAIPrompt.trim() ||
                     !content.trim()
                   }
-                  onClick={() => {
-                    chapterAI.mutate(
-                      {
-                        mode: "chapter",
-                        prompt: chapterAIPrompt.trim(),
-                        chapter_title: chapter.title,
-                        chapter_content: content,
-                        chapter_number: chapter.chapter_number,
-                      },
-                      {
-                        onSuccess: (data) => {
-                          setChapterAIResult(data.text);
-                          toast({ title: "Chapitre révisé par l'IA" });
-                        },
-                        onError: (err) =>
-                          toast({
-                            title: "Erreur IA",
-                            description: err.message,
-                            variant: "destructive",
-                          }),
-                      }
-                    );
-                  }}
+                  onClick={runChapterAI}
                 >
                   {chapterAI.isPending ? (
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />

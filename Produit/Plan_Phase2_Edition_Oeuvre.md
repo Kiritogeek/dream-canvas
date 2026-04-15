@@ -1,6 +1,6 @@
 # Plan Phase 2 — Édition de l'œuvre et lien textuel ↔ visuel
 
-> Premier jalon : créer la section « Édition de l'œuvre ». L'utilisateur **crée librement** le nombre de panels qu'il souhaite pour le chapitre visuel ; le **scénario à gauche sert de référence**. Optionnellement : **suggestion de panels par IA** ou **import d'une suggestion** (liste + descriptions). **Contexte du chapitre** (lieu, scène, personnages) dans le prompt de chaque panel ; **dimensions panel 720×5000** (obligatoires).
+> Premier jalon : créer la section « Édition de l'œuvre ». L'utilisateur **crée librement** le nombre de panels qu'il souhaite pour le chapitre visuel ; le **chapitre textuel sert de référence**. Optionnellement : **suggestion de panels par IA** ou **import d'une suggestion** (liste + descriptions). **Contexte du chapitre** (lieu, scène, personnages) dans le prompt de chaque panel ; **panel 800×H** (hauteur configurable dans des bornes).
 
 ---
 
@@ -15,31 +15,31 @@
 
 - **Section « Édition de l'œuvre »** : espace dédié où l’utilisateur construit le **webtoon visuel** à partir du scénario et des assets.
 - **Lien textuel ↔ visuel** : à l’édition d’un chapitre visuel, afficher le **chapitre de scénario correspondant** (double visualisation : Scénario + Assets).
-- **Liberté de création des panels** : l'utilisateur **crée le nombre de panels qu'il souhaite** (bouton « Ajouter un panel »). Le **scénario à gauche** lui sert de **référence** ; l'agencement des panels et des blocs est **subjectif**. Chaque panel est une **structure** 720×5000 (blocs pour les images, puis bulles et effets en couche). **Optionnel** : une **suggestion de panels par IA** (liste + descriptions) ou l'**import d'une suggestion** (depuis le scénario) pour pré-remplir les panels ; l'utilisateur peut ensuite ajouter ou supprimer des panels. Les **assets** sont déjà présents dans le chapitre textuel (détection déjà livrée).
+- **Liberté de création des panels** : l'utilisateur **crée le nombre de panels qu'il souhaite** (bouton « Ajouter un panel »). Le **chapitre textuel** lui sert de **référence** ; l'agencement des panels et des blocs est **subjectif**. Chaque panel est une **structure** 800×H (blocs pour les images, puis bulles et effets en couche). **Optionnel** : une **suggestion de panels par IA** (liste + descriptions) ou l'**import d'une suggestion** (depuis le scénario) pour pré-remplir les panels ; l'utilisateur peut ensuite ajouter ou supprimer des panels. Les **assets** sont déjà présents dans le chapitre textuel (détection déjà livrée).
 - **Prompt de génération pour un panel** : pour avoir lieu, scène et personnages cohérents, le **contexte du chapitre** (lieu, scène, personnages) doit être inclus dans le prompt du panel. Règle : **prompt = style + assets (du chapitre) + contexte du chapitre (lieu / scène / personnages) + description du panel**.
-- **Dimensions d’un panel** : **720 × 5000** pixels (taille du **contenant** panel). **La succession de panels** (empilés verticalement) **forme le chapitre visuel**.
+- **Dimensions d’un panel** : **800 × hauteur variable** pixels (largeur fixe + hauteur configurable bornée). **La succession de panels** (empilés verticalement) **forme le chapitre visuel**.
 - **Un panel n’est pas qu’une image** : un panel est une **structure** composée de **blocs** (contenant des images), de **texte** (bulles de dialogue), d’**effets de transition** et de **lignes de mouvement** (dynamiques, vitesse, impact, etc.). Voir § 1.4.
-- **Estimation indicative** : la dimension 720×5000 peut servir à une estimation indicative du nombre de panels (affichée à titre d'information) ; l'utilisateur n'est pas tenu de s'y conformer.
+- **Estimation indicative** : la dimension panel (800×H) peut servir à une estimation indicative du nombre de panels (affichée à titre d'information) ; l'utilisateur n'est pas tenu de s'y conformer.
 - **Transformation chapitre textuel → chapitre visuel** :  
   **Chapitre texte** (référence à gauche) → **Édition de l'œuvre** : l'utilisateur **crée les panels** (un par un ou via une **suggestion IA / import** optionnel) → **succession de panels** (chaque panel = blocs + bulles + effets) → **agencement des blocs** → prompts par bloc → **génération des images par bloc** (selon la forme du bloc) → **le chapitre = cette succession de panels**.
 
-- **Visualisation du panel** : en édition, chaque panel est affiché en **visualisation totale 720×5000** px (taille réelle ou zoom homogène) pour agencer les blocs et les bulles. **Les images sont générées dans les blocs.** L'édition se fait en **deux modes** : **Architecture** (structure des blocs) et **Édition** (contenu). Voir `Edition_Panel_Blocs_Bulles.md` et **`Edition_Panel_Deux_Modes.md`**.
+- **Visualisation du panel** : en édition, chaque panel est affiché en visualisation immersive (plein écran), avec canvas central 800×H. **Les images sont générées dans les blocs.** L'édition est organisée par sous-menus visuels (Personnalisation, Couleurs, Dialogue). Voir `Edition_Panel_Blocs_Bulles.md` et **`Edition_Panel_Deux_Modes.md`**.
 
-Références : `07_Roadmap_Produit.md` Phase 2, `11_Rapport_Chapitres_Flux_Blocs_Scenario.md`, `UX.md` § 3.2, **`Edition_Panel_Blocs_Bulles.md`** (édition blocs + bulles, workflow, visu 720×5000), **`Edition_Panel_Deux_Modes.md`** (modes Architecture / Édition).
+Références : `07_Roadmap_Produit.md` Phase 2, `11_Rapport_Chapitres_Flux_Blocs_Scenario.md`, `UX.md` § 3.2, **`Edition_Panel_Blocs_Bulles.md`** (édition blocs + bulles, workflow, visu 800×H), **`Edition_Panel_Deux_Modes.md`** (sous-menus d’édition).
 
 ### 1.3 Dimensions d’un panel — le chapitre = succession de panels
 
 | Élément | Définition |
 |--------|-------------|
-| **Dimensions d’un panel** | **720 × 5000** pixels (taille du **contenant** ; dimensions obligatoires). |
-| **Un panel** | **Structure** de taille 720×5000 comprenant : **blocs** (avec images), **bulles de texte**, **effets de transition**, **lignes de mouvement** (voir § 1.4). |
+| **Dimensions d’un panel** | **800 × hauteur variable** (largeur fixe, hauteur bornée). |
+| **Un panel** | **Structure** de taille 800×H comprenant : **blocs** (avec images), **bulles de texte**, **effets de transition**, **lignes de mouvement** (voir § 1.4). |
 | **Le chapitre visuel** | **Succession de panels** : l’empilement vertical des panels constitue le chapitre. |
 
-La dimension 720×5000 définit la **surface** dans laquelle s'organisent blocs, bulles et effets ; une estimation indicative du nombre de panels peut en découler (non contraignante).
+La dimension 800×H définit la **surface** dans laquelle s'organisent blocs, bulles et effets ; une estimation indicative du nombre de panels peut en découler (non contraignante).
 
 ### 1.4 Structure d’un panel (blocs, texte, effets)
 
-Un **panel** (720×5000) est constitué des éléments suivants. L'utilisateur **crée les panels** (à la main ou en important une suggestion) ; chaque panel est ensuite rempli (blocs, images, texte, effets).
+Un **panel** (800×H) est constitué des éléments suivants. L'utilisateur **crée les panels** (à la main ou en important une suggestion) ; chaque panel est ensuite rempli (blocs, images, texte, effets).
 
 | Composant | Description |
 |-----------|-------------|
@@ -74,7 +74,7 @@ Un **panel** (720×5000) est constitué des éléments suivants. L'utilisateur *
 
 **État réel du code (écarts connus)** :
 - **Étape 3** : L'utilisateur **crée librement** le nombre de panels (« Ajouter un panel »). **Suggestion de panels (IA)** et **Importer la suggestion** sont optionnels. Une **estimation indicative** du nombre de panels (à partir du contenu texte) peut être affichée ; elle n'est pas contraignante. La **répartition N/N+1** (prendre du chapitre N+1 / céder au N+1) n'est **pas implémentée** — à prévoir en complément ou en Étape ultérieure.
-- **Étape 5** : Pas de bascule **Architecture | Édition** : une **vue unifiée** (canvas 720×5000 + panneau latéral par panel). Prompt par bloc = Textarea dans le panneau latéral ; **aperçu des mentions d'assets** (surbrillance + hover) sous le prompt du bloc via `ScenarioTextHighlighter`. **Contexte chapitre** (lieu, scène, personnages) : envoyé à l'API depuis la suggestion (`panels_outline[].context`) ou la description du panel. Suppression = bouton au survol sur le bloc (canvas) + bouton dans le panneau latéral.
+- **Étape 5** : Vue unifiée consolidée : modale immersive plein écran, canvas central 800×H, sous-menus par pictos (gauche) et chapitre textuel dédié (droite). Prompt par bloc = Textarea dans le panneau latéral ; **aperçu des mentions d'assets** (surbrillance + hover) sous le prompt du bloc via `ScenarioTextHighlighter`. **Contexte chapitre** (lieu, scène, personnages) : envoyé à l'API depuis la suggestion (`panels_outline[].context`) ou la description du panel. Suppression = bouton au survol sur le bloc (canvas) + bouton dans le panneau latéral.
 
 ---
 
@@ -89,8 +89,8 @@ Un **panel** (720×5000) est constitué des éléments suivants. L'utilisateur *
 | **Onglet / entrée** | Dans la page détail projet : nouvel onglet **« Édition de l'œuvre »** (ou « Œuvre » / « Chapitres visuels ») à côté de Style, Assets, Scénario. |
 | **Liste des chapitres visuels** | Affichage des chapitres du projet issus de la table `chapters` (chapitres webtoon). Création, réorganisation (drag & drop), suppression. Ordre = `chapter_number`. |
 | **Vue vide / état initial** | Si le projet n’a aucun chapitre visuel : message d’accueil + CTA « Créer un chapitre » (titre, optionnellement choix du mode : Automatique / Structuré, à préciser plus tard). |
-| **Ouverture d’un chapitre** | Clic sur un chapitre → écran d’édition du chapitre. Chaque **panel** est une structure 720×5000 (blocs, bulles, effets) ; en Étape 1 : écran **shell** (liste des panels vide ou placeholder), pas encore de génération ni de double visualisation. |
-| **Modèle de données** | Tables `chapters` et `panels` (voir `08_Modele_de_Donnees.md`). Un **panel** : dimensions 720×5000 ; `layout` (JSONB) = blocs avec images ; `speech_bubbles` (JSONB) = bulles ; prévoir champs ou JSONB pour **effets de transition** et **lignes de mouvement**. Ajout si besoin : `chapters.linked_scenario_chapter_id` (FK → `scenario_chapters.id`, NULLABLE). |
+| **Ouverture d’un chapitre** | Clic sur un chapitre → écran d’édition du chapitre. Chaque **panel** est une structure 800×H (blocs, bulles, effets) ; en Étape 1 : écran **shell** (liste des panels vide ou placeholder), pas encore de génération ni de double visualisation. |
+| **Modèle de données** | Tables `chapters` et `panels` (voir `08_Modele_de_Donnees.md`). Un **panel** : largeur 800 + hauteur configurée ; `layout` (JSONB) = blocs avec images ; `speech_bubbles` (JSONB) = bulles ; prévoir champs ou JSONB pour **effets de transition** et **lignes de mouvement**. Ajout si besoin : `chapters.linked_scenario_chapter_id` (FK → `scenario_chapters.id`, NULLABLE). |
 
 **Critères de succès** : l’utilisateur peut ouvrir l’onglet « Édition de l'œuvre », voir la liste des chapitres visuels (ou vide), créer un chapitre, entrer dans l’écran d’édition d’un chapitre (structure prête pour les étapes suivantes). *Tests* : voir § 4.
 
@@ -102,7 +102,7 @@ Un **panel** (720×5000) est constitué des éléments suivants. L'utilisateur *
 
 | Livrable | Description |
 |----------|-------------|
-| **Disposition** | **Chapitre texte à gauche**, **panels à droite**. Sur mobile : chapitre texte au-dessus des panels. |
+| **Disposition** | Chapitre texte en colonne dédiée, panels au centre. Sur mobile : chapitre texte au-dessus des panels. |
 | **Panneau « Chapitre texte »** | Colonne de gauche affichant le **texte du chapitre de scénario** lié. **Même visualisation que l’Aperçu** de la section Scénario : surbrillance des assets (personnages, décors, objets) dans le texte, **hover pour afficher l’asset** (image + infos). Repliable (accordéon) ; par défaut ouvert. |
 | **Lien chapitre visuel ↔ chapitre texte** | Si `chapters.linked_scenario_chapter_id` est renseigné : à l’ouverture du chapitre visuel, chargement et affichage automatique du contenu de ce chapitre de scénario. Sinon : **sélecteur** (liste des chapitres de scénario du projet) pour choisir quel chapitre afficher ; option d’**enregistrer** ce choix comme lien pour ce chapitre visuel. |
 | **Assets dans le texte** | Pas de panneau « Assets » séparé. Les assets sont **visibles dans le chapitre texte** via l’Aperçu (détection des mentions + surbrillance + hover pour voir l’élément). Cohérent avec la section Scénario (Chapitre → Aperçu). |
@@ -144,9 +144,9 @@ Référence détaillée : `11_Rapport_Chapitres_Flux_Blocs_Scenario.md` § 3.4 e
 
 | Livrable | Description |
 |----------|-------------|
-| **Création libre des panels** | Entrée : contenu du chapitre textuel (lié au chapitre visuel). Sortie : **liste ordonnée de panels**, chacun avec une **courte description** (lieu, scène, personnages, action). Cette liste définit la **succession de panels** qui **forme le chapitre visuel**. Chaque panel est une **structure** 720×5000 (blocs à remplir avec des images + bulles + effets à ajouter ensuite). |
-| **Estimation indicative** | Utiliser la **dimension 720×5000** (taille d’un panel) pour estimer le **nombre de panels** et la répartition du contenu (ex. une unité narrative ou une scène par panel, en fonction de la longueur du chapitre). |
-| **Suggestion de panels (IA)** | **Optionnel** : par **IA** (LLM : chapitre → liste de panels avec descriptions) et/ou **manuel** (l’utilisateur définit les panels dans la section Scénario ou dans l’Édition de l'œuvre). Stockage : colonne JSONB sur `scenario_chapters` ou table dédiée ; synchronisation avec les enregistrements `panels` du chapitre visuel (chaque panel = conteneur 720×5000 avec `layout.blocs` à remplir). |
+| **Création libre des panels** | Entrée : contenu du chapitre textuel (lié au chapitre visuel). Sortie : **liste ordonnée de panels**, chacun avec une **courte description** (lieu, scène, personnages, action). Cette liste définit la **succession de panels** qui **forme le chapitre visuel**. Chaque panel est une **structure** 800×H (blocs à remplir avec des images + bulles + effets à ajouter ensuite). |
+| **Estimation indicative** | Utiliser la **dimension panel 800×H** pour estimer le **nombre de panels** et la répartition du contenu (ex. une unité narrative ou une scène par panel, en fonction de la longueur du chapitre). |
+| **Suggestion de panels (IA)** | **Optionnel** : par **IA** (LLM : chapitre → liste de panels avec descriptions) et/ou **manuel** (l’utilisateur définit les panels dans la section Scénario ou dans l’Édition de l'œuvre). Stockage : colonne JSONB sur `scenario_chapters` ou table dédiée ; synchronisation avec les enregistrements `panels` du chapitre visuel (chaque panel = conteneur 800×H avec `layout.blocs` à remplir). |
 | **Import de la suggestion** | Lors de la création (ou de l’édition) d’un chapitre visuel lié à un chapitre texte : **appliquer le découpage** pour créer la **succession de panels** (enregistrements `panels` avec description / prompt par panel ou par bloc). Chaque panel démarre avec une structure vide (blocs à définir, pas encore d’images) ; l’utilisateur remplit les blocs, ajoute bulles et effets, puis lance la génération des images. |
 | **Contexte du chapitre dans le prompt** | Pour chaque panel, le **prompt de génération** doit inclure : **style + assets (du chapitre) + contexte du chapitre (lieu, scène, personnages) + description du panel**. Le contexte permet à l’IA d’image d’avoir lieu, scène et personnages cohérents. |
 
@@ -174,7 +174,7 @@ Référence : roadmap Phase 2 § 2.1, rapport § 3.2.
 
 **Statut** : livrée.
 
-**Objectif** : **Les images sont générées dans les blocs.** Deux modes prévus à terme : **Architecture** (ajout, position, dimensions des blocs) et **Édition** (prompt par bloc, éventuellement avec détection des assets). Par défaut **aucun bloc** ; l’utilisateur **ajoute des blocs par glisser-déposer** (bloc **500×500** déposé sur le panel), **déplace** les blocs par glisser-déposer, **édite** la largeur/hauteur de chaque bloc, renseigne un **prompt par bloc**, puis **génère l’image** par bloc. Visualisation **720×5000** avec fond quadrillé. Détail : `Edition_Panel_Blocs_Bulles.md`, `Edition_Panel_Deux_Modes.md`.
+**Objectif** : **Les images sont générées dans les blocs.** Implémentation actuelle : sous-menus d’édition (Personnalisation, Couleurs, Dialogue) avec actions structurelles de blocs conservées. Par défaut **aucun bloc** ; l’utilisateur **ajoute des blocs par glisser-déposer** (bloc **500×500** déposé sur le panel), **déplace** les blocs par glisser-déposer, **édite** la largeur/hauteur de chaque bloc, renseigne un **prompt par bloc**, puis **génère l’image** par bloc. Visualisation **800×H** avec fond quadrillé. Détail : `Edition_Panel_Blocs_Bulles.md`, `Edition_Panel_Deux_Modes.md`.
 
 | Livrable | Description |
 |----------|-------------|
@@ -183,12 +183,12 @@ Référence : roadmap Phase 2 § 2.1, rapport § 3.2.
 | **Déplacement par glisser-déposer** | Chaque bloc est déplaçable sur le canvas du panel ; la position (x, y) est mise à jour au dépôt. |
 | **Édition des dimensions** | Par bloc : **largeur** et **hauteur** éditables (champs + « Appliquer dimensions »). Bloc par défaut : 500×500. |
 | **Prompt et génération** | **Prompt** éditable par bloc (dans le panneau latéral) ; bouton « Générer » → image générée et affichée **dans le bloc**. **OBLIGATOIRE** : l'image générée utilise les **dimensions du bloc concerné** (largeur × hauteur). Prompt = style + (optionnel contexte chapitre, à brancher) + prompt du bloc. |
-| **Visualisation panel 720×5000** | Fond quadrillé ; blocs délimités (bordure, ombre) ; scroll vertical si besoin. |
+| **Visualisation panel 800×H** | Fond quadrillé ; blocs délimités (bordure, ombre) ; scroll vertical si besoin. |
 | **Suppression** | Bouton « Supprimer » par bloc. |
 | **Contraintes** | Pas de génération « tout le chapitre » ni « tout le panel ». Régénération possible par bloc. |
 | **Bulles, effets, fond, texte** | Voir Étape 7 et `Edition_Panel_Deux_Modes.md`. |
 
-**Implémentation actuelle (détails livrés)** : **Vue unifiée** : pas de bascule Architecture | Édition ; canvas 720×5000 (fond quadrillé, marges 20 px L/R, 15 px haut/bas, scroll vertical) + **panneau latéral** par panel (description panel, liste des blocs avec prompt, dimensions, boutons Modifier/Enregistrer/Supprimer/Générer). Prévisualisation 500×500 pendant le glisser d'un nouveau bloc ; **placement par centre** (centre du bloc au point de dépôt) ; **suppression** : bouton au survol sur le bloc (canvas, ~25 % depuis le bas, centré) + bouton dans le panneau latéral ; **poignées de redimensionnement** (8 : 4 bordures 9 px, 4 coins 15 px), curseurs adaptés ; **génération par bloc** : Edge Function `generate-panel-image`, dimensions du bloc envoyées, **contexte chapitre** envoyé (depuis `panels_outline[].context` ou description du panel), instruction « remplir tout le cadre », stockage `{user_id}/projects/{project_id}/panels/{panel_id}/blocks/{block_id}.png`. **Aperçu des mentions d'assets** dans le prompt du bloc : sous le champ prompt, affichage du texte avec surbrillance des assets (même composant que l'Aperçu scénario) et hover pour afficher l'asset.
+**Implémentation actuelle (détails livrés)** : **Vue unifiée immersive** : modale plein écran, canvas central 800×H (fond quadrillé, scroll vertical) + colonnes latérales (sous-menus à gauche, chapitre textuel à droite). Prévisualisation 500×500 pendant le glisser d'un nouveau bloc ; **placement par centre** (centre du bloc au point de dépôt) ; **suppression** : bouton au survol sur le bloc (canvas, ~25 % depuis le bas, centré) + bouton dans le panneau latéral ; **poignées de redimensionnement** (8 : 4 bordures 9 px, 4 coins 15 px), curseurs adaptés ; **génération par bloc** : Edge Function `generate-panel-image`, dimensions du bloc envoyées, **contexte chapitre** envoyé (depuis `panels_outline[].context` ou description du panel), instruction « remplir tout le cadre », stockage `{user_id}/projects/{project_id}/panels/{panel_id}/blocks/{block_id}.png`. **Aperçu des mentions d'assets** dans le prompt du bloc : sous le champ prompt, affichage du texte avec surbrillance des assets (même composant que l'Aperçu scénario) et hover pour afficher l'asset.
 
 ---
 
@@ -218,7 +218,7 @@ Référence : roadmap Phase 2 § 2.1, rapport § 3.2.
 | **Bibliothèque d'effets** | **Mode Édition.** **Bibliothèque d'éléments visuels** pour enrichir le panel et donner de la profondeur, douceur, émotion et vivant à l'œuvre. Effets organisés par catégories : **profondeur** (ombres portées, lumières directionnelles, atmosphère), **douceur** (flou artistique, transitions douces, brume), **émotion** (météo, ambiances colorées, filtres), **vivant** (lignes de mouvement, particules, dynamisme). Choix dans la bibliothèque et application sur le panel. Positions, types, styles, intensité en JSONB (ex. `panels.effects`). |
 | **Effets de transition** | **Ajout côté client** (hors des images, overlay). Effets entre panels ou à l’intérieur d’un panel (fondu, coupure, etc.). Positions, types, styles en JSONB par panel. |
 | **Lignes de mouvement** | **Ajout côté client** (hors des images, overlay). Lignes dynamiques (tension, intensité), lignes de vitesse, lignes d’impact, effets de vitesse. Positions, styles, types stockés en JSONB par panel (ex. `panels.motion_lines` ou `panels.effects`). Évolution possible : demander certaines lignes d’impact **dans le prompt d’image** (intégré). |
-| **Rendu final du panel** | Composition : image(s) des blocs + overlay (bulles + effets + texte libre) + fond (couleur personnalisée via Menu Couleur). Dimensions panel 720×5000 respectées. |
+| **Rendu final du panel** | Composition : image(s) des blocs + overlay (bulles + effets + texte libre) + fond (couleur personnalisée via Menu Couleur). Dimensions panel 800×H respectées. |
 | **Lecteur webtoon** | Vue lecture : défilement vertical, succession de panels ; navigation entre chapitres (précédent / suivant). |
 
 ---
@@ -228,10 +228,10 @@ Référence : roadmap Phase 2 § 2.1, rapport § 3.2.
 | Ordre | Étape | Résumé | Statut |
 |-------|--------|--------|--------|
 | **1** | **Créer la section « Édition de l'œuvre »** | Onglet, liste chapitres visuels, écran d’édition chapitre (shell). Lien BDD `chapters` ↔ `scenario_chapters` si besoin. | ✅ Livrée |
-| 2 | Lien textuel ↔ visuel (double visualisation) | Chapitre texte à gauche (Aperçu = surbrillance assets + hover), panels à droite ; lien `linked_scenario_chapter_id`. Pas de panneau Assets dédié. | ✅ Livrée |
+| 2 | Lien textuel ↔ visuel (double visualisation) | Chapitre texte en colonne dédiée (Aperçu = surbrillance assets + hover), panels au centre ; lien `linked_scenario_chapter_id`. Pas de panneau Assets dédié. | ✅ Livrée |
 | 3 | **Liberté de création des panels + suggestion optionnelle** | L'utilisateur crée le nombre de panels qu'il souhaite (« Ajouter un panel ») ; scénario = référence. **Optionnel** : suggestion de panels (IA), import de la suggestion. Estimation indicative (non contraignante). Répartition N/N+1 = non implémentée. | ✅ Livrée |
 | 4 | Liaison suggestion ↔ Édition de l'œuvre | Suggestion depuis la section Scénario (ou IA) ; import vers chapitre visuel (création/mise à jour des panels). Base optionnelle. | ✅ Livrée |
-| 5 | **Édition blocs + génération par bloc** | **Vue unifiée** : canvas 720×5000 + panneau latéral (prompt/dimensions par bloc). Ajout, position, dimensions des blocs (glisser-déposer, poignées) ; prompt par bloc ; génération par bloc (dimensions = bloc). Détection assets dans le prompt = prévue Étape 6. Voir `Edition_Panel_Blocs_Bulles.md`, `Edition_Panel_Deux_Modes.md`. | ✅ Livrée |
+| 5 | **Édition blocs + génération par bloc** | **Vue unifiée immersive** : canvas 800×H + sous-menus latéraux. Ajout, position, dimensions des blocs (glisser-déposer, poignées) ; prompt par bloc ; génération par bloc (dimensions = bloc). Voir `Edition_Panel_Blocs_Bulles.md`, `Edition_Panel_Deux_Modes.md`. | ✅ Livrée |
 | 6 | Mode Structuré (blocs) | **Bibliothèque de blocs** à placer sur le panel (mode Architecture) ; images **générées à l'intérieur** de chaque bloc ; prompt + **sélection d'assets par bloc** (mode Édition). | ✅ Livrée |
 | 7 | **Mode Édition : blocs de couleurs, bulles, texte brut, effets, fond et lecture** | **Blocs de couleurs** (même principe que blocs architecture, remplir espaces entre blocs pour ambiance) ; **Menu Couleur** (fond global) ; **bulles** (dans le panel, police/taille) ; **texte brut sans bulle** (police, taille) ; **bibliothèque d'effets** ; rendu = blocs couleur + blocs image + overlay ; lecteur webtoon vertical. | 📋 À faire |
 
@@ -244,10 +244,10 @@ Tests de non-régression et critères d'acceptation par étape. À exécuter ou 
 | Étape | Tests / critères à valider |
 |-------|----------------------------|
 | **1** ✅ | **Non-régression** : ouverture onglet Édition de l'œuvre ; liste chapitres (vide ou non) ; création / réorganisation / suppression ; ouverture écran chapitre (shell). Numéro de chapitre = premier numéro libre après suppression. |
-| **2** ✅ | Affichage chapitre texte à gauche, panels à droite ; Aperçu = surbrillance assets + hover fond opaque (même rendu que Scénario) ; lien `linked_scenario_chapter_id` (sélecteur si non lié, option « Aucun ») ; changement de chapitre → confirmation → enregistrement du lien (persistant) ; libellé select sans « ✓ suggéré » dans le trigger ; création chapitre avec suggestion par numéro, message si aucun chapitre textuel. |
+| **2** ✅ | Affichage chapitre texte en colonne dédiée ; Aperçu = surbrillance assets + hover fond opaque (même rendu que Scénario) ; lien `linked_scenario_chapter_id` (sélecteur si non lié, option « Aucun ») ; changement de chapitre → confirmation → enregistrement du lien (persistant) ; libellé select sans « ✓ suggéré » dans le trigger ; création chapitre avec suggestion par numéro, message si aucun chapitre textuel. |
 | **3** ✅ | Création libre des panels (« Ajouter un panel ») ; message liberté de création (scénario = référence). Suggestion de panels (IA) et import de la suggestion (optionnels). Estimation indicative. Répartition N/N+1 = hors périmètre livré. |
 | **4** ✅ | Suggestion déclenchable depuis Scénario (ou IA) ; import vers chapitre visuel (bouton « Importer la suggestion ») ; panels créés/mis à jour ; édition des descriptions possible. |
-| **5** ✅ | Visualisation panel 720×5000 ; édition des blocs (position, taille, prompt par bloc) ; génération par bloc (dimensions = bloc) ; pas de génération tout le panel/chapitre ; régénération par bloc. |
+| **5** ✅ | Visualisation panel 800×H ; édition des blocs (position, taille, prompt par bloc) ; génération par bloc (dimensions = bloc) ; pas de génération tout le panel/chapitre ; régénération par bloc. |
 | **6** ✅ | Bibliothèque de blocs (presets 500×500, 400×600, 720×400, etc.) ; placement sur panel par glisser-déposer ; description + **sélection d'assets par bloc** ; génération 1 image par bloc (avec noms des assets dans le prompt) ; double visualisation (Scénario + Assets pour ce bloc). |
 | **7** | Blocs de couleurs (remplir espaces entre blocs, ambiance) ; Menu Couleur (fond global) ; bulles (texte, police, taille) ; texte brut sans bulle (police, taille) ; effets de transition ; lignes de mouvement ; rendu final ; lecteur webtoon (défilement vertical, navigation chapitres). |
 
@@ -256,8 +256,8 @@ Tests de non-régression et critères d'acceptation par étape. À exécuter ou 
 ## 5. Références
 
 - **Roadmap** : `07_Roadmap_Produit.md` — Phase 2 (Panels & Dialogues)
-- **Édition panel (blocs + bulles)** : `Edition_Panel_Blocs_Bulles.md` — workflow, visualisation 720×5000, édition blocs, prompts par bloc, génération par bloc, bulles
-- **Deux modes (Architecture / Édition)** : `Edition_Panel_Deux_Modes.md` — mode Architecture (position, dimensions des blocs), mode Édition (prompt, bulles, effets, fond, texte). Implémentation actuelle = vue unifiée.
+- **Édition panel (blocs + bulles)** : `Edition_Panel_Blocs_Bulles.md` — workflow, visualisation 800×H, édition blocs, prompts par bloc, génération par bloc, bulles
+- **Sous-menus d’édition** : `Edition_Panel_Deux_Modes.md` — Personnalisation, Couleurs, Dialogue (vue immersive unifiée).
 - **Flux et règles** : `11_Rapport_Chapitres_Flux_Blocs_Scenario.md` — § 2 (flux Auto/Structuré), § 3.4 (double visualisation), § 3.5 (IA Panel)
 - **UX** : `UX.md` — § 3.2 (Édition de l’œuvre)
 - **Modèle de données** : `08_Modele_de_Donnees.md` — `chapters`, `panels`, `scenario_chapters`

@@ -2,7 +2,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import * as projectService from "@/services/projects";
-import type { ProjectUpdate } from "@/types";
+import type { Project, ProjectUpdate } from "@/types";
 
 /** Liste de tous les projets de l'utilisateur */
 export function useProjects() {
@@ -61,6 +61,9 @@ export function useUpdateProject() {
     mutationFn: ({ id, updates }: { id: string; updates: ProjectUpdate }) =>
       projectService.updateProject(id, updates),
     onSuccess: (_data, variables) => {
+      qc.setQueryData<Project | null>(["project", variables.id], (prev) =>
+        prev ? { ...prev, ...variables.updates } : prev
+      );
       qc.invalidateQueries({ queryKey: ["project", variables.id] });
       qc.invalidateQueries({ queryKey: ["projects"] });
     },

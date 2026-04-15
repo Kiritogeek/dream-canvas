@@ -56,12 +56,19 @@ export async function updateProject(
   id: string,
   updates: ProjectUpdate
 ): Promise<void> {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("projects")
     .update(updates)
-    .eq("id", id);
+    .eq("id", id)
+    .select("id")
+    .maybeSingle();
 
   if (error) throw error;
+  if (!data) {
+    throw new Error(
+      "Aucune ligne mise à jour (projet introuvable ou permissions insuffisantes)."
+    );
+  }
 }
 
 /** Supprime un projet */

@@ -74,7 +74,7 @@ export function useUpdateScenarioChapter() {
   return useMutation({
     mutationFn: ({
       id,
-      projectId,
+      projectId: _projectId,
       updates,
     }: {
       id: string;
@@ -96,7 +96,7 @@ export function useUpdateScenarioChapter() {
 export function useDeleteScenarioChapter() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, projectId }: { id: string; projectId: string }) =>
+    mutationFn: ({ id, projectId: _projectId }: { id: string; projectId: string }) =>
       scenarioService.deleteScenarioChapter(id),
     onSuccess: (_data, variables) => {
       qc.invalidateQueries({
@@ -111,7 +111,7 @@ export function useReorderScenarioChapters() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({
-      projectId,
+      projectId: _projectId,
       chapters,
     }: {
       projectId: string;

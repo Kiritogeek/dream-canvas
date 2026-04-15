@@ -31,18 +31,24 @@ export default function ProjectDetail() {
   const updateProject = useUpdateProject();
   const { plan: userPlan } = useUserPlan();
 
-  const [styleTemplate, setStyleTemplate] = useState("");
-  const [styleInitialized, setStyleInitialized] = useState(false);
+  /**
+   * Brouillon édité dans l'onglet Style. `undefined` = utiliser le template serveur du projet.
+   * Évite la course au1er rendu : un state initial "" puis un effet qui copiait la BDD
+   * écrasait la synchro du StyleManager (carrousel resté sur Manga alors que le texte
+   * envoyé à la génération était encore Webtoon).
+   */
+  const [styleDraft, setStyleDraft] = useState<string | undefined>(undefined);
 
-  // Initialiser le style template quand le projet est chargé
-  if (project && !styleInitialized) {
-    setStyleTemplate(project.style_template || "");
-    setStyleInitialized(true);
-  }
+  useEffect(() => {
+    setStyleDraft(undefined);
+  }, [project?.id]);
+
+  const styleTemplate =
+    styleDraft ?? project?.style_template ?? "";
 
   // Hook de génération d'images
   const { generatingAssetId, generatingView, canGenerate, generate } =
-    useAssetGeneration({ styleTemplate, project: project ?? null, userPlan });
+    useAssetGeneration({ project: project ?? null, userPlan });
 
   // Onglet actif (contrôlé) — initialiser depuis l'URL si ?tab=edition
   const [searchParams] = useSearchParams();
@@ -180,7 +186,8 @@ export default function ProjectDetail() {
             <StyleManager
               project={project}
               styleTemplate={styleTemplate}
-              onStyleTemplateChange={setStyleTemplate}
+              onStyleTemplateChange={setStyleDraft}
+              onStyleSaveSuccess={() => setStyleDraft(undefined)}
               userPlan={userPlan}
             />
           </TabsContent>

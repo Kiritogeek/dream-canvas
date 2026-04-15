@@ -87,12 +87,12 @@ Dans les deux cas, l'UI doit imposer ou fortement encourager cette sélection av
 
 ### 3.4 Interface d'édition des panels (Édition de l'œuvre)
 
-Lors de l'édition d'un chapitre visuel, l'utilisateur dispose d'**une aide visuelle** : le **chapitre texte** (scénario) affiché à gauche, avec la **même visualisation Aperçu** que dans la section Scénario.
+Lors de l'édition d'un chapitre visuel, l'utilisateur dispose d'**une aide visuelle** : le **chapitre texte** (scénario) affiché dans une colonne dédiée (dans l’éditeur panel immersif : colonne droite), avec la **même visualisation Aperçu** que dans la section Scénario.
 
 | Zone | Contenu | Objectif |
 |------|---------|----------|
 | **Gauche — Chapitre texte** | Texte du **chapitre de scénario** lié, affiché en **Aperçu** : surbrillance des assets (personnages, décors, objets) dans le texte ; **hover** pour afficher l'asset (image + infos). | Garder le contexte narratif ; voir directement dans le texte quels assets sont concernés, sans panneau Assets séparé. |
-| **Droite — Panels** | Liste et édition des panels du chapitre visuel. | Saisie des descriptions, génération, blocs, bulles. |
+| **Zone centrale — Panels** | Liste et édition des panels du chapitre visuel. | Saisie des descriptions, génération, blocs, bulles. |
 
 Il n'y a **pas de panneau « Assets » dédié** dans cet écran : les assets sont visibles **dans le texte** via l'Aperçu (détection + surbrillance + hover), comme dans la section Scénario (Chapitre → Aperçu). Un lien optionnel entre chapitre visuel et chapitre de scénario (`linked_scenario_chapter_id`) permet d'afficher le bon chapitre texte. Voir section 6 « Points à clarifier ».
 
@@ -103,7 +103,7 @@ Il n'y a **pas de panneau « Assets » dédié** dans cet écran : les assets so
 **Fonctionnement prévu** :
 
 1. **Où s’affiche le chapitre texte**
-   - Dans l’écran d’édition du chapitre visuel, le **chapitre texte** (scénario) s’affiche **à gauche** dans un panneau « Chapitre texte » (repliable). Le contenu est affiché en **Aperçu** : même rendu que dans la section Scénario (surlignage des assets, hover pour voir l’asset). **À droite** : les panels du chapitre visuel. Pas de panneau Assets séparé — les assets sont visibles dans le texte via l’Aperçu.
+   - Dans l’écran d’édition du chapitre visuel, le **chapitre texte** (scénario) s’affiche dans un panneau « Chapitre texte » dédié. Le contenu est affiché en **Aperçu** : même rendu que dans la section Scénario (surlignage des assets, hover pour voir l’asset). Les panels restent au centre. Pas de panneau Assets séparé — les assets sont visibles dans le texte via l’Aperçu.
 
 2. **Quel chapitre texte afficher**
    - **Si un lien existe** : au moment de créer ou d’éditer le **chapitre visuel**, l’utilisateur peut **associer** ce chapitre à un **chapitre de scénario** (ex. « Ce chapitre visuel adapte le chapitre de scénario #3 »). En BDD : un champ optionnel sur le chapitre visuel, ex. `linked_scenario_chapter_id` (FK vers la table des chapitres de scénario).
@@ -118,7 +118,7 @@ Il n'y a **pas de panneau « Assets » dédié** dans cet écran : les assets so
 
 4. **Résumé du flux**
    - Utilisateur **entre dans Édition de l’œuvre** → ouvre un **chapitre visuel** (liste des chapitres du webtoon).
-   - L’écran d’édition s’affiche avec **chapitre texte à gauche** (Aperçu : surlignage assets + hover) et **panels à droite**.
+   - L’écran d’édition s’affiche avec **panels au centre** et **chapitre texte dans une colonne dédiée** (Aperçu : surlignage assets + hover).
    - Le système charge et affiche le texte du chapitre de scénario **lié** (lien en BDD), sinon propose un **sélecteur** pour choisir un chapitre à afficher ; l’utilisateur peut **enregistrer** ce choix comme lien.
    - L’utilisateur **lit le texte** (avec les assets visibles dans l’Aperçu) tout en travaillant sur les panels ; il peut **replier** le panneau Chapitre texte pour gagner de la place.
 
@@ -136,7 +136,7 @@ Cette projection peut être implémentée progressivement : d’abord panneau Sc
 #### 3.4.3 Longueur chapitre texte vs panels — guidance, estimation, répartition
 
 - **Guidance** : si le découpage du chapitre textuel en panels est trop court ou trop long pour un chapitre webtoon, indiquer à l’utilisateur qu’il peut **retourner dans l’onglet Scénario** pour modifier le texte.
-- **Estimation du nombre de panels** : disponible **en section Scénario** (pour chaque chapitre texte) et **en Édition de l'œuvre** (chapitre visuel). Estime le nombre de panels à partir du contenu texte et 720×5000. **Uniquement indicatif et visuel** : l'utilisateur n'est pas tenu de respecter cette estimation ; il peut créer plus ou moins de panels (images) qu'estimé. Permet de pré-visualiser si la longueur convient.
+- **Estimation du nombre de panels** : disponible **en section Scénario** (pour chaque chapitre texte) et **en Édition de l'œuvre** (chapitre visuel). Estime le nombre de panels à partir du contenu texte et du format panel 800×H. **Uniquement indicatif et visuel** : l'utilisateur n'est pas tenu de respecter cette estimation ; il peut créer plus ou moins de panels (images) qu'estimé. Permet de pré-visualiser si la longueur convient.
 - **Répartition N / N+1** : sans perdre d’éléments. Prérequis : **chapitre actuel (N) et chapitre suivant (N+1)**. **Trop court** : prendre des éléments du chapitre textuel N+1 et les ajouter au N (proposition + acceptation/refus). **Trop long** : céder des éléments du N vers N+1 (même principe). Les éléments acceptés sont retirés d’un chapitre et ajoutés à l’autre.
 
 #### 3.4.4 Contrôle de la longueur — référence, nombre de panels cible, comparaison

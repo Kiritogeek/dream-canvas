@@ -53,11 +53,12 @@ DreamWeave résout ces problèmes en :
 
 ### 2. 🖌️ Système de style visuel
 
-**Description** : Définition d'un style visuel unique appliqué à toutes les générations d'un projet.
+**Description** : Définition d'un style visuel unique appliqué à toutes les générations d'un projet, via un système guidé.
 
 **Fonctionnalités** :
-- **Template de style texte** : Description textuelle du style (ambiance, couleurs, niveau de détail, type de traits)
-  - Exemple : "style webtoon sombre, ambiance urbaine nocturne, lumières néon, détails réalistes, palette violets / bleus"
+- **Style principal (preset)** : Sélection d'une famille visuelle (ex. Manga, Webtoon coréen, Manwha)
+- **Sous-style** : Déclinaison du preset (ex. Sobre, Violent, Dramatique, Lumineux)
+- **Template de style texte compatible** : Généré automatiquement à partir du preset + sous-style + précisions projet, puis stocké dans `style_template` (compatibilité Edge Functions conservée)
 - **Images de référence** : Upload de plusieurs images pour guider l'IA
   - Format portrait/webtoon recommandé
   - Gestion multi-images (ajout/suppression)
@@ -385,7 +386,7 @@ DreamWeave résout ces problèmes en :
 - **UI** : shadcn/ui + Tailwind CSS + Framer Motion
 - **Backend** : Supabase (PostgreSQL + Auth + Storage + Edge Functions)
 - **IA** : FAL.ai API (FLUX.1 Schnell / FLUX.2 Pro / FLUX.2 Pro Edit)
-- **Routing** : React Router DOM 7 (lazy loading)
+- **Routing** : React Router DOM 6 (lazy loading)
 - **State Management** : TanStack React Query 5
 - **Deployment** : Vercel / Netlify
 

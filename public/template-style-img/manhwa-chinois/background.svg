@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 640 360">
+  <rect width="640" height="360" fill="#111827"/>
+  <path d="M0 250 L120 140 L220 250 Z" fill="#991b1b"/>
+  <path d="M140 250 L300 110 L460 250 Z" fill="#7f1d1d"/>
+  <path d="M360 250 L500 150 L640 250 Z" fill="#b91c1c"/>
+  <rect x="0" y="250" width="640" height="110" fill="#1f2937"/>
+  <text x="24" y="330" fill="#ffffff" font-family="Arial, sans-serif" font-size="25">Manhwa Chinois " Decor</text>
+</svg>

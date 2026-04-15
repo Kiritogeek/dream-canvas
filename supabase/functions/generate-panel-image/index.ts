@@ -1,5 +1,6 @@
 // Edge Function: génération d'image par bloc de panel (Étape 5)
-// Body: panel_id, block_id, width, height, prompt, style_template?, style_image_urls?, context_chapter?
+// Body: panel_id, block_id, width, height, prompt, context_chapter?, block_asset_*
+// Style : uniquement `projects.style_template` en BDD (pas le corps de requête).
 // Stockage: {user_id}/projects/{project_id}/panels/{panel_id}/blocks/{block_id}.png
 // Secrets: FAL_API_KEY
 
@@ -8,16 +9,15 @@ declare const Deno: {
   env: { get: (key: string) => string | undefined };
 };
 
-const FAL_SCHNELL = "https://fal.run/fal-ai/flux/schnell";
 const FAL_TEXT_TO_IMAGE = "https://fal.run/fal-ai/flux-2-pro";
 const BUCKET = "dreamweave";
 const FAL_TIMEOUT_MS = 120_000;
 const MAX_DIMENSION = 1024; // FAL limite souvent à 1024
 
 function getCorsHeaders(): Record<string, string> {
-  const origin = Deno.env.get("ALLOWED_ORIGIN") || "*";
+  const origin = Deno.env.get("ALLOWED_ORIGIN")?.trim();
   return {
-    "Access-Control-Allow-Origin": origin,
+    ...(origin ? { "Access-Control-Allow-Origin": origin } : {}),
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   };
 }
@@ -29,6 +29,12 @@ function jsonResponse(body: object, status: number) {
   });
 }
 
+function isUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value
+  );
+}
+
 async function verifyUserFromToken(
   authHeader: string,
   supabaseUrl: string,
@@ -37,8 +43,10 @@ async function verifyUserFromToken(
   try {
     const token = authHeader.replace(/^Bearer\s+/i, "").trim();
     if (!token) return null;
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
+    const apiKey = anonKey?.trim() || serviceKey;
     const res = await fetch(`${supabaseUrl}/auth/v1/user`, {
-      headers: { Authorization: `Bearer ${token}`, apikey: serviceKey },
+      headers: { Authorization: `Bearer ${token}`, apikey: apiKey },
     });
     if (!res.ok) return null;
     const user = await res.json();
@@ -132,6 +140,17 @@ async function downloadAndUpload(
 }
 
 Deno.serve(async (req) => {
+  const allowedOrigin = Deno.env.get("ALLOWED_ORIGIN")?.trim();
+  if (!allowedOrigin) {
+    return jsonResponse(
+      {
+        error:
+          "ALLOWED_ORIGIN non configurée. Configurez ce secret pour autoriser les requêtes CORS.",
+      },
+      500
+    );
+  }
+
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: getCorsHeaders() });
   }
@@ -164,8 +183,6 @@ Deno.serve(async (req) => {
       width?: number;
       height?: number;
       prompt?: string;
-      style_template?: string;
-      style_image_urls?: string[];
       context_chapter?: string;
       block_asset_image_urls?: string[];
       block_asset_names?: string[];
@@ -176,17 +193,31 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "Body JSON invalide" }, 400);
     }
 
-    const { panel_id, block_id, width: w, height: h, prompt, style_template, context_chapter, block_asset_names } = body;
+    const {
+      panel_id,
+      block_id,
+      width: w,
+      height: h,
+      prompt,
+      context_chapter,
+      block_asset_names,
+    } = body;
     if (!panel_id || !block_id || !prompt?.trim()) {
       return jsonResponse({ error: "panel_id, block_id et prompt requis" }, 400);
     }
+    if (!isUuid(panel_id) || !isUuid(block_id)) {
+      return jsonResponse(
+        { error: "panel_id et block_id invalides (UUID attendus)" },
+        400
+      );
+    }
 
-    let width = typeof w === "number" && w > 0 ? Math.min(w, MAX_DIMENSION) : 500;
-    let height = typeof h === "number" && h > 0 ? Math.min(h, MAX_DIMENSION) : 500;
+    const width = typeof w === "number" && w > 0 ? Math.min(w, MAX_DIMENSION) : 500;
+    const height = typeof h === "number" && h > 0 ? Math.min(h, MAX_DIMENSION) : 500;
 
     // Vérifier que le panel appartient à l'utilisateur et récupérer chapter_id
     const panelRes = await fetch(
-      `${supabaseUrl}/rest/v1/panels?id=eq.${panel_id}&select=id,user_id,chapter_id`,
+      `${supabaseUrl}/rest/v1/panels?id=eq.${encodeURIComponent(panel_id)}&select=id,user_id,chapter_id`,
       {
         headers: {
           apikey: serviceKey,
@@ -206,7 +237,7 @@ Deno.serve(async (req) => {
 
     // Récupérer project_id pour le chemin de stockage
     const chapterRes = await fetch(
-      `${supabaseUrl}/rest/v1/chapters?id=eq.${panel.chapter_id}&select=project_id`,
+      `${supabaseUrl}/rest/v1/chapters?id=eq.${encodeURIComponent(panel.chapter_id)}&select=project_id`,
       {
         headers: {
           apikey: serviceKey,
@@ -224,10 +255,45 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "Projet introuvable" }, 404);
     }
 
+    const projectStyleRes = await fetch(
+      `${supabaseUrl}/rest/v1/projects?id=eq.${encodeURIComponent(projectId)}&select=user_id,style_template`,
+      {
+        headers: {
+          apikey: serviceKey,
+          Authorization: `Bearer ${serviceKey}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+    if (!projectStyleRes.ok) {
+      return jsonResponse({ error: "Erreur lecture projet" }, 502);
+    }
+    const projectRows = (await projectStyleRes.json()) as {
+      user_id: string;
+      style_template: string | null;
+    }[];
+    const projRow = projectRows?.[0];
+    if (!projRow || projRow.user_id !== userId) {
+      return jsonResponse({ error: "Projet introuvable ou accès refusé" }, 403);
+    }
+    const dbStyleText = (projRow.style_template ?? "").trim();
+    if (!dbStyleText) {
+      return jsonResponse(
+        {
+          error: "Style requis",
+          details:
+            "Enregistrez et sauvegardez un template de style texte sur le projet avant de générer une case (la génération de case s'appuie sur ce texte en base, pas sur le brouillon).",
+        },
+        400
+      );
+    }
+
+    const effectiveStyleTemplate = dbStyleText;
+
     // Construire le prompt : style + contexte chapitre + assets du bloc (noms) + instruction cadre + prompt bloc
     let fullPrompt = prompt.trim();
-    if (style_template?.trim()) {
-      fullPrompt = `Style à appliquer : ${style_template.trim()}\n\n${fullPrompt}`;
+    if (effectiveStyleTemplate) {
+      fullPrompt = `Style à appliquer : ${effectiveStyleTemplate}\n\n${fullPrompt}`;
     }
     if (context_chapter?.trim()) {
       fullPrompt = `Contexte de la scène : ${context_chapter.trim()}\n\n${fullPrompt}`;

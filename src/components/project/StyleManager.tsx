@@ -1,5 +1,13 @@
-import { useRef, useState } from "react";
-import { Palette, ImagePlus, Trash2, ArrowLeft } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  Palette,
+  ImagePlus,
+  Trash2,
+  ArrowLeft,
+  Sparkles,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -12,12 +20,22 @@ import { ImageWithFallback } from "@/components/ui/ImageWithFallback";
 import { useToast } from "@/hooks/use-toast";
 import { useUpdateProject } from "@/hooks/useProjects";
 import { uploadStyleImage } from "@/services/storage";
+import { getTemplateStyleImageUrl } from "@/services/styleTemplates";
+import {
+  extractStyleKeyFromTemplateText,
+  extractStylePrincipalFromTemplateText,
+  hasStyleSystemBlock,
+} from "@/lib/styleTemplateMeta";
+import { getReferencePromptsForStyle } from "@fn-shared/style-template-image-prompts.ts";
+import { cn } from "@/lib/utils";
 import type { Project, UserPlan } from "@/types";
 
 interface StyleManagerProps {
   project: Project;
   styleTemplate: string;
   onStyleTemplateChange: (value: string) => void;
+  /** Après sauvegarde réussie en BDD : réinitialiser le brouillon parent pour suivre le cache projet. */
+  onStyleSaveSuccess?: () => void;
   userPlan?: UserPlan;
 }
 
@@ -25,8 +43,88 @@ export function StyleManager({
   project,
   styleTemplate,
   onStyleTemplateChange,
+  onStyleSaveSuccess,
   userPlan = "free",
 }: StyleManagerProps) {
+  const STYLE_OPTIONS = [
+    {
+      key: "manga",
+      label: "Manga",
+      description:
+        "Manga papier classique : NOIR ET BLANC uniquement (encre, trames / screentone, gris). Pas de couleur, pas de rendu webtoon numerique lisse ni peinture full-color. Ligne claire, contrastes nets, lecture editoriale.",
+      images: {
+        character: getTemplateStyleImageUrl("manga", "character"),
+        background: getTemplateStyleImageUrl("manga", "background"),
+        scene: getTemplateStyleImageUrl("manga", "scene"),
+      },
+    },
+    {
+      key: "webtoon-coreen",
+      label: "Webtoon Coreen",
+      description:
+        "Palette coloree, rendu digital propre et verticalite pensee pour la lecture mobile. Tres efficace pour l'immersion.",
+      images: {
+        character: getTemplateStyleImageUrl("webtoon-coreen", "character"),
+        background: getTemplateStyleImageUrl("webtoon-coreen", "background"),
+        scene: getTemplateStyleImageUrl("webtoon-coreen", "scene"),
+      },
+    },
+    {
+      key: "manhwa-chinois",
+      label: "Manhwa Chinois",
+      description:
+        "Mise en scene epique, contrastes marques et rythme visuel fort. Parfait pour action, fantasy et narration intense.",
+      images: {
+        character: getTemplateStyleImageUrl("manhwa-chinois", "character"),
+        background: getTemplateStyleImageUrl("manhwa-chinois", "background"),
+        scene: getTemplateStyleImageUrl("manhwa-chinois", "scene"),
+      },
+    },
+  ] as const;
+
+  const STYLE_SYSTEM_HEADER = "STYLE_SYSTEM_V1";
+  const STYLE_SYSTEM_END = "/STYLE_SYSTEM_V1";
+
+  function applyTemplateFromString(template: string) {
+    const headerIndex = template.indexOf(STYLE_SYSTEM_HEADER);
+    const endIndex = template.indexOf(STYLE_SYSTEM_END);
+
+    if (headerIndex >= 0 && endIndex > headerIndex) {
+      const metadata = template.slice(headerIndex, endIndex);
+      const styleKey = metadata.match(/style_key:\s*(\S+)/)?.[1]?.trim();
+      const styleByKey = STYLE_OPTIONS.find((s) => s.key === styleKey);
+      if (styleByKey) {
+        setSelectedStyleKey(styleByKey.key);
+        setSelectedStyleIndex(
+          STYLE_OPTIONS.findIndex((s) => s.key === styleByKey.key)
+        );
+      } else {
+        const principal = metadata
+          .match(/style_principal:\s*(.+)/)?.[1]
+          ?.trim();
+        const fallback = STYLE_OPTIONS.find((s) => s.label === principal);
+        if (fallback) {
+          setSelectedStyleKey(fallback.key);
+          setSelectedStyleIndex(
+            STYLE_OPTIONS.findIndex((s) => s.key === fallback.key)
+          );
+        }
+      }
+
+      const afterMeta = template
+        .slice(endIndex + STYLE_SYSTEM_END.length)
+        .trimStart();
+      const extraNotesMatch = afterMeta.match(
+        /Contraintes additionnelles du projet:\s*([\s\S]*)$/i
+      );
+      if (extraNotesMatch?.[1]) {
+        setStyleNotes(extraNotesMatch[1].trim());
+      }
+    } else if (template.trim()) {
+      setStyleNotes(template.trim());
+    }
+  }
+
   const { toast } = useToast();
   const updateProject = useUpdateProject();
   const styleFileInputRef = useRef<HTMLInputElement>(null);
@@ -34,14 +132,101 @@ export function StyleManager({
   const [selectedStyleImage, setSelectedStyleImage] = useState<string | null>(
     null
   );
+  const [selectedStyleIndex, setSelectedStyleIndex] = useState(0);
+  const [selectedStyleKey, setSelectedStyleKey] = useState<string>(
+    STYLE_OPTIONS[0].key
+  );
+  const [styleNotes, setStyleNotes] = useState("");
+  const [styleInitialized, setStyleInitialized] = useState(false);
 
   const styleImageUrls = project.style_image_urls ?? [];
+  const selectedStyle =
+    STYLE_OPTIONS.find((style) => style.key === selectedStyleKey) ??
+    STYLE_OPTIONS[selectedStyleIndex] ??
+    STYLE_OPTIONS[0];
+
+  const generatedStyleTemplate = useMemo(() => {
+    const notes = styleNotes.trim();
+    const ref = getReferencePromptsForStyle(selectedStyle.key);
+    const base: string[] = [
+      `${STYLE_SYSTEM_HEADER}`,
+      `style_principal: ${selectedStyle.label}`,
+      `style_key: ${selectedStyle.key}`,
+      `description_style: ${selectedStyle.description}`,
+      "reference_visual_prompts_version: 1",
+      "style_source: carousel_template_prompts_identical_to_generate_style_template_images",
+      "full_bleed_required: true",
+      "forbidden_render_artifacts: white_margins, blank_borders, empty_padding, matte_frame, letterbox_bars",
+      `${STYLE_SYSTEM_END}`,
+      "",
+      "=== PROMPTS_REFERENCE (identiques a la generation FAL des visuels du carousel) ===",
+      "",
+      "--- reference_character ---",
+      ref?.character ?? "",
+      "",
+      "--- reference_background ---",
+      ref?.background ?? "",
+      "",
+      "--- reference_scene ---",
+      ref?.scene ?? "",
+      "",
+      "=== APPLICATION GENERALE (obligatoire pour tous les assets et tous les panels) ===",
+      "Produire le meme langage visuel, la meme finition et les memes codes esthetiques que si le prompt utilisateur etait combine avec le prompt de reference adapte au type de plan : personnage / buste -> reference_character ; decor / environnement sans personnages -> reference_background ; scene avec plusieurs personnages ou mise en scene narrative -> reference_scene.",
+      "Les trois blocs reference_* ci-dessus sont les prompts systeme (non modifiables par l'utilisateur) qui ont servi a generer les images d'exemple ; toute generation du projet doit rester dans cette famille de rendu.",
+      "Ne pas deriver vers un autre medium (ex. preset manga : pas de webtoon coreen colore numerique ; respecter N&B, encrage, trames / screentone, contraste editorial).",
+      "Full-bleed obligatoire : contenu visuel jusqu'aux quatre bords, sans marges blanches, bandes vides, letterbox ni cadre mat.",
+    ];
+    if (notes) {
+      base.push("");
+      base.push(`Contraintes additionnelles du projet: ${notes}`);
+    }
+    return base.join("\n");
+  }, [selectedStyle.description, selectedStyle.key, selectedStyle.label, styleNotes]);
+
+  useEffect(() => {
+    if (!styleInitialized) return;
+    onStyleTemplateChange(generatedStyleTemplate);
+  }, [generatedStyleTemplate, onStyleTemplateChange, styleInitialized]);
+
+  useEffect(() => {
+    if (styleInitialized) return;
+
+    applyTemplateFromString(styleTemplate ?? "");
+    setStyleInitialized(true);
+  }, [styleInitialized, styleTemplate]);
+
+  const selectStyleByIndex = (index: number) => {
+    const length = STYLE_OPTIONS.length;
+    const normalized = (index + length) % length;
+    const nextStyle = STYLE_OPTIONS[normalized];
+    setSelectedStyleIndex(normalized);
+    setSelectedStyleKey(nextStyle.key);
+  };
+
+  const savedKey = extractStyleKeyFromTemplateText(project.style_template);
+  const savedPrincipal = extractStylePrincipalFromTemplateText(
+    project.style_template
+  );
+  const savedStructured = hasStyleSystemBlock(project.style_template);
 
   const saveStyle = async () => {
+    if (import.meta.env.DEV) {
+      console.info("[DreamWeave][Style] Sauvegarde", {
+        projectId: project.id,
+        style_key: selectedStyle.key,
+        style_label: selectedStyle.label,
+      });
+    }
     updateProject.mutate(
-      { id: project.id, updates: { style_template: styleTemplate } },
+      { id: project.id, updates: { style_template: generatedStyleTemplate } },
       {
-        onSuccess: () => toast({ title: "Style sauvegardé !" }),
+        onSuccess: () => {
+          toast({
+            title: "Style sauvegarde !",
+            description: `${selectedStyle.label} — prompts de reference du carousel enregistres pour la generation.`,
+          });
+          onStyleSaveSuccess?.();
+        },
         onError: (err) =>
           toast({
             title: "Erreur",
@@ -63,7 +248,7 @@ export function StyleManager({
     if (!canAddMore) {
       toast({
         title: "Limite atteinte",
-        description: `Vous pouvez ajouter au maximum ${MAX_STYLE_IMAGES} images de référence.`,
+        description: `Vous pouvez ajouter au maximum ${MAX_STYLE_IMAGES} images de reference.`,
         variant: "destructive",
       });
       return;
@@ -82,7 +267,7 @@ export function StyleManager({
         id: project.id,
         updates: { style_image_urls: newUrls },
       });
-      toast({ title: "Image de référence ajoutée" });
+      toast({ title: "Image de reference ajoutee" });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Erreur";
       toast({ title: "Erreur", description: msg, variant: "destructive" });
@@ -108,47 +293,184 @@ export function StyleManager({
 
   return (
     <div className="space-y-3 sm:space-y-4">
-      {/* Template de style (texte) */}
       <div className="glass rounded-lg sm:rounded-xl p-4 sm:p-6 space-y-3 sm:space-y-4">
         <div className="flex items-center gap-2 mb-1 sm:mb-2">
           <Palette className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
           <h2 className="text-base sm:text-lg font-display font-semibold">
-            Template de style
+            Selection du style
           </h2>
         </div>
         <p className="text-xs sm:text-sm text-muted-foreground">
-          Définissez un style visuel texte qui sera appliqué à toutes vos
-          générations. Combinez-le avec des images pour un rendu encore plus
-          précis.
+          Choisissez un preset : les visuels d&apos;exemple et le texte enregistre en base
+          reprennent les memes prompts systeme (non editables), pour un rendu aligne avec le
+          carousel.
         </p>
-        <Textarea
-          value={styleTemplate}
-          onChange={(e) => onStyleTemplateChange(e.target.value)}
-          placeholder="Ex: style webtoon sombre, ambiance urbaine nocturne, lumières néon, détails réalistes, palette violets / bleus..."
-          rows={6}
-        />
+
+        <div className="relative rounded-2xl border border-border/70 bg-background/70 p-3 sm:p-4">
+          <div className="flex items-center justify-between gap-2 mb-4">
+            <button
+              type="button"
+              onClick={() => selectStyleByIndex(selectedStyleIndex - 1)}
+              className="h-8 w-8 rounded-full border border-border/70 bg-background/80 hover:bg-muted/60 flex items-center justify-center"
+              aria-label="Style precedent"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <div className="text-center">
+              <p className="text-sm font-semibold">{selectedStyle.label}</p>
+              <p className="text-xs text-muted-foreground">
+                Style {selectedStyleIndex + 1} / {STYLE_OPTIONS.length}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => selectStyleByIndex(selectedStyleIndex + 1)}
+              className="h-8 w-8 rounded-full border border-border/70 bg-background/80 hover:bg-muted/60 flex items-center justify-center"
+              aria-label="Style suivant"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+
+          <div className="rounded-2xl border border-primary/40 bg-primary/5 p-3 space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <div className="rounded-xl overflow-hidden border border-border/70 bg-black/20">
+                <div className="relative h-52 w-full overflow-hidden">
+                  <img
+                    src={selectedStyle.images.character}
+                    alt=""
+                    aria-hidden="true"
+                    className="absolute inset-0 h-full w-full scale-110 object-cover object-center opacity-35 blur-md"
+                  />
+                  <ImageWithFallback
+                    src={selectedStyle.images.character}
+                    alt={`${selectedStyle.label} - personnage`}
+                    className="relative z-10 h-52 w-full object-contain"
+                    fallbackClassName="h-52 w-full flex items-center justify-center bg-muted"
+                  />
+                </div>
+                <p className="px-2 py-1 text-[11px] text-muted-foreground">
+                  Personnage
+                </p>
+              </div>
+              <div className="rounded-xl overflow-hidden border border-border/70 bg-black/20">
+                <div className="relative h-52 w-full overflow-hidden">
+                  <img
+                    src={selectedStyle.images.background}
+                    alt=""
+                    aria-hidden="true"
+                    className="absolute inset-0 h-full w-full scale-110 object-cover object-center opacity-35 blur-md"
+                  />
+                  <ImageWithFallback
+                    src={selectedStyle.images.background}
+                    alt={`${selectedStyle.label} - decor`}
+                    className="relative z-10 h-52 w-full scale-110 object-cover object-center"
+                    fallbackClassName="h-52 w-full flex items-center justify-center bg-muted"
+                  />
+                </div>
+                <p className="px-2 py-1 text-[11px] text-muted-foreground">
+                  Decor
+                </p>
+              </div>
+              <div className="rounded-xl overflow-hidden border border-border/70 bg-black/20">
+                <div className="relative h-52 w-full overflow-hidden">
+                  <img
+                    src={selectedStyle.images.scene}
+                    alt=""
+                    aria-hidden="true"
+                    className="absolute inset-0 h-full w-full scale-110 object-cover object-center opacity-35 blur-md"
+                  />
+                  <ImageWithFallback
+                    src={selectedStyle.images.scene}
+                    alt={`${selectedStyle.label} - scene`}
+                    className="relative z-10 h-52 w-full object-contain"
+                    fallbackClassName="h-52 w-full flex items-center justify-center bg-muted"
+                  />
+                </div>
+                <p className="px-2 py-1 text-[11px] text-muted-foreground">
+                  Scene
+                </p>
+              </div>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              {selectedStyle.description}{" "}
+              <span className="block mt-1 text-xs">
+                A l&apos;enregistrement, le template copie les prompts anglais utilises pour ces
+                trois images.
+              </span>
+            </p>
+          </div>
+
+          <div className="flex items-center justify-center gap-1.5 pt-3">
+            {STYLE_OPTIONS.map((style, idx) => (
+              <button
+                key={style.key}
+                type="button"
+                onClick={() => selectStyleByIndex(idx)}
+                className={cn(
+                  "h-2 w-2 rounded-full transition-all",
+                  selectedStyleIndex === idx
+                    ? "w-5 bg-primary"
+                    : "bg-muted-foreground/40 hover:bg-muted-foreground/70"
+                )}
+                aria-label={`Aller au style ${style.label}`}
+              />
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-border bg-muted/20 p-3 space-y-2">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-primary" />
+            <p className="text-sm font-medium">Precisions du projet (optionnel)</p>
+          </div>
+          <Textarea
+            value={styleNotes}
+            onChange={(e) => setStyleNotes(e.target.value)}
+            placeholder="Ex: traits plus fins, visages anguleux, eclairage neon, ombres dures, profondeur cinematique..."
+            rows={4}
+          />
+        </div>
+
         <Button
           onClick={saveStyle}
           disabled={updateProject.isPending}
           className="gradient-primary text-primary-foreground"
         >
-          {updateProject.isPending
-            ? "Sauvegarde..."
-            : "Sauvegarder le style texte"}
+          {updateProject.isPending ? "Sauvegarde..." : "Sauvegarder le style"}
         </Button>
-        <p className="text-xs text-muted-foreground">
-          Astuce : décrivez le niveau de détail, l'ambiance, les couleurs et le
-          type de traits pour aider l'IA.
-        </p>
+
+        <div className="rounded-lg border border-border/80 bg-background/60 px-3 py-2 text-sm space-y-1">
+          <p className="font-medium text-foreground">Style enregistre sur le projet (serveur)</p>
+          {savedStructured && savedKey ? (
+            <p className="text-muted-foreground">
+              <span className="text-foreground font-medium">{savedPrincipal ?? savedKey}</span>
+              <span className="mx-1 text-muted-foreground">·</span>
+              <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{savedKey}</code>
+            </p>
+          ) : project.style_template?.trim() ? (
+            <p className="text-xs text-muted-foreground">Template present sans bloc STYLE_SYSTEM (ancien format).</p>
+          ) : (
+            <p className="text-xs text-amber-600 dark:text-amber-400">
+              Aucun style sauvegarde encore — enregistrez avant de generer des assets.
+            </p>
+          )}
+          {userPlan === "pro" &&
+            styleImageUrls.length > 0 &&
+            savedKey === "manga" && (
+              <p className="text-xs text-amber-700 dark:text-amber-300 pt-1">
+                Preset Manga : les images de reference colorees peuvent tirer le rendu vers du webtoon. Pour du noir et blanc pur, retirez-les ou utilisez des refs monochrome.
+              </p>
+            )}
+        </div>
       </div>
 
-      {/* Images de référence */}
       <div className="glass rounded-lg sm:rounded-xl p-4 sm:p-6 space-y-3 sm:space-y-4">
         <div className="flex items-center justify-between gap-2 mb-1 sm:mb-2">
           <div>
             <div className="flex items-center gap-2 mb-1">
               <h2 className="text-base sm:text-lg font-display font-semibold">
-                Images de référence
+                Images de reference
               </h2>
               {userPlan === "pro" && (
                 <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-medium">
@@ -163,8 +485,8 @@ export function StyleManager({
             </div>
             <p className="text-sm text-muted-foreground">
               {userPlan === "pro"
-                ? "2 images de référence pour la cohérence graphique de votre projet"
-                : "Les images de référence sont réservées au plan Pro. Le style texte sera utilisé pour vos générations."}
+                ? "2 images de reference pour renforcer la coherence visuelle du style selectionne"
+                : "Les images de reference sont reservees au plan Pro. Le style texte sera utilise pour vos generations."}
             </p>
           </div>
         </div>
@@ -181,7 +503,7 @@ export function StyleManager({
                   <div className="relative overflow-hidden rounded-2xl border border-border shadow-dream bg-muted/20">
                     <ImageWithFallback
                       src={url}
-                      alt="Image de référence de style"
+                      alt="Image de reference de style"
                       className="h-64 w-full object-cover transition-transform duration-300 group-hover:scale-105"
                       fallbackClassName="h-64 w-full flex items-center justify-center"
                     />
@@ -229,41 +551,30 @@ export function StyleManager({
               className="hidden"
               onChange={addStyleImage}
             />
-
-            <p className="text-xs text-muted-foreground">
-              Conseil : utilisez des visuels au format portrait ou webtoon pour
-              mieux prévisualiser le rendu final.
-            </p>
           </>
         ) : (
           <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-amber-500/30 bg-amber-500/5 py-8 px-4 text-center">
             <ImagePlus className="h-8 w-8 text-amber-500/50" />
             <p className="text-sm text-muted-foreground">
-              Passez au plan <span className="font-semibold text-amber-600 dark:text-amber-400">Pro</span> pour ajouter des images de référence et améliorer la cohérence graphique de vos générations.
+              Passez au plan <span className="font-semibold text-amber-600 dark:text-amber-400">Pro</span> pour ajouter des images de reference et ameliorer la coherence graphique de vos generations.
             </p>
           </div>
         )}
       </div>
 
-      <p className="text-xs text-muted-foreground text-right">
-        Au moins un champ (texte ou images de référence) est requis pour lancer
-        les générations.
-      </p>
-
-      {/* Dialog vue en grand */}
       <Dialog
         open={!!selectedStyleImage}
         onOpenChange={(open) => !open && setSelectedStyleImage(null)}
       >
         <DialogContent className="glass max-w-6xl p-0 overflow-hidden">
           <DialogHeader className="sr-only">
-            <DialogTitle>Image de référence de style</DialogTitle>
+            <DialogTitle>Image de reference de style</DialogTitle>
           </DialogHeader>
           {selectedStyleImage && (
             <div className="relative bg-muted/20">
               <img
                 src={selectedStyleImage}
-                alt="Image de référence de style - vue complète"
+                alt="Image de reference de style - vue complete"
                 className="w-full h-auto max-h-[85vh] object-contain"
               />
               <button

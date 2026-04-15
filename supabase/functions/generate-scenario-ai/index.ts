@@ -37,9 +37,9 @@ const GROQ_TIMEOUT_MS = 120_000;
 // ── CORS ──────────────────────────────────────────────────────
 
 function getCorsHeaders(): Record<string, string> {
-  const allowedOrigin = Deno.env.get("ALLOWED_ORIGIN") || "*";
+  const allowedOrigin = Deno.env.get("ALLOWED_ORIGIN")?.trim();
   return {
-    "Access-Control-Allow-Origin": allowedOrigin,
+    ...(allowedOrigin ? { "Access-Control-Allow-Origin": allowedOrigin } : {}),
     "Access-Control-Allow-Headers":
       "authorization, x-client-info, apikey, content-type",
   };
@@ -183,6 +183,17 @@ async function callGroq(
 // ═══════════════════════════════════════════════════════════════
 
 Deno.serve(async (req) => {
+  const allowedOrigin = Deno.env.get("ALLOWED_ORIGIN")?.trim();
+  if (!allowedOrigin) {
+    return jsonResponse(
+      {
+        error:
+          "ALLOWED_ORIGIN non configurée. Configurez ce secret pour autoriser les requêtes CORS.",
+      },
+      500
+    );
+  }
+
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: getCorsHeaders() });
   }

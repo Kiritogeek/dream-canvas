@@ -11,7 +11,7 @@ export default function Dashboard() {
   const { data: projects = [], isLoading } = useRecentProjects(6);
   const { data: projectCount = 0 } = useProjectCount();
   const { data: assetCount = 0 } = useAssetCount();
-  const { plan, usageInfo, limits } = useUserPlan();
+  const { plan, usageInfo, limits: _limits } = useUserPlan();
 
   const usagePercent = Math.min(
     100,

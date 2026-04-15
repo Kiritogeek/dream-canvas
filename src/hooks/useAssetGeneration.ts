@@ -2,25 +2,21 @@
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { extractStyleKeyFromTemplateText } from "@/lib/styleTemplateMeta";
 import { generateAssetImage } from "@/services/assets";
-import type { Asset, AssetType, CharacterView, Project, UserPlan } from "@/types";
+import type { Asset, CharacterView, Project, UserPlan } from "@/types";
 
 interface StyleInfo {
-  styleTemplate: string;
   project: Project | null;
   userPlan?: UserPlan;
 }
 
-/** Vérifie si un style (texte et/ou images) est défini. Retourne true si OK. */
+/** Vérifie si un style enregistré sur le projet (BDD) est défini. */
 function checkStyleDefined(
-  { styleTemplate, project }: StyleInfo,
+  { project }: StyleInfo,
   toast: ReturnType<typeof useToast>["toast"]
 ): { hasStyleText: boolean; hasStyleImages: boolean; currentStyleText: string } | null {
-  const currentStyleText = (
-    styleTemplate?.trim() ||
-    project?.style_template?.trim() ||
-    ""
-  ).trim();
+  const currentStyleText = (project?.style_template?.trim() ?? "").trim();
   const hasStyleText = currentStyleText.length > 0;
   const hasStyleImages =
     Array.isArray(project?.style_image_urls) &&
@@ -30,7 +26,7 @@ function checkStyleDefined(
     toast({
       title: "Style requis",
       description:
-        "Définissez un style dans l'onglet Style du projet (texte et/ou images de référence) avant de générer.",
+        "Enregistrez un style sur le projet (template et/ou images de référence) avant de générer — seul le style sauvegardé est utilisé.",
       variant: "destructive",
     });
     return null;
@@ -77,29 +73,38 @@ export function useAssetGeneration(styleInfo: StyleInfo) {
       setGeneratingAssetId(asset.id);
     }
 
-    const styleImageUrls =
-      styleInfo.project?.style_image_urls?.length
-        ? styleInfo.project.style_image_urls
-        : undefined;
-
     const isFree = styleInfo.userPlan === "free" || !styleInfo.userPlan;
     const modelLabel = isFree ? "Schnell (rapide)" : "FLUX.2 Pro (haute qualité)";
+    const presetKey = hasStyleText
+      ? extractStyleKeyFromTemplateText(currentStyleText)
+      : null;
+    if (import.meta.env.DEV) {
+      console.info("[DreamWeave][Generate asset]", {
+        assetId: asset.id,
+        style_key: presetKey,
+        style_text_chars: currentStyleText.length,
+        reference_images_on_project: styleInfo.project?.style_image_urls?.length ?? 0,
+      });
+    }
 
     toast({
       title: view ? "Génération de la vue…" : "Génération en cours…",
-      description: isFree
-        ? `Modèle : ${modelLabel}`
-        : styleImageUrls
-          ? `${modelLabel} — ${styleImageUrls.length} image${styleImageUrls.length > 1 ? "s" : ""} de référence`
-          : `Modèle : ${modelLabel}`,
+      description: [
+        isFree
+          ? `Modèle : ${modelLabel}`
+          : hasStyleImages
+            ? `${modelLabel} — ${styleInfo.project!.style_image_urls!.length} image${styleInfo.project!.style_image_urls!.length > 1 ? "s" : ""} de référence (projet)`
+            : `Modèle : ${modelLabel}`,
+        presetKey ? `Preset : ${presetKey}` : null,
+      ]
+        .filter(Boolean)
+        .join(" · "),
     });
 
     try {
       const result = await generateAssetImage({
         asset_id: asset.id,
         prompt: promptText,
-        style_template: hasStyleText ? currentStyleText : undefined,
-        style_image_urls: styleImageUrls,
         asset_type: asset.asset_type,
         image_view: view ?? "front",
       });

@@ -84,8 +84,6 @@ export interface UsageInfo {
 export interface GenerateAssetPayload {
   asset_id: string;
   prompt: string;
-  style_template?: string;
-  style_image_urls?: string[];
   asset_type?: AssetType;
   image_view?: ImageView;
 }

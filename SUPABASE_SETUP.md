@@ -151,7 +151,7 @@ Les personnages, décors et objets sont générés par l'IA via **FAL.ai** :
 1. Dans ton projet Supabase : **Project Settings** (engrenage) → **Edge Functions**.
 2. Section **Secrets** : ajoute les secrets suivants :
    - **`FAL_API_KEY`** : la clé copiée à l'étape 1.
-   - **`ALLOWED_ORIGIN`** (optionnel, production) : URL de ton domaine (ex. `https://dreamweave.app`) pour restreindre les CORS.
+   - **`ALLOWED_ORIGIN`** (**requis**) : URL exacte de ton front (ex. `http://localhost:8080` en dev, `https://dreamweave.app` en prod) pour restreindre les CORS.
 3. Enregistre.
 
 ### 3. Déployer l'Edge Function

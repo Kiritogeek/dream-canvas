@@ -1,6 +1,6 @@
 // Écran d'édition d'un chapitre visuel — double visualisation + panels (liberté de création)
 // Gauche : chapitre texte (scénario) avec Aperçu = surbrillance assets + hover. Droite : panels (l'utilisateur crée le nombre qu'il souhaite).
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -13,6 +13,8 @@ import {
   Loader2,
   Sparkles,
   Pencil,
+  Palette,
+  MessageCircle,
   X,
   Square,
   Trash2,
@@ -49,7 +51,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { ScenarioTextHighlighter, getDetectedAssets } from "@/components/project/ScenarioTextHighlighter";
 import { ImageWithFallback } from "@/components/ui/ImageWithFallback";
 import { useChapter, useUpdateChapter } from "@/hooks/useChapters";
@@ -91,6 +92,32 @@ import SpeechBubbleEditor from "@/components/project/SpeechBubbleEditor";
 
 const PANEL_WIDTH = 800;
 const SPEECH_BUBBLE_TAIL_H = 14;
+const PANEL_EDITOR_STEPS = [
+  {
+    value: "architecture",
+    label: "Architecture",
+    hint: "Structure du panel",
+    icon: LayoutPanelTop,
+  },
+  {
+    value: "personalisation",
+    label: "Personnalisation",
+    hint: "Blocs visuels",
+    icon: Pencil,
+  },
+  {
+    value: "couleurs",
+    label: "Couleurs",
+    hint: "Aplats et fonds",
+    icon: Palette,
+  },
+  {
+    value: "dialogue",
+    label: "Dialogue",
+    hint: "Bulles et texte",
+    icon: MessageCircle,
+  },
+] as const;
 
 /** ViewBox normalisé pour bulles avec queue (corps 0–100, queue 100–120). Redimensionnement propre. */
 const SPEECH_BUBBLE_VIEWBOX_WITH_TAIL = "0 0 100 120";
@@ -264,6 +291,8 @@ export default function ChapterDetail() {
   const [expandedPanelId, setExpandedPanelId] = useState<string | null>(null);
   /** Onglet du panneau gauche en modale : Architecture | Personalisation | Couleurs */
   const [panelEditorLeftTab, setPanelEditorLeftTab] = useState<"architecture" | "personalisation" | "couleurs" | "dialogue">("architecture");
+  /** Outil à droite dans la modale d'édition (suivi chapitre textuel). */
+  const [panelEditorRightTool, setPanelEditorRightTool] = useState<"chapter-text">("chapter-text");
   /** Bloc sélectionné dans la modale (mode Personalisation) pour afficher le panneau droit ou gauche */
   const [selectedBlockIdInModal, setSelectedBlockIdInModal] = useState<{ panelId: string; blockId: string } | null>(null);
   /** Bloc de couleur sélectionné (onglet Couleurs) pour éditer la couleur */
@@ -272,6 +301,21 @@ export default function ChapterDetail() {
   const [selectedSpeechBubbleIdInModal, setSelectedSpeechBubbleIdInModal] = useState<{ panelId: string; bubbleId: string } | null>(null);
   /** Panel dont l'éditeur de bulles avancé est ouvert (modale plein écran). */
   const [bubbleEditorPanelId, setBubbleEditorPanelId] = useState<string | null>(null);
+
+  // Réduit la duplication des resets d'état de l'éditeur panel.
+  const resetPanelEditorUiState = useCallback(() => {
+    setSelectedBlockIdInModal(null);
+    setSelectedColorBlockIdInModal(null);
+    setSelectedSpeechBubbleIdInModal(null);
+    setPanelHeightDraft(null);
+    setPanelEditorLeftTab("architecture");
+    setPanelEditorRightTool("chapter-text");
+  }, []);
+
+  const closePanelEditor = useCallback(() => {
+    setExpandedPanelId(null);
+    resetPanelEditorUiState();
+  }, [resetPanelEditorUiState]);
   /** Ref vers l’élément DOM du bloc de couleur en cours de déplacement (opacity pendant le drag) */
   const draggingColorBlockElRef = useRef<HTMLDivElement | null>(null);
   /** Ghost de drag pour blocs de couleur : un div par panel, position mis à jour en direct (comme blocs image) */
@@ -852,7 +896,9 @@ export default function ChapterDetail() {
             setDraggingBlock(null);
             setDragPreview(null);
             updatePanelMutation.mutate(movePayload, {
-              onSuccess: () => { moveDropHandledRef.current = false; queryClient.refetchQueries({ queryKey: panelsQueryKey }); },
+              onSuccess: () => {
+                moveDropHandledRef.current = false;
+              },
               onError: (err) => {
                 moveDropHandledRef.current = false;
                 setDraggingBlock(null);
@@ -1038,9 +1084,14 @@ export default function ChapterDetail() {
     const handleGenerateBlock = (block: PanelBlock) => {
       const promptToUse = (blockPromptDrafts[`${panel.id}-${block.id}`] ?? block.prompt ?? "").trim() || (panel.prompt ?? "").trim();
       if (!project) return;
-      const hasStyle = (project.style_template?.trim()?.length ?? 0) > 0 || (Array.isArray(project.style_image_urls) && project.style_image_urls.length > 0);
-      if (!hasStyle) {
-        toast({ title: "Style requis", description: "Définissez un style dans l'onglet Style du projet avant de générer.", variant: "destructive" });
+      const hasSavedStyleText = (project.style_template?.trim()?.length ?? 0) > 0;
+      if (!hasSavedStyleText) {
+        toast({
+          title: "Style requis",
+          description:
+            "Enregistrez un template de style texte sur le projet — la génération de case lit uniquement ce contenu sauvegardé.",
+          variant: "destructive",
+        });
         return;
       }
       if (!promptToUse) {
@@ -1068,8 +1119,69 @@ export default function ChapterDetail() {
       );
     };
 
+    const handlePanelEditorTabChange = (nextTab: "architecture" | "personalisation" | "couleurs" | "dialogue") => {
+      setPanelEditorLeftTab(nextTab);
+      if (nextTab === "personalisation") {
+        setPanelEditModeByPanelId((prev) => ({ ...prev, [panel.id]: "edition" }));
+        setSelectedColorBlockIdInModal(null);
+        setSelectedSpeechBubbleIdInModal(null);
+      }
+      if (nextTab === "architecture") {
+        setPanelEditModeByPanelId((prev) => ({ ...prev, [panel.id]: "architecture" }));
+        setSelectedBlockIdInModal(null);
+        setSelectedColorBlockIdInModal(null);
+        setSelectedSpeechBubbleIdInModal(null);
+      }
+      if (nextTab === "couleurs") {
+        setPanelEditModeByPanelId((prev) => ({ ...prev, [panel.id]: "couleurs" }));
+        setSelectedBlockIdInModal(null);
+        setSelectedSpeechBubbleIdInModal(null);
+      }
+      if (nextTab === "dialogue") {
+        setPanelEditModeByPanelId((prev) => ({ ...prev, [panel.id]: "edition" }));
+        setSelectedBlockIdInModal(null);
+        setSelectedColorBlockIdInModal(null);
+      }
+    };
+
     return (
-      <div className="flex flex-1 min-h-0 overflow-hidden rounded-b-lg" style={{ maxHeight: "calc(95vh - 80px)" }}>
+      <div className="flex flex-1 min-h-0 overflow-hidden bg-gradient-to-b from-background via-background to-muted/20">
+        {/* Menu d'édition : logo + sous-menu d'actions (UI type studio) */}
+        <aside className="w-[92px] shrink-0 border-r border-border/80 bg-muted/20 px-3 py-4 flex flex-col items-center gap-3">
+          <div className="w-full space-y-2">
+            {PANEL_EDITOR_STEPS.map((step) => {
+              const Icon = step.icon;
+              const active = panelEditorLeftTab === step.value;
+              return (
+                <button
+                  key={step.value}
+                  type="button"
+                  onClick={() => handlePanelEditorTabChange(step.value)}
+                  className={`w-full h-12 rounded-xl border flex items-center justify-center transition-all ${
+                    active
+                      ? "border-primary/70 bg-primary/15 text-primary shadow-sm"
+                      : "border-border/70 bg-background text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                  }`}
+                  title={`${step.label} — ${step.hint}`}
+                >
+                  <Icon className={`transition-all ${active ? "h-5 w-5" : "h-[18px] w-[18px]"}`} />
+                </button>
+              );
+            })}
+          </div>
+          <div className="mt-auto w-full">
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="w-full h-10"
+              onClick={() => setBubbleEditorPanelId(panel.id)}
+              title="Ouvrir l’éditeur de bulles avancé"
+            >
+              <MessageCircle className="h-4 w-4" />
+            </Button>
+          </div>
+        </aside>
         {/* Gauche : contenu selon l’onglet (Chapitre | Architecture | Personalisation) */}
         <aside className="w-[360px] shrink-0 flex flex-col border-r border-border bg-background overflow-y-auto">
           {panelEditorLeftTab === "architecture" && (
@@ -1201,7 +1313,7 @@ export default function ChapterDetail() {
                         })()}
                       </div>
                       {project && (
-                        <Button size="sm" variant="outline" className="w-full gap-1.5" disabled={(!(block.prompt?.trim()) && !(panel.prompt?.trim())) || (!(project.style_template?.trim()) && !(Array.isArray(project.style_image_urls) && project.style_image_urls.length > 0)) || isGenerating} onClick={() => handleGenerateBlock(block)}>
+                        <Button size="sm" variant="outline" className="w-full gap-1.5" disabled={(!(block.prompt?.trim()) && !(panel.prompt?.trim())) || !project.style_template?.trim() || isGenerating} onClick={() => handleGenerateBlock(block)}>
                           {isGenerating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}{block.image_url ? "Régénérer l'image" : "Générer l'image"}
                         </Button>
                       )}
@@ -1514,7 +1626,6 @@ export default function ChapterDetail() {
                         updatePanelMutation.mutate(
                           { id: data.panelId, updates: { color_blocks: next as unknown as Json } },
                           {
-                            onSuccess: () => queryClient.refetchQueries({ queryKey: panelsQueryKey }),
                             onError: (err) => {
                               if (previousPanels != null) queryClient.setQueryData(panelsQueryKey, previousPanels);
                               toast({ title: "Erreur", description: err.message, variant: "destructive" });
@@ -1686,7 +1797,9 @@ export default function ChapterDetail() {
                           const previousPanels = queryClient.getQueryData<Panel[]>(panelsQueryKey);
                           queryClient.setQueryData<Panel[]>(panelsQueryKey, (old) => (!old ? old : old.map((p) => (p.id === movePayload.id ? { ...p, layout: movePayload.updates.layout ?? p.layout } : p))));
                           updatePanelMutation.mutate(movePayload, {
-                            onSuccess: () => { moveDropHandledRef.current = false; queryClient.refetchQueries({ queryKey: panelsQueryKey }); },
+                            onSuccess: () => {
+                              moveDropHandledRef.current = false;
+                            },
                             onError: (err) => {
                               moveDropHandledRef.current = false;
                               if (previousPanels != null) queryClient.setQueryData(panelsQueryKey, previousPanels);
@@ -1863,7 +1976,6 @@ export default function ChapterDetail() {
                         updatePanelMutation.mutate(
                           { id: data.panelId, updates: { speech_bubbles: next as unknown as Json } },
                           {
-                            onSuccess: () => queryClient.refetchQueries({ queryKey: panelsQueryKey }),
                             onError: (err) => {
                               if (previousPanels != null) queryClient.setQueryData(panelsQueryKey, previousPanels);
                               toast({ title: "Erreur", description: err.message, variant: "destructive" });
@@ -1961,23 +2073,41 @@ export default function ChapterDetail() {
             </div>
           </div>
         </div>
-        {/* Droite : chapitre (scénario) affiché en permanence */}
+        {/* Droite : chapitre textuel (largeur fixe pour ne pas décaler le canvas) */}
         <aside className="w-[340px] shrink-0 flex flex-col border-l border-border bg-background overflow-y-auto">
-          <div className="p-4 space-y-2 flex-1 min-h-0 flex flex-col">
-            <span className="text-xs font-medium text-muted-foreground">Scénario</span>
-            {loadingScenario ? (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Chargement...
-              </div>
-            ) : scenarioChapter?.content ? (
-              <div className="rounded-md border border-border bg-muted/30 p-3 min-h-[80px] flex-1 overflow-y-auto">
-                <ScenarioTextHighlighter text={scenarioChapter.content} assets={assets} className="text-sm" />
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground italic py-2">Aucun chapitre scénario lié.</p>
-            )}
-          </div>
+          {panelEditorRightTool === "chapter-text" ? (
+            <div className="p-4 space-y-2 flex-1 min-h-0 flex flex-col">
+              <span className="text-xs font-medium text-muted-foreground">Scénario</span>
+              {loadingScenario ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Chargement...
+                </div>
+              ) : scenarioChapter?.content ? (
+                <div className="rounded-md border border-border bg-muted/30 p-3 min-h-[80px] flex-1 overflow-y-auto">
+                  <ScenarioTextHighlighter text={scenarioChapter.content} assets={assets} className="text-sm" />
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground italic py-2">Aucun chapitre scénario lié.</p>
+              )}
+            </div>
+          ) : (
+            <div className="p-4 flex-1 min-h-0 flex items-center justify-center">
+              <p className="text-xs text-muted-foreground/70 text-center">
+                Chapitre textuel masqué
+              </p>
+            </div>
+          )}
+        </aside>
+        <aside className="w-[76px] shrink-0 border-l border-border/80 bg-muted/20 px-2 py-4 flex flex-col items-center">
+          <button
+            type="button"
+            onClick={() => setPanelEditorRightTool("chapter-text")}
+            className="w-full h-12 rounded-xl border border-primary/70 bg-primary/15 text-primary shadow-sm flex items-center justify-center transition-all"
+            title="Chapitre textuel"
+          >
+            <BookOpen className="h-5 w-5 transition-all" />
+          </button>
         </aside>
       </div>
     );
@@ -2364,7 +2494,7 @@ export default function ChapterDetail() {
                 if (!panelToDeleteId) return;
                 deletePanelMutation.mutate(panelToDeleteId, {
                   onSuccess: () => {
-                    if (expandedPanelId === panelToDeleteId) setExpandedPanelId(null);
+                    if (expandedPanelId === panelToDeleteId) closePanelEditor();
                     setPanelToDeleteId(null);
                     toast({ title: "Panel supprimé" });
                   },
@@ -2383,66 +2513,25 @@ export default function ChapterDetail() {
       </AlertDialog>
 
       {/* Modale Edition : architecture et personnalisation du panel */}
-      <Dialog open={!!expandedPanelId} onOpenChange={(open) => { if (!open) { setExpandedPanelId(null); setSelectedBlockIdInModal(null); setSelectedColorBlockIdInModal(null); setPanelHeightDraft(null); setPanelEditorLeftTab("architecture"); } }}>
-        <DialogContent className="max-w-[95vw] w-full max-h-[95vh] overflow-hidden flex flex-col gap-0 p-0 bg-background border-border" aria-describedby={undefined}>
-          <DialogHeader className="px-6 pt-4 pb-0 border-b border-border bg-background shrink-0 space-y-4">
+      <Dialog
+        open={!!expandedPanelId}
+        onOpenChange={(open) => {
+          if (!open) closePanelEditor();
+        }}
+      >
+        <DialogContent
+          className="max-w-[100vw] w-[100vw] h-[100vh] max-h-[100vh] overflow-hidden flex flex-col gap-0 p-0 bg-background border-0 rounded-none shadow-none [&>button]:right-4 [&>button]:top-4 [&>button]:h-9 [&>button]:w-9 [&>button]:p-0 [&>button]:inline-flex [&>button]:items-center [&>button]:justify-center [&>button]:rounded-full [&>button]:border [&>button]:border-white/20 [&>button]:bg-black/55 [&>button]:text-white [&>button]:opacity-100 [&>button]:shadow-md [&>button]:backdrop-blur-sm [&>button]:transition-colors [&>button]:duration-150 [&>button[data-state=open]]:bg-black/55 [&>button[data-state=open]]:text-white [&>button:hover]:border-primary/80 [&>button:hover]:bg-primary/85 [&>button:hover]:text-primary-foreground [&>button]:focus-visible:ring-2 [&>button]:focus-visible:ring-white/70 [&>button]:focus-visible:ring-offset-0 [&>button_svg]:m-0 [&>button_svg]:h-4 [&>button_svg]:w-4"
+          aria-describedby={undefined}
+        >
+          <DialogHeader className="px-6 pt-4 pb-4 border-b border-border/60 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 shrink-0">
             <div className="flex items-center justify-between gap-4">
               <DialogTitle className="text-base font-medium">
                 Edition du panel {expandedPanelId ? `— Panel ${panels.find((p) => p.id === expandedPanelId)?.panel_number ?? ""}` : ""}
               </DialogTitle>
             </div>
-            <div className="flex flex-col gap-1.5 w-fit">
-              <span className="text-xs text-muted-foreground">Étapes de conception (gauche → droite)</span>
-              <ToggleGroup
-                type="single"
-                value={panelEditorLeftTab}
-                onValueChange={(v) => {
-                  if (!v) return;
-                setPanelEditorLeftTab(v as "architecture" | "personalisation" | "couleurs" | "dialogue");
-                if (v === "personalisation" && expandedPanelId) {
-                  setPanelEditModeByPanelId((prev) => ({ ...prev, [expandedPanelId]: "edition" }));
-                  setSelectedColorBlockIdInModal(null);
-                  setSelectedSpeechBubbleIdInModal(null);
-                }
-                if (v === "architecture" && expandedPanelId) {
-                  setPanelEditModeByPanelId((prev) => ({ ...prev, [expandedPanelId]: "architecture" }));
-                  setSelectedBlockIdInModal(null);
-                  setSelectedColorBlockIdInModal(null);
-                  setSelectedSpeechBubbleIdInModal(null);
-                }
-                if (v === "couleurs" && expandedPanelId) {
-                  setPanelEditModeByPanelId((prev) => ({ ...prev, [expandedPanelId]: "couleurs" }));
-                  setSelectedBlockIdInModal(null);
-                  setSelectedSpeechBubbleIdInModal(null);
-                }
-                if (v === "dialogue" && expandedPanelId) {
-                  setPanelEditModeByPanelId((prev) => ({ ...prev, [expandedPanelId]: "edition" }));
-                  setSelectedBlockIdInModal(null);
-                  setSelectedColorBlockIdInModal(null);
-                }
-              }}
-              variant="outline"
-              size="sm"
-              className="w-fit inline-flex rounded-xl border border-border/60 bg-muted/20 p-1 gap-1.5 [&>button]:px-3 [&>button]:min-w-0"
-              aria-label="Étapes de conception du panel"
-            >
-              <ToggleGroupItem value="architecture" className="rounded-lg shrink-0">Architecture</ToggleGroupItem>
-              <ToggleGroupItem value="personalisation" className="rounded-lg shrink-0">Personalisation</ToggleGroupItem>
-              <ToggleGroupItem value="couleurs" className="rounded-lg shrink-0">Couleurs</ToggleGroupItem>
-              <ToggleGroupItem value="dialogue" className="rounded-lg shrink-0">Dialogue</ToggleGroupItem>
-              </ToggleGroup>
-              {expandedPanelId && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="shrink-0"
-                  onClick={() => setBubbleEditorPanelId(expandedPanelId)}
-                >
-                  Éditeur de bulles
-                </Button>
-              )}
-            </div>
+            <p className="text-xs text-muted-foreground">
+              Navigation d’édition via le menu à gauche (logo + sous-menu).
+            </p>
           </DialogHeader>
           {expandedPanelId && (() => {
             const panel = panels.find((p) => p.id === expandedPanelId);
@@ -2462,6 +2551,8 @@ export default function ChapterDetail() {
             return (
               <SpeechBubbleEditor
                 initialBubbles={speechBubbles}
+                canvasWidth={PANEL_WIDTH}
+                canvasHeight={getPanelHeight(panel)}
                 onSave={(next) => {
                   updatePanelMutation.mutate(
                     { id: panel.id, updates: { speech_bubbles: next as unknown as Json } },

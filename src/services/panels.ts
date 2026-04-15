@@ -231,8 +231,6 @@ export async function generatePanelBlockImage(
       width: params.width,
       height: params.height,
       prompt: params.prompt,
-      style_template: params.project.style_template ?? undefined,
-      style_image_urls: params.project.style_image_urls ?? undefined,
       context_chapter: params.contextChapter ?? undefined,
       block_asset_image_urls: params.blockAssetImageUrls?.length ? params.blockAssetImageUrls : undefined,
       block_asset_names: params.blockAssetNames?.length ? params.blockAssetNames : undefined,

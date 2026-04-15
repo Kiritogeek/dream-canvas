@@ -22,22 +22,5 @@ export const supabase = createClient<Database>(
       flowType: "pkce",
       detectSessionInUrl: true,
     },
-    global: {
-      // Ignorer les erreurs de cookies Cloudflare (bénignes)
-      fetch: (url, options = {}) => {
-        return fetch(url, {
-          ...options,
-          credentials: 'omit', // Ne pas envoyer de cookies tiers
-        }).catch((error) => {
-          // Ignorer les erreurs de cookies Cloudflare
-          if (error.message?.includes('cookie') || error.message?.includes('__cf_bm')) {
-            console.warn('[Supabase] Cookie warning ignoré:', error.message);
-            // Réessayer sans credentials si nécessaire
-            return fetch(url, options);
-          }
-          throw error;
-        });
-      },
-    },
   }
 );

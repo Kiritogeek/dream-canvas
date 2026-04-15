@@ -43,3 +43,32 @@ npx supabase functions deploy generate-scenario-ai
 ```
 
 Après déploiement, vérifier dans le Dashboard que les secrets ci-dessus sont bien renseignés pour `generate-scenario-ai`.
+
+---
+
+## generate-style-template-images
+
+Genere les 9 images d'exemple de styles (manga, webtoon-coreen, manhwa-chinois x character/background/scene), puis les enregistre dans Storage:
+
+- `template-style-img/manga/*.png`
+- `template-style-img/webtoon-coreen/*.png`
+- `template-style-img/manhwa-chinois/*.png`
+
+**Secrets requis :**
+- `FAL_API_KEY`
+- `TEMPLATE_STYLE_ADMIN_TOKEN` (token d'administration pour proteger l'appel)
+
+**Deploiement :**
+
+```bash
+npx supabase functions deploy generate-style-template-images
+```
+
+**Invocation (une fois) :**
+
+```bash
+curl -X POST "https://<project-ref>.supabase.co/functions/v1/generate-style-template-images" ^
+  -H "Content-Type: application/json" ^
+  -H "x-template-admin-token: <TEMPLATE_STYLE_ADMIN_TOKEN>" ^
+  -d "{}"
+```

@@ -27,7 +27,7 @@ CADRAGE ET COMPOSITION :
   if (styleText) {
     prompt += `\n\nSTYLE ARTISTIQUE :
 ${styleText}
-Applique ce style à 100% : traits, ombrage, couleurs, proportions, rendu.`;
+Applique ce style à 100% : traits, ombrage, palette (monochrome N&B ou couleur selon le style imposé ci-dessus), proportions, rendu.`;
   }
 
   // Ajout des images de référence style

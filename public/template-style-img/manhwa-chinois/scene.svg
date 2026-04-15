@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 640 360">
+  <defs>
+    <linearGradient id="s" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1f2937"/>
+      <stop offset="100%" stop-color="#991b1b"/>
+    </linearGradient>
+  </defs>
+  <rect width="640" height="360" fill="url(#s)"/>
+  <circle cx="260" cy="200" r="34" fill="#f8fafc"/>
+  <circle cx="390" cy="200" r="34" fill="#f8fafc"/>
+  <path d="M300 210 L350 210" stroke="#facc15" stroke-width="8" stroke-linecap="round"/>
+  <text x="24" y="330" fill="#ffffff" font-family="Arial, sans-serif" font-size="25">Manhwa Chinois " Scene</text>
+</svg>

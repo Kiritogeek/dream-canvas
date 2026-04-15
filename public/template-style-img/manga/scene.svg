@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 640 360">
+  <rect width="640" height="360" fill="#0b1020"/>
+  <circle cx="460" cy="90" r="40" fill="#f9fafb" opacity="0.85"/>
+  <path d="M70 260 L170 190 L250 260 Z" fill="#334155"/>
+  <path d="M220 260 L340 170 L470 260 Z" fill="#475569"/>
+  <path d="M420 260 L530 195 L610 260 Z" fill="#334155"/>
+  <rect x="0" y="260" width="640" height="100" fill="#111827"/>
+  <text x="24" y="330" fill="#f5f5f5" font-family="Arial, sans-serif" font-size="26">Manga " Scene</text>
+</svg>

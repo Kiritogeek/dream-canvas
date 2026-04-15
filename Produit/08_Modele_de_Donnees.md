@@ -181,7 +181,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 | `user_id` | `UUID` | NOT NULL, FK → profiles.id | Propriétaire |
 | `title` | `TEXT` | NOT NULL | Titre du projet |
 | `description` | `TEXT` | NULL | Description du projet |
-| `style_template` | `TEXT` | NULL | Template de style texte (prompt IA) |
+| `style_template` | `TEXT` | NULL | Template de style texte (prompt IA). Peut être généré depuis un système preset (style principal + sous-style + précisions) tout en restant une chaîne texte compatible. |
 | `style_image_urls` | `JSONB` | NULL | Liste d'URLs d'images de référence (array de strings) |
 | `cover_url` | `TEXT` | NULL | URL de l'image de couverture |
 | `panels_target_per_chapter` | `INTEGER` | NULL | Nombre cible de panels par chapitre (guidance longueur) |
@@ -198,6 +198,10 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
   "https://xxx.supabase.co/storage/v1/object/public/dreamweave/user_id/projects/project_id/style/ref2.png"
 ]
 ```
+
+**Note produit (compatibilité)** :
+- Le système de style peut évoluer côté UI (sélection de style principal + sous-style) **sans migration BDD**.
+- La sortie persistée reste `style_template` (texte), pour ne pas impacter les appels existants des Edge Functions.
 
 **RLS** :
 - SELECT : `auth.uid() = user_id`

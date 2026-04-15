@@ -10,7 +10,7 @@ export const buildBackgroundPrompt = (
   styleText?: string,
   styleImageUrls?: string[]
 ) => {
-  let prompt = `Crée un décor pour webtoon/manhwa.
+  let prompt = `Crée un décor illustré (manga, webtoon ou manhua selon le STYLE ARTISTIQUE ci-dessous).
 
 DESCRIPTION DU DÉCOR :
 ${userDescription}
@@ -28,7 +28,7 @@ CADRAGE ET COMPOSITION :
   if (styleText) {
     prompt += `\n\nSTYLE ARTISTIQUE :
 ${styleText}
-Applique ce style à 100% : traits, ombrage, couleurs, textures, rendu.`;
+Applique ce style à 100% : traits, ombrage, palette (N&B ou couleur selon le style imposé), textures, rendu.`;
   }
 
   // Ajout des images de référence style

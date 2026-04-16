@@ -50,6 +50,44 @@ ATTENTION :
   return prompt;
 };
 
+// Character sheet (1 seule image composite) : 2x2 vignettes (face + profils + dos)
+export const buildCharacterSheetPrompt = (
+  userDescription: string,
+  styleText?: string
+) => {
+  let prompt = `Crée une “character sheet” complète en PNG avec fond parfaitement transparent, au format carré ou paysage (jamais format webtoon vertical).
+
+DESCRIPTION DU PERSONNAGE :
+${userDescription}
+
+MISE EN PAGE (OBLIGATOIRE) :
+- Layout 2x2 : chaque vignette doit contenir UNE vue full body (tête aux pieds).
+- Vignette A (haut-gauche) : Vue de face (pose neutre, regard vers le spectateur).
+- Vignette B (haut-droite) : Profil gauche (angle profil gauche).
+- Vignette C (bas-gauche) : Profil droit (angle profil droit).
+- Vignette D (bas-droite) : Vue de dos.
+
+RÈGLE D’IDENTITÉ :
+- Toutes les vignettes doivent représenter EXACTEMENT le même personnage.
+- Garder le même design (visage, coiffure, couleurs, vêtements, accessoires).
+- Ne changer que l’angle de vue.
+
+RÈGLES DE RENDU :
+- Chaque vignette doit remplir sa zone sans marges ni bandes vides.
+- AUCUN texte, aucune bordure de sheet, aucun watermark.
+- Fond 100% transparent.
+- Très haute qualité de détails (yeux, cheveux, vêtements, contours).`;
+
+  if (styleText) {
+    prompt += `\n\nSTYLE ARTISTIQUE À APPLIQUER (OBLIGATOIRE) :
+${styleText}
+
+Applique ce style à 100% sur les 4 vignettes (traits, ombrage, palette, proportions, rendu, ambiance).`;
+  }
+
+  return prompt;
+};
+
 // ═══════════════════════════════════════════════════════════════
 // VUES ADDITIONNELLES (Profil, Dos)
 // ═══════════════════════════════════════════════════════════════

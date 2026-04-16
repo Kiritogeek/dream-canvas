@@ -23,6 +23,7 @@ export type Database = {
           image_url_back: string | null
           image_url_profile_left: string | null
           image_url_profile_right: string | null
+          image_url_sheet: string | null
           metadata: Json | null
           name: string
           project_id: string
@@ -37,6 +38,7 @@ export type Database = {
           image_url_back?: string | null
           image_url_profile_left?: string | null
           image_url_profile_right?: string | null
+          image_url_sheet?: string | null
           metadata?: Json | null
           name: string
           project_id: string
@@ -51,6 +53,7 @@ export type Database = {
           image_url_back?: string | null
           image_url_profile_left?: string | null
           image_url_profile_right?: string | null
+          image_url_sheet?: string | null
           metadata?: Json | null
           name?: string
           project_id?: string

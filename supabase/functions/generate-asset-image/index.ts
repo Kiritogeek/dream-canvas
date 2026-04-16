@@ -53,11 +53,16 @@ const TIER_LIMITS: Record<UserPlan, TierLimits> = {
 
 import {
   buildCharacterPrompt,
-  CHARACTER_BASE_PROMPT,
-  CHARACTER_VIEW_PROMPTS,
+  buildCharacterSheetPrompt,
 } from "./system-prompts/characters.ts";
-import { buildBackgroundPrompt } from "./system-prompts/backgrounds.ts";
-import { buildObjectPrompt } from "./system-prompts/objects.ts";
+import {
+  buildBackgroundPrompt,
+  buildBackgroundSheetPrompt,
+} from "./system-prompts/backgrounds.ts";
+import {
+  buildObjectPrompt,
+  buildObjectSheetPrompt,
+} from "./system-prompts/objects.ts";
 
 // CORS — Restreindre en production via ALLOWED_ORIGIN
 function getCorsHeaders(): Record<string, string> {
@@ -481,7 +486,6 @@ Deno.serve(async (req) => {
       asset_id?: string;
       prompt?: string;
       asset_type?: "character" | "background" | "object";
-      image_view?: "front" | "profile_left" | "profile_right" | "back";
     };
     try {
       body = (await req.json()) as typeof body;
@@ -489,7 +493,7 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "Body JSON invalide" }, 400);
     }
 
-    const { asset_id, prompt, asset_type, image_view } = body;
+    const { asset_id, prompt, asset_type } = body;
     if (!asset_id || !prompt?.trim()) {
       return jsonResponse({ error: "asset_id et prompt requis" }, 400);
     }
@@ -621,23 +625,11 @@ Deno.serve(async (req) => {
     let fullPrompt = "";
 
     if (type_ === "character") {
-      if (image_view && image_view !== "front") {
-        const basePrompt = CHARACTER_BASE_PROMPT;
-        const viewKey = image_view as keyof typeof CHARACTER_VIEW_PROMPTS;
-        const viewPrompt = CHARACTER_VIEW_PROMPTS[viewKey] || "";
-
-        fullPrompt = prompt.trim();
-        if (hasStyleText) {
-          fullPrompt += `\n\nSTYLE À APPLIQUER (OBLIGATOIRE) : ${userStyleText}`;
-        }
-        fullPrompt += `\n\n${basePrompt}\n\n${viewPrompt}`;
-      } else {
-        fullPrompt = buildCharacterPrompt(
-          prompt.trim(),
-          hasStyleText ? userStyleText : undefined,
-          undefined
-        );
-      }
+      fullPrompt = buildCharacterPrompt(
+        prompt.trim(),
+        hasStyleText ? userStyleText : undefined,
+        undefined
+      );
     } else if (type_ === "background") {
       fullPrompt = buildBackgroundPrompt(
         prompt.trim(),
@@ -661,29 +653,46 @@ Deno.serve(async (req) => {
         "Reproduis un rendu cohérent avec ces consignes. Crée un contenu 100% original.";
     }
 
+    const viewPrompt = fullPrompt;
+
+    // Prompt de la fiche composite (sheet) : sert de référence identitaire
+    // pour générer la vue demandée (face / profils / dos) de façon cohérente.
+    let sheetPrompt = "";
+    if (type_ === "character") {
+      sheetPrompt = buildCharacterSheetPrompt(
+        prompt.trim(),
+        hasStyleText ? userStyleText : undefined
+      );
+    } else if (type_ === "background") {
+      sheetPrompt = buildBackgroundSheetPrompt(
+        prompt.trim(),
+        hasStyleText ? userStyleText : undefined
+      );
+    } else if (type_ === "object") {
+      sheetPrompt = buildObjectSheetPrompt(
+        prompt.trim(),
+        hasStyleText ? userStyleText : undefined
+      );
+    } else {
+      sheetPrompt = prompt.trim();
+    }
+
+    if (hasStyleImages) {
+      sheetPrompt +=
+        "\n\nIMPORTANT : Les images de référence guident surtout trait, ombrage et matière. " +
+        "Reproduis un rendu cohérent avec ces consignes. Crée un contenu 100% original.";
+    }
+
     // ═══════════════════════════════════════════════════════════
     // 6. APPEL FAL.ai (sélection modèle selon tier)
     // ═══════════════════════════════════════════════════════════
 
-    const width = 1024;
+    const width = 1280;
     const height = 1024;
 
-    // Vérifier les restrictions du tier
-    if (
-      image_view &&
-      image_view !== "front" &&
-      !limits.allowMultipleViews
-    ) {
-      return jsonResponse(
-        {
-          error: "Fonctionnalité réservée au plan Pro",
-          details:
-            "Les vues multiples (profil, dos) ne sont disponibles qu'avec le plan Pro.",
-          upgrade_required: true,
-        },
-        403
-      );
-    }
+    // Les vues profil/dos ne sont plus générées séparément :
+    // la sheet multi-angles est la source unique.
+    const normalizedImageView = "front";
 
     if (hasStyleImages && !limits.allowReferenceImages) {
       // Free tier: ignorer les images de référence, utiliser Schnell text-only
@@ -692,47 +701,89 @@ Deno.serve(async (req) => {
       );
     }
 
-    let result: { url: string } | { error: string };
-    let modelUsed: string;
+    // 6a. Générer la fiche composite (sheet) et la stocker
+    const sheetStoragePath = `${asset.user_id}/assets/${asset_id}_sheet.png`;
 
+    let sheetResult: { url: string } | { error: string };
     if (userPlan === "free") {
-      // Free tier → FLUX.1 Schnell (text-to-image uniquement)
-      result = await generateSchnell(fullPrompt, falKey, width, height);
-      modelUsed = "schnell";
+      sheetResult = await generateSchnell(sheetPrompt, falKey, width, height);
     } else if (
       hasStyleImages &&
       style_image_urls &&
       style_image_urls.length > 0
     ) {
-      // Pro tier + images de référence → FLUX.2 Pro Edit
-      result = await generateWithReferences(
-        fullPrompt,
+      sheetResult = await generateWithReferences(
+        sheetPrompt,
         style_image_urls,
         falKey,
         width,
         height
       );
-      modelUsed = "flux-2-pro-edit";
     } else {
-      // Pro tier sans images → FLUX.2 Pro
-      result = await generateTextToImage(fullPrompt, falKey, width, height);
-      modelUsed = "flux-2-pro";
+      sheetResult = await generateTextToImage(sheetPrompt, falKey, width, height);
     }
 
-    if ("error" in result) {
+    if ("error" in sheetResult) {
       return jsonResponse(
-        { error: "Échec génération image", details: result.error },
+        { error: "Échec génération character sheet", details: sheetResult.error },
         502
       );
     }
 
-    // 7. Télécharger et uploader dans Storage
-    const pathSuffix =
-      image_view && image_view !== "front" ? `_${image_view}` : "";
+    const sheetPublicUrl = await downloadAndUploadToStorage(
+      sheetResult.url,
+      sheetStoragePath,
+      supabaseUrl,
+      serviceKey
+    );
+
+    if (!sheetPublicUrl) {
+      return jsonResponse(
+        {
+          error:
+            "Character sheet générée par FAL.ai mais échec du transfert vers Storage",
+        },
+        502
+      );
+    }
+
+    // 6b. Générer la vue demandée à partir de la sheet (cohérence identitaire)
+    const pathSuffix = "";
     const storagePath = `${asset.user_id}/assets/${asset_id}${pathSuffix}.png`;
 
+    let viewResult: { url: string } | { error: string };
+    let modelUsed: string;
+
+    if (userPlan === "free") {
+      viewResult = await generateSchnell(viewPrompt, falKey, width, height);
+      modelUsed = "schnell";
+    } else {
+      const sheetIdentityInstruction =
+        type_ === "character"
+          ? "RÉFÉRENCE (character sheet) : utilise la fiche fournie dans image_urls pour conserver EXACTEMENT l'identité (visage, coiffure, vêtements, couleurs). Sortie : vue principale propre de l'asset, sans grille, sans autres vignettes de la sheet."
+          : "RÉFÉRENCE : utilise l'image de fiche fournie dans image_urls comme référence identitaire (forme, style, lumière). Sortie : image principale correspondant à l'asset demandé, sans artefacts de grille/fiche.";
+
+      const viewPromptWithSheet = `${viewPrompt}\n\n${sheetIdentityInstruction}`;
+
+      viewResult = await generateWithReferences(
+        viewPromptWithSheet,
+        [sheetPublicUrl],
+        falKey,
+        width,
+        height
+      );
+      modelUsed = "flux-2-pro-edit";
+    }
+
+    if ("error" in viewResult) {
+      return jsonResponse(
+        { error: "Échec génération vue à partir de la sheet", details: viewResult.error },
+        502
+      );
+    }
+
     const publicUrl = await downloadAndUploadToStorage(
-      result.url,
+      viewResult.url,
       storagePath,
       supabaseUrl,
       serviceKey
@@ -742,21 +793,14 @@ Deno.serve(async (req) => {
       return jsonResponse(
         {
           error:
-            "Image générée par FAL.ai mais échec du transfert vers Storage",
+            "Vue générée par FAL.ai mais échec du transfert vers Storage",
         },
         502
       );
     }
 
     // 8. Mise à jour BDD
-    const updateField =
-      image_view === "profile_left"
-        ? "image_url_profile_left"
-        : image_view === "profile_right"
-          ? "image_url_profile_right"
-          : image_view === "back"
-            ? "image_url_back"
-            : "image_url";
+    const updateField = "image_url";
 
     const updateRes = await fetch(
       `${supabaseUrl}/rest/v1/assets?id=eq.${encodeURIComponent(asset_id)}`,
@@ -768,7 +812,10 @@ Deno.serve(async (req) => {
           "Content-Type": "application/json",
           Prefer: "return=minimal",
         },
-        body: JSON.stringify({ [updateField]: publicUrl }),
+        body: JSON.stringify({
+          image_url_sheet: sheetPublicUrl,
+          [updateField]: publicUrl,
+        }),
       }
     );
 
@@ -805,7 +852,8 @@ Deno.serve(async (req) => {
     return jsonResponse(
       {
         image_url: publicUrl,
-        image_view: image_view ?? "front",
+        image_url_sheet: sheetPublicUrl,
+        image_view: normalizedImageView,
         update_field: updateField,
         model: modelUsed,
         plan: userPlan,

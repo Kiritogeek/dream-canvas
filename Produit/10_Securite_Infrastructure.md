@@ -206,8 +206,8 @@ panels           CRUD            CRUD        R           ✗
 | **Vérification JWT** | Vérifié via `supabase.auth.getUser()` (pas de décodage manuel) |
 | **Vérification ownership** | L'asset doit appartenir à l'utilisateur (query BDD) |
 | **Vérification quota** | Comptage usage mensuel vs. limite du plan (HTTP 429 si dépassé) |
-| **Validation des entrées** | Vérification de `asset_id`, `prompt`, `asset_type`, `style_image_urls.length ≤ 2` |
-| **Sélection de modèle** | Selon le plan : Free → Schnell, Pro → FLUX.2 Pro / Pro Edit |
+| **Validation des entrées** | Vérification de `asset_id`, `prompt`, `asset_type`, et `style_image_urls.length ≤ 2` (lus depuis `projects`, si présents) |
+| **Sélection de modèle** | Selon le plan : Free → Schnell (fallback), Pro → FLUX.2 Pro Edit pour dériver les vues depuis `assets.image_url_sheet` |
 | **Limitation de prompt** | Prompt tronqué à ~1900 caractères |
 | **CORS** | Headers CORS dynamiques (`ALLOWED_ORIGIN` ou `*` en dev) |
 | **Clé API serveur** | `FAL_API_KEY` lue depuis les Secrets |
@@ -215,7 +215,17 @@ panels           CRUD            CRUD        R           ✗
 | **Retry** | `fetchWithRetry(2 tentatives, backoff exponentiel)` |
 | **Enregistrement usage** | INSERT dans `usage` après chaque génération réussie |
 
-### 5.2 Configuration CORS
+### 5.2 `generate-panel-image`
+
+| Contrôle | Implémentation |
+|---------|-------------------|
+| **Vérification JWT** | Vérifié (via Supabase Auth) |
+| **Vérification ownership** | Le panel doit appartenir à l'utilisateur (table `panels`) |
+| **Utilisation des références images** | Pro uniquement : `block_asset_image_urls` sont passées à FAL `flux-2-pro/edit` (cohérence via sheets) ; Free → fallback text-to-image (les `block_asset_image_urls` sont ignorées) |
+| **Limitation de références** | Slice côté serveur (réduction du volume d’entrées) pour éviter des prompts trop longs |
+| **Limitation de prompt** | Instruction serveur pour remplir tout le cadre et respecter la taille px |
+
+### 5.3 Configuration CORS
 
 ```typescript
 const corsHeaders = {

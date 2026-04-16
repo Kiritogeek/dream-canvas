@@ -390,11 +390,6 @@ Authorization: Bearer {JWT_TOKEN}
 {
   "asset_id": "uuid",
   "prompt": "Jeune femme de 20 ans, cheveux violets longs, yeux dorés, tenue d'aventurière",
-  "style_template": "style webtoon sombre, ambiance urbaine nocturne, lumières néon, détails réalistes",
-  "style_image_urls": [
-    "https://xxx.supabase.co/storage/v1/object/public/dreamweave/.../ref1.png",
-    "https://xxx.supabase.co/storage/v1/object/public/dreamweave/.../ref2.png"
-  ],
   "asset_type": "character",
   "image_view": "front"
 }
@@ -406,16 +401,18 @@ Authorization: Bearer {JWT_TOKEN}
 |-----------|------|--------|-------------|
 | `asset_id` | `string (UUID)` | Oui | ID de l'asset à mettre à jour |
 | `prompt` | `string` | Oui | Description de l'asset |
-| `style_template` | `string` | Non | Template de style texte du projet |
-| `style_image_urls` | `string[]` | Non | URLs des images de référence |
 | `asset_type` | `string` | Oui | `"character"`, `"background"`, ou `"object"` |
 | `image_view` | `string` | Non | Vue à générer : `"front"`, `"profile_left"`, `"profile_right"`, `"back"`. Défaut : `"front"` |
 
 **Réponse succès** (200) :
 ```json
 {
-  "success": true,
-  "image_url": "https://xxx.supabase.co/storage/v1/object/public/dreamweave/.../asset.png"
+  "image_url": "https://xxx.supabase.co/storage/v1/object/public/dreamweave/.../asset.png",
+  "image_url_sheet": "https://xxx.supabase.co/storage/v1/object/public/dreamweave/.../asset_sheet.png",
+  "image_view": "front",
+  "update_field": "image_url",
+  "model": "flux-2-pro-edit",
+  "plan": "pro"
 }
 ```
 
@@ -443,17 +440,18 @@ Authorization: Bearer {JWT_TOKEN}
 3. Vérifier que l'asset appartient à l'utilisateur
 4. Construire le prompt enrichi :
    a. Prompt système (selon asset_type)
-   b. + style_template (si fourni)
-   c. + style_image_urls (si fournies)
-   d. + instructions de vue (si image_view != "front")
-   e. + prompt utilisateur
-5. Appeler l'API FAL.ai :
-   - Modèle : black-forest-labs/flux-2-pro
-   - Résolution : 1024×1024
-   - Réponse : base64
-6. Décoder et uploader dans Storage
-7. Mettre à jour l'asset en BDD (image_url ou image_url_{view})
-8. Retourner l'URL publique
+   b. + style_template (lu depuis `projects`) et/ou style images (si disponibles)
+   c. + instructions de vue (si image_view != "front")
+   d. + prompt utilisateur
+5. Générer et stocker la sheet composite :
+   - `character` : 2x2 vignettes (face + profils + dos)
+   - `background` / `object` : 1 tuile
+   - champ BDD : `assets.image_url_sheet`
+6. Générer la vue demandée :
+   - Pro : édition à partir de `image_url_sheet` via FAL image edit
+   - Free : fallback text-to-image
+7. Mettre à jour l'asset en BDD (vue demandée + `image_url_sheet`)
+8. Retourner l'URL publique (image_url + image_url_sheet)
 ```
 
 ### 3.2 `generate-panel-image`
@@ -479,9 +477,12 @@ Authorization: Bearer {JWT_TOKEN}
   "width": 500,
   "height": 500,
   "prompt": "Vue large de la ville sous l'orage, Luna debout sur un toit...",
-  "style_template": "style webtoon sombre, lumières néon...",
-  "style_image_urls": ["https://..."],
-  "context_chapter": "Lieu : toit. Scène : nuit d'orage. Personnages : Luna."
+  "context_chapter": "Lieu : toit. Scène : nuit d'orage. Personnages : Luna.",
+  "block_asset_names": ["Luna", "Forêt magique"],
+  "block_asset_image_urls": [
+    "https://xxx.supabase.co/storage/v1/object/public/dreamweave/.../luna_sheet.png",
+    "https://xxx.supabase.co/storage/v1/object/public/dreamweave/.../foret_sheet.png"
+  ]
 }
 ```
 
@@ -494,8 +495,8 @@ Authorization: Bearer {JWT_TOKEN}
 | `width` | `number` | Oui | Largeur du bloc (px) ; plafonnée à 1024 côté serveur |
 | `height` | `number` | Oui | Hauteur du bloc (px) ; plafonnée à 1024 côté serveur |
 | `prompt` | `string` | Oui | Description de l'illustration pour ce bloc |
-| `style_template` | `string` | Non | Template de style du projet |
-| `style_image_urls` | `string[]` | Non | URLs des images de référence (non utilisées dans la version actuelle) |
+| `block_asset_names` | `string[]` | Non | Noms des assets du bloc (utilisés dans le prompt pour guider les éléments à inclure) |
+| `block_asset_image_urls` | `string[]` | Non | URLs des “sheets” d’assets. En plan Pro, utilisées comme `image_urls` dans FAL image edit pour conserver la cohérence identitaire. En Free, ignorées. |
 | `context_chapter` | `string` | Non | Contexte du chapitre (lieu, scène, personnages) pour cohérence visuelle. Envoyé par le frontend depuis le découpage (`panels_outline[].context`) ou la description du panel. |
 
 **Réponse succès** (200) :
@@ -517,8 +518,10 @@ Authorization: Bearer {JWT_TOKEN}
 1. Vérifier FAL_API_KEY et JWT
 2. Vérifier que le panel appartient à l'utilisateur (table `panels`)
 3. Récupérer `project_id` via le chapitre du panel (pour le chemin Storage)
-4. Construire le prompt : style + contexte chapitre + instruction « remplir tout le cadre » + prompt du bloc
-5. Appeler FAL.ai (FLUX.2 Pro) avec `image_size: { width, height }`
+4. Construire le prompt : template de style du projet (depuis `projects`) + contexte chapitre + noms des assets + instruction « remplir tout le cadre » + prompt du bloc
+5. Génération image :
+   - Pro + `block_asset_image_urls` fournis : FAL image edit avec `image_urls = block_asset_image_urls` (les sheets servent d'identité visuelle)
+   - Free : fallback text-to-image (les `block_asset_image_urls` sont ignorées)
 6. Télécharger l'image et l'uploader dans Storage : `{user_id}/projects/{project_id}/panels/{panel_id}/blocks/{block_id}.png`
 7. Retourner l'URL publique (le frontend met à jour `layout.blocks[].image_url`)
 

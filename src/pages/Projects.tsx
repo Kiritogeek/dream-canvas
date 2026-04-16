@@ -1,7 +1,7 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Plus, Trash2, Sparkles, Search } from "lucide-react";
+import { Plus, Trash2, Sparkles, Search, Dice5 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -30,6 +30,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 export default function Projects() {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
   const { data: projects = [], isLoading } = useProjects();
   const createProject = useCreateProject();
   const deleteProject = useDeleteProject();
@@ -39,6 +40,33 @@ export default function Projects() {
   const [description, setDescription] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+
+  const titleIdeas = [
+    "Les Brumes de Neon",
+    "Chroniques d'Ambre",
+    "Les Veilleurs du Rift",
+    "Mille Vies a Minuit",
+    "Le Serment des Cendres",
+  ];
+  const descriptionIdeas = [
+    "Dans une cite suspendue, une equipe improvisee traque des anomalies magiques avant qu'elles n'avalent la ville.",
+    "Une apprentie cartographe decode une carte vivante qui reecrit l'histoire a chaque lever de lune.",
+    "Trois heros lies par un artefact ancien affrontent un ordre secret entre fantasy medievale et SF.",
+    "Un studio de createurs entre dans ses propres recits et doit sauver ses personnages de l'oubli.",
+    "Un chapitre, une enigme, un retournement : chaque episode devoile une memoire perdue du monde.",
+  ];
+  const suggestedTags = [
+    "Fantasy",
+    "Médiéval",
+    "SF",
+    "Romance",
+    "Action",
+    "Mystère",
+    "Webtoon",
+    "Manga",
+    "Européen",
+  ];
 
   const deleteTargetProject = projects.find((p) => p.id === deleteTargetId);
 
@@ -54,13 +82,19 @@ export default function Projects() {
     e.preventDefault();
     if (!title.trim()) return;
 
+    const tagsPrefix = selectedTags.length
+      ? `[Tags: ${selectedTags.join(", ")}]\n`
+      : "";
+    const finalDescription = `${tagsPrefix}${description.trim()}`.trim();
+
     createProject.mutate(
-      { title: title.trim(), description: description.trim() || null },
+      { title: title.trim(), description: finalDescription || null },
       {
         onSuccess: (data) => {
           setOpen(false);
           setTitle("");
           setDescription("");
+          setSelectedTags([]);
           navigate(`/dashboard/projects/${data.id}`);
         },
         onError: (err) =>
@@ -72,6 +106,26 @@ export default function Projects() {
       }
     );
   };
+
+  const randomTitle = () => {
+    setTitle(titleIdeas[Math.floor(Math.random() * titleIdeas.length)]);
+  };
+
+  const randomDescription = () => {
+    setDescription(
+      descriptionIdeas[Math.floor(Math.random() * descriptionIdeas.length)]
+    );
+  };
+
+  const toggleTag = (tag: string) => {
+    setSelectedTags((prev) =>
+      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
+    );
+  };
+
+  useEffect(() => {
+    if (location.pathname.endsWith("/projects/new")) setOpen(true);
+  }, [location.pathname]);
 
   const handleDelete = async () => {
     if (!deleteTargetId) return;
@@ -113,21 +167,55 @@ export default function Projects() {
               <form onSubmit={handleCreate} className="space-y-4">
                 <div className="space-y-2">
                   <Label>Titre</Label>
-                  <Input
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    placeholder="Mon super webtoon"
-                    required
-                  />
+                  <div className="flex gap-2">
+                    <Input
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
+                      placeholder="Mon super webtoon"
+                      required
+                    />
+                    <Button type="button" variant="outline" onClick={randomTitle}>
+                      <Dice5 className="h-4 w-4 mr-1" />
+                      Dé
+                    </Button>
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <Label>Description</Label>
-                  <Textarea
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    placeholder="De quoi parle votre histoire ?"
-                    rows={3}
-                  />
+                  <div className="space-y-2">
+                    <Textarea
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      placeholder="De quoi parle votre histoire ?"
+                      rows={3}
+                    />
+                    <Button type="button" variant="outline" onClick={randomDescription}>
+                      <Dice5 className="h-4 w-4 mr-1" />
+                      Dé description
+                    </Button>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Tags du projet</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {suggestedTags.map((tag) => {
+                      const active = selectedTags.includes(tag);
+                      return (
+                        <button
+                          key={tag}
+                          type="button"
+                          onClick={() => toggleTag(tag)}
+                          className={`px-3 py-1.5 rounded-full border text-sm transition-colors ${
+                            active
+                              ? "border-primary bg-primary/15 text-foreground"
+                              : "border-border bg-background/40 text-foreground hover:bg-muted/60"
+                          }`}
+                        >
+                          {tag}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
                 <Button
                   type="submit"

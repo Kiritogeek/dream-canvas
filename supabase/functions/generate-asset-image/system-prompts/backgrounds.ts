@@ -10,7 +10,7 @@ export const buildBackgroundPrompt = (
   styleText?: string,
   styleImageUrls?: string[]
 ) => {
-  let prompt = `Crée un décor illustré (manga, webtoon ou manhua selon le STYLE ARTISTIQUE ci-dessous).
+  let prompt = `Crée un décor illustré (manga, manhwa ou manhua selon le STYLE ARTISTIQUE ci-dessous).
 
 DESCRIPTION DU DÉCOR :
 ${userDescription}
@@ -48,6 +48,39 @@ ATTENTION :
 ✓ Copie UNIQUEMENT le style graphique
 ✗ Ne copie JAMAIS les décors ou lieux spécifiques des références
 ✓ Crée un décor 100% original dans ce style`;
+  }
+
+  return prompt;
+};
+
+export const buildBackgroundSheetPrompt = (
+  userDescription: string,
+  styleText?: string
+) => {
+  let prompt = `Crée une sheet de décor en une seule image composite, format carré ou paysage (jamais format webtoon vertical).
+
+DESCRIPTION DU DÉCOR :
+${userDescription}
+
+MISE EN PAGE (OBLIGATOIRE) :
+- Layout 2x2 avec 4 vignettes différentes du MÊME décor (même lieu, même identité visuelle).
+- Vignette A : vue large d’ensemble.
+- Vignette B : angle latéral (camera shift) du même lieu.
+- Vignette C : variation de profondeur (avant-plan marqué) du même lieu.
+- Vignette D : variation d’élévation (plus bas ou plus haut) du même lieu.
+
+RÈGLES :
+- AUCUN personnage, AUCUNE créature.
+- AUCUN texte, AUCUN watermark.
+- Les 4 vignettes doivent remplir leurs zones sans bandes vides.
+- Cohérence stricte d’architecture, de palette et d’ambiance entre les 4 vues.
+- Qualité premium avec perspective lisible.`;
+
+  if (styleText) {
+    prompt += `\n\nSTYLE ARTISTIQUE À APPLIQUER (OBLIGATOIRE) :
+${styleText}
+
+Applique ce style à 100% sur les 4 vignettes (traits, ombrage, palette, textures, lumière, rendu).`;
   }
 
   return prompt;

@@ -76,30 +76,30 @@
     /* Fond plus contrasté mais chaud (teinte lavande douce, pas bleu froid) */
     --content-area: 275 18% 9%;
     --background: 275 20% 7%;
-    --foreground: 32 22% 96%;
+    --foreground: 0 0% 100%;
     --card: 275 16% 11%;
-    --card-foreground: 32 22% 96%;
+    --card-foreground: 0 0% 100%;
     --popover: 275 16% 11%;
-    --popover-foreground: 32 22% 96%;
+    --popover-foreground: 0 0% 100%;
     --primary: 275 52% 68%;
     --primary-foreground: 0 0% 100%;
     --secondary: 28 45% 28%;
-    --secondary-foreground: 32 22% 96%;
+    --secondary-foreground: 0 0% 100%;
     --muted: 275 14% 16%;
-    --muted-foreground: 275 12% 58%;
+    --muted-foreground: 0 0% 92%;
     --accent: 170 28% 32%;
-    --accent-foreground: 170 35% 92%;
+    --accent-foreground: 0 0% 96%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 100%;
     --border: 275 14% 22%;
     --input: 275 14% 22%;
     --ring: 275 52% 68%;
     --sidebar-background: 275 18% 8%;
-    --sidebar-foreground: 32 22% 92%;
+    --sidebar-foreground: 0 0% 96%;
     --sidebar-primary: 275 52% 68%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 275 14% 16%;
-    --sidebar-accent-foreground: 32 22% 92%;
+    --sidebar-accent-foreground: 0 0% 96%;
     --sidebar-border: 275 14% 22%;
     --sidebar-ring: 275 52% 68%;
     --lavender: 275 52% 68%;
@@ -119,6 +119,7 @@
       0 0 0 1px hsl(var(--lavender) / 0.12),
       0 4px 24px -4px hsl(var(--lavender) / 0.08),
       0 8px 32px -8px hsl(var(--peach) / 0.06);
+    font-size: 116%;
   }
 }
 
@@ -139,6 +140,17 @@
 }
 
 @layer utilities {
+  /* Lisibilite globale: rehausser les petits textes sur tout le site */
+  .text-xs {
+    font-size: 0.9rem;
+    line-height: 1.35rem;
+  }
+
+  .text-sm {
+    font-size: 1rem;
+    line-height: 1.5rem;
+  }
+
   .glass {
     background: hsl(var(--card) / var(--glass-bg-alpha, 0.7));
     -webkit-backdrop-filter: blur(24px);
@@ -203,25 +215,50 @@
   .stagger-6 { animation-delay: 0.3s; }
 }
 
-/* ===== Light mode: charte graphique — variété des surfaces ===== */
+/* ===== Light mode: aligné sur le rendu dark ===== */
 
-/* Glass : légère teinte lavande en light pour différencier des zones blanches */
+/* Fond avec dégradé doux (comme dark, mais version claire) */
+:root:not(.dark) body {
+  background: linear-gradient(
+    165deg,
+    hsl(var(--background)) 0%,
+    hsl(275 45% 95%) 45%,
+    hsl(28 62% 94%) 100%
+  );
+  background-attachment: fixed;
+}
+
+/* Glass en light: même logique que dark (bordure + glow subtil) */
 :root:not(.dark) .glass {
-  background: hsl(var(--lavender-soft) / 0.85);
-  border-color: hsl(var(--lavender) / 0.25);
+  background: hsl(var(--card) / 0.9);
+  border-color: hsl(var(--lavender) / 0.22);
+  box-shadow:
+    0 0 0 1px hsl(var(--lavender) / 0.1),
+    0 4px 24px -4px hsl(var(--lavender) / 0.1),
+    0 8px 40px -8px hsl(var(--peach) / 0.12);
 }
 
-/* Hover: subtle border emphasis */
+/* Hover: même pattern que dark */
 :root:not(.dark) .glass:hover {
-  border-color: hsl(var(--lavender) / 0.38);
+  border-color: hsl(var(--lavender) / 0.32);
+  box-shadow:
+    0 0 0 1px hsl(var(--lavender) / 0.18),
+    0 4px 24px -4px hsl(var(--lavender) / 0.14),
+    0 8px 40px -8px hsl(var(--peach) / 0.16);
 }
 
-/* Boost shadow-dream in light mode for better contrast */
+/* Cartes / boutons primaires: même structure de halo qu'en dark */
 :root:not(.dark) .shadow-dream,
 :root:not(.dark) .hover\:shadow-dream:hover {
   box-shadow:
-    0 4px 24px -4px hsl(var(--lavender) / 0.28),
-    0 10px 48px -8px hsl(var(--peach) / 0.22);
+    0 0 0 1px hsl(var(--lavender) / 0.14),
+    0 4px 20px -4px hsl(var(--lavender) / 0.18),
+    0 8px 36px -8px hsl(var(--peach) / 0.2);
+}
+
+/* Glow actif cohérent avec le mode dark */
+:root:not(.dark) .shadow-glow {
+  box-shadow: 0 0 24px hsl(var(--glow) / 0.28), 0 0 48px hsl(var(--lavender) / 0.14);
 }
 
 /* ===== Dark mode: contrasté, chaleureux, petites touches de folie ===== */
@@ -269,5 +306,32 @@
   /* Increase tap targets on touch devices */
   button, [role="button"], a {
     min-height: 36px;
+  }
+}
+
+@keyframes landingBgFade {
+  0% {
+    opacity: 0;
+  }
+  24% {
+    opacity: 0.62;
+  }
+  64% {
+    opacity: 0.62;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.landing-bg-card-fade {
+  animation: landingBgFade 10s linear infinite;
+  will-change: opacity;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-bg-card-fade {
+    animation: none;
+    opacity: 0.55;
   }
 }

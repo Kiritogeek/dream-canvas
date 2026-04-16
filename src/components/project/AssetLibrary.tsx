@@ -1,10 +1,9 @@
 import { useState, useEffect } from "react";
-import { Users, MapPin, Box, Plus, Save, RefreshCw } from "lucide-react";
+import { Users, MapPin, Box, Plus, Save, RefreshCw, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
   DialogContent,
@@ -36,6 +35,12 @@ const assetTabs: AssetTabConfig[] = [
   { type: "background", icon: MapPin, label: "Décors" },
   { type: "object", icon: Box, label: "Objets" },
 ];
+const assetFilters = [
+  { value: "all", label: "Tous" },
+  { value: "character", label: "Personnages" },
+  { value: "background", label: "Décors" },
+  { value: "object", label: "Objets" },
+] as const;
 
 interface AssetLibraryProps {
   projectId: string;
@@ -77,6 +82,8 @@ export function AssetLibrary({
   const [newAssetName, setNewAssetName] = useState("");
   const [newAssetPrompt, setNewAssetPrompt] = useState("");
   const [activeAssetTab, setActiveAssetTab] = useState<AssetType>("character");
+  const [activeFilter, setActiveFilter] = useState<(typeof assetFilters)[number]["value"]>("all");
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Ouvrir le dialog de création si un asset est demandé depuis le scénario
   useEffect(() => {
@@ -277,10 +284,16 @@ export function AssetLibrary({
   };
 
   const currentTabLabel = assetTabs.find((t) => t.type === activeAssetTab)?.label ?? "Assets";
-  const libraryTitle =
-    activeAssetTab === "object"
-      ? "Bibliothèque d'objets"
-      : `Bibliothèque de ${currentTabLabel.toLowerCase()}`;
+  const libraryTitle = "Bibliothèque d'assets";
+  const filteredAssets = assets.filter((asset) => {
+    const typeMatch = activeFilter === "all" ? true : asset.asset_type === activeFilter;
+    const textMatch = searchQuery.trim()
+      ? `${asset.name} ${asset.prompt ?? ""}`
+          .toLowerCase()
+          .includes(searchQuery.toLowerCase())
+      : true;
+    return typeMatch && textMatch;
+  });
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -291,6 +304,9 @@ export function AssetLibrary({
           </h2>
           <p className="text-xs text-muted-foreground mt-0.5">
             Utile surtout pour les éléments récurrents de votre scénario.
+          </p>
+          <p className="text-sm text-muted-foreground mt-1">
+            Astuce : recherchez un nom puis combinez avec les filtres.
           </p>
         </div>
         <Dialog open={assetDialogOpen} onOpenChange={setAssetDialogOpen}>
@@ -372,56 +388,66 @@ export function AssetLibrary({
         </Dialog>
       </div>
 
-      {/* Onglets par type */}
-      <Tabs
-        value={activeAssetTab}
-        onValueChange={(value) => setActiveAssetTab(value as AssetType)}
-      >
-        <TabsList className="glass w-full sm:w-auto">
-          {assetTabs.map((t) => (
-            <TabsTrigger key={t.type} value={t.type} className="flex-1 sm:flex-none text-xs sm:text-sm">
-              <t.icon className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> {t.label}
-            </TabsTrigger>
+      <div className="glass rounded-xl p-4 space-y-4">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Rechercher un asset par nom ou prompt..."
+            className="pl-10"
+          />
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {assetFilters.map((filter) => (
+            <button
+              key={filter.value}
+              type="button"
+              onClick={() => {
+                setActiveFilter(filter.value);
+                if (filter.value !== "all") setActiveAssetTab(filter.value as AssetType);
+              }}
+              className={`px-3 py-1.5 rounded-full border text-sm transition-colors ${
+                activeFilter === filter.value
+                  ? "border-primary bg-primary/15 text-foreground"
+                  : "border-border bg-background/40 text-foreground hover:bg-muted/60"
+              }`}
+            >
+              {filter.label}
+            </button>
           ))}
-        </TabsList>
+        </div>
+      </div>
 
-        {assetTabs.map((t) => {
-          const filtered = assets.filter((a) => a.asset_type === t.type);
-          return (
-            <TabsContent key={t.type} value={t.type}>
-              {filtered.length === 0 ? (
-                <div className="glass rounded-lg sm:rounded-xl p-6 sm:p-8 text-center">
-                  <t.icon className="h-7 w-7 sm:h-8 sm:w-8 mx-auto mb-2 sm:mb-3 text-primary opacity-40" />
-                  <p className="text-muted-foreground text-xs sm:text-sm">
-                    Aucun {t.label.toLowerCase()} pour l'instant
-                  </p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mt-3 sm:mt-4">
-                  {filtered.map((asset) => (
-                    <AssetCard
-                      key={asset.id}
-                      asset={asset}
-                      isGenerating={generatingAssetId === asset.id}
-                      onRegenerate={() => setRegenerateTarget(asset)}
-                      onDelete={() => setDeleteTarget(asset)}
-                      onEdit={() => setEditTarget(asset)}
-                      onClick={
-                        t.type === "character"
-                          ? () => {
-                              setSelectedCharacter(asset);
-                              setCharacterViewDialogOpen(true);
-                            }
-                          : undefined
-                      }
-                    />
-                  ))}
-                </div>
-              )}
-            </TabsContent>
-          );
-        })}
-      </Tabs>
+      {filteredAssets.length === 0 ? (
+        <div className="glass rounded-lg sm:rounded-xl p-6 sm:p-8 text-center">
+          <Search className="h-7 w-7 sm:h-8 sm:w-8 mx-auto mb-2 sm:mb-3 text-primary opacity-40" />
+          <p className="text-muted-foreground text-xs sm:text-sm">
+            Aucun asset ne correspond à vos filtres.
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mt-3 sm:mt-4">
+          {filteredAssets.map((asset) => (
+            <AssetCard
+              key={asset.id}
+              asset={asset}
+              isGenerating={generatingAssetId === asset.id}
+              onRegenerate={() => setRegenerateTarget(asset)}
+              onDelete={() => setDeleteTarget(asset)}
+              onEdit={() => setEditTarget(asset)}
+              onClick={
+                asset.asset_type === "character"
+                  ? () => {
+                      setSelectedCharacter(asset);
+                      setCharacterViewDialogOpen(true);
+                    }
+                  : undefined
+              }
+            />
+          ))}
+        </div>
+      )}
 
       {/* Dialog vues personnage */}
       <CharacterViewDialog

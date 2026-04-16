@@ -6,9 +6,6 @@ import type { Tables, TablesInsert, TablesUpdate, Enums } from "@/integrations/s
 // ── Enums ────────────────────────────────────────────────────────
 export type AssetType = Enums<"asset_type">; // "character" | "background" | "object"
 
-export type CharacterView = "profile_left" | "profile_right" | "back";
-export type ImageView = "front" | CharacterView;
-
 // ── Tiers / Plans ────────────────────────────────────────────────
 export type UserPlan = "free" | "pro";
 
@@ -85,7 +82,6 @@ export interface GenerateAssetPayload {
   asset_id: string;
   prompt: string;
   asset_type?: AssetType;
-  image_view?: ImageView;
 }
 
 /** Configuration d'onglet asset dans l'UI */

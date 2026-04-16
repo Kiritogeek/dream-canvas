@@ -76,7 +76,7 @@
 | 1 | **Bibliothèques** | 3 onglets : **Personnages**, **Décors**, **Objets**. Sous-titre : « Utile surtout pour les éléments récurrents de votre scénario. » |
 | 2 | **Liste** | Grille d’assets avec image (ou placeholder), nom, type. |
 | 3 | **Ajout** | Bouton « Ajouter » → dialog : type, nom, description/prompt. Génération IA automatique après création. |
-| 4 | **Carte asset** | Hover : boutons Modifier, Régénérer, Supprimer. Clic sur un personnage → dialog vues (face, profil gauche/droit, dos). |
+| 4 | **Carte asset** | Hover : boutons Modifier, Régénérer, Supprimer. Clic sur un personnage → dialog vues (face, **sheet composite**, profil gauche/droit, dos). |
 | 5 | **Modification** | Dialog pré-rempli (nom, prompt). Si seul le nom change → « Sauvegarder ». Si prompt change → « Sauvegarder sans régénérer » ou « Sauvegarder et régénérer ». |
 | 6 | **Renommage + scénario** | Si le nom change et que l’ancien nom apparaît dans des chapitres : proposition « Mettre à jour le scénario ? » → Appliquer remplace l’ancien nom par le nouveau dans les chapitres concernés. |
 | 7 | **Suppression** | Confirmation (AlertDialog) avant suppression. Nettoyage Storage. |

@@ -3,7 +3,11 @@
  * Source unique : le style sauvegardé sur le projet doit reprendre ces mêmes prompts.
  */
 
-export type TemplateStyleKey = "manga" | "webtoon-coreen" | "manhwa-chinois";
+export type TemplateStyleKey =
+  | "manga"
+  | "webtoon-coreen"
+  | "manhwa-chinois"
+  | "europeen";
 export type TemplateImageType = "character" | "background" | "scene";
 
 export interface StyleTemplateImageDefinition {
@@ -67,6 +71,24 @@ export const STYLE_TEMPLATE_IMAGE_DEFINITIONS: StyleTemplateImageDefinition[] = 
     prompt:
       "Chinese manhua inspired style reference scene. Dramatic fantasy moment, dynamic camera angle, powerful visual atmosphere, saturated cinematic colors. Full-bleed composition, edge-to-edge artwork, no white margins, no blank borders, no empty padding. No text, no watermark.",
   },
+  {
+    style: "europeen",
+    type: "character",
+    prompt:
+      "Premium European comic style reference character. Clear ligne claire inspired linework, elegant silhouette, balanced proportions, nuanced facial expression, refined costume details, soft pastel grading with subtle texture. Editorial-quality finish, readable anatomy, cinematic half-body framing. Full-bleed composition with no white margins, no blank borders, no matte frame, no empty padding. No text, no watermark.",
+  },
+  {
+    style: "europeen",
+    type: "background",
+    prompt:
+      "Premium European comic style reference background. Atmospheric old-town street with strong perspective, rich architectural details, handcrafted textures, gentle pastel color harmony, light watercolor-like shading and clean contour hierarchy. No characters. Full-bleed edge-to-edge artwork with environment details touching all borders. No white margins, no blank borders, no matte frame, no empty padding. No text, no watermark.",
+  },
+  {
+    style: "europeen",
+    type: "scene",
+    prompt:
+      "Premium European comic style reference scene. Two characters interacting in a narrative moment, cinematic composition, expressive gesture language, clear staging, pastel yet vivid palette, clean European BD rendering with tasteful texture. Full-bleed edge-to-edge artwork, no white margins, no blank borders, no matte frame, no empty padding. No speech bubbles, no text, no watermark.",
+  },
 ];
 
 export function getReferencePromptsForStyle(
@@ -86,5 +108,10 @@ export function getReferencePromptsForStyle(
 }
 
 export function isTemplateStyleKey(key: string): key is TemplateStyleKey {
-  return key === "manga" || key === "webtoon-coreen" || key === "manhwa-chinois";
+  return (
+    key === "manga" ||
+    key === "webtoon-coreen" ||
+    key === "manhwa-chinois" ||
+    key === "europeen"
+  );
 }

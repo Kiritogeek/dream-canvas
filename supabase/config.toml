@@ -15,3 +15,6 @@ verify_jwt = false
 # Endpoint admin/script (token technique dédié), pas de JWT utilisateur attendu.
 [functions.generate-style-template-images]
 verify_jwt = false
+
+[functions.generate-landing-showcase]
+verify_jwt = false

@@ -736,6 +736,15 @@ export function ScenarioTextHighlighter({
                       />
                     </div>
                   )}
+                  {frag.asset.image_url_sheet && (
+                    <div className="w-full max-w-full min-h-[90px] flex items-center justify-center rounded-lg border border-border/50 bg-muted/20 overflow-hidden">
+                      <img
+                        src={frag.asset.image_url_sheet}
+                        alt={`${frag.asset.name} - Sheet`}
+                        className="max-w-full max-h-[140px] w-auto h-auto object-contain"
+                      />
+                    </div>
+                  )}
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-base font-semibold">{frag.asset.name}</p>
                     <span
@@ -779,6 +788,18 @@ export function ScenarioTextHighlighter({
                     alt={selectedAsset.name}
                     className="max-w-full max-h-[60vh] w-auto h-auto object-contain"
                   />
+                </div>
+              )}
+              {selectedAsset.image_url_sheet && (
+                <div className="space-y-2">
+                  <p className="text-xs font-medium text-muted-foreground">Sheet</p>
+                  <div className="w-full flex items-center justify-center rounded-lg border border-border/50 bg-muted/20 overflow-hidden min-h-[180px]">
+                    <img
+                      src={selectedAsset.image_url_sheet}
+                      alt={`${selectedAsset.name} - Sheet`}
+                      className="max-w-full max-h-[60vh] w-auto h-auto object-contain"
+                    />
+                  </div>
                 </div>
               )}
               <div className="flex items-center justify-between gap-3 flex-wrap">

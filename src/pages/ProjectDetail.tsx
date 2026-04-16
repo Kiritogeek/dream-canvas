@@ -1,11 +1,11 @@
 import { useState, useCallback, useEffect } from "react";
 import { useParams, useSearchParams, Link } from "react-router-dom";
-import { ArrowLeft, Pencil } from "lucide-react";
+import { ArrowLeft, Pencil, LayoutDashboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import {
   Dialog,
   DialogContent,
@@ -52,12 +52,56 @@ export default function ProjectDetail() {
 
   // Onglet actif (contrôlé) — initialiser depuis l'URL si ?tab=edition
   const [searchParams] = useSearchParams();
-  const [activeTab, setActiveTab] = useState("style");
+  const resolveTabFromUrl = useCallback(() => {
+    const tab = searchParams.get("tab");
+    if (tab === "style" || tab === "assets" || tab === "scenario" || tab === "edition") {
+      return tab;
+    }
+    return "style";
+  }, [searchParams]);
+  const [activeTab, setActiveTab] = useState(resolveTabFromUrl);
+  const projectSteps = [
+    { key: "style", label: "Style" },
+    { key: "assets", label: "Assets" },
+    { key: "scenario", label: "Scénario" },
+    { key: "edition", label: "Édition de l'œuvre" },
+  ] as const;
+  const stepNavigationCard = (
+    <div className="glass rounded-xl p-3 sm:p-4 space-y-2">
+      <Button asChild variant="outline" className="w-full justify-start">
+        <Link to="/dashboard">
+          <LayoutDashboard className="h-4 w-4 mr-2" />
+          Tableau de bord
+        </Link>
+      </Button>
+      <div className="pt-2">
+        <p className="text-sm font-semibold text-foreground mb-2">Étapes du projet</p>
+        <div className="space-y-1.5">
+          {projectSteps.map((step) => {
+            const isActive = activeTab === step.key;
+            return (
+              <button
+                key={step.key}
+                type="button"
+                onClick={() => setActiveTab(step.key)}
+                className={`w-full text-left rounded-xl px-4 py-3 text-base font-semibold transition-colors border-2 ${
+                  isActive
+                    ? "border-primary bg-primary/15 text-foreground shadow-dream"
+                    : "border-border/70 bg-background/40 hover:bg-muted/60 text-foreground"
+                }`}
+              >
+                {step.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
 
   useEffect(() => {
-    const tab = searchParams.get("tab");
-    if (tab === "edition") setActiveTab("edition");
-  }, [searchParams]);
+    setActiveTab(resolveTabFromUrl());
+  }, [resolveTabFromUrl]);
 
   // Pré-remplissage création d'asset depuis le scénario
   const [pendingAssetName, setPendingAssetName] = useState("");
@@ -173,55 +217,58 @@ export default function ProjectDetail() {
           </div>
         </div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4 sm:space-y-6">
-          <TabsList className="glass w-full sm:w-auto">
-            <TabsTrigger value="style" className="flex-1 sm:flex-none">Style</TabsTrigger>
-            <TabsTrigger value="assets" className="flex-1 sm:flex-none">Assets</TabsTrigger>
-            <TabsTrigger value="scenario" className="flex-1 sm:flex-none">Scénario</TabsTrigger>
-            <TabsTrigger value="edition" className="flex-1 sm:flex-none">Édition de l'œuvre</TabsTrigger>
-          </TabsList>
+        <div className="relative">
+          <aside className="hidden lg:block fixed left-4 top-24 w-[260px] z-40 h-fit">
+            {stepNavigationCard}
+          </aside>
+          <aside className="mb-6 lg:hidden">{stepNavigationCard}</aside>
 
+          <div className="min-w-0">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4 sm:space-y-6">
           {/* Style Tab */}
-          <TabsContent value="style">
-            <StyleManager
-              project={project}
-              styleTemplate={styleTemplate}
-              onStyleTemplateChange={setStyleDraft}
-              onStyleSaveSuccess={() => setStyleDraft(undefined)}
-              userPlan={userPlan}
-            />
-          </TabsContent>
+              <TabsContent value="style">
+                <StyleManager
+                  project={project}
+                  styleTemplate={styleTemplate}
+                  onStyleTemplateChange={setStyleDraft}
+                  onStyleSaveSuccess={() => setStyleDraft(undefined)}
+                  onStyleValidated={() => setActiveTab("assets")}
+                  userPlan={userPlan}
+                />
+              </TabsContent>
 
           {/* Assets Tab */}
-          <TabsContent value="assets">
-            <AssetLibrary
-              projectId={project.id}
-              project={project}
-              assets={assets}
-              generatingAssetId={generatingAssetId}
-              generatingView={generatingView}
-              onCanGenerate={canGenerate}
-              onGenerate={(asset, opts) => generate(asset, opts)}
-              pendingAssetName={pendingAssetName}
-              pendingAssetType={pendingAssetType}
-              onPendingAssetConsumed={() => setPendingAssetName("")}
-            />
-          </TabsContent>
+              <TabsContent value="assets">
+                <AssetLibrary
+                  projectId={project.id}
+                  project={project}
+                  assets={assets}
+                  generatingAssetId={generatingAssetId}
+                  generatingView={generatingView}
+                  onCanGenerate={canGenerate}
+                  onGenerate={(asset, opts) => generate(asset, opts)}
+                  pendingAssetName={pendingAssetName}
+                  pendingAssetType={pendingAssetType}
+                  onPendingAssetConsumed={() => setPendingAssetName("")}
+                />
+              </TabsContent>
 
           {/* Scénario Tab */}
-          <TabsContent value="scenario">
-            <ScenarioSection
-              projectId={project.id}
-              project={project}
-              onNavigateToCreateAsset={handleNavigateToCreateAsset}
-            />
-          </TabsContent>
+              <TabsContent value="scenario">
+                <ScenarioSection
+                  projectId={project.id}
+                  project={project}
+                  onNavigateToCreateAsset={handleNavigateToCreateAsset}
+                />
+              </TabsContent>
 
           {/* Édition de l'œuvre Tab */}
-          <TabsContent value="edition">
-            <EditionSection projectId={project.id} project={project} />
-          </TabsContent>
-        </Tabs>
+              <TabsContent value="edition">
+                <EditionSection projectId={project.id} project={project} />
+              </TabsContent>
+            </Tabs>
+          </div>
+        </div>
       </div>
 
       {/* Dialog édition projet */}

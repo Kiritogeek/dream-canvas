@@ -282,6 +282,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 | `asset_type` | `asset_type` | NOT NULL | Type : 'character', 'background', 'object' |
 | `prompt` | `TEXT` | NULL | Description / prompt pour la génération IA |
 | `image_url` | `TEXT` | NULL | URL de l'image principale (vue de face) |
+| `image_url_sheet` | `TEXT` | NULL | URL de la fiche composite (sheet) de l'asset, utilisée comme référence identitaire pour les générations de panels (carte face+profils+dos pour `character`, tuile unique pour `background` / `object`). |
 | `image_url_profile_left` | `TEXT` | NULL | URL de la vue profil gauche |
 | `image_url_profile_right` | `TEXT` | NULL | URL de la vue profil droit |
 | `image_url_back` | `TEXT` | NULL | URL de la vue de dos |

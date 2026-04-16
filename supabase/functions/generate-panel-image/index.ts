@@ -10,6 +10,7 @@ declare const Deno: {
 };
 
 const FAL_TEXT_TO_IMAGE = "https://fal.run/fal-ai/flux-2-pro";
+const FAL_IMAGE_EDIT = "https://fal.run/fal-ai/flux-2-pro/edit";
 const BUCKET = "dreamweave";
 const FAL_TIMEOUT_MS = 120_000;
 const MAX_DIMENSION = 1024; // FAL limite souvent à 1024
@@ -108,6 +109,48 @@ async function generateImage(
   return { url };
 }
 
+async function generateImageWithReferences(
+  prompt: string,
+  referenceImageUrls: string[],
+  falKey: string,
+  width: number,
+  height: number
+): Promise<{ url: string } | { error: string }> {
+  const res = await fetchWithTimeout(
+    FAL_IMAGE_EDIT,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Key ${falKey}` },
+      body: JSON.stringify({
+        prompt,
+        image_urls: referenceImageUrls,
+        image_size: { width, height },
+        num_images: 1,
+        output_format: "png",
+        safety_tolerance: "3",
+        enable_safety_checker: true,
+      }),
+    },
+    FAL_TIMEOUT_MS
+  );
+
+  const text = await res.text();
+  if (!res.ok) {
+    return { error: `FAL.ai ${res.status}: ${text.slice(0, 200)}` };
+  }
+
+  let json: { images?: Array<{ url: string }> };
+  try {
+    json = JSON.parse(text);
+  } catch {
+    return { error: "Réponse FAL invalide" };
+  }
+
+  const url = json.images?.[0]?.url;
+  if (!url) return { error: "FAL n'a pas retourné d'image" };
+  return { url };
+}
+
 async function downloadAndUpload(
   imageUrl: string,
   storagePath: string,
@@ -177,6 +220,28 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "JWT invalide ou expiré" }, 401);
     }
 
+    // Plan utilisateur : détermine si on peut utiliser les images de référence (cohérence graphique).
+    let userPlan: "free" | "pro" = "free";
+    try {
+      const profileRes = await fetch(
+        `${supabaseUrl}/rest/v1/profiles?user_id=eq.${encodeURIComponent(userId)}&select=plan`,
+        {
+          headers: {
+            apikey: serviceKey,
+            Authorization: `Bearer ${serviceKey}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+      if (profileRes.ok) {
+        const profiles = (await profileRes.json()) as { plan?: string }[];
+        if (profiles?.[0]?.plan === "pro") userPlan = "pro";
+      }
+    } catch {
+      // Dégradé : si on ne peut pas lire le plan, on reste en "free".
+      userPlan = "free";
+    }
+
     let body: {
       panel_id?: string;
       block_id?: string;
@@ -201,6 +266,7 @@ Deno.serve(async (req) => {
       prompt,
       context_chapter,
       block_asset_names,
+      block_asset_image_urls,
     } = body;
     if (!panel_id || !block_id || !prompt?.trim()) {
       return jsonResponse({ error: "panel_id, block_id et prompt requis" }, 400);
@@ -301,9 +367,35 @@ Deno.serve(async (req) => {
     if (Array.isArray(block_asset_names) && block_asset_names.length > 0) {
       fullPrompt = `Éléments à inclure (références) : ${block_asset_names.join(", ")}.\n\n${fullPrompt}`;
     }
-    fullPrompt += `\n\nIMPORTANT : L'image doit être générée exactement au format ${width}×${height} pixels. Remplis tout le cadre, sans bandeaux ni bandes vides. L'illustration doit occuper toute la surface.`;
+    fullPrompt += `\n\nIMPORTANT FORMAT (OBLIGATOIRE) :
+- L'image doit être générée EXACTEMENT au format ${width}×${height} pixels.
+- L'illustration doit occuper 100% de la surface, bord à bord (full bleed).
+- INTERDIT : cadre, bordure, marge blanche, liseré, passe-partout, effet "carte/poster", contour de case BD.
+- INTERDIT : image dans une image (pas de rectangle interne contenant la scène).
+- Si une composition avec marge apparaît, zoom/cadre la scène pour supprimer toute bordure et remplir tout le cadre final.`;
 
-    const result = await generateImage(fullPrompt, falKey, width, height);
+    const referenceImageUrls = Array.isArray(block_asset_image_urls)
+      ? block_asset_image_urls.filter((u) => typeof u === "string" && u.trim().length > 0)
+      : [];
+    const limitedReferenceImageUrls = referenceImageUrls.slice(0, 5);
+    const useReferences =
+      userPlan === "pro" && limitedReferenceImageUrls.length > 0;
+
+    if (useReferences) {
+      fullPrompt +=
+        "\n\nIMPORTANT RÉFÉRENCES : Les images fournies sont des fiches d'assets. Utilise-les UNIQUEMENT pour conserver l'identité visuelle (style, forme, visage/coiffure si applicable, matière). " +
+        "Ne montre jamais la fiche, jamais une grille, jamais un cadre de présentation : génère une scène originale plein cadre, sans bordure.";
+    }
+
+    const result = useReferences
+      ? await generateImageWithReferences(
+          fullPrompt,
+          limitedReferenceImageUrls,
+          falKey,
+          width,
+          height
+        )
+      : await generateImage(fullPrompt, falKey, width, height);
     if ("error" in result) {
       return jsonResponse({ error: result.error }, 502);
     }

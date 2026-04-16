@@ -52,6 +52,42 @@ ATTENTION :
   return prompt;
 };
 
+export const buildObjectSheetPrompt = (
+  userDescription: string,
+  styleText?: string
+) => {
+  let prompt = `Crée une sheet d’objet en une seule image composite, format carré ou paysage (jamais format webtoon vertical).
+
+DESCRIPTION DE L'OBJET :
+${userDescription}
+
+MISE EN PAGE (OBLIGATOIRE) :
+- Layout 2x2 avec 4 vignettes du MÊME objet.
+- Vignette A : vue face.
+- Vignette B : vue 3/4 gauche.
+- Vignette C : vue 3/4 droite.
+- Vignette D : vue arrière ou vue de dessus selon ce qui rend l’objet le plus lisible.
+
+RÈGLE D’IDENTITÉ :
+- Garder EXACTEMENT le même objet (forme, matériaux, couleurs, détails).
+- Ne changer que l’angle de vue.
+
+RÈGLES DE RENDU :
+- Objet entièrement visible dans chaque vignette (aucune coupe).
+- Fond transparent ou neutre très discret sans décor parasite.
+- AUCUN texte, AUCUN watermark.
+- Qualité premium (contours, volumes, textures).`;
+
+  if (styleText) {
+    prompt += `\n\nSTYLE ARTISTIQUE À APPLIQUER (OBLIGATOIRE) :
+${styleText}
+
+Applique ce style à 100% sur les 4 vignettes (traits, ombrage, palette, matériaux, rendu).`;
+  }
+
+  return prompt;
+};
+
 // ═══════════════════════════════════════════════════════════════
 // FONCTIONS DE COMPATIBILITÉ (pour l'ancien code)
 // ═══════════════════════════════════════════════════════════════

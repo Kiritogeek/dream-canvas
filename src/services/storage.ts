@@ -38,6 +38,7 @@ export async function uploadStyleImage(
 export async function deleteAssetImages(asset: Asset): Promise<void> {
   const urls = [
     asset.image_url,
+    asset.image_url_sheet,
     asset.image_url_profile_left,
     asset.image_url_profile_right,
     asset.image_url_back,

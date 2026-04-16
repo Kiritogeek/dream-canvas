@@ -36,6 +36,7 @@ interface StyleManagerProps {
   onStyleTemplateChange: (value: string) => void;
   /** Après sauvegarde réussie en BDD : réinitialiser le brouillon parent pour suivre le cache projet. */
   onStyleSaveSuccess?: () => void;
+  onStyleValidated?: () => void;
   userPlan?: UserPlan;
 }
 
@@ -44,6 +45,7 @@ export function StyleManager({
   styleTemplate,
   onStyleTemplateChange,
   onStyleSaveSuccess,
+  onStyleValidated,
   userPlan = "free",
 }: StyleManagerProps) {
   const STYLE_OPTIONS = [
@@ -60,7 +62,7 @@ export function StyleManager({
     },
     {
       key: "webtoon-coreen",
-      label: "Webtoon Coreen",
+      label: "Webtoon Coréen",
       description:
         "Palette coloree, rendu digital propre et verticalite pensee pour la lecture mobile. Tres efficace pour l'immersion.",
       images: {
@@ -78,6 +80,17 @@ export function StyleManager({
         character: getTemplateStyleImageUrl("manhwa-chinois", "character"),
         background: getTemplateStyleImageUrl("manhwa-chinois", "background"),
         scene: getTemplateStyleImageUrl("manhwa-chinois", "scene"),
+      },
+    },
+    {
+      key: "europeen",
+      label: "Européen",
+      description:
+        "Trait lisible, compositions claires et couleurs maitrisees, avec une mise en scene narrative proche de la BD europeenne.",
+      images: {
+        character: getTemplateStyleImageUrl("europeen", "character"),
+        background: getTemplateStyleImageUrl("europeen", "background"),
+        scene: getTemplateStyleImageUrl("europeen", "scene"),
       },
     },
   ] as const;
@@ -217,24 +230,37 @@ export function StyleManager({
         style_label: selectedStyle.label,
       });
     }
-    updateProject.mutate(
-      { id: project.id, updates: { style_template: generatedStyleTemplate } },
-      {
-        onSuccess: () => {
-          toast({
-            title: "Style sauvegarde !",
-            description: `${selectedStyle.label} — prompts de reference du carousel enregistres pour la generation.`,
-          });
-          onStyleSaveSuccess?.();
-        },
-        onError: (err) =>
-          toast({
-            title: "Erreur",
-            description: err.message,
-            variant: "destructive",
-          }),
-      }
-    );
+    try {
+      await updateProject.mutateAsync({
+        id: project.id,
+        updates: { style_template: generatedStyleTemplate },
+      });
+      toast({
+        title: "Style sauvegarde !",
+        description: `${selectedStyle.label} — prompts de reference du carousel enregistres pour la generation.`,
+      });
+      onStyleSaveSuccess?.();
+      return true;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Erreur inconnue";
+      toast({
+        title: "Erreur",
+        description: message,
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
+  const handleValidateAndContinue = async () => {
+    const ok = await saveStyle();
+    if (ok) {
+      toast({
+        title: "Style valide",
+        description: "Passage a l'etape Assets.",
+      });
+      onStyleValidated?.();
+    }
   };
 
   const MAX_STYLE_IMAGES = 2;
@@ -307,28 +333,28 @@ export function StyleManager({
         </p>
 
         <div className="relative rounded-2xl border border-border/70 bg-background/70 p-3 sm:p-4">
-          <div className="flex items-center justify-between gap-2 mb-4">
+          <div className="relative mb-4">
             <button
               type="button"
               onClick={() => selectStyleByIndex(selectedStyleIndex - 1)}
-              className="h-8 w-8 rounded-full border border-border/70 bg-background/80 hover:bg-muted/60 flex items-center justify-center"
+              className="absolute left-0 top-1/2 -translate-y-1/2 h-11 w-11 rounded-full border-2 border-primary/50 bg-background/95 text-foreground hover:bg-muted/80 hover:border-primary flex items-center justify-center shadow-sm"
               aria-label="Style precedent"
             >
-              <ChevronLeft className="h-4 w-4" />
+              <ChevronLeft className="h-6 w-6" />
             </button>
             <div className="text-center">
-              <p className="text-sm font-semibold">{selectedStyle.label}</p>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-base sm:text-lg font-semibold text-foreground">{selectedStyle.label}</p>
+              <p className="text-sm text-muted-foreground">
                 Style {selectedStyleIndex + 1} / {STYLE_OPTIONS.length}
               </p>
             </div>
             <button
               type="button"
               onClick={() => selectStyleByIndex(selectedStyleIndex + 1)}
-              className="h-8 w-8 rounded-full border border-border/70 bg-background/80 hover:bg-muted/60 flex items-center justify-center"
+              className="absolute right-0 top-1/2 -translate-y-1/2 h-11 w-11 rounded-full border-2 border-primary/50 bg-background/95 text-foreground hover:bg-muted/80 hover:border-primary flex items-center justify-center shadow-sm"
               aria-label="Style suivant"
             >
-              <ChevronRight className="h-4 w-4" />
+              <ChevronRight className="h-6 w-6" />
             </button>
           </div>
 
@@ -392,9 +418,9 @@ export function StyleManager({
                 </p>
               </div>
             </div>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-base text-foreground/90">
               {selectedStyle.description}{" "}
-              <span className="block mt-1 text-xs">
+              <span className="block mt-1 text-sm text-muted-foreground">
                 A l&apos;enregistrement, le template copie les prompts anglais utilises pour ces
                 trois images.
               </span>
@@ -438,6 +464,14 @@ export function StyleManager({
           className="gradient-primary text-primary-foreground"
         >
           {updateProject.isPending ? "Sauvegarde..." : "Sauvegarder le style"}
+        </Button>
+        <Button
+          onClick={handleValidateAndContinue}
+          disabled={updateProject.isPending}
+          className="w-full"
+          variant="secondary"
+        >
+          {updateProject.isPending ? "Validation..." : "Valider et passer aux assets"}
         </Button>
 
         <div className="rounded-lg border border-border/80 bg-background/60 px-3 py-2 text-sm space-y-1">

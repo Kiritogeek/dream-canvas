@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Sparkles, LayoutDashboard, FolderOpen, LogOut, User, Zap, Crown, Menu, X } from "lucide-react";
+import { Sparkles, LayoutDashboard, LogOut, User, Zap, Crown, Menu, X } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
@@ -9,7 +9,6 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 
 const navItems = [
   { to: "/dashboard", icon: LayoutDashboard, label: "Tableau de bord", shortLabel: "Accueil" },
-  { to: "/dashboard/projects", icon: FolderOpen, label: "Mes projets", shortLabel: "Projets" },
   { to: "/dashboard/plans", icon: Crown, label: "Plans", shortLabel: "Plans" },
   { to: "/dashboard/profile", icon: User, label: "Profil", shortLabel: "Profil" },
 ];

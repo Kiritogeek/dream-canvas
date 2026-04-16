@@ -1101,7 +1101,9 @@ export default function ChapterDetail() {
       const contextChapter = panel.prompt?.trim() || null;
       const refAssets = getDetectedAssets(promptToUse, assets);
       const refIds = refAssets.map((a) => a.id);
-      const blockAssetImageUrls = refAssets.map((a) => a.image_url).filter((u): u is string => !!u);
+      const blockAssetImageUrls = refAssets
+        .map((a) => a.image_url_sheet ?? a.image_url)
+        .filter((u): u is string => !!u);
       const blockAssetNames = refAssets.map((a) => a.name ?? a.id.slice(0, 8));
       generatePanelImage.mutate(
         { panel: { id: panel.id, prompt: promptToUse }, block: { id: block.id, width: block.width, height: block.height }, project, contextChapter: contextChapter ?? undefined, blockAssetImageUrls: blockAssetImageUrls.length ? blockAssetImageUrls : undefined, blockAssetNames: blockAssetNames.length ? blockAssetNames : undefined },

@@ -33,6 +33,12 @@ import {
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
 const GROQ_MODEL = "llama-3.3-70b-versatile";
 const GROQ_TIMEOUT_MS = 120_000;
+// Limite TPM observée côté org Groq (capture utilisateur : 12k).
+// On garde une marge pour éviter les rejets "Request too large".
+const GROQ_TPM_LIMIT = 12_000;
+const GROQ_SAFE_INPUT_TOKENS = 8_500;
+const GROQ_MIN_OUTPUT_TOKENS = 512;
+const GROQ_MAX_OUTPUT_TOKENS = 3_072;
 
 // ── CORS ──────────────────────────────────────────────────────
 
@@ -50,6 +56,28 @@ function jsonResponse(body: object, status: number) {
     status,
     headers: { ...getCorsHeaders(), "Content-Type": "application/json" },
   });
+}
+
+function estimateTokens(text: string): number {
+  // Approximation conservative pour FR/EN (4 chars ≈ 1 token).
+  return Math.ceil(text.length / 4);
+}
+
+function shrinkTextByTokens(text: string, maxTokens: number): string {
+  if (maxTokens <= 0) return "";
+  const estimated = estimateTokens(text);
+  if (estimated <= maxTokens) return text;
+  const maxChars = Math.max(0, maxTokens * 4);
+  return text.slice(0, maxChars);
+}
+
+function clampOutputTokens(inputTokens: number): number {
+  const remaining = GROQ_TPM_LIMIT - inputTokens;
+  const safeRemaining = Math.max(0, remaining - 500);
+  return Math.max(
+    GROQ_MIN_OUTPUT_TOKENS,
+    Math.min(GROQ_MAX_OUTPUT_TOKENS, safeRemaining)
+  );
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -123,6 +151,11 @@ async function callGroq(
   const timeout = setTimeout(() => controller.abort(), GROQ_TIMEOUT_MS);
 
   try {
+    const systemTokens = estimateTokens(systemPrompt);
+    const userTokens = estimateTokens(userPrompt);
+    const totalInputTokens = systemTokens + userTokens;
+    const outputTokens = clampOutputTokens(totalInputTokens);
+
     const res = await fetch(GROQ_API_URL, {
       method: "POST",
       headers: {
@@ -136,7 +169,7 @@ async function callGroq(
           { role: "user", content: userPrompt },
         ],
         temperature: 0.8,
-        max_tokens: 16384,
+        max_tokens: outputTokens,
         top_p: 0.9,
       }),
       signal: controller.signal,
@@ -268,11 +301,17 @@ Deno.serve(async (req) => {
     // 5. Construire system + user prompt selon le mode
     let systemPrompt: string;
     let userPrompt: string;
+    let inputWasTrimmed = false;
 
     if (mode === "scenario") {
       systemPrompt = SCENARIO_SYSTEM_PROMPT;
+      const scenarioContext = body.existing_content?.trim();
+      const safeExistingContent = scenarioContext
+        ? shrinkTextByTokens(scenarioContext, 4_000)
+        : undefined;
+      inputWasTrimmed = safeExistingContent !== scenarioContext;
       userPrompt = buildScenarioPrompt(prompt!, {
-        existingContent: body.existing_content,
+        existingContent: safeExistingContent,
         projectDescription: body.project_description,
       });
     } else if (mode === "chapter") {
@@ -286,9 +325,12 @@ Deno.serve(async (req) => {
         );
       }
       systemPrompt = CHAPTER_SYSTEM_PROMPT;
+      const chapterContent = body.chapter_content.trim();
+      const safeChapterContent = shrinkTextByTokens(chapterContent, 6_500);
+      inputWasTrimmed = safeChapterContent !== chapterContent;
       userPrompt = buildChapterPrompt(prompt!, {
         chapterTitle: body.chapter_title ?? "Sans titre",
-        chapterContent: body.chapter_content,
+        chapterContent: safeChapterContent,
         chapterNumber: body.chapter_number,
       });
     } else {
@@ -303,17 +345,34 @@ Deno.serve(async (req) => {
         );
       }
       systemPrompt = PANELS_SYSTEM_PROMPT;
+      const chapterContent = body.chapter_content.trim();
+      const safeChapterContent = shrinkTextByTokens(chapterContent, 6_000);
+      inputWasTrimmed = safeChapterContent !== chapterContent;
       userPrompt = buildPanelsPrompt({
         chapterTitle: body.chapter_title ?? "Sans titre",
-        chapterContent: body.chapter_content,
+        chapterContent: safeChapterContent,
         chapterNumber: body.chapter_number,
         targetPanelCount: body.target_panel_count,
       });
     }
 
+    const systemTokens = estimateTokens(systemPrompt);
+    const userTokens = estimateTokens(userPrompt);
+    const totalInputTokens = systemTokens + userTokens;
+    if (totalInputTokens > GROQ_SAFE_INPUT_TOKENS) {
+      // Deuxième passe de sécurité si les prompts construits sont encore trop longs.
+      const allowedUserTokens = Math.max(
+        1_000,
+        GROQ_SAFE_INPUT_TOKENS - systemTokens
+      );
+      const shrunkUserPrompt = shrinkTextByTokens(userPrompt, allowedUserTokens);
+      inputWasTrimmed = inputWasTrimmed || shrunkUserPrompt !== userPrompt;
+      userPrompt = shrunkUserPrompt;
+    }
+
     // 6. Appel Groq
     console.log(
-      `[generate-scenario-ai] mode=${mode}, user=${userId}, prompt_length=${userPrompt.length}`
+      `[generate-scenario-ai] mode=${mode}, user=${userId}, prompt_length=${userPrompt.length}, trimmed=${inputWasTrimmed}`
     );
 
     const result = await callGroq(systemPrompt, userPrompt, groqKey);

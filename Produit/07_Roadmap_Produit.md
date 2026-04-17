@@ -102,7 +102,7 @@ Voir `Plan_Action_Developpement_Scénario.md` pour le détail des phases A à G.
 | **IA Chapitre (par chapitre)** | Par chapitre : prompt → réécriture → accepter/rejeter + diff visuel. | P0 | L | ✅ Livré |
 | **Chapitres (scénario = webtoon)** | 1 chapitre écrit = 1 chapitre webtoon. Création, réorganisation (drag & drop), suppression. | P0 | M | ✅ Livré |
 | **Découpage Chapitre → Panels (section Scénario)** | Dans chaque chapitre : liste de panels + courte description par panel pour la génération panel par panel. Règles (auto/manuel) à définir. | P0 | L | 📋 À faire |
-| **Contrôle longueur chapitres** | Estimation du nombre de panels, référence (~10/chapitre), cible (projet/chapitre), comparaison estimation vs cible. En **Scénario** (par chapitre) et en **Édition de l'œuvre**. Guidance longueur ; répartition N/N+1. Voir `Plan_Phase2_Edition_Oeuvre.md` § Étape 3. | P0 | M | 📋 À faire |
+| **Contrôle longueur chapitres** | Estimation du nombre de panels, référence (~10/chapitre), cible (projet/chapitre), comparaison estimation vs cible. En **Scénario** (par chapitre) et en **Édition de l'œuvre**. Guidance longueur ; répartition N/N+1. | P0 | M | ✅ Livré — `PanelCountBadge` (8–14 typique, barre progression, commit a9f1279) |
 | **BDD — Scénarios approuvés & versions** | Persistance des versions, flux accepter/rejeter. | P0 | M | ✅ Livré |
 | **Découpage IA (optionnel)** | IA : chapitre → panels (courtes descriptions). Structure uniquement ; scénario jamais dans les prompts d'image. | P0 | L | 📋 À faire |
 | **Détection des assets dans le scénario** | Surbrillance par type, hover (HoverCard), clic (Dialog). | P0 | M | ✅ Livré |
@@ -138,7 +138,7 @@ Voir `Plan_Action_Developpement_Scénario.md` pour le détail des phases A à G.
 | **Types de bulles** | Parole, pensée, cri, chuchotement, narration, radio — formes SVG manga/webtoon | P0 | M | ✅ Livré |
 | **Édition inline** | Texte, type, fond, contour, police, taille, couleur éditables directement dans la sidebar — sans éditeur plein écran séparé | P0 | M | ✅ Livré (17/04/2026) |
 | **Redimensionnement** | Poignées sur la bulle sélectionnée (8 points) | P0 | M | ✅ Livré |
-| **Texte brut (sans bulle)** | Texte libre dans le panel, sans forme de bulle (narration, titres, onomatopées) | P1 | M | 📋 À faire |
+| **Texte brut (sans bulle)** | Texte libre dans le panel, sans forme de bulle (narration, titres, onomatopées) | P1 | M | ✅ Livré — type `"text"` SpeechBubble, sans SVG ni fond (commit a9f1279) |
 | **Personnalisation typographique avancée** | Gras, italique, espacement lettres, ombre texte | P1 | M | 📋 À faire |
 | **Narration** | Blocs de narration en haut/bas des panels (texte brut ou bulle narration) | P1 | S | 📋 À faire |
 | **Génération IA de dialogues** | Suggestion de dialogues à partir du synopsis | P2 | L | 📋 À faire |
@@ -151,7 +151,7 @@ Voir `Plan_Action_Developpement_Scénario.md` pour le détail des phases A à G.
 |-------|------------|----------|--------|--------|
 | **Sélection explicite au clic** | Bloc sélectionné visuellement identifiable (ring, handles) | P2 | M | ✅ Livré |
 | **Panneau de propriétés contextuel** | Au clic sur un bloc : propriétés dans la sidebar gauche (dimensions, prompt, assets) | P2 | M | ✅ Livré |
-| **Suppression via touche Suppr** | Touche Delete/Backspace supprime le bloc/bulle actif(e) | P2 | S | 📋 À faire |
+| **Suppression via touche Suppr** | Touche Delete/Backspace supprime le bloc/bulle actif(e) | P2 | S | ✅ Livré — keydown useEffect (commit a9f1279) |
 | **Liberté de positionnement total** | Blocs et bulles repositionnables sans contrainte de grille | P2 | M | ✅ Livré |
 
 #### 2.2.4 Blocs de couleurs (ambiance du panel)
@@ -177,8 +177,9 @@ Voir `Plan_Action_Developpement_Scénario.md` pour le détail des phases A à G.
 
 | Tâche | Description | Priorité | Effort |
 |-------|------------|----------|--------|
-| **Prévisualisation complète** | La **prévisualisation** (vue lecture des panels) doit **inclure tous les éléments édités** : blocs image, **blocs de couleurs** (arrière-plan), et à terme bulles, texte brut, effets. Objectif : **cohérence avec le rendu exporté** (ex. PDF). | P0 | M |
-| **Téléchargement chapitre visuel (PDF)** | À terme (Phase 3) : **télécharger le chapitre en PDF** — succession des panels avec tous les éléments (blocs, couleurs, bulles, texte). La prévisualisation actuelle reflète ce qui sera inclus dans l’export. | P0 | — (Phase 3) |
+| **Prévisualisation complète** | La **prévisualisation** (vue lecture des panels) doit **inclure tous les éléments édités** : blocs image, **blocs de couleurs** (arrière-plan), et à terme bulles, texte brut, effets. Objectif : **cohérence avec le rendu exporté**. | P0 | M |
+| **Export PNG panel individuel** | Télécharger un panel en PNG (800×H) — html2canvas : blocs image + couleurs + bulles. | P0 | S | ✅ Livré — commit a9f1279 |
+| **Export PNG chapitre entier** | Télécharger tous les panels d’un chapitre assemblés verticalement (800×ΣH) — format Webtoon Canvas / Tapas. | P0 | S | ✅ Livré — commit a9f1279 |
 
 #### 2.2.7 Lecteur webtoon amélioré
 
@@ -220,8 +221,8 @@ Voir `Plan_Action_Developpement_Scénario.md` pour le détail des phases A à G.
 
 | Tâche | Description | Priorité | Effort |
 |-------|------------|----------|--------|
-| **Téléchargement chapitre visuel (PDF)** | **Export PDF** du chapitre complet : succession des panels avec **tous les éléments édités** (blocs image, blocs de couleurs, bulles, texte brut, effets). Le rendu doit être identique à la prévisualisation (Phase 2). | P0 | M |
-| **Export PNG** | Images individuelles des panels (ou par bloc) | P0 | S |
+| **Export PNG panel + chapitre** | ✅ Livré en Phase 2 (commit a9f1279) — panel individuel (800×H) + chapitre complet assemblé verticalement (800×ΣH, format Webtoon/Tapas). | P0 | S | ✅ Livré |
+| **Export haute résolution** | Upscaling 2× des exports PNG pour impression ou plateformes HD | P1 | M |
 | **Export format Webtoon** | Format optimisé pour les plateformes (bandes verticales continues) | P1 | L |
 | **Résolution haute** | Upscaling des images (1024×1024 ou plus) | P1 | M |
 | **Export batch** | Exporter tous les chapitres d'un coup | P2 | M |
@@ -358,4 +359,4 @@ Jan     Fév     Mar     Avr     Mai     Juin    Jul     Aoû     Sep     Oct   
 
 ---
 
-*Dernière mise à jour : 17 avril 2026 (v3) — commit 4059f79 : Assets UX (13 fixes P0→P2 : CharacterViewDialog vues Pro ✅, quota visible ✅, filtre/onglet fusionnés ✅, empty states ✅, preview édition ✅, badges type ✅). Prompts Free/Pro différenciés sur 3 types d'assets (Schnell-optimized vs FLUX.2 Pro riche). Suppr blocs reste 📋 à faire. Stripe reste P0 critique.*
+*Dernière mise à jour : 17 avril 2026 (v4) — commit a9f1279 : PanelCountBadge ✅, Texte brut sans bulle ✅, Touche Suppr blocs/bulles ✅, Landing hero-bg.jpg ✅, Export PNG panel + chapitre 800×ΣH ✅. Commit 4059f79 : Assets UX 13 fixes ✅, prompts Free/Pro différenciés ✅. Stripe reste P0 critique non implémenté.*

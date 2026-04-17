@@ -160,6 +160,12 @@ Audits/                           # Audits techniques datés
 - **Poser les questions ambiguës explicitement** — ne jamais assumer silencieusement
 - **Confirmer les décisions destructives** (suppression de composant, refactoring large, changement de schéma DB)
 
+### Git — Règle absolue
+
+**Ne jamais exécuter `git push` sans autorisation explicite de l'utilisateur.**
+Un commit peut être créé librement après une implémentation. Le push vers le remote ne se fait que si l'utilisateur dit explicitement "push", "envoie", "pousse le code" ou équivalent dans le message courant.
+Cette règle s'applique même en fin de session, même pour une "mise à jour rapide", même si le commit est propre.
+
 ### Challenger et affiner en continu
 
 **Toujours challenger la demande avant d'implémenter.** Pour toute feature ou modification non triviale, poser au moins une question de clarification sur :

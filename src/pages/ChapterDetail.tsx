@@ -18,8 +18,11 @@ import {
   X,
   Square,
   Trash2,
+  Type,
+  Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import DashboardLayout from "@/components/DashboardLayout";
@@ -78,7 +81,9 @@ import {
   PANEL_HEIGHT_MIN,
   PANEL_HEIGHT_MAX,
 } from "@/services/panels";
+import { PanelCountBadge } from "@/components/project/PanelCountBadge";
 import { updateScenarioChapter } from "@/services/scenarioChapters";
+import { renderPanelToCanvas, renderChapterToCanvas, downloadCanvas } from "@/services/exportPanel";
 import type { Json } from "@/integrations/supabase/types";
 import type { Chapter, Panel, PanelBlock, PanelLayout, ColorBlock, ColorBlockFill, SpeechBubble, SpeechBubbleType } from "@/types";
 import {
@@ -251,6 +256,12 @@ export default function ChapterDetail() {
   const [panelEditModeByPanelId, setPanelEditModeByPanelId] = useState<Record<string, "architecture" | "edition" | "couleurs">>({});
   /** Refs du canvas par panel (pour calcul position de dépôt quand on drop sur un bloc) */
   const canvasRefByPanel = useRef<Record<string, HTMLDivElement | null>>({});
+  /** Refs du canvas de prévisualisation par panel (utilisées pour l'export PNG) */
+  const exportCanvasRefByPanel = useRef<Record<string, HTMLDivElement | null>>({});
+  /** Export en cours : id du panel exporté individuellement, ou null */
+  const [exportingPanel, setExportingPanel] = useState<string | null>(null);
+  /** Export du chapitre entier en cours */
+  const [exportingChapter, setExportingChapter] = useState(false);
   /** Élément ghost pour le drag « nouveau bloc » (setDragImage) */
   const newBlockDragGhostRef = useRef<HTMLDivElement | null>(null);
   /** Drop move-block traité sur le canvas : ne pas nettoyer le preview dans onDragEnd pour éviter le saut visuel */
@@ -747,6 +758,34 @@ export default function ChapterDetail() {
     };
   }, [resizingSpeechBubbleState, panels]);
 
+  const handleExportPanel = async (panel: Panel) => {
+    const el = exportCanvasRefByPanel.current[panel.id];
+    if (!el) return;
+    setExportingPanel(panel.id);
+    try {
+      const canvas = await renderPanelToCanvas(el);
+      downloadCanvas(canvas, `panel-${panel.panel_number}.png`);
+    } finally {
+      setExportingPanel(null);
+    }
+  };
+
+  const handleExportChapter = async () => {
+    // TODO: panels fermés = ref null — expansion requise pour les panels non visibles
+    const orderedPanels = [...panels].sort((a, b) => a.panel_number - b.panel_number);
+    const els = orderedPanels
+      .map((p) => exportCanvasRefByPanel.current[p.id])
+      .filter(Boolean) as HTMLDivElement[];
+    if (els.length === 0) return;
+    setExportingChapter(true);
+    try {
+      const canvas = await renderChapterToCanvas(els);
+      downloadCanvas(canvas, `chapitre-${chapter?.chapter_number ?? 1}.png`);
+    } finally {
+      setExportingChapter(false);
+    }
+  };
+
   const handleSaveScenarioLink = () => {
     const idToSave = displayedScenarioChapterId;
     if (!chapterId) return;
@@ -766,6 +805,56 @@ export default function ChapterDetail() {
       }
     );
   };
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || (e.target as HTMLElement).isContentEditable) return;
+      if (!expandedPanelId) return;
+      if (e.key !== "Delete" && e.key !== "Backspace") return;
+
+      const panel = panels.find((p) => p.id === expandedPanelId);
+      if (!panel) return;
+
+      if (selectedBlockIdInModal?.panelId === expandedPanelId && selectedBlockIdInModal.blockId) {
+        const blocks = getPanelBlocks(panel);
+        const block = blocks.find((b) => b.id === selectedBlockIdInModal.blockId);
+        if (block) {
+          const layout = getPanelLayout(panel);
+          const nextBlocks = blocks.filter((b) => b.id !== block.id);
+          setSelectedBlockIdInModal(null);
+          updatePanelMutation.mutate(
+            { id: panel.id, updates: { layout: { ...layout, blocks: nextBlocks } as unknown as Json } },
+            { onSuccess: () => toast({ title: "Bloc supprimé" }), onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }) }
+          );
+        }
+      } else if (selectedColorBlockIdInModal?.panelId === expandedPanelId && selectedColorBlockIdInModal.colorBlockId) {
+        const colorBlocks = getPanelColorBlocks(panel);
+        const cb = colorBlocks.find((c) => c.id === selectedColorBlockIdInModal.colorBlockId);
+        if (cb) {
+          const next = colorBlocks.filter((c) => c.id !== cb.id);
+          setSelectedColorBlockIdInModal(null);
+          updatePanelMutation.mutate(
+            { id: panel.id, updates: { color_blocks: next as unknown as Json } },
+            { onSuccess: () => toast({ title: "Bloc de couleur supprimé" }), onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }) }
+          );
+        }
+      } else if (selectedSpeechBubbleIdInModal?.panelId === expandedPanelId && selectedSpeechBubbleIdInModal.bubbleId) {
+        const speechBubbles = getPanelSpeechBubbles(panel);
+        const bubble = speechBubbles.find((b) => b.id === selectedSpeechBubbleIdInModal.bubbleId);
+        if (bubble) {
+          const next = speechBubbles.filter((b) => b.id !== bubble.id);
+          setSelectedSpeechBubbleIdInModal(null);
+          updatePanelMutation.mutate(
+            { id: panel.id, updates: { speech_bubbles: next as unknown as Json } },
+            { onSuccess: () => toast({ title: "Bulle supprimée" }), onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }) }
+          );
+        }
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [expandedPanelId, selectedBlockIdInModal, selectedColorBlockIdInModal, selectedSpeechBubbleIdInModal, panels, updatePanelMutation, toast]);
 
   const loading = loadingChapter || loadingPanels;
   const canSaveLink =
@@ -1393,8 +1482,28 @@ export default function ChapterDetail() {
             <div className="p-4 space-y-4">
               <div className="rounded-xl border border-dashed border-border/70 bg-muted/30 px-3 py-3 space-y-2">
                 <span className="text-xs font-medium text-muted-foreground block">Ajouter une bulle</span>
+                <button
+                  type="button"
+                  draggable
+                  onDragStart={(e) => {
+                    e.dataTransfer.setData("application/json", JSON.stringify({ type: "speech-bubble", bubbleType: "text" }));
+                    e.dataTransfer.effectAllowed = "copy";
+                  }}
+                  onClick={() => {
+                    const ph = getPanelHeight(panel);
+                    const cx = Math.round((PANEL_WIDTH - DEFAULT_SPEECH_BUBBLE_WIDTH) / 2);
+                    const cy = Math.round((ph - DEFAULT_SPEECH_BUBBLE_HEIGHT) / 2);
+                    handleAddSpeechBubble("text", cx, cy);
+                  }}
+                  className="w-full cursor-pointer rounded-lg border border-border/60 bg-background px-2 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors flex items-center gap-1.5 justify-center"
+                  title="Ajouter un texte libre au centre (ou glisser sur le panel)"
+                >
+                  <Type className="h-3 w-3 shrink-0" />
+                  <span>✏️ Texte libre</span>
+                </button>
+                <Separator className="my-1" />
                 <div className="grid grid-cols-2 gap-2">
-                  {(Object.entries(SPEECH_BUBBLE_TYPE_LABELS) as [SpeechBubbleType, string][]).map(([type, label]) => (
+                  {(Object.entries(SPEECH_BUBBLE_TYPE_LABELS) as [SpeechBubbleType, string][]).filter(([type]) => type !== "text").map(([type, label]) => (
                     <button
                       key={type}
                       type="button"
@@ -1463,36 +1572,40 @@ export default function ChapterDetail() {
                       <span className="text-xs font-medium text-muted-foreground">Dimensions (glisser les poignées)</span>
                       <p className="text-sm text-foreground tabular-nums">{selectedSpeechBubble.width ?? DEFAULT_SPEECH_BUBBLE_WIDTH} × {selectedSpeechBubble.height ?? DEFAULT_SPEECH_BUBBLE_HEIGHT} px</p>
                     </div>
-                    <div className="space-y-2">
-                      <label className="text-xs font-medium text-muted-foreground flex items-center gap-2">
-                        Fond bulle
-                        <input
-                          type="color"
-                          value={selectedSpeechBubble.bgColor ?? selectedSpeechBubble.style?.fill ?? SPEECH_BUBBLE_DEFAULT_STYLE[selectedSpeechBubble.type].fill}
-                          onChange={(e) => {
-                            const v = e.target.value;
-                            const next = speechBubbles.map((b) => b.id === selectedSpeechBubble.id ? { ...b, style: { ...b.style, fill: v }, bgColor: v } : b);
-                            handleUpdateSpeechBubbles(next);
-                          }}
-                          className="h-6 w-8 rounded border border-border/60 cursor-pointer"
-                        />
-                      </label>
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-xs font-medium text-muted-foreground flex items-center gap-2">
-                        Contour bulle
-                        <input
-                          type="color"
-                          value={selectedSpeechBubble.borderColor ?? selectedSpeechBubble.style?.stroke ?? SPEECH_BUBBLE_DEFAULT_STYLE[selectedSpeechBubble.type].stroke}
-                          onChange={(e) => {
-                            const v = e.target.value;
-                            const next = speechBubbles.map((b) => b.id === selectedSpeechBubble.id ? { ...b, style: { ...b.style, stroke: v }, borderColor: v } : b);
-                            handleUpdateSpeechBubbles(next);
-                          }}
-                          className="h-6 w-8 rounded border border-border/60 cursor-pointer"
-                        />
-                      </label>
-                    </div>
+                    {selectedSpeechBubble.type !== "text" && (
+                      <>
+                        <div className="space-y-2">
+                          <label className="text-xs font-medium text-muted-foreground flex items-center gap-2">
+                            Fond bulle
+                            <input
+                              type="color"
+                              value={selectedSpeechBubble.bgColor ?? selectedSpeechBubble.style?.fill ?? SPEECH_BUBBLE_DEFAULT_STYLE[selectedSpeechBubble.type].fill}
+                              onChange={(e) => {
+                                const v = e.target.value;
+                                const next = speechBubbles.map((b) => b.id === selectedSpeechBubble.id ? { ...b, style: { ...b.style, fill: v }, bgColor: v } : b);
+                                handleUpdateSpeechBubbles(next);
+                              }}
+                              className="h-6 w-8 rounded border border-border/60 cursor-pointer"
+                            />
+                          </label>
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-xs font-medium text-muted-foreground flex items-center gap-2">
+                            Contour bulle
+                            <input
+                              type="color"
+                              value={selectedSpeechBubble.borderColor ?? selectedSpeechBubble.style?.stroke ?? SPEECH_BUBBLE_DEFAULT_STYLE[selectedSpeechBubble.type].stroke}
+                              onChange={(e) => {
+                                const v = e.target.value;
+                                const next = speechBubbles.map((b) => b.id === selectedSpeechBubble.id ? { ...b, style: { ...b.style, stroke: v }, borderColor: v } : b);
+                                handleUpdateSpeechBubbles(next);
+                              }}
+                              className="h-6 w-8 rounded border border-border/60 cursor-pointer"
+                            />
+                          </label>
+                        </div>
+                      </>
+                    )}
                     <div className="space-y-1.5">
                       <label className="text-xs font-medium text-muted-foreground">Police / taille / couleur</label>
                       <div className="flex flex-wrap gap-2 items-center">
@@ -1934,7 +2047,7 @@ export default function ChapterDetail() {
                 const fontFamily = bubble.style?.font ?? "inherit";
                 const color = bubble.style?.color ?? "#000000";
                 const { fill: fillColor, stroke: strokeColor } = getSpeechBubbleFillStroke(bubble);
-                const tailH = bubble.type === "narration" ? 0 : SPEECH_BUBBLE_TAIL_H;
+                const tailH = (bubble.type === "narration" || bubble.type === "text") ? 0 : SPEECH_BUBBLE_TAIL_H;
                 const totalH = geom.height + tailH;
                 return (
                   <div
@@ -2014,12 +2127,14 @@ export default function ChapterDetail() {
                     } : undefined}
                     onClick={panelEditorLeftTab === "dialogue" ? (e) => { e.stopPropagation(); setSelectedSpeechBubbleIdInModal({ panelId: panel.id, bubbleId: bubble.id }); } : undefined}
                   >
-                    <svg width="100%" height="100%" viewBox={bubble.type === "narration" ? SPEECH_BUBBLE_VIEWBOX_NARRATION : SPEECH_BUBBLE_VIEWBOX_WITH_TAIL} className="absolute inset-0 pointer-events-none" preserveAspectRatio="none">
-                      <SpeechBubbleShape type={bubble.type} fill={fillColor} stroke={strokeColor} />
-                    </svg>
+                    {bubble.type !== "text" && (
+                      <svg width="100%" height="100%" viewBox={bubble.type === "narration" ? SPEECH_BUBBLE_VIEWBOX_NARRATION : SPEECH_BUBBLE_VIEWBOX_WITH_TAIL} className="absolute inset-0 pointer-events-none" preserveAspectRatio="none">
+                        <SpeechBubbleShape type={bubble.type} fill={fillColor} stroke={strokeColor} />
+                      </svg>
+                    )}
                     <div
                       className="absolute inset-0 flex items-center justify-center text-center px-2 py-1 pointer-events-none"
-                      style={{ fontSize: `${fontSize}px`, fontFamily: fontFamily === "inherit" ? undefined : fontFamily, color, height: bubble.type === "narration" ? geom.height : (totalH * 100) / 120 }}
+                      style={{ fontSize: `${fontSize}px`, fontFamily: fontFamily === "inherit" ? undefined : fontFamily, color, height: bubble.type === "narration" || bubble.type === "text" ? geom.height : (totalH * 100) / 120 }}
                     >
                       <span className="line-clamp-3 break-words">{bubble.text || "…"}</span>
                     </div>
@@ -2157,6 +2272,14 @@ export default function ChapterDetail() {
                 {chapter.synopsis}
               </p>
             )}
+            <div className="mt-1">
+              <PanelCountBadge
+                content={scenarioChapter?.content}
+                panelsTarget={project?.panels_target_per_chapter}
+                actualCount={panels.length}
+                variant="editor"
+              />
+            </div>
           </div>
         </div>
 
@@ -2370,9 +2493,25 @@ export default function ChapterDetail() {
               </div>
             ) : (
               <div className="space-y-4">
-                <h2 className="text-lg font-display font-semibold">
-                  Panels ({panels.length})
-                </h2>
+                <div className="flex items-center justify-between gap-4">
+                  <h2 className="text-lg font-display font-semibold">
+                    Panels ({panels.length})
+                  </h2>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-1.5 shrink-0"
+                    disabled={exportingChapter || panels.length === 0}
+                    onClick={handleExportChapter}
+                    title="Télécharger le chapitre complet en PNG"
+                  >
+                    {exportingChapter ? (
+                      <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Export…</>
+                    ) : (
+                      <><Download className="h-3.5 w-3.5" /> Télécharger le chapitre</>
+                    )}
+                  </Button>
+                </div>
                 <div className="space-y-4">
                   {panels.map((panel) => {
                     const blocks = getPanelBlocks(panel);
@@ -2399,6 +2538,20 @@ export default function ChapterDetail() {
                             </Button>
                             <Button
                               size="sm"
+                              variant="outline"
+                              className="gap-1.5"
+                              disabled={exportingPanel === panel.id}
+                              onClick={() => handleExportPanel(panel)}
+                              title="Télécharger ce panel en PNG"
+                            >
+                              {exportingPanel === panel.id ? (
+                                <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Export…</>
+                              ) : (
+                                <><Download className="h-3.5 w-3.5" /> PNG</>
+                              )}
+                            </Button>
+                            <Button
+                              size="sm"
                               variant="ghost"
                               className="gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10"
                               onClick={() => setPanelToDeleteId(panel.id)}
@@ -2418,11 +2571,12 @@ export default function ChapterDetail() {
                           <div className="border-b border-border pl-4 pr-6 py-[15px] min-w-[840px]">
                             <div className="mx-auto w-max relative rounded-xl border border-border bg-muted shadow-[inset_0_3px_8px_-2px_rgba(0,0,0,0.15),inset_0_-3px_8px_-2px_rgba(0,0,0,0.15)]" style={{ width: PANEL_WIDTH, height: getPanelHeight(panel) }}>
                               <div
+                                ref={(el) => { exportCanvasRefByPanel.current[panel.id] = el; }}
                                 className="absolute left-0 top-0 rounded-lg overflow-hidden"
                                 style={{
                                   width: PANEL_WIDTH,
                                   height: getPanelHeight(panel),
-                                  backgroundColor: "hsl(var(--muted))",
+                                  backgroundColor: "#ffffff",
                                 }}
                               >
                               {/* Blocs de couleur (arrière-plan) — prévisualisation = tout ce qui sera exporté (ex. PDF) */}

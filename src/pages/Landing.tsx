@@ -1,10 +1,9 @@
 import { Link } from "react-router-dom";
-import { useMemo } from "react";
 import { motion } from "framer-motion";
 import { Sparkles, Wand2, Palette, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { ImageWithFallback } from "@/components/ui/ImageWithFallback";
+import heroBg from "@/assets/hero-bg.jpg";
 
 const features = [
   {
@@ -30,199 +29,21 @@ const features = [
 ];
 
 export default function Landing() {
-  const showcaseBase = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/dreamweave/landing-showcase`;
-  const cards = useMemo(
-    () => Array.from({ length: 12 }, (_, idx) => `${showcaseBase}/card-${idx + 1}.png`),
-    [showcaseBase]
-  );
-
-  const bgCards = useMemo(() => {
-    const randomFactor = () => 0.5 + Math.random(); // marge de 50%
-    const clamp = (value: number, min: number, max: number) =>
-      Math.max(min, Math.min(max, value));
-    const overlaps = (
-      a: { top: number; left: number; width: number; height: number },
-      b: { top: number; left: number; width: number; height: number }
-    ) =>
-      a.left < b.left + b.width &&
-      a.left + a.width > b.left &&
-      a.top < b.top + b.height &&
-      a.top + a.height > b.top;
-
-    const baseCards = [
-      { cardIndex: 0, side: "left", top: 10, distance: 3, rotate: -3 },
-      { cardIndex: 1, side: "left", top: 26, distance: 4, rotate: 2 },
-      { cardIndex: 2, side: "left", top: 42, distance: 3, rotate: -2 },
-      { cardIndex: 3, side: "left", top: 58, distance: 4, rotate: 3 },
-      { cardIndex: 6, side: "left", top: 74, distance: 3, rotate: -3 },
-      { cardIndex: 7, side: "left", top: 86, distance: 4, rotate: 2 },
-      { cardIndex: 4, side: "right", top: 10, distance: 3, rotate: 3 },
-      { cardIndex: 5, side: "right", top: 26, distance: 4, rotate: -2 },
-      { cardIndex: 8, side: "right", top: 42, distance: 3, rotate: 2 },
-      { cardIndex: 9, side: "right", top: 58, distance: 4, rotate: -3 },
-      { cardIndex: 10, side: "right", top: 74, distance: 3, rotate: 3 },
-      { cardIndex: 11, side: "right", top: 86, distance: 4, rotate: -2 },
-    ] as const;
-
-    const placedRects: Array<{ top: number; left: number; width: number; height: number }> = [];
-    const viewportWidthPx =
-      typeof window !== "undefined" ? window.innerWidth : 1440;
-    const viewportHeightPx =
-      typeof window !== "undefined" ? window.innerHeight : 900;
-    const safeMarginPx = 56;
-
-    return baseCards.map((base, idx) => {
-      let widthPx = clamp(264 * randomFactor(), 162, 396);
-      let heightPx = clamp(162 * randomFactor(), 108, 243);
-      const duration = 20 * randomFactor();
-      const delay = Math.random() * 9;
-
-      const minTopPct = 10;
-      const maxTopPct = Math.max(
-        minTopPct,
-        ((viewportHeightPx - heightPx - safeMarginPx) / viewportHeightPx) * 100
-      );
-      let chosenTopPct = clamp(base.top * randomFactor(), minTopPct, maxTopPct);
-      let chosenDistancePct = clamp(base.distance * randomFactor(), 1.5, 26);
-      let found = false;
-
-      for (let sizeAttempt = 0; sizeAttempt < 4 && !found; sizeAttempt++) {
-        const scaledWidth = widthPx * (1 - sizeAttempt * 0.1);
-        const scaledHeight = heightPx * (1 - sizeAttempt * 0.1);
-
-        // Phase 1: tentatives aléatoires
-        for (let attempt = 0; attempt < 260; attempt++) {
-          const topPct = minTopPct + Math.random() * Math.max(0, maxTopPct - minTopPct);
-          const distancePct = 1.5 + Math.random() * 24.5;
-
-          const topPx = (topPct / 100) * viewportHeightPx;
-          const leftPx =
-            base.side === "left"
-              ? (distancePct / 100) * viewportWidthPx
-              : viewportWidthPx - (distancePct / 100) * viewportWidthPx - scaledWidth;
-
-          const candidate = {
-            top: topPx,
-            left: leftPx,
-            width: scaledWidth + safeMarginPx,
-            height: scaledHeight + safeMarginPx,
-          };
-
-          const hasCollision = placedRects.some((rect) => overlaps(candidate, rect));
-          if (!hasCollision) {
-            chosenTopPct = topPct;
-            chosenDistancePct = distancePct;
-            widthPx = scaledWidth;
-            heightPx = scaledHeight;
-            placedRects.push(candidate);
-            found = true;
-            break;
-          }
-        }
-
-        // Phase 2: scan déterministe (garantit qu'on n'ajoute jamais une position en collision)
-        if (!found) {
-          for (let topPct = minTopPct; topPct <= maxTopPct && !found; topPct += 2.2) {
-            for (let distancePct = 1.5; distancePct <= 26 && !found; distancePct += 1.2) {
-              const topPx = (topPct / 100) * viewportHeightPx;
-              const leftPx =
-                base.side === "left"
-                  ? (distancePct / 100) * viewportWidthPx
-                  : viewportWidthPx - (distancePct / 100) * viewportWidthPx - scaledWidth;
-
-              const candidate = {
-                top: topPx,
-                left: leftPx,
-                width: scaledWidth + safeMarginPx,
-                height: scaledHeight + safeMarginPx,
-              };
-
-              const hasCollision = placedRects.some((rect) => overlaps(candidate, rect));
-              if (!hasCollision) {
-                chosenTopPct = topPct;
-                chosenDistancePct = distancePct;
-                widthPx = scaledWidth;
-                heightPx = scaledHeight;
-                placedRects.push(candidate);
-                found = true;
-              }
-            }
-          }
-        }
-      }
-
-      if (!found) {
-        // Dernier filet de sécurité: mini-carte + scan strict pour éviter tout chevauchement.
-        widthPx = 120;
-        heightPx = 72;
-        for (let topPct = minTopPct; topPct <= maxTopPct && !found; topPct += 1.5) {
-          for (let distancePct = 1.5; distancePct <= 26 && !found; distancePct += 1) {
-            const topPx = (topPct / 100) * viewportHeightPx;
-            const leftPx =
-              base.side === "left"
-                ? (distancePct / 100) * viewportWidthPx
-                : viewportWidthPx - (distancePct / 100) * viewportWidthPx - widthPx;
-            const candidate = {
-              top: topPx,
-              left: leftPx,
-              width: widthPx + safeMarginPx,
-              height: heightPx + safeMarginPx,
-            };
-            const hasCollision = placedRects.some((rect) => overlaps(candidate, rect));
-            if (!hasCollision) {
-              chosenTopPct = topPct;
-              chosenDistancePct = distancePct;
-              placedRects.push(candidate);
-              found = true;
-            }
-          }
-        }
-      }
-
-      return {
-        src: cards[base.cardIndex],
-        side: base.side,
-        top: clamp(chosenTopPct, minTopPct, maxTopPct),
-        distance: chosenDistancePct,
-        rotate: 0,
-        widthPx,
-        heightPx,
-        duration,
-        delay,
-      };
-    });
-  }, [cards]);
-
   return (
-    <div className="min-h-screen gradient-dream">
-      <div className="fixed inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
-        {bgCards.map((card, idx) => (
-          <div
-            key={`${card.src}-${idx}`}
-            className="absolute hidden lg:block landing-bg-card-fade"
-            style={{
-              top: `${card.top}%`,
-              [card.side]: `${card.distance}%`,
-              transform: `rotate(${card.rotate}deg)`,
-              animationDelay: `${card.delay}s`,
-              animationDuration: `${card.duration}s`,
-            }}
-          >
-            <div
-              className="rounded-xl overflow-hidden shadow-dream bg-background/20"
-              style={{ width: `${card.widthPx}px`, height: `${card.heightPx}px` }}
-            >
-              <ImageWithFallback
-                src={card.src}
-                alt="Exemple webtoon généré"
-                className="w-full h-full object-cover"
-                fallbackClassName="w-full h-full bg-muted"
-              />
-            </div>
-          </div>
-        ))}
-      </div>
-      <div className="fixed inset-0 pointer-events-none bg-gradient-to-b from-background/86 via-background/70 to-background/90" />
+    <div className="min-h-screen">
+      {/* Hero background avec image */}
+      <div
+        className="fixed inset-0 pointer-events-none"
+        style={{
+          backgroundImage: `url(${heroBg})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center top",
+        }}
+        aria-hidden="true"
+      />
+      {/* Overlay light */}
+      <div className="fixed inset-0 pointer-events-none bg-gradient-to-b from-background/30 via-background/50 to-background/85 dark:from-background/60 dark:via-background/75 dark:to-background/95" />
+
       {/* Nav */}
       <nav className="fixed top-0 inset-x-0 z-50 glass">
         <div className="container px-4 sm:px-6 lg:px-8 flex h-14 sm:h-16 items-center justify-between">
@@ -263,16 +84,16 @@ export default function Landing() {
               transition={{ duration: 0.7 }}
               className="space-y-4 sm:space-y-6"
             >
-              <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium text-primary">
+              <div className="inline-flex items-center gap-2 rounded-full gradient-primary text-primary-foreground px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium shadow-dream">
                 <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 Créez sans savoir dessiner
               </div>
-              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-display font-bold leading-tight">
+              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-display font-bold leading-tight text-foreground drop-shadow-sm">
                 Tissez vos{" "}
-                <span className="text-gradient">rêves</span> en
+                <span className="text-gradient drop-shadow-sm">rêves</span> en
                 webtoons
               </h1>
-              <p className="text-base sm:text-lg text-muted-foreground max-w-lg mx-auto px-2">
+              <p className="text-base sm:text-lg text-foreground/80 max-w-lg mx-auto px-2 drop-shadow-sm">
                 DreamWeave transforme vos idées en magnifiques webtoons
                 verticaux grâce à l'intelligence artificielle. Aucun talent
                 artistique requis.
@@ -288,6 +109,16 @@ export default function Landing() {
                     Créer mon webtoon
                   </Link>
                 </Button>
+                <Button
+                  variant="ghost"
+                  size="lg"
+                  asChild
+                  className="text-sm sm:text-base px-6 sm:px-8 backdrop-blur-sm bg-background/30 hover:bg-background/50"
+                >
+                  <Link to="/auth">
+                    Voir un exemple →
+                  </Link>
+                </Button>
               </div>
             </motion.div>
           </div>
@@ -295,7 +126,7 @@ export default function Landing() {
       </section>
 
       {/* Features */}
-      <section className="relative z-20 py-12 sm:py-20 bg-background/94 backdrop-blur-[1px]">
+      <section className="relative z-20 py-12 sm:py-20 bg-gradient-to-b from-[hsl(275_30%_92%/0.6)] to-background/90 dark:from-background/80 dark:to-background/95 backdrop-blur-[1px]">
         <div className="container px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -318,9 +149,9 @@ export default function Landing() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1 }}
-                className="glass rounded-2xl p-5 sm:p-6 hover:shadow-dream transition-shadow duration-300"
-                >
-                <div className="mb-3 sm:mb-4 inline-flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-xl bg-primary/10">
+                className="glass rounded-2xl p-5 sm:p-6 hover:shadow-dream hover:border-primary/40 transition-all duration-300"
+              >
+                <div className="mb-3 sm:mb-4 inline-flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-xl bg-primary/20">
                   <f.icon className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
                 </div>
                 <h3 className="font-display font-semibold text-base sm:text-lg mb-1.5 sm:mb-2">

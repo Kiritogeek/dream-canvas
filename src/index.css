@@ -18,7 +18,7 @@
     --popover: 30 35% 96%;
     --popover-foreground: 270 20% 15%;
 
-    --primary: 275 45% 72%;
+    --primary: 275 55% 65%;
     --primary-foreground: 0 0% 100%;
 
     --secondary: 28 80% 88%;
@@ -36,26 +36,26 @@
 
     --border: 275 20% 88%;
     --input: 275 20% 88%;
-    --ring: 275 45% 72%;
+    --ring: 275 55% 65%;
 
     --radius: 1rem;
 
     /* Sidebar : lavande légèrement plus marquée */
     --sidebar-background: 275 25% 94%;
     --sidebar-foreground: 270 20% 25%;
-    --sidebar-primary: 275 45% 72%;
+    --sidebar-primary: 275 55% 65%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 28 55% 90%;
     --sidebar-accent-foreground: 270 20% 20%;
     --sidebar-border: 275 20% 88%;
-    --sidebar-ring: 275 45% 72%;
+    --sidebar-ring: 275 55% 65%;
 
     /* Custom DreamWeave tokens */
-    --lavender: 275 45% 72%;
+    --lavender: 275 55% 65%;
     --lavender-soft: 275 30% 92%;
-    --peach: 28 80% 88%;
-    --peach-deep: 20 70% 75%;
-    --mint: 170 35% 78%;
+    --peach: 28 85% 82%;
+    --peach-deep: 20 75% 68%;
+    --mint: 170 45% 68%;
     --mint-soft: 170 25% 92%;
     --rose: 340 50% 80%;
     --cream: 40 40% 96%;
@@ -81,7 +81,7 @@
     --card-foreground: 0 0% 100%;
     --popover: 275 16% 11%;
     --popover-foreground: 0 0% 100%;
-    --primary: 275 52% 68%;
+    --primary: 275 50% 75%;
     --primary-foreground: 0 0% 100%;
     --secondary: 28 45% 28%;
     --secondary-foreground: 0 0% 100%;
@@ -93,20 +93,20 @@
     --destructive-foreground: 0 0% 100%;
     --border: 275 14% 22%;
     --input: 275 14% 22%;
-    --ring: 275 52% 68%;
+    --ring: 275 50% 75%;
     --sidebar-background: 275 18% 8%;
     --sidebar-foreground: 0 0% 96%;
-    --sidebar-primary: 275 52% 68%;
+    --sidebar-primary: 275 50% 75%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 275 14% 16%;
     --sidebar-accent-foreground: 0 0% 96%;
     --sidebar-border: 275 14% 22%;
-    --sidebar-ring: 275 52% 68%;
-    --lavender: 275 52% 68%;
+    --sidebar-ring: 275 50% 75%;
+    --lavender: 275 50% 75%;
     --lavender-soft: 275 28% 18%;
-    --peach: 28 55% 36%;
-    --peach-deep: 22 48% 42%;
-    --mint: 170 28% 36%;
+    --peach: 28 70% 80%;
+    --peach-deep: 22 55% 48%;
+    --mint: 170 40% 72%;
     --mint-soft: 170 18% 16%;
     --rose: 340 38% 42%;
     --cream: 275 16% 11%;
@@ -162,9 +162,17 @@
   .gradient-dream {
     background: linear-gradient(
       135deg,
-      hsl(var(--lavender-soft)) 0%,
-      hsl(var(--peach) / 0.3) 50%,
-      hsl(var(--mint-soft)) 100%
+      hsl(var(--lavender) / 0.45) 0%,
+      hsl(var(--peach) / 0.35) 50%,
+      hsl(var(--mint) / 0.40) 100%
+    );
+  }
+  .dark .gradient-dream {
+    background: linear-gradient(
+      135deg,
+      hsl(275 30% 12%) 0%,
+      hsl(275 25% 9%) 50%,
+      hsl(275 28% 11%) 100%
     );
   }
   .gradient-primary {
@@ -309,29 +317,3 @@
   }
 }
 
-@keyframes landingBgFade {
-  0% {
-    opacity: 0;
-  }
-  24% {
-    opacity: 0.62;
-  }
-  64% {
-    opacity: 0.62;
-  }
-  100% {
-    opacity: 0;
-  }
-}
-
-.landing-bg-card-fade {
-  animation: landingBgFade 10s linear infinite;
-  will-change: opacity;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .landing-bg-card-fade {
-    animation: none;
-    opacity: 0.55;
-  }
-}

@@ -141,7 +141,7 @@ export const DEFAULT_SPEECH_BUBBLE_WIDTH = 200;
 export const DEFAULT_SPEECH_BUBBLE_HEIGHT = 110;
 
 /** Types de bulles (format stockage). dialogue = speech, caption = narration en UI. */
-export type SpeechBubbleType = "speech" | "thought" | "shout" | "whisper" | "narration" | "radio";
+export type SpeechBubbleType = "speech" | "thought" | "shout" | "whisper" | "narration" | "radio" | "text";
 
 /** Style de texte étendu (éditeur avancé). */
 export interface SpeechBubbleTextStyle {
@@ -208,6 +208,7 @@ export interface SpeechBubble {
 
 /** Libellés UI des types de bulles (alignés Edition_Panel_Blocs_Bulles.md § 7.1). */
 export const SPEECH_BUBBLE_TYPE_LABELS: Record<SpeechBubbleType, string> = {
+  text: "✏️ Texte libre",
   speech: "💬 Dialogue",
   thought: "💭 Pensée",
   shout: "💥 Cri",
@@ -218,6 +219,7 @@ export const SPEECH_BUBBLE_TYPE_LABELS: Record<SpeechBubbleType, string> = {
 
 /** Couleurs par défaut (fond, contour) par type de bulle — alignées Edition_Panel_Blocs_Bulles.md § 7.1. */
 export const SPEECH_BUBBLE_DEFAULT_STYLE: Record<SpeechBubbleType, { fill: string; stroke: string }> = {
+  text: { fill: "transparent", stroke: "transparent" },
   speech: { fill: "#ffffff", stroke: "#000000" },
   thought: { fill: "#ffffff", stroke: "#000000" },
   shout: { fill: "#ffffff", stroke: "#000000" },

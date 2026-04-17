@@ -358,4 +358,4 @@ Jan     Fév     Mar     Avr     Mai     Juin    Jul     Aoû     Sep     Oct   
 
 ---
 
-*Dernière mise à jour : 17 avril 2026 (v2) — Statuts corrigés d'après code réel : sélection explicite blocs ✅ livré, navigation latérale ✅ livré (commit e31a3d8), validation Style ✅ livré (bouton "Valider ce style"), style Européen ✅ livré (4e template), badge "Style actif" supprimé (commit 212066a), recherche+filtre Assets ✅ livré, CharacterView type ✅ défini dans types/index.ts. Suppr blocs reste 📋 à faire.*
+*Dernière mise à jour : 17 avril 2026 (v3) — commit 4059f79 : Assets UX (13 fixes P0→P2 : CharacterViewDialog vues Pro ✅, quota visible ✅, filtre/onglet fusionnés ✅, empty states ✅, preview édition ✅, badges type ✅). Prompts Free/Pro différenciés sur 3 types d'assets (Schnell-optimized vs FLUX.2 Pro riche). Suppr blocs reste 📋 à faire. Stripe reste P0 critique.*

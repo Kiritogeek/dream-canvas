@@ -55,7 +55,8 @@ import {
   MissingAssetsPanel,
 } from "@/components/project/ScenarioTextHighlighter";
 import type { Project, ScenarioChapter, Asset, AssetType } from "@/types";
-import { estimatePanelCount, PANELS_REFERENCE_PER_CHAPTER } from "@/services/panels";
+import { PANELS_REFERENCE_PER_CHAPTER } from "@/services/panels";
+import { PanelCountBadge } from "@/components/project/PanelCountBadge";
 
 // ── Props ─────────────────────────────────────────────────────
 
@@ -1072,13 +1073,11 @@ function ChapterCard({
             </div>
 
             {/* Estimation panels (contrôle longueur) */}
-            {chapter.content && (
-              <p className="text-xs text-muted-foreground">
-                Estimation : <strong>{estimatePanelCount(chapter.content)}</strong> panels
-                {" · "}
-                Cible : <strong>{panelsTarget ?? PANELS_REFERENCE_PER_CHAPTER}</strong> panels
-              </p>
-            )}
+            <PanelCountBadge
+              content={chapter.content}
+              panelsTarget={panelsTarget ?? PANELS_REFERENCE_PER_CHAPTER}
+              variant="scenario"
+            />
 
             {/* ── IA Chapitre (visible dès l'ouverture) ──────── */}
             <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 space-y-2">

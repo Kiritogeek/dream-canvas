@@ -21,6 +21,10 @@ export function getPanelHeight(panel: Panel | null | undefined): number {
 /** Référence affichée : nombre de panels par chapitre (indicatif). */
 export const PANELS_REFERENCE_PER_CHAPTER = 10;
 
+/** Plage typique de panels par chapitre (indicatif). */
+export const PANELS_REFERENCE_MIN = 8;
+export const PANELS_REFERENCE_MAX = 14;
+
 /** Dimensions par défaut d'un nouveau bloc (500×500). */
 export const DEFAULT_BLOCK_WIDTH = 500;
 export const DEFAULT_BLOCK_HEIGHT = 500;

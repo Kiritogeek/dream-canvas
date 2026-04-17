@@ -74,13 +74,15 @@
 
 | Étape | Écran / action | Détail |
 |-------|----------------|--------|
-| 1 | **Onglets + recherche** | 3 onglets : **Personnages** (Users), **Décors** (MapPin), **Objets** (Box). **Barre de recherche** par nom + **dropdown filtre** (Tous / Personnages / Décors / Objets). Assets filtrés en temps réel (`filteredAssets`). |
-| 2 | **Liste** | Grille d’assets avec image (ou placeholder), nom, type. |
-| 3 | **Ajout** | Bouton « Ajouter » → dialog : type, nom, description/prompt. Génération IA automatique après création. Peut être pré-rempli depuis le scénario (`pendingAssetName`, `pendingAssetType`). |
-| 4 | **Carte asset** | Hover : boutons Modifier, Régénérer, Supprimer. Clic sur un personnage → `CharacterViewDialog` : vue face + sheet composite + profil gauche/droit/dos. |
-| 5 | **Modification** | Dialog pré-rempli (nom, prompt). Seul le nom change → « Sauvegarder ». Prompt change → « Sauvegarder sans régénérer » ou « Sauvegarder et régénérer ». |
+| 1 | **Onglets + recherche** | 3 onglets : **Personnages** (Users), **Décors** (MapPin), **Objets** (Box). **Barre de recherche** par nom + **dropdown filtre** fusionné avec l’onglet actif (source unique de vérité). Assets filtrés en temps réel. |
+| 2 | **Liste** | Grille d’assets avec image (ou placeholder), nom, type. **Badge type** sur chaque carte (Perso/Décor/Objet, couleurs design system). |
+| 3 | **Ajout** | Bouton contextuel (« Ajouter un personnage » / « Ajouter un décor » / « Ajouter un objet » selon filtre actif) → dialog : type pré-sélectionné, nom, description/prompt (**requis**, marqué `*`). Génération IA auto après création. Pré-rempli depuis scénario (`pendingAssetName`, `pendingAssetType`). |
+| 4 | **Carte asset** | Hover : boutons Modifier, Régénérer, Supprimer (désactivé pendant mutation). Clic `Eye` sur un personnage → `CharacterViewDialog` : grille 2×2 (face + profil G/D/dos). Génération par vue (Pro uniquement) avec spinner par slot. Free : boutons désactivés + tooltip "Pro uniquement". |
+| 5 | **Modification** | Dialog avec **preview de l’image actuelle** + champs nom/prompt. Seul le nom change → « Sauvegarder ». Prompt change → « Sauvegarder sans régénérer » ou « Sauvegarder et régénérer ». |
 | 6 | **Renommage + scénario** | Si l’ancien nom apparaît dans des chapitres : « Mettre à jour le scénario ? » → remplace l’ancien nom partout. |
-| 7 | **Suppression** | Confirmation (AlertDialog) avant suppression. Nettoyage Storage. |
+| 7 | **Suppression** | Confirmation (AlertDialog `.glass`) avant suppression. Nettoyage Storage. |
+| 8 | **Quota** | Compteur `{usage} / {limit} générations ce mois` dans le header — amber si < 5 restantes, rouge si 0. |
+| 9 | **Prompts IA** | **Free** (FLUX.1 Schnell) : prompt court et direct, optimisé pour les capacités du modèle. **Pro** (FLUX.2 Pro) : prompt riche structuré + préfixe `masterpiece, best quality, ultra-detailed`. |
 
 ---
 

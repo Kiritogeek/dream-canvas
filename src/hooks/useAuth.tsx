@@ -7,6 +7,8 @@ type AuthErrorCode =
   | "EMAIL_CONFIRMATION_REQUIRED"
   | "EMAIL_NOT_CONFIRMED";
 
+const EMAIL_REGEX = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+
 type AuthErrorWithMeta = Error & {
   code?: string | number;
   status?: number;
@@ -55,12 +57,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signUp = async (email: string, password: string, displayName?: string) => {
     // Validation supplémentaire côté hook
     const trimmedEmail = email.trim().toLowerCase();
-    const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
-    
-    if (!trimmedEmail || !emailRegex.test(trimmedEmail)) {
+
+    if (!trimmedEmail || !EMAIL_REGEX.test(trimmedEmail)) {
       throw new Error("L'adresse email n'est pas valide");
     }
-    
+
     const { data, error } = await supabase.auth.signUp({
       email: trimmedEmail,
       password,
@@ -129,12 +130,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signIn = async (email: string, password: string) => {
     // Validation supplémentaire côté hook
     const trimmedEmail = email.trim().toLowerCase();
-    const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
-    
-    if (!trimmedEmail || !emailRegex.test(trimmedEmail)) {
+
+    if (!trimmedEmail || !EMAIL_REGEX.test(trimmedEmail)) {
       throw new Error("L'adresse email n'est pas valide");
     }
-    
+
     const { data, error } = await supabase.auth.signInWithPassword({ 
       email: trimmedEmail, 
       password 
@@ -213,12 +213,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const resetPassword = async (email: string) => {
     const trimmedEmail = email.trim().toLowerCase();
-    const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
-    
-    if (!trimmedEmail || !emailRegex.test(trimmedEmail)) {
+
+    if (!trimmedEmail || !EMAIL_REGEX.test(trimmedEmail)) {
       throw new Error("L'adresse email n'est pas valide");
     }
-    
+
     const { error } = await supabase.auth.resetPasswordForEmail(trimmedEmail, {
       redirectTo: `${window.location.origin}/auth/reset-password`,
     });

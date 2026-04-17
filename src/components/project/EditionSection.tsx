@@ -45,14 +45,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { Chapter, Project } from "@/types";
+import type { Chapter } from "@/types";
 
 interface EditionSectionProps {
   projectId: string;
-  project: Project;
 }
 
-export function EditionSection({ projectId, project: _project }: EditionSectionProps) {
+export function EditionSection({ projectId }: EditionSectionProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { data: chapters = [], isLoading } = useChapters(projectId);
@@ -207,11 +206,6 @@ export function EditionSection({ projectId, project: _project }: EditionSectionP
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">
-        Construisez votre webtoon visuel à partir des chapitres : créez des
-        chapitres, ouvrez-les pour éditer les panels (800×5000), ajoutez blocs,
-        bulles et effets.
-      </p>
 
       {isLoading && (
         <div className="space-y-2">

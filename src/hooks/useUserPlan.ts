@@ -96,8 +96,8 @@ export function useUserPlan() {
     changePlan: changePlanMutation,
     /** Invalider le cache pour forcer un rafraîchissement */
     invalidate: () => {
-      planQuery.refetch();
-      usageQuery.refetch();
+      qc.invalidateQueries({ queryKey: ["userPlan"] });
+      qc.invalidateQueries({ queryKey: ["monthlyUsage"] });
     },
   };
 }

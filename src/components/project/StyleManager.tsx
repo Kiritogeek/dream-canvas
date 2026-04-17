@@ -320,12 +320,6 @@ export function StyleManager({
   return (
     <div className="space-y-3 sm:space-y-4">
       <div className="glass rounded-lg sm:rounded-xl p-4 sm:p-6 space-y-3 sm:space-y-4">
-        <div className="flex items-center gap-2 mb-1 sm:mb-2">
-          <Palette className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
-          <h2 className="text-base sm:text-lg font-display font-semibold">
-            Selection du style
-          </h2>
-        </div>
         <p className="text-xs sm:text-sm text-muted-foreground">
           Choisissez un preset : les visuels d&apos;exemple et le texte enregistre en base
           reprennent les memes prompts systeme (non editables), pour un rendu aligne avec le

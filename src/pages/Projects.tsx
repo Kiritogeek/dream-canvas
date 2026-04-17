@@ -5,7 +5,6 @@ import { Plus, Trash2, Sparkles, Search, Dice5 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -37,7 +36,6 @@ export default function Projects() {
 
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
@@ -48,13 +46,6 @@ export default function Projects() {
     "Les Veilleurs du Rift",
     "Mille Vies a Minuit",
     "Le Serment des Cendres",
-  ];
-  const descriptionIdeas = [
-    "Dans une cite suspendue, une equipe improvisee traque des anomalies magiques avant qu'elles n'avalent la ville.",
-    "Une apprentie cartographe decode une carte vivante qui reecrit l'histoire a chaque lever de lune.",
-    "Trois heros lies par un artefact ancien affrontent un ordre secret entre fantasy medievale et SF.",
-    "Un studio de createurs entre dans ses propres recits et doit sauver ses personnages de l'oubli.",
-    "Un chapitre, une enigme, un retournement : chaque episode devoile une memoire perdue du monde.",
   ];
   const suggestedTags = [
     "Fantasy",
@@ -82,18 +73,16 @@ export default function Projects() {
     e.preventDefault();
     if (!title.trim()) return;
 
-    const tagsPrefix = selectedTags.length
-      ? `[Tags: ${selectedTags.join(", ")}]\n`
-      : "";
-    const finalDescription = `${tagsPrefix}${description.trim()}`.trim();
+    const finalDescription = selectedTags.length
+      ? `[Tags: ${selectedTags.join(", ")}]`
+      : null;
 
     createProject.mutate(
-      { title: title.trim(), description: finalDescription || null },
+      { title: title.trim(), description: finalDescription },
       {
         onSuccess: (data) => {
           setOpen(false);
           setTitle("");
-          setDescription("");
           setSelectedTags([]);
           navigate(`/dashboard/projects/${data.id}`);
         },
@@ -109,12 +98,6 @@ export default function Projects() {
 
   const randomTitle = () => {
     setTitle(titleIdeas[Math.floor(Math.random() * titleIdeas.length)]);
-  };
-
-  const randomDescription = () => {
-    setDescription(
-      descriptionIdeas[Math.floor(Math.random() * descriptionIdeas.length)]
-    );
   };
 
   const toggleTag = (tag: string) => {
@@ -177,21 +160,6 @@ export default function Projects() {
                     <Button type="button" variant="outline" onClick={randomTitle}>
                       <Dice5 className="h-4 w-4 mr-1" />
                       Dé
-                    </Button>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label>Description</Label>
-                  <div className="space-y-2">
-                    <Textarea
-                      value={description}
-                      onChange={(e) => setDescription(e.target.value)}
-                      placeholder="De quoi parle votre histoire ?"
-                      rows={3}
-                    />
-                    <Button type="button" variant="outline" onClick={randomDescription}>
-                      <Dice5 className="h-4 w-4 mr-1" />
-                      Dé description
                     </Button>
                   </div>
                 </div>
@@ -287,10 +255,19 @@ export default function Projects() {
                   <h3 className="font-display font-semibold text-sm sm:text-base mb-1 group-hover:text-primary transition-colors pr-6">
                     {p.title}
                   </h3>
-                  <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2">
-                    {p.description || "Aucune description"}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-2 sm:mt-3">
+                  {(() => {
+                    const tags = p.description?.match(/^\[Tags: ([^\]]+)\]/)?.[1]?.split(", ") ?? [];
+                    return tags.length > 0 ? (
+                      <div className="flex flex-wrap gap-1 mb-1">
+                        {tags.map((tag) => (
+                          <span key={tag} className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    ) : null;
+                  })()}
+                  <p className="text-xs text-muted-foreground mt-1 sm:mt-2">
                     {new Date(p.created_at).toLocaleDateString("fr-FR")}
                   </p>
                 </Link>

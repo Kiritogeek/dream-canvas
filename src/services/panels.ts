@@ -25,7 +25,7 @@ export const PANELS_REFERENCE_PER_CHAPTER = 10;
 export const DEFAULT_BLOCK_WIDTH = 500;
 export const DEFAULT_BLOCK_HEIGHT = 500;
 
-/** Bibliothèque de blocs (Étape 6) : formes prédéfinies pour placement par glisser-déposer. */
+/** Bibliothèque de blocs prédéfinis (image et couleur partagent les mêmes dimensions). */
 export const BLOCK_PRESETS = [
   { label: "500×500", width: 500, height: 500 },
   { label: "400×600", width: 400, height: 600 },
@@ -34,17 +34,10 @@ export const BLOCK_PRESETS = [
   { label: "600×400", width: 600, height: 400 },
 ] as const;
 
+export const COLOR_BLOCK_PRESETS = BLOCK_PRESETS;
+
 /** Couleur par défaut d'un nouveau bloc de couleur. */
 export const DEFAULT_COLOR_BLOCK_FILL = { type: "solid" as const, color: "#1e293b" };
-
-/** Bibliothèque de blocs de couleur (mêmes presets que blocs image). */
-export const COLOR_BLOCK_PRESETS = [
-  { label: "500×500", width: 500, height: 500 },
-  { label: "400×600", width: 400, height: 600 },
-  { label: "720×400", width: 720, height: 400 },
-  { label: "350×500", width: 350, height: 500 },
-  { label: "600×400", width: 600, height: 400 },
-] as const;
 
 // ── Helpers ──────────────────────────────────────────────────────
 

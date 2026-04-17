@@ -1,17 +1,233 @@
-import { ReactNode } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Sparkles, LayoutDashboard, LogOut, User, Zap, Crown, Menu, X } from "lucide-react";
-import { useState } from "react";
+import { ReactNode, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { Link, useLocation, useNavigate, useMatch } from "react-router-dom";
+import {
+  Sparkles, LayoutDashboard, LogOut, User, Zap, Crown, Menu, X,
+  Palette, Image as ImageIcon, BookOpen, Layers, Plus, Pencil,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserPlan } from "@/hooks/useUserPlan";
+import { useProject, useProjects, useUpdateProject } from "@/hooks/useProjects";
+import { useToast } from "@/hooks/use-toast";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
-const navItems = [
-  { to: "/dashboard", icon: LayoutDashboard, label: "Tableau de bord", shortLabel: "Accueil" },
-  { to: "/dashboard/plans", icon: Crown, label: "Plans", shortLabel: "Plans" },
-  { to: "/dashboard/profile", icon: User, label: "Profil", shortLabel: "Profil" },
+const navLinks = [
+  { to: "/dashboard",         icon: LayoutDashboard, label: "Tableau de bord" },
+  { to: "/dashboard/plans",   icon: Crown,           label: "Plans"           },
+  { to: "/dashboard/profile", icon: User,            label: "Profil"          },
 ];
+
+const projectSteps = [
+  { key: "style",    label: "Style",    icon: Palette   },
+  { key: "assets",   label: "Assets",   icon: ImageIcon },
+  { key: "scenario", label: "Scénario", icon: BookOpen  },
+  { key: "edition",  label: "Édition",  icon: Layers    },
+];
+
+function ProjectStepsSection({ projectId, onLinkClick }: { projectId: string; onLinkClick?: () => void }) {
+  const location = useLocation();
+  const isInChapter = location.pathname.includes("/chapter/");
+  const activeTab = isInChapter
+    ? "edition"
+    : new URLSearchParams(location.search).get("tab") || "style";
+  const { data: project } = useProject(projectId);
+  const updateProject = useUpdateProject();
+  const { toast } = useToast();
+
+  const [editOpen, setEditOpen] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
+  const [editPanelsTarget, setEditPanelsTarget] = useState("");
+
+  const openEdit = () => {
+    if (!project) return;
+    setEditTitle(project.title);
+    setEditPanelsTarget(
+      project.panels_target_per_chapter != null
+        ? String(project.panels_target_per_chapter)
+        : ""
+    );
+    setEditOpen(true);
+  };
+
+  const handleEdit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!project || !editTitle.trim()) return;
+    const panelsTargetNum =
+      editPanelsTarget.trim() === ""
+        ? null
+        : Math.max(1, Math.min(99, parseInt(editPanelsTarget, 10) || 10));
+    updateProject.mutate(
+      {
+        id: projectId,
+        updates: { title: editTitle.trim(), panels_target_per_chapter: panelsTargetNum },
+      },
+      {
+        onSuccess: () => { toast({ title: "Projet mis à jour !" }); setEditOpen(false); },
+        onError: (err) =>
+          toast({ title: "Erreur", description: err.message, variant: "destructive" }),
+      }
+    );
+  };
+
+  return (
+    <div className="mt-3">
+      {project && (
+        <div className="flex items-center justify-between px-5 mb-2">
+          <h2
+            className="text-sm font-display font-bold text-foreground leading-tight truncate"
+            title={project.title}
+          >
+            {project.title}
+          </h2>
+          <button
+            onClick={openEdit}
+            className="p-1 rounded-md text-muted-foreground/50 hover:text-primary transition-colors shrink-0"
+            title="Modifier le projet"
+          >
+            <Pencil className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
+
+      <nav className="border-l border-border/30 ml-4">
+        {projectSteps.map((step) => {
+          const Icon = step.icon;
+          const isActive = activeTab === step.key;
+          return (
+            <Link
+              key={step.key}
+              to={`/dashboard/projects/${projectId}?tab=${step.key}`}
+              onClick={onLinkClick}
+              className={`flex items-center gap-3 pl-4 pr-3 py-2.5 text-sm font-medium transition-all duration-150 border-l-2 -ml-px ${
+                isActive
+                  ? "border-primary text-foreground bg-primary/8"
+                  : "border-transparent text-muted-foreground hover:text-foreground hover:border-border hover:bg-muted/20"
+              }`}
+            >
+              <Icon className={`h-4 w-4 flex-shrink-0 transition-colors ${isActive ? "text-primary" : ""}`} />
+              {step.label}
+            </Link>
+          );
+        })}
+      </nav>
+
+      {/* Edit dialog */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="glass">
+          <DialogHeader>
+            <DialogTitle className="font-display">Modifier le projet</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleEdit} className="space-y-4">
+            <div className="space-y-2">
+              <Label>Titre</Label>
+              <Input
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Panels cible par chapitre (optionnel)</Label>
+              <Input
+                type="number"
+                min={1}
+                max={99}
+                value={editPanelsTarget}
+                onChange={(e) => setEditPanelsTarget(e.target.value)}
+                placeholder="ex. 10"
+              />
+              <p className="text-xs text-muted-foreground">
+                Référence pour l'estimation du découpage (indicatif).
+              </p>
+            </div>
+            <Button
+              type="submit"
+              disabled={updateProject.isPending}
+              className="w-full gradient-primary text-primary-foreground"
+            >
+              {updateProject.isPending ? "Sauvegarde..." : "Sauvegarder"}
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function ProjectsListSection({ onLinkClick }: { onLinkClick?: () => void }) {
+  const { data: projects = [] } = useProjects();
+  const location = useLocation();
+
+  return (
+    <div className="mt-4">
+      <div className="flex items-center justify-between px-5 mb-2">
+        <span className="text-sm font-display font-bold text-foreground">Mes projets</span>
+        <Link
+          to="/dashboard/projects"
+          onClick={onLinkClick}
+          className="p-1 rounded-md text-muted-foreground/50 hover:text-primary transition-colors"
+          title="Voir tous les projets"
+        >
+          <Plus className="h-3.5 w-3.5" />
+        </Link>
+      </div>
+
+      <nav className="space-y-0.5 px-2">
+        {projects.length === 0 ? (
+          <p className="text-xs text-muted-foreground/60 px-3 py-2">Aucun projet</p>
+        ) : (
+          projects.map((p) => {
+            const isActive = location.pathname.startsWith(`/dashboard/projects/${p.id}`);
+            return (
+              <Link
+                key={p.id}
+                to={`/dashboard/projects/${p.id}`}
+                onClick={onLinkClick}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
+                  isActive
+                    ? "bg-primary/10 text-foreground font-medium"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
+                }`}
+              >
+                <Sparkles className="h-3.5 w-3.5 flex-shrink-0 opacity-40" />
+                <span className="truncate">{p.title}</span>
+              </Link>
+            );
+          })
+        )}
+      </nav>
+    </div>
+  );
+}
+
+function SidebarContextSection({ onLinkClick }: { onLinkClick?: () => void }) {
+  const projectMatch = useMatch("/dashboard/projects/:id");
+  const chapterMatch = useMatch("/dashboard/projects/:id/chapter/:chapterId");
+  const projectId = projectMatch?.params?.id ?? chapterMatch?.params?.id;
+  const animKey = projectId ?? "list";
+
+  return (
+    <AnimatePresence mode="wait" initial={false}>
+      <motion.div
+        key={animKey}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.15 }}
+      >
+        {projectId
+          ? <ProjectStepsSection projectId={projectId} onLinkClick={onLinkClick} />
+          : <ProjectsListSection onLinkClick={onLinkClick} />}
+      </motion.div>
+    </AnimatePresence>
+  );
+}
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   const { user, signOut } = useAuth();
@@ -27,9 +243,9 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Top bar : glass avec lavande/peach (charte) */}
+      {/* Top bar */}
       <header className="sticky top-0 z-50 glass border-b border-border/50 shadow-sm">
-        <div className="container px-4 sm:px-6 lg:px-8 flex h-14 sm:h-16 items-center justify-between">
+        <div className="px-4 sm:px-6 flex h-14 sm:h-16 items-center justify-between">
           <div className="flex items-center gap-2">
             <ThemeToggle />
             <Link
@@ -40,8 +256,8 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
               <span className="font-display text-lg sm:text-xl font-bold text-gradient">DreamWeave</span>
             </Link>
           </div>
+
           <div className="flex items-center gap-1.5 sm:gap-2">
-            {/* Badge tier — cliquable */}
             <Link
               to="/dashboard/plans"
               className={`inline-flex items-center gap-1 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full text-xs font-semibold transition-opacity hover:opacity-80 ${
@@ -54,39 +270,31 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
               {plan === "pro" && <Zap className="h-3 w-3" />}
               {plan === "pro" ? "Pro" : "Free"}
             </Link>
-            {/* Compteur de générations */}
             <span className="hidden md:inline-flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/50 px-2.5 py-1 rounded-full border border-border/50">
               <Sparkles className="h-3 w-3" />
               {usageInfo.count}/{usageInfo.limit}
             </span>
-            <div className="hidden sm:flex items-center gap-2 text-sm text-muted-foreground mr-2">
-              <User className="h-4 w-4" />
-              <span className="hidden lg:inline">{user?.email}</span>
-            </div>
-            <Button variant="ghost" size="sm" onClick={handleSignOut} className="hidden sm:inline-flex">
-              <LogOut className="h-4 w-4 mr-1" />
-              <span className="hidden md:inline">Déconnexion</span>
-            </Button>
-            {/* Burger menu mobile — rotation légère au toggle */}
             <Button
               variant="ghost"
               size="sm"
-              className="sm:hidden p-1.5 transition-transform duration-300 hover:rotate-90"
+              className="lg:hidden p-1.5 transition-transform duration-300 hover:rotate-90"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             >
-              {mobileMenuOpen ? <X className="h-5 w-5 animate-in fade-in zoom-in-95 duration-200" /> : <Menu className="h-5 w-5" />}
+              {mobileMenuOpen
+                ? <X className="h-5 w-5 animate-in fade-in zoom-in-95 duration-200" />
+                : <Menu className="h-5 w-5" />}
             </Button>
           </div>
         </div>
 
-        {/* Menu mobile déroulant — animation slide + stagger des items */}
+        {/* Mobile/tablet dropdown */}
         {mobileMenuOpen && (
           <div
-            className="sm:hidden border-t border-border/50 bg-card/95 backdrop-blur-xl animate-menu-slide origin-top"
+            className="lg:hidden border-t border-border/50 bg-card/95 backdrop-blur-xl animate-menu-slide origin-top"
             role="menu"
           >
             <div className="px-4 py-3 space-y-1">
-              {navItems.map((item, index) => {
+              {navLinks.map((item, index) => {
                 const active =
                   item.to === "/dashboard"
                     ? location.pathname === "/dashboard"
@@ -97,24 +305,30 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                     to={item.to}
                     onClick={() => setMobileMenuOpen(false)}
                     className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors animate-menu-item-in [animation-fill-mode:both] ${
-                      index === 0 ? "stagger-1" : index === 1 ? "stagger-2" : index === 2 ? "stagger-3" : "stagger-4"
-                    } ${active ? "gradient-primary text-primary-foreground shadow-dream" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"}`}
+                      index === 0 ? "stagger-1" : index === 1 ? "stagger-2" : "stagger-3"
+                    } ${
+                      active
+                        ? "gradient-primary text-primary-foreground shadow-dream"
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                    }`}
                   >
                     <item.icon className="h-4 w-4" />
                     {item.label}
                   </Link>
                 );
               })}
-              <div className="pt-2 mt-2 border-t border-border/50 animate-menu-item-in [animation-fill-mode:both] stagger-5">
+
+              <div className="pt-2 border-t border-border/30 animate-menu-item-in [animation-fill-mode:both] stagger-4">
+                <SidebarContextSection onLinkClick={() => setMobileMenuOpen(false)} />
+              </div>
+
+              <div className="pt-2 border-t border-border/50 animate-menu-item-in [animation-fill-mode:both] stagger-5">
                 <div className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground">
                   <User className="h-4 w-4" />
                   <span className="truncate">{user?.email}</span>
                 </div>
                 <button
-                  onClick={() => {
-                    setMobileMenuOpen(false);
-                    handleSignOut();
-                  }}
+                  onClick={() => { setMobileMenuOpen(false); handleSignOut(); }}
                   className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors w-full animate-menu-item-in [animation-fill-mode:both] stagger-6"
                 >
                   <LogOut className="h-4 w-4" />
@@ -126,37 +340,58 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         )}
       </header>
 
-      <div className="min-h-[calc(100vh-3.5rem)] bg-content">
-        <div key={location.pathname} className="container px-4 sm:px-6 lg:px-8 py-4 sm:py-6 animate-fade-up">
-        {/* Sub nav — desktop: inline, mobile: hidden (dans le burger) */}
-        <nav className="hidden sm:flex gap-1.5 mb-6 lg:mb-8 overflow-x-auto pb-1 scrollbar-none">
-          {navItems.map((item) => {
-            const active =
-              item.to === "/dashboard"
-                ? location.pathname === "/dashboard"
-                : location.pathname.startsWith(item.to);
-            return (
-              <Button
-                key={item.to}
-                variant={active ? "default" : "ghost"}
-                asChild
-                className={`shrink-0 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] ${
-                  active ? "gradient-primary text-primary-foreground shadow-dream animate-nav-pill-pop" : ""
-                }`}
-                size="sm"
-              >
-                <Link to={item.to}>
-                  <item.icon className="h-4 w-4 mr-1.5 lg:mr-2" />
-                  <span className="hidden md:inline">{item.label}</span>
-                  <span className="md:hidden">{item.shortLabel}</span>
-                </Link>
-              </Button>
-            );
-          })}
-        </nav>
+      <div className="flex">
+        {/* Desktop sidebar — lg+ only */}
+        <aside className="hidden lg:flex flex-col fixed left-0 top-16 w-[260px] h-[calc(100vh-4rem)] border-r border-border/30 bg-background/80 backdrop-blur-sm z-40 overflow-y-auto">
+          <div className="py-4 flex flex-col h-full">
+            <nav className="border-l border-border/30 ml-4">
+              {navLinks.map((item) => {
+                const isActive =
+                  item.to === "/dashboard"
+                    ? location.pathname === "/dashboard"
+                    : location.pathname.startsWith(item.to);
+                return (
+                  <Link
+                    key={item.to}
+                    to={item.to}
+                    className={`flex items-center gap-3 pl-4 pr-3 py-2.5 text-sm font-medium transition-all duration-150 border-l-2 -ml-px ${
+                      isActive
+                        ? "border-primary text-foreground bg-primary/8"
+                        : "border-transparent text-muted-foreground hover:text-foreground hover:border-border hover:bg-muted/20"
+                    }`}
+                  >
+                    <item.icon className={`h-4 w-4 flex-shrink-0 transition-colors ${isActive ? "text-primary" : ""}`} />
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </nav>
 
-        {children}
-        </div>
+            <SidebarContextSection />
+
+            <div className="flex-1" />
+
+            <div className="px-4 pt-3 border-t border-border/30">
+              <p className="text-xs text-muted-foreground/60 truncate mb-2">{user?.email}</p>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleSignOut}
+                className="w-full justify-start text-muted-foreground hover:text-destructive"
+              >
+                <LogOut className="h-4 w-4 mr-2" />
+                Déconnexion
+              </Button>
+            </div>
+          </div>
+        </aside>
+
+        {/* Main content */}
+        <main className="flex-1 lg:ml-[260px] min-w-0 bg-content">
+          <div key={location.pathname} className="max-w-5xl mx-auto px-6 sm:px-8 lg:px-10 py-6 sm:py-8 animate-fade-up">
+            {children}
+          </div>
+        </main>
       </div>
     </div>
   );

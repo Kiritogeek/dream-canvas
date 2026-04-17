@@ -88,7 +88,6 @@ import {
   SPEECH_BUBBLE_DEFAULT_STYLE,
   SPEECH_BUBBLE_TYPE_LABELS,
 } from "@/types";
-import SpeechBubbleEditor from "@/components/project/SpeechBubbleEditor";
 
 const PANEL_WIDTH = 800;
 const SPEECH_BUBBLE_TAIL_H = 14;
@@ -157,11 +156,14 @@ function SpeechBubbleShape(props: {
   if (type === "thought") {
     return (
       <>
-        <ellipse cx={50} cy={46} rx={44} ry={38} fill={fill} stroke={stroke} strokeWidth={sw} />
-        <circle cx={78} cy={58} r={12} fill={fill} stroke={stroke} strokeWidth={sw} />
-        <circle cx={24} cy={68} r={14} fill={fill} stroke={stroke} strokeWidth={sw} />
-        <circle cx={24} cy={88} r={9} fill={fill} stroke={stroke} strokeWidth={sw} />
-        <circle cx={24} cy={106} r={6} fill={fill} stroke={stroke} strokeWidth={sw} />
+        <ellipse cx={50} cy={46} rx={42} ry={34} fill={fill} stroke={stroke} strokeWidth={sw} />
+        <circle cx={22} cy={42} r={11} fill={fill} stroke={stroke} strokeWidth={sw} />
+        <circle cx={78} cy={42} r={11} fill={fill} stroke={stroke} strokeWidth={sw} />
+        <circle cx={33} cy={20} r={9} fill={fill} stroke={stroke} strokeWidth={sw} />
+        <circle cx={67} cy={20} r={9} fill={fill} stroke={stroke} strokeWidth={sw} />
+        <circle cx={58} cy={84} r={8} fill={fill} stroke={stroke} strokeWidth={sw} />
+        <circle cx={66} cy={100} r={5.5} fill={fill} stroke={stroke} strokeWidth={sw} />
+        <circle cx={73} cy={112} r={3.8} fill={fill} stroke={stroke} strokeWidth={sw} />
       </>
     );
   }
@@ -173,29 +175,43 @@ function SpeechBubbleShape(props: {
     );
   }
 
+  // Radio / transmission : contour angulaire + queue éclair (convention voix via appareil)
+  if (type === "radio") {
+    return (
+      <>
+        <path
+          d="M 8 12 L 92 12 L 98 24 L 98 78 L 90 90 L 12 90 L 2 78 L 2 24 Z"
+          fill={fill}
+          stroke={stroke}
+          strokeWidth={sw}
+          strokeLinejoin="round"
+        />
+        <path
+          d="M 72 90 L 62 104 L 72 106 L 58 120 L 72 118 L 70 108 L 82 96 Z"
+          fill={fill}
+          stroke={stroke}
+          strokeWidth={sw}
+          strokeLinejoin="round"
+        />
+      </>
+    );
+  }
+
   // Cri / shout : contour en dents (explosion) + queue en éclair + petite étoile (style “scream bubble”)
   if (type === "shout") {
-    const n = 16;
+    const n = 20;
     const points: string[] = [];
     for (let i = 0; i < n; i++) {
       const angle = (i / n) * 2 * Math.PI - Math.PI / 2;
-      const r = i % 2 === 0 ? 46 : 54;
+      const r = i % 2 === 0 ? 40 : 52;
       points.push(`${50 + r * Math.cos(angle)},${50 + r * Math.sin(angle)}`);
     }
     const jagged = `M ${points.join(" L ")} Z`;
-    const lightning = "M 28 98 L 20 106 L 30 110 L 16 118 L 28 120 L 26 112 L 32 106 Z";
-    const starPoints: string[] = [];
-    for (let i = 0; i < 10; i++) {
-      const a = (i / 10) * 2 * Math.PI - Math.PI / 2;
-      const r = i % 2 === 0 ? 5 : 2.2;
-      starPoints.push(`${82 + r * Math.cos(a)},${14 + r * Math.sin(a)}`);
-    }
-    const star = `M ${starPoints.join(" L ")} Z`;
+    const lightning = "M 34 96 L 25 106 L 36 109 L 22 120 L 36 118 L 33 110 L 44 102 Z";
     return (
       <>
         <path d={jagged} fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" />
         <path d={lightning} fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" />
-        <path d={star} fill="none" stroke={stroke} strokeWidth={sw} />
       </>
     );
   }
@@ -299,8 +315,6 @@ export default function ChapterDetail() {
   const [selectedColorBlockIdInModal, setSelectedColorBlockIdInModal] = useState<{ panelId: string; colorBlockId: string } | null>(null);
   /** Bulle de dialogue sélectionnée (onglet Dialogue) pour éditer le texte et le style */
   const [selectedSpeechBubbleIdInModal, setSelectedSpeechBubbleIdInModal] = useState<{ panelId: string; bubbleId: string } | null>(null);
-  /** Panel dont l'éditeur de bulles avancé est ouvert (modale plein écran). */
-  const [bubbleEditorPanelId, setBubbleEditorPanelId] = useState<string | null>(null);
 
   // Réduit la duplication des resets d'état de l'éditeur panel.
   const resetPanelEditorUiState = useCallback(() => {
@@ -1009,7 +1023,13 @@ export default function ChapterDetail() {
         position: { x: clampedX, y: clampedY },
         width: w,
         height: h,
-        style: { font: "inherit", size: 14, color: "#000000", fill: defaultStyle.fill, stroke: defaultStyle.stroke },
+        style: {
+          font: "inherit",
+          size: 14,
+          color: "#000000",
+          fill: defaultStyle.fill,
+          stroke: defaultStyle.stroke,
+        },
       };
       const next = [...speechBubbles, newBubble];
       updatePanelMutation.mutate(
@@ -1170,18 +1190,6 @@ export default function ChapterDetail() {
                 </button>
               );
             })}
-          </div>
-          <div className="mt-auto w-full">
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              className="w-full h-10"
-              onClick={() => setBubbleEditorPanelId(panel.id)}
-              title="Ouvrir l’éditeur de bulles avancé"
-            >
-              <MessageCircle className="h-4 w-4" />
-            </Button>
           </div>
         </aside>
         {/* Gauche : contenu selon l’onglet (Chapitre | Architecture | Personalisation) */}
@@ -1383,49 +1391,77 @@ export default function ChapterDetail() {
           )}
           {panelEditorLeftTab === "dialogue" && (
             <div className="p-4 space-y-4">
-              <div className="min-h-10 rounded-xl border border-dashed border-border/70 bg-muted/30 px-3 py-2">
-                <div className="space-y-1.5">
-                  <span className="text-xs font-medium text-muted-foreground block">Bulles de dialogue — glisser sur le panel</span>
-                  <div className="grid grid-cols-2 gap-2">
-                    {(Object.entries(SPEECH_BUBBLE_TYPE_LABELS) as [SpeechBubbleType, string][]).map(([type, label]) => (
-                      <div
-                        key={type}
-                        draggable
-                        onDragStart={(e) => {
-                          e.dataTransfer.setData("application/json", JSON.stringify({ type: "speech-bubble", bubbleType: type }));
-                          e.dataTransfer.effectAllowed = "copy";
-                        }}
-                        className="cursor-grab active:cursor-grabbing rounded-lg border border-border/60 bg-background px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors flex items-center gap-2 justify-center"
-                      >
-                        <span className="text-xs">{label}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="w-full mt-2"
-                    onClick={() => setBubbleEditorPanelId(panel.id)}
-                  >
-                    Ouvrir l’éditeur de bulles
-                  </Button>
+              <div className="rounded-xl border border-dashed border-border/70 bg-muted/30 px-3 py-3 space-y-2">
+                <span className="text-xs font-medium text-muted-foreground block">Ajouter une bulle</span>
+                <div className="grid grid-cols-2 gap-2">
+                  {(Object.entries(SPEECH_BUBBLE_TYPE_LABELS) as [SpeechBubbleType, string][]).map(([type, label]) => (
+                    <button
+                      key={type}
+                      type="button"
+                      draggable
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData("application/json", JSON.stringify({ type: "speech-bubble", bubbleType: type }));
+                        e.dataTransfer.effectAllowed = "copy";
+                      }}
+                      onClick={() => {
+                        const ph = getPanelHeight(panel);
+                        const cx = Math.round((PANEL_WIDTH - DEFAULT_SPEECH_BUBBLE_WIDTH) / 2);
+                        const cy = Math.round((ph - DEFAULT_SPEECH_BUBBLE_HEIGHT) / 2);
+                        handleAddSpeechBubble(type, cx, cy);
+                      }}
+                      className="cursor-pointer rounded-lg border border-border/60 bg-background px-2 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors flex items-center gap-1.5 justify-center"
+                      title={`Ajouter ${label} au centre (ou glisser sur le panel)`}
+                    >
+                      <Plus className="h-3 w-3 shrink-0" />
+                      <span>{label}</span>
+                    </button>
+                  ))}
                 </div>
+                <p className="text-[11px] text-muted-foreground/70">Clic = ajout au centre · Glisser = placement libre</p>
               </div>
               {selectedSpeechBubble ? (
                 <>
                   <div className="flex items-center justify-between gap-2 mb-2">
                     <h4 className="text-sm font-medium text-foreground">Bulle sélectionnée</h4>
-                    <Button size="sm" variant="ghost" className="h-8 w-8 p-0 rounded-lg" onClick={() => setSelectedSpeechBubbleIdInModal(null)} aria-label="Fermer"><X className="h-4 w-4" /></Button>
+                    <Button size="sm" variant="ghost" className="h-8 w-8 p-0 rounded-lg" onClick={() => setSelectedSpeechBubbleIdInModal(null)} aria-label="Fermer la sélection"><X className="h-4 w-4" /></Button>
                   </div>
                   <div className="space-y-4">
-                    <div className="space-y-2">
-                      <span className="text-xs font-medium text-muted-foreground">Type</span>
-                      <p className="text-sm text-foreground">{SPEECH_BUBBLE_TYPE_LABELS[selectedSpeechBubble.type]}</p>
+                    {/* Texte en premier — c'est l'action principale */}
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-muted-foreground">Texte</label>
+                      <textarea
+                        autoFocus
+                        value={selectedSpeechBubble.text}
+                        onChange={(e) => {
+                          const next = speechBubbles.map((b) => b.id === selectedSpeechBubble.id ? { ...b, text: e.target.value } : b);
+                          handleUpdateSpeechBubbles(next);
+                        }}
+                        className="w-full min-h-[80px] rounded-lg border border-border/60 bg-background px-3 py-2 text-sm resize-y"
+                        placeholder="Dialogue, pensée, narration…"
+                      />
                     </div>
-                    <div className="space-y-2">
-                      <span className="text-xs font-medium text-muted-foreground">Dimensions</span>
-                      <p className="text-sm text-foreground tabular-nums">{selectedSpeechBubble.width ?? DEFAULT_SPEECH_BUBBLE_WIDTH} × {selectedSpeechBubble.height ?? DEFAULT_SPEECH_BUBBLE_HEIGHT}</p>
+                    {/* Changement de type */}
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-muted-foreground">Type de bulle</label>
+                      <div className="grid grid-cols-2 gap-1.5">
+                        {(Object.entries(SPEECH_BUBBLE_TYPE_LABELS) as [SpeechBubbleType, string][]).map(([t, lbl]) => (
+                          <button
+                            key={t}
+                            type="button"
+                            onClick={() => {
+                              const next = speechBubbles.map((b) => b.id === selectedSpeechBubble.id ? { ...b, type: t } : b);
+                              handleUpdateSpeechBubbles(next);
+                            }}
+                            className={`rounded-lg border px-2 py-1.5 text-xs transition-colors ${selectedSpeechBubble.type === t ? "border-primary bg-primary/10 text-foreground font-medium" : "border-border/60 bg-background text-muted-foreground hover:bg-muted/50"}`}
+                          >
+                            {lbl}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <span className="text-xs font-medium text-muted-foreground">Dimensions (glisser les poignées)</span>
+                      <p className="text-sm text-foreground tabular-nums">{selectedSpeechBubble.width ?? DEFAULT_SPEECH_BUBBLE_WIDTH} × {selectedSpeechBubble.height ?? DEFAULT_SPEECH_BUBBLE_HEIGHT} px</p>
                     </div>
                     <div className="space-y-2">
                       <label className="text-xs font-medium text-muted-foreground flex items-center gap-2">
@@ -1457,19 +1493,7 @@ export default function ChapterDetail() {
                         />
                       </label>
                     </div>
-                    <div className="space-y-2">
-                      <label className="text-xs font-medium text-muted-foreground">Texte</label>
-                      <textarea
-                        value={selectedSpeechBubble.text}
-                        onChange={(e) => {
-                          const next = speechBubbles.map((b) => b.id === selectedSpeechBubble.id ? { ...b, text: e.target.value } : b);
-                          handleUpdateSpeechBubbles(next);
-                        }}
-                        className="w-full min-h-[80px] rounded-lg border border-border/60 bg-background px-3 py-2 text-sm resize-y"
-                        placeholder="Saisir le dialogue…"
-                      />
-                    </div>
-                    <div className="space-y-2">
+                    <div className="space-y-1.5">
                       <label className="text-xs font-medium text-muted-foreground">Police / taille / couleur</label>
                       <div className="flex flex-wrap gap-2 items-center">
                         <select
@@ -2539,38 +2563,6 @@ export default function ChapterDetail() {
             const panel = panels.find((p) => p.id === expandedPanelId);
             if (!panel) return null;
             return renderPanelEditor(panel);
-          })()}
-        </DialogContent>
-      </Dialog>
-
-      {/* Éditeur de bulles avancé (plein écran) */}
-      <Dialog open={bubbleEditorPanelId != null} onOpenChange={(open) => !open && setBubbleEditorPanelId(null)}>
-        <DialogContent className="max-w-[100vw] w-[100vw] h-[100vh] max-h-[100vh] p-0 gap-0 overflow-hidden border-0 rounded-none">
-          {bubbleEditorPanelId && (() => {
-            const panel = panels.find((p) => p.id === bubbleEditorPanelId);
-            if (!panel) return null;
-            const speechBubbles = getPanelSpeechBubbles(panel);
-            return (
-              <SpeechBubbleEditor
-                initialBubbles={speechBubbles}
-                canvasWidth={PANEL_WIDTH}
-                canvasHeight={getPanelHeight(panel)}
-                onSave={(next) => {
-                  updatePanelMutation.mutate(
-                    { id: panel.id, updates: { speech_bubbles: next as unknown as Json } },
-                    {
-                      onSuccess: () => {
-                        toast({ title: "Bulles enregistrées" });
-                        setBubbleEditorPanelId(null);
-                        queryClient.invalidateQueries({ queryKey: panelsQueryKey });
-                      },
-                      onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }),
-                    }
-                  );
-                }}
-                onClose={() => setBubbleEditorPanelId(null)}
-              />
-            );
           })()}
         </DialogContent>
       </Dialog>

@@ -121,25 +121,38 @@ Voir `Plan_Action_Developpement_Scénario.md` pour le détail des phases A à G.
 
 #### 2.2.2 Mode Structuré (flux avec blocs)
 
-| Tâche | Description | Priorité | Effort |
-|-------|------------|----------|--------|
-| **Modèle `panels.layout`** | JSONB blocs (x, y, width, height, prompt, asset_refs, image_url) | P0 | M |
-| **UI structure chapitre** | Chapitre vide → ajout panels → ajout blocs (rectangles) par panel | P0 | L |
-| **Remplissage des blocs** | Texte (prompt) + sélection d’assets par bloc **(impératif** : cadrer la génération, que l'IA comprenne les éléments à mettre dans l'image) | P0 | M |
-| **Génération 1 image par bloc** | Image pleine par bloc à partir du prompt et des **assets sélectionnés** pour ce bloc, stockage URL, affichage dans le bloc | P0 | L |
-| **Régénération / édition** | Régénérer un bloc, modifier prompt ou refs, réorganisation blocs | P1 | M |
+| Tâche | Description | Priorité | Effort | Statut |
+|-------|------------|----------|--------|--------|
+| **Modèle `panels.layout`** | JSONB blocs (x, y, width, height, prompt, asset_refs, image_url) | P0 | M | ✅ Livré |
+| **UI structure chapitre** | Chapitre vide → ajout panels → ajout blocs (rectangles) par panel | P0 | L | ✅ Livré |
+| **Remplissage des blocs** | Texte (prompt) + sélection d’assets par bloc | P0 | M | ✅ Livré |
+| **Génération 1 image par bloc** | Image pleine par bloc à partir du prompt et des assets sélectionnés | P0 | L | ✅ Livré |
+| **Régénération / édition** | Régénérer un bloc, modifier prompt ou refs, réorganisation blocs | P1 | M | ✅ Livré |
 
 #### 2.2.3 Système de dialogues et texte dans le panel
 
-| Tâche | Description | Priorité | Effort |
-|-------|------------|----------|--------|
-| **Bulles de dialogue** | Bulles directement dans le panel ; overlay sur les blocs | P0 | L |
-| **Positionnement des bulles** | Placement par drag & drop dans le panel | P0 | M |
-| **Types de bulles** | Parole, pensée, cri, chuchotement | P1 | M |
-| **Texte brut (sans bulle)** | Texte libre dans le panel, sans forme de bulle (narration, titres, onomatopées) | P0 | M |
-| **Personnalisation typographique** | **Police / font**, **taille**, couleur du texte — pour bulles et texte brut | P0 | M |
-| **Narration** | Blocs de narration en haut/bas des panels (texte brut ou bulle narration) | P1 | S |
-| **Génération IA de dialogues** | Suggestion de dialogues à partir du synopsis | P2 | L |
+| Tâche | Description | Priorité | Effort | Statut |
+|-------|------------|----------|--------|--------|
+| **Bulles de dialogue** | Bulles directement dans le panel ; overlay sur les blocs | P0 | L | ✅ Livré |
+| **Positionnement des bulles** | Placement par clic (centre du panel) ou drag & drop libre | P0 | M | ✅ Livré |
+| **Types de bulles** | Parole, pensée, cri, chuchotement, narration, radio — formes SVG manga/webtoon | P0 | M | ✅ Livré |
+| **Édition inline** | Texte, type, fond, contour, police, taille, couleur éditables directement dans la sidebar — sans éditeur plein écran séparé | P0 | M | ✅ Livré (17/04/2026) |
+| **Redimensionnement** | Poignées sur la bulle sélectionnée (8 points) | P0 | M | ✅ Livré |
+| **Texte brut (sans bulle)** | Texte libre dans le panel, sans forme de bulle (narration, titres, onomatopées) | P1 | M | 📋 À faire |
+| **Personnalisation typographique avancée** | Gras, italique, espacement lettres, ombre texte | P1 | M | 📋 À faire |
+| **Narration** | Blocs de narration en haut/bas des panels (texte brut ou bulle narration) | P1 | S | 📋 À faire |
+| **Génération IA de dialogues** | Suggestion de dialogues à partir du synopsis | P2 | L | 📋 À faire |
+
+#### 2.2.6b Édition type Figma (retour Jeremy — P2)
+
+> **Source** : `12_Retour_Utilisateur_Jeremy.md` § 2.7 — Session 16/04/2026
+
+| Tâche | Description | Priorité | Effort | Statut |
+|-------|------------|----------|--------|--------|
+| **Sélection explicite au clic** | Bloc sélectionné visuellement identifiable (ring, handles) | P2 | M | 🔜 Partiel |
+| **Panneau de propriétés contextuel** | Au clic sur un bloc : propriétés dans la sidebar gauche (dimensions, prompt, assets) | P2 | M | ✅ Livré |
+| **Suppression via touche Suppr** | Touche Delete/Backspace supprime le bloc/bulle actif(e) | P2 | S | 📋 À faire |
+| **Liberté de positionnement total** | Blocs et bulles repositionnables sans contrainte de grille | P2 | M | ✅ Livré |
 
 #### 2.2.4 Blocs de couleurs (ambiance du panel)
 
@@ -175,6 +188,18 @@ Voir `Plan_Action_Developpement_Scénario.md` pour le détail des phases A à G.
 | **Mode plein écran** | Lecture immersive | P1 | S |
 | **Navigation entre chapitres** | Précédent / Suivant | P1 | S |
 | **Préchargement d'images** | Chargement anticipé pour fluidité | P2 | M |
+
+### 2.3 Monétisation — Stripe (⚠️ PRIORITÉ Q2 2026)
+
+> **Situation actuelle** : Le plan Pro (14,99 €/mois) est entièrement simulé — n'importe quel utilisateur peut s'upgrader gratuitement depuis la page Plans. Le paiement réel est indispensable avant tout lancement public.
+
+| Tâche | Description | Priorité | Effort | Statut |
+|-------|------------|----------|--------|--------|
+| **Intégration Stripe Checkout** | Rediriger vers Stripe au clic "Passer au Pro" — abonnement mensuel | P0 | L | 📋 À faire |
+| **Webhook Stripe → Supabase** | Mettre à jour `profiles.plan` via webhook (events: `customer.subscription.created/deleted/updated`) | P0 | L | 📋 À faire |
+| **Sécuriser la page Plans** | Retirer le bouton "Passer au Pro" sans paiement — afficher statut abonnement réel | P0 | M | 📋 À faire |
+| **RLS sur `profiles.plan`** | S'assurer que seul le webhook (service role) peut modifier le plan — pas l'utilisateur lui-même | P0 | S | 📋 À faire |
+| **Portal de gestion abonnement** | Lien vers Stripe Customer Portal pour annulation/changement CB | P1 | S | 📋 À faire |
 
 ### Métriques de succès Phase 2
 
@@ -333,4 +358,4 @@ Jan     Fév     Mar     Avr     Mai     Juin    Jul     Aoû     Sep     Oct   
 
 ---
 
-*Dernière mise à jour : 21 février 2026 — Suite de la roadmap Phase 2 : (1) Blocs de couleurs (même système que blocs architecture, remplir espaces entre blocs pour ambiance webtoon) ; (2) Bulles de dialogue + texte brut dans le panel (sans bulle) avec police / font / taille.*
+*Dernière mise à jour : 17 avril 2026 — (1) Statuts Phase 2 mis à jour (blocs, bulles, édition inline livrés). (2) Ajout 2.3 Monétisation Stripe (⚠️ priorité Q2 avant lancement public). (3) Ajout 2.2.6b Édition type Figma (retour Jeremy 16/04/2026 — suppression via Suppr, sélection explicite).*

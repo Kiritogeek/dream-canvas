@@ -149,7 +149,7 @@ Voir `Plan_Action_Developpement_Scénario.md` pour le détail des phases A à G.
 
 | Tâche | Description | Priorité | Effort | Statut |
 |-------|------------|----------|--------|--------|
-| **Sélection explicite au clic** | Bloc sélectionné visuellement identifiable (ring, handles) | P2 | M | 🔜 Partiel |
+| **Sélection explicite au clic** | Bloc sélectionné visuellement identifiable (ring, handles) | P2 | M | ✅ Livré |
 | **Panneau de propriétés contextuel** | Au clic sur un bloc : propriétés dans la sidebar gauche (dimensions, prompt, assets) | P2 | M | ✅ Livré |
 | **Suppression via touche Suppr** | Touche Delete/Backspace supprime le bloc/bulle actif(e) | P2 | S | 📋 À faire |
 | **Liberté de positionnement total** | Blocs et bulles repositionnables sans contrainte de grille | P2 | M | ✅ Livré |
@@ -358,4 +358,4 @@ Jan     Fév     Mar     Avr     Mai     Juin    Jul     Aoû     Sep     Oct   
 
 ---
 
-*Dernière mise à jour : 17 avril 2026 — (1) Statuts Phase 2 mis à jour (blocs, bulles, édition inline livrés). (2) Ajout 2.3 Monétisation Stripe (⚠️ priorité Q2 avant lancement public). (3) Ajout 2.2.6b Édition type Figma (retour Jeremy 16/04/2026 — suppression via Suppr, sélection explicite).*
+*Dernière mise à jour : 17 avril 2026 (v2) — Statuts corrigés d'après code réel : sélection explicite blocs ✅ livré, navigation latérale ✅ livré (commit e31a3d8), validation Style ✅ livré (bouton "Valider ce style"), style Européen ✅ livré (4e template), badge "Style actif" supprimé (commit 212066a), recherche+filtre Assets ✅ livré, CharacterView type ✅ défini dans types/index.ts. Suppr blocs reste 📋 à faire.*

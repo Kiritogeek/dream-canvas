@@ -60,12 +60,13 @@
 
 | Étape | Écran / action | Détail |
 |-------|----------------|--------|
-| 1 | **Style principal** | Sélection d’une famille visuelle (ex. Manga, Webtoon coréen, Manwha). |
-| 2 | **Sous-style** | Déclinaison du style principal (ex. Sobre, Violent, Dramatique, Lumineux). |
-| 3 | **Précisions projet** | Champ texte optionnel pour affiner le rendu (ambiance, contrastes, détails). |
-| 4 | **Template généré compatible** | Le `style_template` est généré automatiquement (texte) pour rester compatible avec les Edge Functions existantes. |
-| 5 | **Images de référence** | Upload d’images (2 max en Pro), aperçu, suppression. Stockage Supabase Storage. |
-| 6 | **Application** | Le style est appliqué à toutes les générations d’assets (et futurs panels). |
+| 1 | **4 templates prédéfinis** | Manga (N&B, screentone), Webtoon Coréen (couleur, digital), Manhwa Chinois (épique), **Européen** (trait lisible, BD). Grille 2×2, carousel. |
+| 2 | **Sélection + validation** | Clic sur une carte → état `isPending` (ring mint). Bouton **"Valider ce style"** (première fois) ou **"Appliquer — [Nom]"** (changement). États : `isSavedIdle` (border primary/40), `isLocked` (ring primary + ✓). Badge "Style actif" supprimé. |
+| 3 | **Vue détail** | Grille 3×1 : images personnage / décor / scène générées par le style + description. |
+| 4 | **Style System V1** | `style_template` = bloc STYLE_SYSTEM_V1 structuré (metadata + prompts de référence + règles visuelles). Jamais envoyé depuis un draft — toujours depuis `project.style_template` en BDD. |
+| 5 | **Précisions projet** | Champ texte optionnel "Contraintes additionnelles" injecté dans le template. |
+| 6 | **Images de référence** | Upload 2 images max (Pro uniquement), aperçu, suppression. Stockage Supabase Storage. Plan Free : badge Pro + hint. |
+| 7 | **Prochaines étapes** | Après style sauvegardé : 2 liens rapides vers Scénario et Assets. |
 
 ---
 
@@ -73,12 +74,12 @@
 
 | Étape | Écran / action | Détail |
 |-------|----------------|--------|
-| 1 | **Bibliothèques** | 3 onglets : **Personnages**, **Décors**, **Objets**. Sous-titre : « Utile surtout pour les éléments récurrents de votre scénario. » |
+| 1 | **Onglets + recherche** | 3 onglets : **Personnages** (Users), **Décors** (MapPin), **Objets** (Box). **Barre de recherche** par nom + **dropdown filtre** (Tous / Personnages / Décors / Objets). Assets filtrés en temps réel (`filteredAssets`). |
 | 2 | **Liste** | Grille d’assets avec image (ou placeholder), nom, type. |
-| 3 | **Ajout** | Bouton « Ajouter » → dialog : type, nom, description/prompt. Génération IA automatique après création. |
-| 4 | **Carte asset** | Hover : boutons Modifier, Régénérer, Supprimer. Clic sur un personnage → dialog vues (face, **sheet composite**, profil gauche/droit, dos). |
-| 5 | **Modification** | Dialog pré-rempli (nom, prompt). Si seul le nom change → « Sauvegarder ». Si prompt change → « Sauvegarder sans régénérer » ou « Sauvegarder et régénérer ». |
-| 6 | **Renommage + scénario** | Si le nom change et que l’ancien nom apparaît dans des chapitres : proposition « Mettre à jour le scénario ? » → Appliquer remplace l’ancien nom par le nouveau dans les chapitres concernés. |
+| 3 | **Ajout** | Bouton « Ajouter » → dialog : type, nom, description/prompt. Génération IA automatique après création. Peut être pré-rempli depuis le scénario (`pendingAssetName`, `pendingAssetType`). |
+| 4 | **Carte asset** | Hover : boutons Modifier, Régénérer, Supprimer. Clic sur un personnage → `CharacterViewDialog` : vue face + sheet composite + profil gauche/droit/dos. |
+| 5 | **Modification** | Dialog pré-rempli (nom, prompt). Seul le nom change → « Sauvegarder ». Prompt change → « Sauvegarder sans régénérer » ou « Sauvegarder et régénérer ». |
+| 6 | **Renommage + scénario** | Si l’ancien nom apparaît dans des chapitres : « Mettre à jour le scénario ? » → remplace l’ancien nom partout. |
 | 7 | **Suppression** | Confirmation (AlertDialog) avant suppression. Nettoyage Storage. |
 
 ---

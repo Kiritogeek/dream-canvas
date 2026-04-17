@@ -160,6 +160,16 @@ Audits/                           # Audits techniques datés
 - **Poser les questions ambiguës explicitement** — ne jamais assumer silencieusement
 - **Confirmer les décisions destructives** (suppression de composant, refactoring large, changement de schéma DB)
 
+### Challenger et affiner en continu
+
+**Toujours challenger la demande avant d'implémenter.** Pour toute feature ou modification non triviale, poser au moins une question de clarification sur :
+- **L'intention** : pourquoi cet écran / ce flux existe-t-il ? Quel problème utilisateur résout-il ?
+- **Le cas limite** : que se passe-t-il si l'utilisateur n'a pas encore de données ? Si le quota est atteint ? Si c'est un utilisateur Free ?
+- **La cohérence** : est-ce que ça s'aligne avec le reste du parcours (Style → Assets → Scénario → Éditeur) ?
+- **La priorisation** : est-ce que c'est P0 (bloquant) ou P2 (polish) ? Est-ce que ça vaut le coût d'implémentation maintenant ?
+
+Ne pas poser toutes ces questions à la fois — choisir la plus pertinente selon le contexte. L'objectif est d'éviter d'implémenter la mauvaise chose parfaitement.
+
 ### Pendant le développement
 - Vérifier TypeScript : `npx tsc --noEmit` après chaque modification de types
 - Préférer `Edit` sur les fichiers existants, `Write` uniquement pour les nouveaux fichiers
@@ -172,11 +182,103 @@ Audits/                           # Audits techniques datés
 - Edge Functions (Deno, Supabase) — déploiement manuel requis
 - Variables d'environnement (`.env`, secrets Supabase)
 
-### Agents
-- Utiliser `Explore` pour scanner le codebase (> 3 fichiers à explorer)
-- Utiliser `fullstack-engineer` pour analyses d'architecture ou bugs cross-couches
-- Utiliser `dreamweave-image-prompt-engineer` pour les prompts de génération d'images
-- Pour les éditions ciblées (1-3 fichiers connus) : outils directs `Read`/`Edit`/`Grep`
+### Agents disponibles
+
+| Agent | Rôle | Quand l'utiliser |
+|-------|------|-----------------|
+| `Interface Architect` 🔵 | UX/UI + design system | Composants, layout, glassmorphisme, animations, éditeur panels/bulles |
+| `Prompt Engineer IA` 🟠 | Prompts FAL.ai / FLUX | Génération assets, panels, style templates, cohérence visuelle IA |
+| `Fullstack Engineer` 🟣 | React + TypeScript + Supabase | Bugs cross-couches, nouvelles features, auth, React Query, Edge Functions |
+| `Product Owner` 🔴 | Stratégie produit | Cadrage feature, user stories, critères d'acceptation, priorisation backlog |
+| `Explore` | Scan codebase | Exploration > 3 fichiers, recherche de patterns |
+
+Pour les éditions ciblées (1-3 fichiers connus) : outils directs `Read`/`Edit`/`Grep`.
+
+### Règle de délégation — OBLIGATOIRE
+
+**Toujours déléguer à l'agent le plus qualifié.** Ne jamais implémenter soi-même ce qu'un agent spécialisé ferait mieux.
+
+**Processus de décision :**
+1. La tâche correspond à un agent existant → le spawner immédiatement.
+2. La tâche touche à une compétence absente mais proche d'un agent → ajouter cette compétence dans son system prompt (`/.claude/agents/<agent>.md`), puis le spawner.
+3. La tâche est trop éloignée de tous les agents existants → créer un nouvel agent spécialisé dans `/.claude/agents/`, **uniquement si la compétence sera réutilisée régulièrement** (ne pas créer d'agent one-shot).
+
+**Cas où Claude principal agit directement** (sans délégation) :
+- Éditions ciblées connues (1-3 fichiers, < 20 lignes)
+- Lecture/recherche simple (`Read`, `Grep`, `Glob`)
+- Meta-travail : wiki, CLAUDE.md, configuration agents
+
+---
+
+## Workflow de développement
+
+### Phases
+
+```
+PLAN → DESIGN → DEV → TEST → REVIEW → MERGE
+```
+
+| Phase | Responsable | Actions |
+|-------|-------------|---------|
+| **PLAN** | `Product Owner` | Cadrer la feature, écrire user story + critères d'acceptation |
+| **DESIGN** | `Interface Architect` | Proposer l'approche UI/UX, valider la cohérence design system |
+| **DEV** | `Fullstack Engineer` | Implémenter (types → services → hooks → composants) |
+| **PROMPT** | `Prompt Engineer IA` | Si génération image impliquée : optimiser les prompts |
+| **TEST** | `Fullstack Engineer` | TypeScript check + Vitest + test manuel UI |
+| **REVIEW** | Claude principal | Qualité code, sécurité, RLS, cohérence globale |
+| **MERGE** | Utilisateur | PR propre, commit conventionnel |
+
+### Démarrer une nouvelle feature
+
+1. Commencer par `Product Owner` → clarifier le besoin, écrire les critères d'acceptation
+2. Passer à `Interface Architect` si la feature a un impact visuel significatif
+3. Passer à `Fullstack Engineer` pour l'implémentation
+4. Impliquer `Prompt Engineer IA` si la feature touche la génération d'images IA
+
+### Implémenter du bas vers le haut
+
+```
+src/types/index.ts           (1) Ajouter/modifier les types
+src/integrations/supabase/   (2) Types DB si schéma impacté
+src/services/                (3) Logique métier et appels API
+src/hooks/                   (4) State, mutations React Query
+src/components/              (5) Composants UI
+src/pages/                   (6) Intégration dans les pages
+```
+
+### Git
+
+- Branches : `feat/`, `fix/`, `refactor/`, `chore/`
+- Commits : impératif présent, anglais (`Add panel resize handle`, `Fix quota check on free tier`)
+- Ne jamais force-push sur `main`
+- PR : titre court (< 70 chars), body avec contexte de la décision
+
+---
+
+## Checklist Qualité — Definition of Done
+
+Obligatoire avant tout merge :
+
+- [ ] `npx tsc --noEmit` → **0 erreur TypeScript**
+- [ ] `npm run test` → **0 régression Vitest**
+- [ ] Pas de `console.log` de debug laissé
+- [ ] RLS non contournée — `auth.uid() = user_id` respecté
+- [ ] Service role non exposé côté client
+- [ ] Edge Functions non modifiées (sauf demande explicite)
+- [ ] Migrations non modifiées (sauf demande explicite)
+- [ ] `canGenerate()` vérifié avant tout appel FAL.ai
+- [ ] `refreshSession()` appelé avant tout appel Edge Function
+- [ ] UI testée sur le chemin principal (golden path)
+- [ ] Interface en français
+
+### Pièges courants à éviter
+
+- Envoyer le style template depuis un draft local (toujours depuis `project.style_template` en BDD)
+- Oublier d'invalider les React Query après une mutation
+- Lazy loading oublié pour une nouvelle page (`React.lazy` dans `App.tsx`)
+- Hardcoder des couleurs au lieu d'utiliser les tokens HSL
+- Modifier `supabase/migrations/` sans tester sur une DB locale d'abord
+- Appeler une Edge Function sans JWT valide
 
 ---
 

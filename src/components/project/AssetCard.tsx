@@ -1,11 +1,12 @@
 import { motion } from "framer-motion";
-import { Sparkles, RefreshCw, Trash2, Pencil, Plus } from "lucide-react";
+import { Sparkles, RefreshCw, Trash2, Pencil, Eye } from "lucide-react";
 import { ImageWithFallback } from "@/components/ui/ImageWithFallback";
 import type { Asset } from "@/types";
 
 interface AssetCardProps {
   asset: Asset;
   isGenerating: boolean;
+  typeBadge?: { bg: string; label: string };
   onRegenerate: () => void;
   onDelete: () => void;
   onEdit: () => void;
@@ -15,6 +16,7 @@ interface AssetCardProps {
 export function AssetCard({
   asset,
   isGenerating,
+  typeBadge,
   onRegenerate,
   onDelete,
   onEdit,
@@ -36,13 +38,21 @@ export function AssetCard({
           </span>
         </div>
       ) : (
-        <div className="w-full aspect-[2/3] mb-2 sm:mb-3">
+        <div className="w-full aspect-[2/3] mb-2 sm:mb-3 relative">
           <ImageWithFallback
             src={asset.image_url}
             alt={asset.name}
             className="w-full h-full object-cover rounded-lg"
             fallbackClassName="w-full h-full rounded-lg"
           />
+          {/* Badge type */}
+          {typeBadge && (
+            <span
+              className={`absolute bottom-1.5 left-1.5 ${typeBadge.bg} text-[10px] font-medium px-1.5 py-0.5 rounded-full text-white`}
+            >
+              {typeBadge.label}
+            </span>
+          )}
         </div>
       )}
 
@@ -80,7 +90,7 @@ export function AssetCard({
             className="p-1 sm:p-1.5 rounded-md sm:rounded-lg bg-emerald-500/90 text-white shadow-md hover:bg-emerald-500 transition-colors disabled:opacity-50 disabled:pointer-events-none"
             title="Voir les différentes vues du personnage"
           >
-            <Plus className="h-3 w-3 sm:h-4 sm:w-4" />
+            <Eye className="h-3 w-3 sm:h-4 sm:w-4" />
           </button>
         )}
 

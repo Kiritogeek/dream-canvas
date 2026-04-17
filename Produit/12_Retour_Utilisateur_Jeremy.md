@@ -109,6 +109,8 @@ L'utilisateur ne comprend pas le flux et ne sait pas où agir sans remonter en h
 - Navigation visible et cliquable sur chaque étape.
 - Changement d'étape possible en un clic, sans retour en haut.
 
+**Statut** : ✅ Livré — commit e31a3d8. Sidebar persistante dans `DashboardLayout` avec section "Étapes du projet" (Style/Assets/Scénario/Édition de l'œuvre), état actif border-primary.
+
 ### 2.3 Validation explicite de l'étape Style
 
 **Pourquoi**  
@@ -125,6 +127,8 @@ Le passage à l'étape suivante n'est pas intuitif.
 
 - L'utilisateur peut sélectionner un style et confirmer via "Valider".
 - Le style sélectionné est clairement identifiable.
+
+**Statut** : ✅ Livré — bouton "Valider ce style" (première sélection) et "Appliquer — [Style Name]" (changement). 4 templates : Manga, Webtoon Coréen, Manhwa Chinois, Européen. Badge "Style actif" supprimé (commit 212066a) → états visuels isLocked/isPending/isSavedIdle.
 
 ---
 
@@ -177,6 +181,8 @@ Le passage à l'étape suivante n'est pas intuitif.
 - Un asset est trouvable en moins de 3 interactions.
 - Les catégories affichent des aperçus concrets.
 
+**Statut** : ✅ Livré (recherche + filtre) — `searchQuery` + `activeFilter` (all/character/background/object) dans `AssetLibrary.tsx`. Exemples visuels dans chaque catégorie : 📋 À faire.
+
 ---
 
 ## P2 — Structurant (éditeur avancé et qualité IA)
@@ -194,6 +200,12 @@ Le passage à l'étape suivante n'est pas intuitif.
 
 - Le bloc sélectionné est identifiable visuellement.
 - Suppr supprime uniquement le bloc actif.
+
+**Statut partiel** :
+- ✅ Sélection explicite au clic — ring border sur bloc actif, panneau latéral contextuel
+- ✅ Panneau de propriétés — sidebar Personnalisation avec prompt/dimensions/assets
+- ✅ Liberté de positionnement — drag/drop + resize 8 poignées sur tous les blocs
+- 📋 Suppression via touche Suppr — bouton "Supprimer" au survol uniquement, pas de raccourci clavier
 
 ### 2.8 Workflow "chapitre d'abord, panel à l'export"
 

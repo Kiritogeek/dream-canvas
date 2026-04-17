@@ -628,19 +628,22 @@ Deno.serve(async (req) => {
       fullPrompt = buildCharacterPrompt(
         prompt.trim(),
         hasStyleText ? userStyleText : undefined,
-        undefined
+        undefined,
+        userPlan
       );
     } else if (type_ === "background") {
       fullPrompt = buildBackgroundPrompt(
         prompt.trim(),
         hasStyleText ? userStyleText : undefined,
-        undefined
+        undefined,
+        userPlan
       );
     } else if (type_ === "object") {
       fullPrompt = buildObjectPrompt(
         prompt.trim(),
         hasStyleText ? userStyleText : undefined,
-        undefined
+        undefined,
+        userPlan
       );
     } else {
       fullPrompt = prompt.trim();
@@ -661,17 +664,20 @@ Deno.serve(async (req) => {
     if (type_ === "character") {
       sheetPrompt = buildCharacterSheetPrompt(
         prompt.trim(),
-        hasStyleText ? userStyleText : undefined
+        hasStyleText ? userStyleText : undefined,
+        userPlan
       );
     } else if (type_ === "background") {
       sheetPrompt = buildBackgroundSheetPrompt(
         prompt.trim(),
-        hasStyleText ? userStyleText : undefined
+        hasStyleText ? userStyleText : undefined,
+        userPlan
       );
     } else if (type_ === "object") {
       sheetPrompt = buildObjectSheetPrompt(
         prompt.trim(),
-        hasStyleText ? userStyleText : undefined
+        hasStyleText ? userStyleText : undefined,
+        userPlan
       );
     } else {
       sheetPrompt = prompt.trim();

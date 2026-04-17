@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Users, MapPin, Box, Plus, Save, RefreshCw, Search } from "lucide-react";
+import { Users, MapPin, Box, Plus, Save, RefreshCw, Search, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,6 +25,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useCreateAsset, useDeleteAsset, useUpdateAsset } from "@/hooks/useAssets";
 import { useUpdateScenarioChapter } from "@/hooks/useScenarioChapters";
+import { useUserPlan } from "@/hooks/useUserPlan";
 import * as scenarioService from "@/services/scenarioChapters";
 import { AssetCard } from "./AssetCard";
 import { CharacterViewDialog } from "./CharacterViewDialog";
@@ -41,6 +42,19 @@ const assetFilters = [
   { value: "background", label: "Décors" },
   { value: "object", label: "Objets" },
 ] as const;
+
+const TYPE_BADGE: Record<AssetType, { bg: string; label: string }> = {
+  character: { bg: "bg-primary/70", label: "Perso" },
+  background: { bg: "bg-mint/70", label: "Décor" },
+  object: { bg: "bg-peach/70", label: "Objet" },
+};
+
+const ADD_BUTTON_LABEL: Record<(typeof assetFilters)[number]["value"], string> = {
+  all: "Ajouter",
+  character: "Ajouter un personnage",
+  background: "Ajouter un décor",
+  object: "Ajouter un objet",
+};
 
 interface AssetLibraryProps {
   projectId: string;
@@ -75,13 +89,13 @@ export function AssetLibrary({
   const deleteAssetMutation = useDeleteAsset();
   const updateAssetMutation = useUpdateAsset();
   const updateChapterMutation = useUpdateScenarioChapter();
+  const { plan, usageInfo } = useUserPlan();
 
   // Dialog nouvel asset
   const [assetDialogOpen, setAssetDialogOpen] = useState(false);
   const [newAssetType, setNewAssetType] = useState<AssetType>("character");
   const [newAssetName, setNewAssetName] = useState("");
   const [newAssetPrompt, setNewAssetPrompt] = useState("");
-  const [activeAssetTab, setActiveAssetTab] = useState<AssetType>("character");
   const [activeFilter, setActiveFilter] = useState<(typeof assetFilters)[number]["value"]>("all");
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -90,7 +104,6 @@ export function AssetLibrary({
     if (pendingAssetName) {
       setNewAssetName(pendingAssetName);
       setNewAssetType(pendingAssetType || "character");
-      setActiveAssetTab(pendingAssetType || "character");
       setNewAssetPrompt("");
       setAssetDialogOpen(true);
       onPendingAssetConsumed?.();
@@ -135,6 +148,10 @@ export function AssetLibrary({
 
   const canCreateAsset =
     newAssetName.trim().length > 0 && newAssetPrompt.trim().length > 0;
+
+  // Type par défaut dans le dialog : si filtre actif, utiliser ce type
+  const defaultNewAssetType: AssetType =
+    activeFilter === "all" ? "character" : (activeFilter as AssetType);
 
   const handleCreateAsset = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -283,8 +300,6 @@ export function AssetLibrary({
     }
   };
 
-  const currentTabLabel = assetTabs.find((t) => t.type === activeAssetTab)?.label ?? "Assets";
-  const libraryTitle = "Bibliothèque d'assets";
   const filteredAssets = assets.filter((asset) => {
     const typeMatch = activeFilter === "all" ? true : asset.asset_type === activeFilter;
     const textMatch = searchQuery.trim()
@@ -295,9 +310,23 @@ export function AssetLibrary({
     return typeMatch && textMatch;
   });
 
+  // Pill quota couleur
+  const remaining = usageInfo.limit - usageInfo.count;
+  const quotaColorClass =
+    remaining === 0
+      ? "text-destructive"
+      : remaining < 5
+        ? "text-amber-500"
+        : "text-muted-foreground";
+
   return (
     <div className="space-y-4 sm:space-y-6">
-      <div className="flex justify-end">
+      <div className="flex items-center justify-between gap-3">
+        {/* Compteur de quota */}
+        <span className={`text-xs font-medium ${quotaColorClass}`}>
+          {usageInfo.count} / {usageInfo.limit} générations ce mois
+        </span>
+
         <Dialog open={assetDialogOpen} onOpenChange={setAssetDialogOpen}>
           <Button
             size="sm"
@@ -305,11 +334,11 @@ export function AssetLibrary({
             className="gradient-primary text-primary-foreground"
             onClick={() => {
               if (!onCanGenerate()) return;
-              setNewAssetType(activeAssetTab);
+              setNewAssetType(defaultNewAssetType);
               setAssetDialogOpen(true);
             }}
           >
-            <Plus className="h-4 w-4 mr-1" /> Ajouter
+            <Plus className="h-4 w-4 mr-1" /> {ADD_BUTTON_LABEL[activeFilter]}
           </Button>
           <DialogContent className="glass">
             <DialogHeader>
@@ -347,13 +376,21 @@ export function AssetLibrary({
                 />
               </div>
               <div className="space-y-2">
-                <Label>Description / Prompt</Label>
+                <Label>
+                  Description / Prompt{" "}
+                  <span className="text-destructive">*</span>
+                </Label>
                 <Textarea
                   value={newAssetPrompt}
                   onChange={(e) => setNewAssetPrompt(e.target.value)}
                   placeholder="Décrivez l'asset pour la génération IA..."
                   rows={3}
                 />
+                {!newAssetPrompt.trim() && (
+                  <p className="text-xs text-muted-foreground">
+                    Le prompt est requis pour générer l'image.
+                  </p>
+                )}
               </div>
               <Button
                 type="submit"
@@ -392,10 +429,7 @@ export function AssetLibrary({
             <button
               key={filter.value}
               type="button"
-              onClick={() => {
-                setActiveFilter(filter.value);
-                if (filter.value !== "all") setActiveAssetTab(filter.value as AssetType);
-              }}
+              onClick={() => setActiveFilter(filter.value)}
               className={`px-3 py-1.5 rounded-full border text-sm transition-colors ${
                 activeFilter === filter.value
                   ? "border-primary bg-primary/15 text-foreground"
@@ -408,11 +442,30 @@ export function AssetLibrary({
         </div>
       </div>
 
-      {filteredAssets.length === 0 ? (
+      {/* Empty states */}
+      {assets.length === 0 ? (
+        <div className="glass rounded-lg sm:rounded-xl p-6 sm:p-8 text-center space-y-3">
+          <Plus className="h-7 w-7 sm:h-8 sm:w-8 mx-auto text-primary opacity-40" />
+          <p className="text-muted-foreground text-xs sm:text-sm">
+            Aucun asset créé pour ce projet.
+          </p>
+          <Button
+            size="sm"
+            className="gradient-primary text-primary-foreground"
+            onClick={() => {
+              if (!onCanGenerate()) return;
+              setNewAssetType(defaultNewAssetType);
+              setAssetDialogOpen(true);
+            }}
+          >
+            <Plus className="h-4 w-4 mr-1" /> Créer mon premier asset
+          </Button>
+        </div>
+      ) : filteredAssets.length === 0 ? (
         <div className="glass rounded-lg sm:rounded-xl p-6 sm:p-8 text-center">
           <Search className="h-7 w-7 sm:h-8 sm:w-8 mx-auto mb-2 sm:mb-3 text-primary opacity-40" />
           <p className="text-muted-foreground text-xs sm:text-sm">
-            Aucun asset ne correspond à vos filtres.
+            Aucun résultat pour cette recherche.
           </p>
         </div>
       ) : (
@@ -422,6 +475,7 @@ export function AssetLibrary({
               key={asset.id}
               asset={asset}
               isGenerating={generatingAssetId === asset.id}
+              typeBadge={TYPE_BADGE[asset.asset_type]}
               onRegenerate={() => setRegenerateTarget(asset)}
               onDelete={() => setDeleteTarget(asset)}
               onEdit={() => setEditTarget(asset)}
@@ -448,6 +502,7 @@ export function AssetLibrary({
         character={selectedCharacter}
         generatingView={generatingView}
         onGenerateView={(asset, view) => onGenerate(asset, { view })}
+        userPlan={plan}
       />
 
       {/* Confirmation suppression */}
@@ -470,6 +525,7 @@ export function AssetLibrary({
             <AlertDialogCancel>Annuler</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteAsset}
+              disabled={deleteAssetMutation.isPending}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {deleteAssetMutation.isPending ? "Suppression..." : "Supprimer"}
@@ -501,7 +557,7 @@ export function AssetLibrary({
                 if (regenerateTarget) onGenerate(regenerateTarget);
                 setRegenerateTarget(null);
               }}
-              className="bg-amber-500 text-white hover:bg-amber-600"
+              className="gradient-primary text-primary-foreground"
             >
               <RefreshCw className="h-4 w-4 mr-1.5" />
               Régénérer
@@ -527,31 +583,74 @@ export function AssetLibrary({
           </DialogHeader>
 
           <div className="space-y-4 py-2">
-            <div className="space-y-2">
-              <Label htmlFor="edit-name">Nom</Label>
-              <Input
-                id="edit-name"
-                value={editName}
-                onChange={(e) => setEditName(e.target.value)}
-                placeholder="Nom de l'asset"
-              />
-            </div>
+            {/* Preview image actuelle */}
+            {editTarget?.image_url && (
+              <div className="flex gap-4 items-start">
+                <img
+                  src={editTarget.image_url}
+                  alt={editTarget.name}
+                  className="w-24 h-32 object-cover rounded-lg flex-shrink-0"
+                />
+                <div className="flex-1 space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-name">Nom</Label>
+                    <Input
+                      id="edit-name"
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      placeholder="Nom de l'asset"
+                    />
+                  </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="edit-prompt">Prompt / Description</Label>
-              <Textarea
-                id="edit-prompt"
-                value={editPrompt}
-                onChange={(e) => setEditPrompt(e.target.value)}
-                placeholder="Décrivez l'asset pour la génération IA..."
-                rows={4}
-              />
-              {promptChanged && (
-                <p className="text-xs text-amber-600 dark:text-amber-400">
-                  Le prompt a été modifié — vous pourrez choisir de régénérer l'image ou sauvegarder sans régénérer.
-                </p>
-              )}
-            </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-prompt">Prompt / Description</Label>
+                    <Textarea
+                      id="edit-prompt"
+                      value={editPrompt}
+                      onChange={(e) => setEditPrompt(e.target.value)}
+                      placeholder="Décrivez l'asset pour la génération IA..."
+                      rows={3}
+                    />
+                    {promptChanged && (
+                      <p className="text-xs text-amber-600 dark:text-amber-400">
+                        Le prompt a été modifié — vous pourrez choisir de régénérer l'image ou sauvegarder sans régénérer.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Pas d'image existante — layout simple */}
+            {!editTarget?.image_url && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-name">Nom</Label>
+                  <Input
+                    id="edit-name"
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    placeholder="Nom de l'asset"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="edit-prompt">Prompt / Description</Label>
+                  <Textarea
+                    id="edit-prompt"
+                    value={editPrompt}
+                    onChange={(e) => setEditPrompt(e.target.value)}
+                    placeholder="Décrivez l'asset pour la génération IA..."
+                    rows={4}
+                  />
+                  {promptChanged && (
+                    <p className="text-xs text-amber-600 dark:text-amber-400">
+                      Le prompt a été modifié — vous pourrez choisir de régénérer l'image ou sauvegarder sans régénérer.
+                    </p>
+                  )}
+                </div>
+              </>
+            )}
           </div>
 
           <DialogFooter className="flex flex-col gap-2 sm:flex-row">
@@ -598,7 +697,7 @@ export function AssetLibrary({
         open={!!renameChaptersState}
         onOpenChange={(open) => !open && setRenameChaptersState(null)}
       >
-        <AlertDialogContent>
+        <AlertDialogContent className="glass">
           <AlertDialogHeader>
             <AlertDialogTitle>Mettre à jour le scénario ?</AlertDialogTitle>
             <AlertDialogDescription>

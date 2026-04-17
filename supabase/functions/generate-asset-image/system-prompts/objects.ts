@@ -1,5 +1,5 @@
 // System Prompts Optimisés - Webtoon/Manhwa
-// Version courte et claire - Février 2026
+// Version Free/Pro différenciée - Avril 2026
 
 // ═══════════════════════════════════════════════════════════════
 // OBJETS
@@ -8,9 +8,27 @@
 export const buildObjectPrompt = (
   userDescription: string,
   styleText?: string,
-  styleImageUrls?: string[]
+  styleImageUrls?: string[],
+  plan: "free" | "pro" = "pro"
 ) => {
-  let prompt = `Crée un objet en PNG avec fond transparent.
+  if (plan === "free") {
+    let prompt = `Single object illustration, centered, full object visible, transparent background, no cropping.
+
+${userDescription}`;
+
+    if (styleText) {
+      prompt += `\n\n${styleText}`;
+    }
+
+    prompt += `\n\nHigh quality, detailed, clean lines, manga style, clear materials and textures.`;
+
+    return prompt;
+  }
+
+  // Pro — prompt riche FLUX.2 Pro
+  let prompt = `masterpiece, best quality, ultra-detailed, product design quality, clean render, professional illustration.
+
+Crée un objet en PNG avec fond transparent.
 
 DESCRIPTION DE L'OBJET :
 ${userDescription}
@@ -24,14 +42,12 @@ CADRAGE ET COMPOSITION :
 - L'image doit remplir tout le cadre sans espaces blancs ni bandes vides : l'illustration doit coïncider exactement avec la taille de la card, sans bord ni marge visibles
 - Très haute qualité de détails (contours, volumes, textures, matériaux)`;
 
-  // Ajout du style textuel
   if (styleText) {
     prompt += `\n\nSTYLE ARTISTIQUE :
 ${styleText}
 Applique ce style à 100% : traits, ombrage, palette (N&B ou couleur selon le style imposé), rendu des matériaux.`;
   }
 
-  // Ajout des images de référence style
   if (styleImageUrls && styleImageUrls.length > 0) {
     prompt += `\n\nIMAGES DE RÉFÉRENCE STYLE :
 ${styleImageUrls.map((url, i) => `${i + 1}. ${url}`).join('\n')}
@@ -54,9 +70,27 @@ ATTENTION :
 
 export const buildObjectSheetPrompt = (
   userDescription: string,
-  styleText?: string
+  styleText?: string,
+  plan: "free" | "pro" = "pro"
 ) => {
-  let prompt = `Crée une sheet d’objet en une seule image composite, format carré ou paysage (jamais format webtoon vertical).
+  if (plan === "free") {
+    let prompt = `Object reference sheet, 2x2 grid, same object in 4 views: front, 3/4 left, 3/4 right, back or top. Transparent background.
+
+${userDescription}`;
+
+    if (styleText) {
+      prompt += `\n\n${styleText}`;
+    }
+
+    prompt += `\n\nHigh quality, detailed, manga style, consistent design across all views.`;
+
+    return prompt;
+  }
+
+  // Pro — prompt riche FLUX.2 Pro
+  let prompt = `masterpiece, best quality, ultra-detailed, product design quality, professional illustration.
+
+Crée une sheet d'objet en une seule image composite, format carré ou paysage (jamais format webtoon vertical).
 
 DESCRIPTION DE L'OBJET :
 ${userDescription}
@@ -66,11 +100,11 @@ MISE EN PAGE (OBLIGATOIRE) :
 - Vignette A : vue face.
 - Vignette B : vue 3/4 gauche.
 - Vignette C : vue 3/4 droite.
-- Vignette D : vue arrière ou vue de dessus selon ce qui rend l’objet le plus lisible.
+- Vignette D : vue arrière ou vue de dessus selon ce qui rend l'objet le plus lisible.
 
-RÈGLE D’IDENTITÉ :
+RÈGLE D'IDENTITÉ :
 - Garder EXACTEMENT le même objet (forme, matériaux, couleurs, détails).
-- Ne changer que l’angle de vue.
+- Ne changer que l'angle de vue.
 
 RÈGLES DE RENDU :
 - Objet entièrement visible dans chaque vignette (aucune coupe).
@@ -107,7 +141,7 @@ export const OBJECT_STYLE_TEXT_INSTRUCTION = (styleText: string) =>
 
 export const OBJECT_STYLE_IMAGES_INSTRUCTION = (imageUrls: string[]) => {
   const urlsList = imageUrls.map((url, index) => `Image ${index + 1}: ${url}`).join("\n");
-  
+
   return "IMPORTANT : plusieurs images de référence ont été fournies dans la section Style. " +
     "Elles servent UNIQUEMENT à définir le STYLE GRAPHIQUE de l'objet, pas le contenu spécifique ni la forme précise. " +
     "Ces images définissent LE STYLE GRAPHIQUE PRINCIPAL à respecter absolument. " +

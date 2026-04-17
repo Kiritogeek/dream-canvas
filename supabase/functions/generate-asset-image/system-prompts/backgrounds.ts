@@ -1,5 +1,5 @@
 // System Prompts Optimisés - Webtoon/Manhwa
-// Version courte et claire - Février 2026
+// Version Free/Pro différenciée - Avril 2026
 
 // ═══════════════════════════════════════════════════════════════
 // BACKGROUNDS (DÉCORS)
@@ -8,9 +8,27 @@
 export const buildBackgroundPrompt = (
   userDescription: string,
   styleText?: string,
-  styleImageUrls?: string[]
+  styleImageUrls?: string[],
+  plan: "free" | "pro" = "pro"
 ) => {
-  let prompt = `Crée un décor illustré (manga, manhwa ou manhua selon le STYLE ARTISTIQUE ci-dessous).
+  if (plan === "free") {
+    let prompt = `Manga background illustration, full frame, no characters, edge to edge.
+
+${userDescription}`;
+
+    if (styleText) {
+      prompt += `\n\n${styleText}`;
+    }
+
+    prompt += `\n\nHigh quality, detailed, clean lines, manga style, clear depth.`;
+
+    return prompt;
+  }
+
+  // Pro — prompt riche FLUX.2 Pro
+  let prompt = `masterpiece, best quality, ultra-detailed, cinematic composition, atmospheric depth, professional background art.
+
+Crée un décor illustré (manga, manhwa ou manhua selon le STYLE ARTISTIQUE ci-dessous).
 
 DESCRIPTION DU DÉCOR :
 ${userDescription}
@@ -24,14 +42,12 @@ CADRAGE ET COMPOSITION :
 - Lumière claire et bien définie
 - PAS de bordures, PAS de format "carte postale", l'illustration va d'un bord à l'autre`;
 
-  // Ajout du style textuel
   if (styleText) {
     prompt += `\n\nSTYLE ARTISTIQUE :
 ${styleText}
 Applique ce style à 100% : traits, ombrage, palette (N&B ou couleur selon le style imposé), textures, rendu.`;
   }
 
-  // Ajout des images de référence style
   if (styleImageUrls && styleImageUrls.length > 0) {
     prompt += `\n\nIMAGES DE RÉFÉRENCE STYLE :
 ${styleImageUrls.map((url, i) => `${i + 1}. ${url}`).join('\n')}
@@ -55,25 +71,43 @@ ATTENTION :
 
 export const buildBackgroundSheetPrompt = (
   userDescription: string,
-  styleText?: string
+  styleText?: string,
+  plan: "free" | "pro" = "pro"
 ) => {
-  let prompt = `Crée une sheet de décor en une seule image composite, format carré ou paysage (jamais format webtoon vertical).
+  if (plan === "free") {
+    let prompt = `Background reference sheet, 2x2 grid, same location shown from 4 angles: wide shot, side angle, close foreground, elevated view. No characters.
+
+${userDescription}`;
+
+    if (styleText) {
+      prompt += `\n\n${styleText}`;
+    }
+
+    prompt += `\n\nHigh quality, detailed, manga style, consistent palette across all panels.`;
+
+    return prompt;
+  }
+
+  // Pro — prompt riche FLUX.2 Pro
+  let prompt = `masterpiece, best quality, ultra-detailed, cinematic composition, professional background art.
+
+Crée une sheet de décor en une seule image composite, format carré ou paysage (jamais format webtoon vertical).
 
 DESCRIPTION DU DÉCOR :
 ${userDescription}
 
 MISE EN PAGE (OBLIGATOIRE) :
 - Layout 2x2 avec 4 vignettes différentes du MÊME décor (même lieu, même identité visuelle).
-- Vignette A : vue large d’ensemble.
+- Vignette A : vue large d'ensemble.
 - Vignette B : angle latéral (camera shift) du même lieu.
 - Vignette C : variation de profondeur (avant-plan marqué) du même lieu.
-- Vignette D : variation d’élévation (plus bas ou plus haut) du même lieu.
+- Vignette D : variation d'élévation (plus bas ou plus haut) du même lieu.
 
 RÈGLES :
 - AUCUN personnage, AUCUNE créature.
 - AUCUN texte, AUCUN watermark.
 - Les 4 vignettes doivent remplir leurs zones sans bandes vides.
-- Cohérence stricte d’architecture, de palette et d’ambiance entre les 4 vues.
+- Cohérence stricte d'architecture, de palette et d'ambiance entre les 4 vues.
 - Qualité premium avec perspective lisible.`;
 
   if (styleText) {
@@ -104,7 +138,7 @@ export const BACKGROUND_STYLE_TEXT_INSTRUCTION = (styleText: string) =>
 
 export const BACKGROUND_STYLE_IMAGES_INSTRUCTION = (imageUrls: string[]) => {
   const urlsList = imageUrls.map((url, index) => `Image ${index + 1}: ${url}`).join("\n");
-  
+
   return "IMPORTANT : plusieurs images de référence ont été fournies dans la section Style. " +
     "Elles servent UNIQUEMENT à définir le STYLE GRAPHIQUE du décor, pas le contenu spécifique ni la composition. " +
     "Ces images définissent LE STYLE GRAPHIQUE PRINCIPAL à respecter absolument. " +

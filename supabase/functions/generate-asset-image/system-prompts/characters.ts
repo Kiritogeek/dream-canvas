@@ -1,5 +1,5 @@
 // System Prompts Optimisés - Webtoon/Manhwa
-// Version courte et claire - Février 2026
+// Version Free/Pro différenciée - Avril 2026
 
 // ═══════════════════════════════════════════════════════════════
 // PERSONNAGES
@@ -8,9 +8,27 @@
 export const buildCharacterPrompt = (
   userDescription: string,
   styleText?: string,
-  styleImageUrls?: string[]
+  styleImageUrls?: string[],
+  plan: "free" | "pro" = "pro"
 ) => {
-  let prompt = `Crée un personnage complet (corps entier de la tête aux pieds) en PNG avec fond transparent.
+  if (plan === "free") {
+    let prompt = `Full body character, facing forward, neutral pose, white background, no cropping.
+
+${userDescription}`;
+
+    if (styleText) {
+      prompt += `\n\n${styleText}`;
+    }
+
+    prompt += `\n\nHigh quality, clean manga illustration, detailed face and outfit, transparent background.`;
+
+    return prompt;
+  }
+
+  // Pro — prompt riche FLUX.2 Pro
+  let prompt = `masterpiece, best quality, ultra-detailed, anatomically correct, perfect proportions, professional webtoon art.
+
+Crée un personnage complet (corps entier de la tête aux pieds) en PNG avec fond transparent.
 
 DESCRIPTION DU PERSONNAGE :
 ${userDescription}
@@ -23,14 +41,12 @@ CADRAGE ET COMPOSITION :
 - Fond 100% transparent, sans décor, ombre, texte ou watermark
 - Très haute qualité de détails (visage, yeux, cheveux, vêtements)`;
 
-  // Ajout du style textuel
   if (styleText) {
     prompt += `\n\nSTYLE ARTISTIQUE :
 ${styleText}
 Applique ce style à 100% : traits, ombrage, palette (monochrome N&B ou couleur selon le style imposé ci-dessus), proportions, rendu.`;
   }
 
-  // Ajout des images de référence style
   if (styleImageUrls && styleImageUrls.length > 0) {
     prompt += `\n\nIMAGES DE RÉFÉRENCE STYLE :
 ${styleImageUrls.map((url, i) => `${i + 1}. ${url}`).join('\n')}
@@ -53,9 +69,27 @@ ATTENTION :
 // Character sheet (1 seule image composite) : 2x2 vignettes (face + profils + dos)
 export const buildCharacterSheetPrompt = (
   userDescription: string,
-  styleText?: string
+  styleText?: string,
+  plan: "free" | "pro" = "pro"
 ) => {
-  let prompt = `Crée une “character sheet” complète en PNG avec fond parfaitement transparent, au format carré ou paysage (jamais format webtoon vertical).
+  if (plan === "free") {
+    let prompt = `Character reference sheet, 2x2 grid layout, same character in 4 views: front, left profile, right profile, back. Full body in each panel, white background.
+
+${userDescription}`;
+
+    if (styleText) {
+      prompt += `\n\n${styleText}`;
+    }
+
+    prompt += `\n\nHigh quality, clean manga style, consistent design across all views.`;
+
+    return prompt;
+  }
+
+  // Pro — prompt riche FLUX.2 Pro
+  let prompt = `masterpiece, best quality, ultra-detailed, professional webtoon art.
+
+Crée une "character sheet" complète en PNG avec fond parfaitement transparent, au format carré ou paysage (jamais format webtoon vertical).
 
 DESCRIPTION DU PERSONNAGE :
 ${userDescription}
@@ -67,10 +101,10 @@ MISE EN PAGE (OBLIGATOIRE) :
 - Vignette C (bas-gauche) : Profil droit (angle profil droit).
 - Vignette D (bas-droite) : Vue de dos.
 
-RÈGLE D’IDENTITÉ :
+RÈGLE D'IDENTITÉ :
 - Toutes les vignettes doivent représenter EXACTEMENT le même personnage.
 - Garder le même design (visage, coiffure, couleurs, vêtements, accessoires).
-- Ne changer que l’angle de vue.
+- Ne changer que l'angle de vue.
 
 RÈGLES DE RENDU :
 - Chaque vignette doit remplir sa zone sans marges ni bandes vides.
@@ -138,7 +172,7 @@ export const CHARACTER_STYLE_TEXT_INSTRUCTION = (styleText: string) =>
 
 export const CHARACTER_STYLE_IMAGES_INSTRUCTION = (imageUrls: string[]) => {
   const urlsList = imageUrls.map((url, index) => `Image ${index + 1}: ${url}`).join("\n");
-  
+
   return "IMPORTANT : plusieurs images de référence ont été fournies dans la section Style. " +
     "Elles servent UNIQUEMENT à définir le STYLE GRAPHIQUE, pas le cadrage ni la pose. " +
     "Les règles de cadrage full body, PNG, sans décor décrites plus haut RESTENT PRIORITAIRES et ne doivent jamais être modifiées. " +
@@ -167,3 +201,18 @@ export const CHARACTER_STYLE_IMAGES_INSTRUCTION = (imageUrls: string[]) => {
     "- La cohérence stylistique avec ces images de référence est PLUS IMPORTANTE que tout autre critère. " +
     "- Si le style des images est très reconnaissable (ex: style d'un webtoon connu), reproduis fidèlement cette signature visuelle sans copier les personnages existants.";
 };
+
+/*
+## Tableau Free vs Pro — Génération d'assets
+
+| Fonctionnalité                        | Free                  | Pro                        |
+|---------------------------------------|-----------------------|----------------------------|
+| Modèle IA                             | FLUX.1 Schnell        | FLUX.2 Pro                 |
+| Qualité de rendu                      | Standard              | Ultra-détaillé             |
+| Fidélité au prompt                    | Bonne                 | Excellente                 |
+| Prompt optimisé                       | Simplifié             | Riche et précis            |
+| Images de référence style             | ✗                     | ✓ (2 images max)           |
+| Vues multi-angles personnage          | ✗                     | ✓ (profil G/D/dos)         |
+| Character sheet automatique           | ✗                     | ✓                          |
+| Générations / mois                    | 20                    | 300                        |
+*/

@@ -1,24 +1,35 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import {
-  Palette,
   ImagePlus,
   Trash2,
-  ArrowLeft,
-  Sparkles,
-  ChevronLeft,
-  ChevronRight,
+  X,
+  ArrowRight,
+  BookOpen,
+  Image as ImageIcon,
+  Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { ImageWithFallback } from "@/components/ui/ImageWithFallback";
 import { useToast } from "@/hooks/use-toast";
 import { useUpdateProject } from "@/hooks/useProjects";
+import { useAssets } from "@/hooks/useAssets";
 import { uploadStyleImage } from "@/services/storage";
 import { getTemplateStyleImageUrl } from "@/services/styleTemplates";
 import {
@@ -34,7 +45,6 @@ interface StyleManagerProps {
   project: Project;
   styleTemplate: string;
   onStyleTemplateChange: (value: string) => void;
-  /** Après sauvegarde réussie en BDD : réinitialiser le brouillon parent pour suivre le cache projet. */
   onStyleSaveSuccess?: () => void;
   onStyleValidated?: () => void;
   userPlan?: UserPlan;
@@ -45,7 +55,6 @@ export function StyleManager({
   styleTemplate,
   onStyleTemplateChange,
   onStyleSaveSuccess,
-  onStyleValidated,
   userPlan = "free",
 }: StyleManagerProps) {
   const STYLE_OPTIONS = [
@@ -142,15 +151,15 @@ export function StyleManager({
   const updateProject = useUpdateProject();
   const styleFileInputRef = useRef<HTMLInputElement>(null);
   const [styleImageUploading, setStyleImageUploading] = useState(false);
-  const [selectedStyleImage, setSelectedStyleImage] = useState<string | null>(
-    null
-  );
+  const [selectedStyleImage, setSelectedStyleImage] = useState<string | null>(null);
   const [selectedStyleIndex, setSelectedStyleIndex] = useState(0);
-  const [selectedStyleKey, setSelectedStyleKey] = useState<string>(
-    STYLE_OPTIONS[0].key
-  );
+  const [selectedStyleKey, setSelectedStyleKey] = useState<string>(STYLE_OPTIONS[0].key);
   const [styleNotes, setStyleNotes] = useState("");
   const [styleInitialized, setStyleInitialized] = useState(false);
+  const [styleChangeWarningOpen, setStyleChangeWarningOpen] = useState(false);
+
+  const { data: assets = [] } = useAssets(project.id);
+  const hasGeneratedAssets = assets.some((a) => !!a.image_url);
 
   const styleImageUrls = project.style_image_urls ?? [];
   const selectedStyle =
@@ -203,7 +212,6 @@ export function StyleManager({
 
   useEffect(() => {
     if (styleInitialized) return;
-
     applyTemplateFromString(styleTemplate ?? "");
     setStyleInitialized(true);
   }, [styleInitialized, styleTemplate]);
@@ -217,50 +225,37 @@ export function StyleManager({
   };
 
   const savedKey = extractStyleKeyFromTemplateText(project.style_template);
-  const savedPrincipal = extractStylePrincipalFromTemplateText(
-    project.style_template
-  );
+  const savedPrincipal = extractStylePrincipalFromTemplateText(project.style_template);
   const savedStructured = hasStyleSystemBlock(project.style_template);
+  const isFirstTime = !savedStructured || !savedKey;
 
-  const saveStyle = async () => {
-    if (import.meta.env.DEV) {
-      console.info("[DreamWeave][Style] Sauvegarde", {
-        projectId: project.id,
-        style_key: selectedStyle.key,
-        style_label: selectedStyle.label,
-      });
-    }
+  const generatedAssetCount = assets.filter((a) => !!a.image_url).length;
+
+  const actualSave = async (): Promise<boolean> => {
     try {
       await updateProject.mutateAsync({
         id: project.id,
         updates: { style_template: generatedStyleTemplate },
       });
       toast({
-        title: "Style sauvegarde !",
-        description: `${selectedStyle.label} — prompts de reference du carousel enregistres pour la generation.`,
+        title: "Style sauvegardé !",
+        description: `${selectedStyle.label} enregistré pour le projet.`,
       });
       onStyleSaveSuccess?.();
       return true;
     } catch (err) {
       const message = err instanceof Error ? err.message : "Erreur inconnue";
-      toast({
-        title: "Erreur",
-        description: message,
-        variant: "destructive",
-      });
+      toast({ title: "Erreur", description: message, variant: "destructive" });
       return false;
     }
   };
 
-  const handleValidateAndContinue = async () => {
-    const ok = await saveStyle();
-    if (ok) {
-      toast({
-        title: "Style valide",
-        description: "Passage a l'etape Assets.",
-      });
-      onStyleValidated?.();
+  const saveStyle = async (): Promise<boolean> => {
+    if (!isFirstTime && savedKey && selectedStyleKey !== savedKey && hasGeneratedAssets) {
+      setStyleChangeWarningOpen(true);
+      return false;
     }
+    return actualSave();
   };
 
   const MAX_STYLE_IMAGES = 2;
@@ -283,11 +278,7 @@ export function StyleManager({
     setStyleImageUploading(true);
 
     try {
-      const publicUrl = await uploadStyleImage(
-        project.user_id,
-        project.id,
-        file
-      );
+      const publicUrl = await uploadStyleImage(project.user_id, project.id, file);
       const newUrls = [...styleImageUrls, publicUrl];
       await updateProject.mutateAsync({
         id: project.id,
@@ -308,197 +299,185 @@ export function StyleManager({
       { id: project.id, updates: { style_image_urls: newUrls } },
       {
         onError: (err) =>
-          toast({
-            title: "Erreur",
-            description: err.message,
-            variant: "destructive",
-          }),
+          toast({ title: "Erreur", description: err.message, variant: "destructive" }),
       }
     );
   };
 
   return (
-    <div className="space-y-3 sm:space-y-4">
-      <div className="glass rounded-lg sm:rounded-xl p-4 sm:p-6 space-y-3 sm:space-y-4">
-        <p className="text-xs sm:text-sm text-muted-foreground">
-          Choisissez un preset : les visuels d&apos;exemple et le texte enregistre en base
-          reprennent les memes prompts systeme (non editables), pour un rendu aligne avec le
-          carousel.
-        </p>
+    <div className="space-y-4">
 
-        <div className="relative rounded-2xl border border-border/70 bg-background/70 p-3 sm:p-4">
-          <div className="relative mb-4">
-            <button
-              type="button"
-              onClick={() => selectStyleByIndex(selectedStyleIndex - 1)}
-              className="absolute left-0 top-1/2 -translate-y-1/2 h-11 w-11 rounded-full border-2 border-primary/50 bg-background/95 text-foreground hover:bg-muted/80 hover:border-primary flex items-center justify-center shadow-sm"
-              aria-label="Style precedent"
-            >
-              <ChevronLeft className="h-6 w-6" />
-            </button>
-            <div className="text-center">
-              <p className="text-base sm:text-lg font-semibold text-foreground">{selectedStyle.label}</p>
-              <p className="text-sm text-muted-foreground">
-                Style {selectedStyleIndex + 1} / {STYLE_OPTIONS.length}
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => selectStyleByIndex(selectedStyleIndex + 1)}
-              className="absolute right-0 top-1/2 -translate-y-1/2 h-11 w-11 rounded-full border-2 border-primary/50 bg-background/95 text-foreground hover:bg-muted/80 hover:border-primary flex items-center justify-center shadow-sm"
-              aria-label="Style suivant"
-            >
-              <ChevronRight className="h-6 w-6" />
-            </button>
-          </div>
+      {/* Carte principale */}
+      <div className="glass rounded-lg sm:rounded-xl p-4 sm:p-6 space-y-4">
 
-          <div className="rounded-2xl border border-primary/40 bg-primary/5 p-3 space-y-3">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-              <div className="rounded-xl overflow-hidden border border-border/70 bg-black/20">
-                <div className="relative h-52 w-full overflow-hidden">
-                  <img
-                    src={selectedStyle.images.character}
-                    alt=""
-                    aria-hidden="true"
-                    className="absolute inset-0 h-full w-full scale-110 object-cover object-center opacity-35 blur-md"
-                  />
-                  <ImageWithFallback
-                    src={selectedStyle.images.character}
-                    alt={`${selectedStyle.label} - personnage`}
-                    className="relative z-10 h-52 w-full object-contain"
-                    fallbackClassName="h-52 w-full flex items-center justify-center bg-muted"
-                  />
-                </div>
-                <p className="px-2 py-1 text-[11px] text-muted-foreground">
-                  Personnage
-                </p>
-              </div>
-              <div className="rounded-xl overflow-hidden border border-border/70 bg-black/20">
-                <div className="relative h-52 w-full overflow-hidden">
-                  <img
-                    src={selectedStyle.images.background}
-                    alt=""
-                    aria-hidden="true"
-                    className="absolute inset-0 h-full w-full scale-110 object-cover object-center opacity-35 blur-md"
-                  />
-                  <ImageWithFallback
-                    src={selectedStyle.images.background}
-                    alt={`${selectedStyle.label} - decor`}
-                    className="relative z-10 h-52 w-full scale-110 object-cover object-center"
-                    fallbackClassName="h-52 w-full flex items-center justify-center bg-muted"
-                  />
-                </div>
-                <p className="px-2 py-1 text-[11px] text-muted-foreground">
-                  Decor
-                </p>
-              </div>
-              <div className="rounded-xl overflow-hidden border border-border/70 bg-black/20">
-                <div className="relative h-52 w-full overflow-hidden">
-                  <img
-                    src={selectedStyle.images.scene}
-                    alt=""
-                    aria-hidden="true"
-                    className="absolute inset-0 h-full w-full scale-110 object-cover object-center opacity-35 blur-md"
-                  />
-                  <ImageWithFallback
-                    src={selectedStyle.images.scene}
-                    alt={`${selectedStyle.label} - scene`}
-                    className="relative z-10 h-52 w-full object-contain"
-                    fallbackClassName="h-52 w-full flex items-center justify-center bg-muted"
-                  />
-                </div>
-                <p className="px-2 py-1 text-[11px] text-muted-foreground">
-                  Scene
-                </p>
-              </div>
-            </div>
-            <p className="text-base text-foreground/90">
-              {selectedStyle.description}{" "}
-              <span className="block mt-1 text-sm text-muted-foreground">
-                A l&apos;enregistrement, le template copie les prompts anglais utilises pour ces
-                trois images.
-              </span>
+        {/* En-tête contextuel */}
+        {isFirstTime ? (
+          <div className="space-y-1">
+            <p className="text-base font-semibold text-foreground">
+              Choisissez le style visuel de votre œuvre
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Il sera appliqué à chaque asset et panel que vous générerez. Vous pourrez le modifier à tout moment.
             </p>
           </div>
+        ) : null}
 
-          <div className="flex items-center justify-center gap-1.5 pt-3">
-            {STYLE_OPTIONS.map((style, idx) => (
+        {/* Grille 2×2 de sélection */}
+        <div className="grid grid-cols-2 gap-3">
+          {STYLE_OPTIONS.map((style, idx) => {
+            const isSelected = selectedStyleKey === style.key;
+            const isLocked  = isSelected && (isFirstTime ? false : style.key === savedKey);
+            const isPending = isSelected && !isLocked;
+            const isSavedIdle = !isSelected && !isFirstTime && style.key === savedKey;
+
+            return (
               <button
                 key={style.key}
                 type="button"
                 onClick={() => selectStyleByIndex(idx)}
                 className={cn(
-                  "h-2 w-2 rounded-full transition-all",
-                  selectedStyleIndex === idx
-                    ? "w-5 bg-primary"
-                    : "bg-muted-foreground/40 hover:bg-muted-foreground/70"
+                  "relative rounded-xl overflow-hidden border-2 text-left transition-all duration-200 group",
+                  isLocked   ? "border-primary ring-2 ring-primary/20" :
+                  isPending  ? "border-mint ring-2 ring-mint/20" :
+                  isSavedIdle? "border-primary/40" :
+                               "border-border/40 hover:border-primary/30"
                 )}
-                aria-label={`Aller au style ${style.label}`}
-              />
+              >
+                <div className="relative aspect-video overflow-hidden bg-black/20">
+                  <img
+                    src={style.images.scene}
+                    alt=""
+                    aria-hidden="true"
+                    className="absolute inset-0 h-full w-full scale-105 object-cover opacity-30 blur-sm"
+                  />
+                  <img
+                    src={style.images.scene}
+                    alt={style.label}
+                    className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                  />
+                  {isLocked && (
+                    <div className="absolute top-2 right-2 z-10 w-7 h-7 rounded-full gradient-primary flex items-center justify-center shadow-md">
+                      <Check className="h-4 w-4 text-primary-foreground" strokeWidth={2.5} />
+                    </div>
+                  )}
+                  {isPending && (
+                    <div className="absolute top-2 right-2 z-10 w-7 h-7 rounded-full bg-white shadow-md flex items-center justify-center">
+                      <Check className="h-4 w-4 text-mint" strokeWidth={2.5} />
+                    </div>
+                  )}
+                </div>
+                <div className={cn(
+                  "px-3 py-2 text-sm transition-all duration-200",
+                  isLocked   ? "font-bold text-primary bg-primary/15" :
+                  isPending  ? "font-bold text-foreground bg-mint/40" :
+                               "font-semibold text-foreground"
+                )}>
+                  {style.label}
+                </div>
+                <div className={cn(
+                  "absolute bottom-0 left-0 right-0 h-0.5 transition-all duration-200",
+                  isLocked  ? "bg-primary" :
+                  isPending ? "bg-mint" :
+                              "opacity-0"
+                )} />
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Détail du style sélectionné */}
+        <div className={cn(
+          "rounded-xl border p-3 space-y-3 transition-colors duration-200",
+          selectedStyleKey === savedKey && !isFirstTime
+            ? "border-primary/25 bg-primary/5"
+            : "border-mint/25 bg-mint/5"
+        )}>
+          <div className="grid grid-cols-3 gap-2">
+            {[selectedStyle.images.character, selectedStyle.images.background, selectedStyle.images.scene].map((src, i) => (
+              <div key={i} className="rounded-lg overflow-hidden border border-border/50 bg-black/20">
+                <div className="relative h-40 overflow-hidden">
+                  <img
+                    src={src}
+                    alt=""
+                    aria-hidden="true"
+                    className="absolute inset-0 h-full w-full scale-110 object-cover opacity-30 blur-sm"
+                  />
+                  <ImageWithFallback
+                    src={src}
+                    alt={selectedStyle.label}
+                    className="relative z-10 h-40 w-full object-cover"
+                    fallbackClassName="h-40 w-full flex items-center justify-center bg-muted"
+                  />
+                </div>
+              </div>
             ))}
           </div>
+          <p className="text-sm text-foreground/80">{selectedStyle.description}</p>
         </div>
 
-        <div className="rounded-xl border border-border bg-muted/20 p-3 space-y-2">
-          <div className="flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-primary" />
-            <p className="text-sm font-medium">Precisions du projet (optionnel)</p>
-          </div>
-          <Textarea
-            value={styleNotes}
-            onChange={(e) => setStyleNotes(e.target.value)}
-            placeholder="Ex: traits plus fins, visages anguleux, eclairage neon, ombres dures, profondeur cinematique..."
-            rows={4}
-          />
-        </div>
-
-        <Button
-          onClick={saveStyle}
-          disabled={updateProject.isPending}
-          className="gradient-primary text-primary-foreground"
-        >
-          {updateProject.isPending ? "Sauvegarde..." : "Sauvegarder le style"}
-        </Button>
-        <Button
-          onClick={handleValidateAndContinue}
-          disabled={updateProject.isPending}
-          className="w-full"
-          variant="secondary"
-        >
-          {updateProject.isPending ? "Validation..." : "Valider et passer aux assets"}
-        </Button>
-
-        <div className="rounded-lg border border-border/80 bg-background/60 px-3 py-2 text-sm space-y-1">
-          <p className="font-medium text-foreground">Style enregistre sur le projet (serveur)</p>
-          {savedStructured && savedKey ? (
-            <p className="text-muted-foreground">
-              <span className="text-foreground font-medium">{savedPrincipal ?? savedKey}</span>
-              <span className="mx-1 text-muted-foreground">·</span>
-              <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{savedKey}</code>
-            </p>
-          ) : project.style_template?.trim() ? (
-            <p className="text-xs text-muted-foreground">Template present sans bloc STYLE_SYSTEM (ancien format).</p>
-          ) : (
-            <p className="text-xs text-amber-600 dark:text-amber-400">
-              Aucun style sauvegarde encore — enregistrez avant de generer des assets.
-            </p>
-          )}
-          {userPlan === "pro" &&
-            styleImageUrls.length > 0 &&
-            savedKey === "manga" && (
-              <p className="text-xs text-amber-700 dark:text-amber-300 pt-1">
-                Preset Manga : les images de reference colorees peuvent tirer le rendu vers du webtoon. Pour du noir et blanc pur, retirez-les ou utilisez des refs monochrome.
-              </p>
-            )}
-        </div>
+        {/* CTA contextuel */}
+        {isFirstTime ? (
+          <Button
+            onClick={saveStyle}
+            disabled={updateProject.isPending}
+            className="w-full gradient-primary text-primary-foreground"
+          >
+            {updateProject.isPending ? "Validation..." : "Valider ce style"}
+          </Button>
+        ) : selectedStyleKey !== savedKey ? (
+          <Button
+            onClick={saveStyle}
+            disabled={updateProject.isPending}
+            className="w-full bg-mint hover:bg-mint/90 text-white gap-2"
+          >
+            <Check className="h-4 w-4" strokeWidth={2.5} />
+            {updateProject.isPending ? "Application..." : `Appliquer — ${selectedStyle.label}`}
+          </Button>
+        ) : null}
       </div>
 
+      {/* Prochaines étapes — visibles dès que le style est sauvegardé */}
+      {!isFirstTime && (
+        <div className="space-y-3">
+          <p className="text-sm font-semibold text-foreground px-0.5">Prochaines étapes</p>
+          <div className="grid grid-cols-2 gap-3">
+            <Link
+              to={`/dashboard/projects/${project.id}?tab=scenario`}
+              className="glass rounded-xl p-4 hover:shadow-dream transition-all group block"
+            >
+              <BookOpen className="h-4 w-4 text-primary mb-2.5" />
+              <p className="font-display font-semibold text-sm">Scénario</p>
+              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                Écrivez votre histoire, chapitres et dialogues
+              </p>
+              <span className="text-xs text-primary mt-2.5 inline-flex items-center gap-1 group-hover:gap-1.5 transition-all">
+                Commencer <ArrowRight className="h-3 w-3" />
+              </span>
+            </Link>
+            <Link
+              to={`/dashboard/projects/${project.id}?tab=assets`}
+              className="glass rounded-xl p-4 hover:shadow-dream transition-all group block"
+            >
+              <ImageIcon className="h-4 w-4 text-primary mb-2.5" />
+              <p className="font-display font-semibold text-sm">Assets visuels</p>
+              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                Créez personnages, décors et objets avec l'IA
+              </p>
+              <span className="text-xs text-primary mt-2.5 inline-flex items-center gap-1 group-hover:gap-1.5 transition-all">
+                Créer <ArrowRight className="h-3 w-3" />
+              </span>
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {/* Images de référence — Pro uniquement */}
       <div className="glass rounded-lg sm:rounded-xl p-4 sm:p-6 space-y-3 sm:space-y-4">
-        <div className="flex items-center justify-between gap-2 mb-1 sm:mb-2">
+        <div className="flex items-center justify-between gap-2">
           <div>
             <div className="flex items-center gap-2 mb-1">
               <h2 className="text-base sm:text-lg font-display font-semibold">
-                Images de reference
+                Images de référence
               </h2>
               {userPlan === "pro" && (
                 <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-medium">
@@ -513,8 +492,8 @@ export function StyleManager({
             </div>
             <p className="text-sm text-muted-foreground">
               {userPlan === "pro"
-                ? "2 images de reference pour renforcer la coherence visuelle du style selectionne"
-                : "Les images de reference sont reservees au plan Pro. Le style texte sera utilise pour vos generations."}
+                ? "2 images de référence pour renforcer la cohérence visuelle du style sélectionné"
+                : "Les images de référence sont réservées au plan Pro. Le style texte sera utilisé pour vos générations."}
             </p>
           </div>
         </div>
@@ -571,7 +550,6 @@ export function StyleManager({
                 </button>
               )}
             </div>
-
             <input
               ref={styleFileInputRef}
               type="file"
@@ -584,25 +562,32 @@ export function StyleManager({
           <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-amber-500/30 bg-amber-500/5 py-8 px-4 text-center">
             <ImagePlus className="h-8 w-8 text-amber-500/50" />
             <p className="text-sm text-muted-foreground">
-              Passez au plan <span className="font-semibold text-amber-600 dark:text-amber-400">Pro</span> pour ajouter des images de reference et ameliorer la coherence graphique de vos generations.
+              Passez au plan <span className="font-semibold text-amber-600 dark:text-amber-400">Pro</span> pour ajouter des images de référence et améliorer la cohérence graphique de vos générations.
             </p>
           </div>
         )}
+
+        {userPlan === "pro" && styleImageUrls.length > 0 && savedKey === "manga" && (
+          <p className="text-xs text-amber-700 dark:text-amber-300">
+            Preset Manga : les images de référence colorées peuvent tirer le rendu vers du webtoon. Pour du noir et blanc pur, retirez-les ou utilisez des refs monochrome.
+          </p>
+        )}
       </div>
 
+      {/* Dialog aperçu image */}
       <Dialog
         open={!!selectedStyleImage}
         onOpenChange={(open) => !open && setSelectedStyleImage(null)}
       >
         <DialogContent className="glass max-w-6xl p-0 overflow-hidden">
           <DialogHeader className="sr-only">
-            <DialogTitle>Image de reference de style</DialogTitle>
+            <DialogTitle>Image de référence de style</DialogTitle>
           </DialogHeader>
           {selectedStyleImage && (
             <div className="relative bg-muted/20">
               <img
                 src={selectedStyleImage}
-                alt="Image de reference de style - vue complete"
+                alt="Image de référence de style - vue complète"
                 className="w-full h-auto max-h-[85vh] object-contain"
               />
               <button
@@ -610,12 +595,44 @@ export function StyleManager({
                 className="absolute top-4 right-4 p-2.5 rounded-full bg-background/95 backdrop-blur-sm text-foreground hover:bg-background shadow-lg transition-all hover:scale-110 z-10"
                 title="Fermer"
               >
-                <ArrowLeft className="h-5 w-5 rotate-90" />
+                <X className="h-5 w-5" />
               </button>
             </div>
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Warning changement de style avec assets existants */}
+      <AlertDialog open={styleChangeWarningOpen} onOpenChange={setStyleChangeWarningOpen}>
+        <AlertDialogContent className="glass">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Changer de style ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Vous avez{" "}
+              <strong className="text-foreground">
+                {generatedAssetCount} asset{generatedAssetCount > 1 ? "s" : ""}
+              </strong>{" "}
+              déjà générés avec le style{" "}
+              <strong className="text-foreground">{savedPrincipal ?? savedKey}</strong>.
+              Passer à{" "}
+              <strong className="text-foreground">{selectedStyle.label}</strong> ne
+              régénèrera pas vos visuels existants — il y aura une incohérence visuelle
+              entre anciens et nouveaux assets.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setStyleChangeWarningOpen(false);
+                actualSave();
+              }}
+            >
+              Changer quand même
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -21,6 +21,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   useScenarioChapter,
   useUpdateScenarioChapter,
 } from "@/hooks/useScenarioChapters";
@@ -755,29 +760,6 @@ export default function ScenarioChapterEditor() {
               </>
             )}
 
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-7 gap-1.5 text-xs shrink-0"
-              onClick={() => setShowIABar((v) => !v)}
-            >
-              <Sparkles className="h-3 w-3" />
-              IA Chapitre
-            </Button>
-
-            <Button
-              size="sm"
-              onClick={handleDetectBlocks}
-              disabled={isDetecting || !content.trim()}
-              className="h-7 gap-1.5 gradient-primary text-primary-foreground text-xs shrink-0"
-            >
-              {isDetecting ? (
-                <Loader2 className="h-3 w-3 animate-spin" />
-              ) : (
-                <Search className="h-3 w-3" />
-              )}
-              {isDetecting ? "Analyse…" : "Détecter"}
-            </Button>
           </div>
         )}
 
@@ -816,7 +798,7 @@ export default function ScenarioChapterEditor() {
       >
         <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
           {/* Toolbar fine — toggle Écriture/Panels + chip Assets */}
-          <div className="flex items-center gap-2 px-4 sm:px-8 py-2 border-b border-border/50 shrink-0">
+          <div className="flex items-center gap-2 px-4 sm:px-8 py-2 border-b border-border/50 shrink-0 sticky top-12 z-20 bg-background/95 backdrop-blur-xl">
             {!chapterAIResult && (
               <div className="flex items-center gap-1 bg-muted/50 rounded-lg p-1">
                 <button
@@ -998,6 +980,54 @@ export default function ScenarioChapterEditor() {
           )}
         </main>
       </div>
+
+      {/* FABs — actions flottantes bas-droite */}
+      {!chapterAIResult && (
+        <div className="fixed bottom-6 right-6 flex flex-col items-end gap-3 z-40">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={() => setShowIABar((v) => !v)}
+                className={`h-11 w-11 rounded-full flex items-center justify-center shadow-dream border transition-all duration-200 ${
+                  showIABar
+                    ? "gradient-primary text-primary-foreground border-transparent scale-105"
+                    : "bg-background/95 backdrop-blur-xl border-border hover:border-primary/50 text-primary hover:scale-105"
+                }`}
+              >
+                <Sparkles className="h-4.5 w-4.5" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="left" className="max-w-[200px] text-left">
+              <p className="font-semibold text-xs mb-0.5">IA Chapitre</p>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Améliore le rythme, les dialogues ou la tension dramatique de ce chapitre.
+              </p>
+            </TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={handleDetectBlocks}
+                disabled={isDetecting || !content.trim()}
+                className="h-14 w-14 rounded-full gradient-primary text-primary-foreground flex items-center justify-center shadow-dream transition-all duration-200 hover:scale-105 disabled:opacity-50 disabled:pointer-events-none disabled:hover:scale-100"
+              >
+                {isDetecting ? (
+                  <Loader2 className="h-6 w-6 animate-spin" />
+                ) : (
+                  <Search className="h-6 w-6" />
+                )}
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="left" className="max-w-[200px] text-left">
+              <p className="font-semibold text-xs mb-0.5">Détecter les panels</p>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Identifie les moments clés de ton chapitre qui deviendront des images dans ton webtoon.
+              </p>
+            </TooltipContent>
+          </Tooltip>
+        </div>
+      )}
 
       {/* SHEET PANELS — bottom drawer 75vh */}
       <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>

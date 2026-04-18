@@ -237,7 +237,8 @@ export default function ScenarioChapterEditor() {
   const [editingTitle, setEditingTitle] = useState(false);
 
   // Local state — UI
-  const [viewMode, setViewMode] = useState<"edit" | "visuels" | "assets">("edit");
+  const [viewMode, setViewMode] = useState<"edit" | "visuels">("edit");
+  const [showAssets, setShowAssets] = useState(false);
   const [saveState, setSaveState] = useState<"clean" | "dirty" | "saving">(
     "clean"
   );
@@ -845,7 +846,7 @@ export default function ScenarioChapterEditor() {
         style={{ height: "calc(100vh - 48px)" }}
       >
         <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
-          {/* Toolbar fine — toggle Écriture/Panels + chip Assets */}
+          {/* Toolbar fine — toggle Écriture/Panels + toggle Assets */}
           <div className="flex items-center gap-2 px-4 sm:px-8 py-1.5 border-b border-border/50 shrink-0 bg-background/95 backdrop-blur-xl">
             {!chapterAIResult && (
               <div className="flex items-center gap-1 bg-muted/50 rounded-lg p-1">
@@ -862,46 +863,40 @@ export default function ScenarioChapterEditor() {
                 </button>
                 <button
                   onClick={() => setViewMode("visuels")}
-                  disabled={!hasVisuals}
                   className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
                     viewMode === "visuels"
                       ? "bg-background shadow-sm text-foreground"
                       : "text-muted-foreground hover:text-foreground"
-                  } disabled:opacity-40 disabled:pointer-events-none`}
+                  }`}
                 >
                   <Layers className="h-3 w-3" />
                   Panels
-                  {(detectedBlocks.length + lockedBlocks.length) > 0 && (
+                  {detectedBlocks.length > 0 && (
                     <span className="ml-0.5 bg-primary/20 text-primary text-[10px] font-bold rounded px-1">
-                      {detectedBlocks.length + lockedBlocks.length}
+                      {detectedBlocks.length}
                     </span>
                   )}
-                </button>
-                <button
-                  onClick={() => setViewMode("assets")}
-                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
-                    viewMode === "assets"
-                      ? "bg-background shadow-sm text-foreground"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  <Package className="h-3 w-3" />
-                  Assets
                 </button>
               </div>
             )}
 
-            {/* Tout verrouiller — visible en mode Panels si blocs détectés */}
-            {viewMode === "visuels" && detectedBlocks.length > 0 && !chapterAIResult && (
+            {/* Toggle Assets — ON/OFF indépendant */}
+            {!chapterAIResult && (
               <button
-                onClick={lockAllDetected}
-                disabled={detectedBlocks.every((d) =>
-                  lockedBlocks.some((l) => l.panel_number === d.panel_number)
-                )}
-                className="flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 disabled:opacity-40 disabled:pointer-events-none transition-colors ml-2"
+                onClick={() => setShowAssets((v) => !v)}
+                className={`ml-auto flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                  showAssets
+                    ? "bg-primary/10 border-primary/40 text-primary"
+                    : "bg-transparent border-border text-muted-foreground hover:text-foreground"
+                }`}
               >
-                <Lock className="h-3 w-3" />
-                Tout verrouiller
+                <Package className="h-3 w-3" />
+                Assets
+                <span
+                  className={`h-2 w-2 rounded-full transition-colors ${
+                    showAssets ? "bg-primary" : "bg-muted-foreground/30"
+                  }`}
+                />
               </button>
             )}
           </div>
@@ -916,7 +911,7 @@ export default function ScenarioChapterEditor() {
                   </div>
                   <TextDiff oldText={content} newText={chapterAIResult} />
                 </>
-              ) : viewMode === "assets" ? (
+              ) : showAssets ? (
                 <ScenarioTextHighlighter
                   text={content}
                   assets={assets}
@@ -924,7 +919,7 @@ export default function ScenarioChapterEditor() {
                   className="text-base leading-[1.8]"
                   hideIndicator
                 />
-              ) : viewMode === "edit" ? (
+              ) : (
                 <textarea
                   ref={textareaRef}
                   value={content}
@@ -934,14 +929,6 @@ export default function ScenarioChapterEditor() {
                   placeholder="Commencez à écrire votre chapitre..."
                   className="w-full resize-none bg-transparent border-0 focus:ring-0 focus:outline-none text-base leading-[1.8] placeholder:text-muted-foreground/40 min-h-[calc(100vh-200px)]"
                   style={{ height: "auto" }}
-                />
-              ) : (
-                <AnnotatedTextView
-                  content={content}
-                  detectedBlocks={detectedBlocks}
-                  lockedBlocks={lockedBlocks}
-                  onToggleBlock={toggleBlock}
-                  onUnlockBlock={unlockBlock}
                 />
               )}
             </div>
@@ -989,6 +976,89 @@ export default function ScenarioChapterEditor() {
           )}
 
         </main>
+
+        {/* ASIDE PANELS — visible quand mode Panels actif */}
+        {viewMode === "visuels" && !chapterAIResult && (
+          <aside className="w-72 shrink-0 border-l border-border flex flex-col overflow-hidden bg-background/50">
+            <div className="flex items-center justify-between gap-2 px-4 py-2.5 border-b border-border/50 shrink-0">
+              <span className="text-xs font-semibold text-foreground">
+                {detectedBlocks.length} panel{detectedBlocks.length > 1 ? "s" : ""}
+                {lockedBlocks.length > 0 && (
+                  <span className="text-emerald-500 ml-1.5">
+                    · {lockedBlocks.length} verrouillé{lockedBlocks.length > 1 ? "s" : ""}
+                  </span>
+                )}
+              </span>
+              {detectedBlocks.length > 0 && (
+                <button
+                  onClick={lockAllDetected}
+                  disabled={detectedBlocks.every((d) =>
+                    lockedBlocks.some((l) => l.panel_number === d.panel_number)
+                  )}
+                  className="flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 disabled:opacity-40 disabled:pointer-events-none transition-colors"
+                >
+                  <Lock className="h-3 w-3" />
+                  Tout
+                </button>
+              )}
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-3 space-y-2">
+              {detectedBlocks.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-32 text-center gap-2">
+                  <Layers className="h-6 w-6 text-muted-foreground/30" />
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Cliquez sur «&nbsp;Détecter les panels&nbsp;» pour identifier les images à générer.
+                  </p>
+                </div>
+              ) : (
+                detectedBlocks.map((block) => {
+                  const isLocked = lockedBlocks.some(
+                    (b) => b.panel_number === block.panel_number
+                  );
+                  return (
+                    <div
+                      key={block.panel_number}
+                      className={`rounded-lg border p-3 space-y-1.5 transition-colors ${
+                        isLocked
+                          ? "border-emerald-500/40 bg-emerald-500/5"
+                          : "border-border bg-card/40"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span
+                          className={`text-[11px] font-bold font-mono px-1.5 py-0.5 rounded shrink-0 ${
+                            isLocked
+                              ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400"
+                              : "bg-primary/15 text-primary"
+                          }`}
+                        >
+                          P{block.panel_number}
+                        </span>
+                        <button
+                          onClick={() => toggleBlock(block)}
+                          className={`text-[11px] font-medium px-2 py-0.5 rounded border transition-colors shrink-0 ${
+                            isLocked
+                              ? "border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30"
+                              : "border-primary/30 text-primary hover:bg-primary/10"
+                          }`}
+                        >
+                          {isLocked ? "Déverr." : "Verrouiller"}
+                        </button>
+                      </div>
+                      <p className="text-xs leading-snug text-foreground">
+                        {block.description}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground italic line-clamp-2">
+                        « {block.text_excerpt} »
+                      </p>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </aside>
+        )}
       </div>
 
       {/* Barre IA chapitre — fixed au bas de l'écran pour éviter tout masquage */}

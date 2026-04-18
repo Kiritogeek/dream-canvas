@@ -7,8 +7,9 @@ export const DETECT_BLOCKS_SYSTEM_PROMPT =
   "RÈGLES DE DÉCOUPAGE :\n" +
   "- Un panel = une unité visuelle forte : changement de lieu, action significative, émotion forte, dialogue marquant.\n" +
   "- Ne pas créer de panel pour de simples transitions ou descriptions courtes.\n" +
-  "- Viser entre 3 et 8 panels pour un chapitre standard (1000–2500 mots).\n" +
-  "- Chaque panel doit être visuellement descriptible (qu'est-ce qu'on VOIT ?).\n\n" +
+  "- Si une cible est fournie dans le prompt, la respecter STRICTEMENT : générer EXACTEMENT ce nombre de panels, ni plus, ni moins.\n" +
+  "- Sans cible : générer entre 5 et 12 panels selon la densité narrative du chapitre.\n" +
+  "- Chaque panel doit être visuellement descriptible (qu'est-ce qu'on VOIT dans cette image ?).\n\n" +
   "FORMAT DE RÉPONSE — JSON strict, RIEN d'autre :\n" +
   '{"blocks": [{"panel_number": 1, "description": "Ce que montre le panel en 1 phrase visuelle", "text_excerpt": "Début du passage correspondant..."}]}\n\n' +
   "IMPORTANT : répondre UNIQUEMENT avec le JSON. Pas d'introduction, pas de commentaire.";
@@ -24,7 +25,7 @@ export function buildDetectBlocksPrompt(opts: {
     prompt += `Chapitre ${opts.chapterNumber} : ${opts.chapterTitle}\n\n`;
   }
   if (opts.targetPanelCount) {
-    prompt += `Cible souhaitée : ~${opts.targetPanelCount} panels\n\n`;
+    prompt += `CIBLE STRICTE : générer EXACTEMENT ${opts.targetPanelCount} panels.\n\n`;
   }
   prompt += `TEXTE DU CHAPITRE :\n${opts.chapterContent}`;
   return prompt;

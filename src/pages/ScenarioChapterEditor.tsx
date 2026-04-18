@@ -1008,7 +1008,7 @@ export default function ScenarioChapterEditor() {
                   onMouseUp={handleTextareaSelect}
                   onKeyUp={handleTextareaSelect}
                   placeholder="Commencez à écrire votre chapitre..."
-                  className="w-full resize-none bg-transparent border-0 focus:ring-0 focus:outline-none text-base leading-[1.8] placeholder:text-muted-foreground/40 min-h-[calc(100vh-200px)]"
+                  className="w-full resize-none bg-transparent border-0 focus:ring-0 focus:outline-none text-base leading-[1.8] placeholder:text-muted-foreground/40 min-h-[300px]"
                   style={{ height: "auto" }}
                 />
               )}

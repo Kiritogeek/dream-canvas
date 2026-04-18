@@ -11,6 +11,8 @@ interface AssetCardProps {
   onDelete: () => void;
   onEdit: () => void;
   onClick?: () => void;
+  canGenerate?: boolean;
+  onImageClick?: () => void;
 }
 
 export function AssetCard({
@@ -21,6 +23,8 @@ export function AssetCard({
   onDelete,
   onEdit,
   onClick,
+  canGenerate,
+  onImageClick,
 }: AssetCardProps) {
   const isCharacter = asset.asset_type === "character";
 
@@ -38,7 +42,10 @@ export function AssetCard({
           </span>
         </div>
       ) : (
-        <div className="w-full aspect-[2/3] mb-2 sm:mb-3 relative">
+        <div
+          className={`w-full aspect-[2/3] mb-2 sm:mb-3 relative${onImageClick && asset.image_url && !isGenerating ? " cursor-pointer" : ""}`}
+          onClick={onImageClick && asset.image_url && !isGenerating ? onImageClick : undefined}
+        >
           <ImageWithFallback
             src={asset.image_url}
             alt={asset.name}
@@ -80,7 +87,7 @@ export function AssetCard({
 
       {/* Actions — toujours visibles sur mobile, au survol sur desktop */}
       <div
-        className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 flex gap-1 sm:gap-1.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
+        className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 flex gap-1 sm:gap-1.5"
         onClick={(e) => e.stopPropagation()}
       >
         {isCharacter && onClick && (
@@ -107,7 +114,7 @@ export function AssetCard({
         {asset.prompt && (
           <button
             onClick={onRegenerate}
-            disabled={isGenerating}
+            disabled={isGenerating || canGenerate === false}
             className="p-1 sm:p-1.5 rounded-md sm:rounded-lg bg-amber-500/90 text-white shadow-md
               hover:bg-amber-500 transition-colors disabled:opacity-50 disabled:pointer-events-none"
             title="Régénérer l'image"

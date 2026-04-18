@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Users, MapPin, Box, Plus, Save, RefreshCw, Search, Eye } from "lucide-react";
+import { Users, MapPin, Box, Plus, Save, RefreshCw, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -119,6 +119,9 @@ export function AssetLibrary({
 
   // Dialog confirmation régénération
   const [regenerateTarget, setRegenerateTarget] = useState<Asset | null>(null);
+
+  // Lightbox preview image
+  const [previewAsset, setPreviewAsset] = useState<Asset | null>(null);
 
   // Dialog édition asset
   const [editTarget, setEditTarget] = useState<Asset | null>(null);
@@ -476,9 +479,11 @@ export function AssetLibrary({
               asset={asset}
               isGenerating={generatingAssetId === asset.id}
               typeBadge={TYPE_BADGE[asset.asset_type]}
+              canGenerate={remaining > 0}
               onRegenerate={() => setRegenerateTarget(asset)}
               onDelete={() => setDeleteTarget(asset)}
               onEdit={() => setEditTarget(asset)}
+              onImageClick={() => setPreviewAsset(asset)}
               onClick={
                 asset.asset_type === "character"
                   ? () => {
@@ -491,6 +496,22 @@ export function AssetLibrary({
           ))}
         </div>
       )}
+
+      {/* Lightbox preview image */}
+      <Dialog open={!!previewAsset} onOpenChange={(open) => !open && setPreviewAsset(null)}>
+        <DialogContent className="glass max-w-lg p-4">
+          <DialogHeader>
+            <DialogTitle className="font-display text-sm">{previewAsset?.name}</DialogTitle>
+          </DialogHeader>
+          {previewAsset?.image_url && (
+            <img
+              src={previewAsset.image_url}
+              alt={previewAsset.name}
+              className="w-full rounded-lg object-contain max-h-[70vh]"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Dialog vues personnage */}
       <CharacterViewDialog

@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(mkdir -p \"C:/Users/PC/Documents/WikiBrain/wiki\")",
+      "Bash(mkdir -p \"C:/Users/PC/Documents/WikiBrain/raw\")",
+      "Bash(mkdir -p \"C:/Users/PC/Documents/WikiBrain/graphify-out\")",
+      "Bash(which graphify *)",
+      "Bash(where graphify *)",
+      "Bash(where obsidian *)",
+      "Read(//c/Users/PC/AppData/Local/**)",
+      "Bash(start *)",
+      "Bash(node graph-server.js)",
+      "Bash(npx tsc *)",
+      "Bash(npm install *)",
+      "Bash(npm run *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git status)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(npx lint-staged *)",
+      "Bash(npx husky *)",
+      "Bash(ls *)",
+      "Bash(cat *)",
+      "Glob(**)",
+      "Grep(**)",
+      "Bash(node -e \"const pkg = require\\('./package.json'\\); console.log\\(JSON.stringify\\(pkg['lint-staged'], null, 2\\)\\)\")"
+    ]
+  }
+}

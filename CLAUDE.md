@@ -214,6 +214,13 @@ Pour les éditions ciblées (1-3 fichiers connus) : outils directs `Read`/`Edit`
 - Lecture/recherche simple (`Read`, `Grep`, `Glob`)
 - Meta-travail : wiki, CLAUDE.md, configuration agents
 
+**Règles de prompt d'agent — obligatoires :**
+- Chaque prompt doit être **self-contained** : fichiers cibles (chemins exacts), types pertinents, contraintes RLS, ce qui ne doit pas être touché.
+- **Copier les extraits wiki pertinents** dans le prompt — les agents n'ont pas accès au wiki automatiquement.
+- Utiliser `run_in_background: true` pour les agents indépendants (Interface Architect + Fullstack Engineer simultanément).
+- Utiliser `isolation: "worktree"` pour les refactoring risqués (`ChapterDetail.tsx`, migrations).
+- Seuil strict : **< 3 fichiers ET < 20 lignes → Claude principal** (overhead agent > travail).
+
 ---
 
 ## Workflow de développement
@@ -255,7 +262,7 @@ src/pages/                   (6) Intégration dans les pages
 ### Git
 
 - Branches : `feat/`, `fix/`, `refactor/`, `chore/`
-- Commits : impératif présent, anglais (`Add panel resize handle`, `Fix quota check on free tier`)
+- Commits : impératif présent, **français** (`Ajoute le redimensionnement des panels`, `Corrige la vérification quota tier Free`)
 - Ne jamais force-push sur `main`
 - PR : titre court (< 70 chars), body avec contexte de la décision
 

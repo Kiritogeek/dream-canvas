@@ -19,7 +19,6 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import {
   Tooltip,
   TooltipContent,
@@ -238,7 +237,7 @@ export default function ScenarioChapterEditor() {
   const [editingTitle, setEditingTitle] = useState(false);
 
   // Local state — UI
-  const [viewMode, setViewMode] = useState<"edit" | "visuels">("edit");
+  const [viewMode, setViewMode] = useState<"edit" | "visuels" | "assets">("edit");
   const [saveState, setSaveState] = useState<"clean" | "dirty" | "saving">(
     "clean"
   );
@@ -247,10 +246,6 @@ export default function ScenarioChapterEditor() {
   const [lockedBlocks, setLockedBlocks] = useState<LockedBlock[]>([]);
   const [detectedBlocks, setDetectedBlocks] = useState<DetectedBlock[]>([]);
   const [isDetecting, setIsDetecting] = useState(false);
-
-  // Local state — drawers
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [assetsSheetOpen, setAssetsSheetOpen] = useState(false);
 
   // Local state — IA barre
   const [showIABar, setShowIABar] = useState(false);
@@ -498,7 +493,6 @@ export default function ScenarioChapterEditor() {
           description: "Le chapitre est peut-être trop court.",
         });
       } else {
-        setDrawerOpen(true);
         setViewMode("visuels");
       }
     } catch (err) {
@@ -616,13 +610,6 @@ export default function ScenarioChapterEditor() {
   }, [panelsTargetDraft, project, updateProject, toast]);
 
   // ── Assets détectés dans le texte ────────────────────────────
-
-  const detectedAssetsCount = useMemo(() => {
-    if (!content.trim() || assets.length === 0) return 0;
-    return assets.filter((a) =>
-      content.toLowerCase().includes(a.name.toLowerCase())
-    ).length;
-  }, [content, assets]);
 
   // ── Loading / error states ───────────────────────────────────
 
@@ -829,26 +816,33 @@ export default function ScenarioChapterEditor() {
                     </span>
                   )}
                 </button>
+                <button
+                  onClick={() => setViewMode("assets")}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+                    viewMode === "assets"
+                      ? "bg-background shadow-sm text-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Package className="h-3 w-3" />
+                  Assets
+                </button>
               </div>
             )}
 
-            {/* Chip assets — pousse à droite */}
-            <div className="ml-auto">
-              {detectedAssetsCount > 0 ? (
-                <button
-                  onClick={() => setAssetsSheetOpen(true)}
-                  className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground bg-muted/50 hover:bg-muted rounded-full px-2.5 py-1 transition-colors"
-                >
-                  <Package className="h-3 w-3" />
-                  {detectedAssetsCount} asset{detectedAssetsCount > 1 ? "s" : ""}
-                </button>
-              ) : (
-                <span className="flex items-center gap-1.5 text-xs text-muted-foreground/40 bg-muted/30 rounded-full px-2.5 py-1 cursor-default select-none">
-                  <Package className="h-3 w-3" />
-                  0 asset
-                </span>
-              )}
-            </div>
+            {/* Tout verrouiller — visible en mode Panels si blocs détectés */}
+            {viewMode === "visuels" && detectedBlocks.length > 0 && !chapterAIResult && (
+              <button
+                onClick={lockAllDetected}
+                disabled={detectedBlocks.every((d) =>
+                  lockedBlocks.some((l) => l.panel_number === d.panel_number)
+                )}
+                className="flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 disabled:opacity-40 disabled:pointer-events-none transition-colors ml-2"
+              >
+                <Lock className="h-3 w-3" />
+                Tout verrouiller
+              </button>
+            )}
           </div>
 
           {/* Zone texte scrollable — UNE scrollbar */}
@@ -861,6 +855,14 @@ export default function ScenarioChapterEditor() {
                   </div>
                   <TextDiff oldText={content} newText={chapterAIResult} />
                 </>
+              ) : viewMode === "assets" ? (
+                <ScenarioTextHighlighter
+                  text={content}
+                  assets={assets}
+                  onCreateAsset={undefined}
+                  className="text-base leading-[1.8]"
+                  hideIndicator
+                />
               ) : viewMode === "edit" ? (
                 <textarea
                   ref={textareaRef}
@@ -995,128 +997,6 @@ export default function ScenarioChapterEditor() {
           </button>
         </div>
       )}
-
-      {/* SHEET PANELS — bottom drawer 75vh */}
-      <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
-        <SheetContent side="bottom" className="h-[75vh] flex flex-col p-0">
-          <SheetHeader className="flex flex-row items-center justify-between gap-4 px-6 py-4 border-b border-border shrink-0">
-            <SheetTitle className="text-base">
-              {detectedBlocks.length} panel{detectedBlocks.length > 1 ? "s" : ""} suggéré{detectedBlocks.length > 1 ? "s" : ""}
-            </SheetTitle>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-7 text-xs gap-1"
-                onClick={lockAllDetected}
-                disabled={detectedBlocks.every((d) =>
-                  lockedBlocks.some((l) => l.panel_number === d.panel_number)
-                )}
-              >
-                <Lock className="h-3 w-3" />
-                Tout verrouiller
-              </Button>
-              <Button
-                size="sm"
-                className="h-7 text-xs gap-1 gradient-primary text-primary-foreground"
-                onClick={() => setDrawerOpen(false)}
-              >
-                Voir dans le texte
-              </Button>
-            </div>
-          </SheetHeader>
-
-          <div className="flex-1 overflow-y-auto p-4">
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {detectedBlocks.map((block) => {
-                const isLocked = lockedBlocks.some(
-                  (b) => b.panel_number === block.panel_number
-                );
-                return (
-                  <div
-                    key={block.panel_number}
-                    className={`rounded-lg border p-3 space-y-1.5 transition-colors ${
-                      isLocked
-                        ? "border-emerald-500/40 bg-emerald-500/5"
-                        : "border-border bg-card/40"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <span
-                        className={`text-xs font-bold font-mono px-1.5 py-0.5 rounded shrink-0 ${
-                          isLocked
-                            ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400"
-                            : "bg-primary/15 text-primary"
-                        }`}
-                      >
-                        P{block.panel_number}
-                      </span>
-                      <Button
-                        size="sm"
-                        variant={isLocked ? "outline" : "default"}
-                        className={`h-6 text-xs px-2 shrink-0 ${
-                          !isLocked
-                            ? "gradient-primary text-primary-foreground"
-                            : ""
-                        }`}
-                        onClick={() => toggleBlock(block)}
-                      >
-                        {isLocked ? "Déverrouiller" : "Verrouiller"}
-                      </Button>
-                    </div>
-                    <p className="text-sm font-medium leading-snug">
-                      {block.description}
-                    </p>
-                    <p className="text-xs text-muted-foreground italic truncate">
-                      «{" "}
-                      {block.text_excerpt.length > 80
-                        ? block.text_excerpt.slice(0, 80) + "…"
-                        : block.text_excerpt}{" "}
-                      »
-                    </p>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {lockedBlocks.length > 0 && (
-            <div className="sticky bottom-0 border-t border-border bg-background/95 backdrop-blur p-4 flex items-center justify-between gap-4 shrink-0">
-              <span className="text-sm text-muted-foreground">
-                <span className="font-semibold text-foreground">
-                  {lockedBlocks.length}
-                </span>{" "}
-                panel{lockedBlocks.length > 1 ? "s" : ""} verrouillé{lockedBlocks.length > 1 ? "s" : ""} — Prêt pour l'édition
-              </span>
-              <Button
-                size="sm"
-                className="h-8 text-xs gap-1.5 opacity-50 cursor-not-allowed"
-                disabled
-              >
-                Créer les panels dans l'édition →
-              </Button>
-            </div>
-          )}
-        </SheetContent>
-      </Sheet>
-
-      {/* SHEET ASSETS — right panel w-80 */}
-      <Sheet open={assetsSheetOpen} onOpenChange={setAssetsSheetOpen}>
-        <SheetContent side="right" className="w-80 flex flex-col p-0">
-          <SheetHeader className="px-6 py-4 border-b border-border shrink-0">
-            <SheetTitle className="text-base">Assets dans ce chapitre</SheetTitle>
-          </SheetHeader>
-          <div className="flex-1 overflow-y-auto p-4">
-            <ScenarioTextHighlighter
-              text={content}
-              assets={assets}
-              onCreateAsset={undefined}
-              className="text-sm leading-relaxed"
-              hideIndicator
-            />
-          </div>
-        </SheetContent>
-      </Sheet>
 
       {/* PANNEAU STATS cible — rendu hors flux, accessible via le panneau Stats supprimé */}
       {/* La cible panels est désormais accessible via le chip "~N panels" dans le header */}

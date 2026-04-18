@@ -945,7 +945,7 @@ export default function ScenarioChapterEditor() {
                       </p>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="flex flex-col gap-4">
                       {detectedBlocks.map((block) => {
                         const isLocked = lockedBlocks.some(
                           (b) => b.panel_number === block.panel_number
@@ -953,13 +953,15 @@ export default function ScenarioChapterEditor() {
                         return (
                           <div
                             key={block.panel_number}
-                            className={`rounded-xl border p-4 space-y-2.5 transition-colors ${
+                            className={`w-full rounded-xl border flex flex-col transition-colors ${
                               isLocked
                                 ? "border-emerald-500/40 bg-emerald-500/5"
                                 : "border-border bg-card/60 hover:border-primary/30"
                             }`}
+                            style={{ aspectRatio: "8 / 5" }}
                           >
-                            <div className="flex items-center justify-between gap-2">
+                            {/* En-tête */}
+                            <div className="flex items-center justify-between gap-2 px-5 py-3 border-b border-border/50 shrink-0">
                               <span
                                 className={`text-xs font-bold font-mono px-2 py-0.5 rounded ${
                                   isLocked
@@ -977,15 +979,19 @@ export default function ScenarioChapterEditor() {
                                     : "border-primary/30 text-primary hover:bg-primary/10"
                                 }`}
                               >
-                                {isLocked ? "Déverr." : "Verrouiller"}
+                                {isLocked ? "Déverrouiller" : "Verrouiller"}
                               </button>
                             </div>
-                            <p className="text-sm font-medium leading-snug text-foreground">
-                              {block.description}
-                            </p>
-                            <p className="text-xs text-muted-foreground italic line-clamp-2">
-                              « {block.text_excerpt} »
-                            </p>
+
+                            {/* Corps — description centrée */}
+                            <div className="flex-1 flex flex-col justify-center px-8 py-6 gap-4">
+                              <p className="text-base font-medium leading-relaxed text-foreground">
+                                {block.description}
+                              </p>
+                              <p className="text-xs text-muted-foreground italic line-clamp-3">
+                                « {block.text_excerpt} »
+                              </p>
+                            </div>
                           </div>
                         );
                       })}

@@ -284,6 +284,40 @@ export default function ScenarioChapterEditor() {
       setTitleDraft(chapter.title);
       initialSyncDoneRef.current = true;
       setSaveState("clean");
+
+      // Restaurer les blocs depuis panels_outline
+      type StoredBlock = {
+        panel_number: number;
+        description: string;
+        text_excerpt: string;
+        locked?: boolean;
+      };
+      const outline = chapter.panels_outline;
+      if (Array.isArray(outline) && outline.length > 0) {
+        const stored = outline as StoredBlock[];
+        const detected: DetectedBlock[] = stored.map(
+          ({ panel_number, description, text_excerpt }) => ({
+            panel_number,
+            description,
+            text_excerpt,
+          })
+        );
+        const locked: LockedBlock[] = stored
+          .filter((b) => b.locked)
+          .map((b) => ({
+            id: `${b.panel_number}-restored`,
+            panel_number: b.panel_number,
+            description: b.description,
+            text_excerpt: b.text_excerpt,
+          }));
+        setDetectedBlocks(detected);
+        setLockedBlocks(locked);
+        setViewMode("visuels");
+      } else {
+        setDetectedBlocks([]);
+        setLockedBlocks([]);
+        setViewMode("edit");
+      }
     }
     // WHY : ne resync que lorsque l'id change (ex : navigation chapitre)
     // — sinon l'auto-save overwrite-erait les frappes en cours.
@@ -494,6 +528,13 @@ export default function ScenarioChapterEditor() {
         });
       } else {
         setViewMode("visuels");
+        updateChapter.mutate({
+          id: chapter.id,
+          projectId: projectId!,
+          updates: {
+            panels_outline: result.blocks.map((b) => ({ ...b, locked: false })),
+          },
+        });
       }
     } catch (err) {
       toast({
@@ -508,37 +549,55 @@ export default function ScenarioChapterEditor() {
 
   // ── Toggle / unlock un bloc ──────────────────────────────────
 
+  const savePanelsOutline = useCallback(
+    (detected: DetectedBlock[], locked: LockedBlock[]) => {
+      if (!chapter || detected.length === 0) return;
+      updateChapter.mutate({
+        id: chapter.id,
+        projectId: projectId!,
+        updates: {
+          panels_outline: detected.map((b) => ({
+            ...b,
+            locked: locked.some((l) => l.panel_number === b.panel_number),
+          })),
+        },
+      });
+    },
+    [chapter, projectId, updateChapter]
+  );
+
   const toggleBlock = useCallback(
     (block: DetectedBlock) => {
       const isLocked = lockedBlocks.some(
         (b) => b.panel_number === block.panel_number
       );
-      if (isLocked) {
-        setLockedBlocks((prev) =>
-          prev.filter((b) => b.panel_number !== block.panel_number)
-        );
-      } else {
-        const newBlock: LockedBlock = {
-          id: `${block.panel_number}-${Date.now()}`,
-          panel_number: block.panel_number,
-          description: block.description,
-          text_excerpt: block.text_excerpt,
-        };
-        setLockedBlocks((prev) =>
-          [...prev, newBlock].sort((a, b) => a.panel_number - b.panel_number)
-        );
-      }
+      const newLocked = isLocked
+        ? lockedBlocks.filter((b) => b.panel_number !== block.panel_number)
+        : [
+            ...lockedBlocks,
+            {
+              id: `${block.panel_number}-${Date.now()}`,
+              panel_number: block.panel_number,
+              description: block.description,
+              text_excerpt: block.text_excerpt,
+            },
+          ].sort((a, b) => a.panel_number - b.panel_number);
+      setLockedBlocks(newLocked);
+      savePanelsOutline(detectedBlocks, newLocked);
     },
-    [lockedBlocks]
+    [lockedBlocks, detectedBlocks, savePanelsOutline]
   );
 
-  const unlockBlock = useCallback((panelNumber: number) => {
-    setLockedBlocks((prev) =>
-      prev.filter((b) => b.panel_number !== panelNumber)
-    );
-  }, []);
-
-  // ── Tout verrouiller depuis le drawer ─────────────────────────
+  const unlockBlock = useCallback(
+    (panelNumber: number) => {
+      const newLocked = lockedBlocks.filter(
+        (b) => b.panel_number !== panelNumber
+      );
+      setLockedBlocks(newLocked);
+      savePanelsOutline(detectedBlocks, newLocked);
+    },
+    [lockedBlocks, detectedBlocks, savePanelsOutline]
+  );
 
   const lockAllDetected = useCallback(() => {
     const newBlocks: LockedBlock[] = detectedBlocks
@@ -550,11 +609,13 @@ export default function ScenarioChapterEditor() {
         text_excerpt: d.text_excerpt,
       }));
     if (newBlocks.length > 0) {
-      setLockedBlocks((prev) =>
-        [...prev, ...newBlocks].sort((a, b) => a.panel_number - b.panel_number)
+      const newLocked = [...lockedBlocks, ...newBlocks].sort(
+        (a, b) => a.panel_number - b.panel_number
       );
+      setLockedBlocks(newLocked);
+      savePanelsOutline(detectedBlocks, newLocked);
     }
-  }, [detectedBlocks, lockedBlocks]);
+  }, [detectedBlocks, lockedBlocks, savePanelsOutline]);
 
   // ── IA chapitre complet ──────────────────────────────────────
 
@@ -647,7 +708,7 @@ export default function ScenarioChapterEditor() {
   const hasVisuals = detectedBlocks.length > 0 || lockedBlocks.length > 0;
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="h-screen flex flex-col bg-background overflow-hidden">
       {/* HEADER */}
       <header className="h-12 border-b border-border bg-background/95 backdrop-blur-xl sticky top-0 z-30 flex items-center gap-2 px-4 sm:px-6 shrink-0">
         {/* Breadcrumb gauche */}

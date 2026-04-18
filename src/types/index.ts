@@ -235,3 +235,20 @@ export function getSpeechBubbleFillStroke(bubble: SpeechBubble): { fill: string;
   const stroke = bubble.borderColor ?? bubble.style?.stroke ?? defaults.stroke;
   return { fill, stroke };
 }
+
+// ── Scénario IA ─────────────────────────────────────────────────
+
+/** Un bloc verrouillé dans le scénario (panel suggéré validé par l'auteur). */
+export interface LockedBlock {
+  id: string;
+  panel_number: number;
+  description: string;
+  text_excerpt: string; // première partie du texte correspondant (~80 chars)
+}
+
+/** Réponse de l'IA pour detect_blocks. */
+export interface DetectedBlock {
+  panel_number: number;
+  description: string;
+  text_excerpt: string;
+}

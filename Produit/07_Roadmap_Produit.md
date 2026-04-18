@@ -101,14 +101,21 @@ Voir `Plan_Action_Developpement_Scénario.md` pour le détail des phases A à G.
 | **Modification par prompt (scénario entier)** | Nouveau prompt → IA réécrit l'histoire entière ; comparaison ancienne vs nouvelle ; accepter/rejeter. | P1 | L | 📋 À faire |
 | **IA Chapitre (par chapitre)** | Par chapitre : prompt → réécriture → accepter/rejeter + diff visuel. | P0 | L | ✅ Livré |
 | **Chapitres (scénario = webtoon)** | 1 chapitre écrit = 1 chapitre webtoon. Création, réorganisation (drag & drop), suppression. | P0 | M | ✅ Livré |
-| **Découpage Chapitre → Panels (section Scénario)** | Dans chaque chapitre : liste de panels + courte description par panel pour la génération panel par panel. Règles (auto/manuel) à définir. | P0 | L | 📋 À faire |
-| **Contrôle longueur chapitres** | Estimation du nombre de panels, référence (~10/chapitre), cible (projet/chapitre), comparaison estimation vs cible. En **Scénario** (par chapitre) et en **Édition de l'œuvre**. Guidance longueur ; répartition N/N+1. | P0 | M | ✅ Livré — `PanelCountBadge` (8–14 typique, barre progression, commit a9f1279) |
+| **Écrire le scénario (prose libre)** | ~~Format Lieu/Scène/Dialogue~~ → **prose narrative libre** avec marqueurs `=== Scène ===` optionnels. | P0 | M | 🔄 Refonte 18/04 |
+| **Compteur temps de lecture live** | Formule : (mots ÷ 200) + (blocs × 20s). Debounce 800ms. Affiché dans Scénario + badge dans éditeur. | P0 | S | 📋 À faire |
+| **Cible panels modifiable dans Scénario** | `projects.panels_target_per_chapter` éditable inline depuis la page Scénario. | P0 | S | 📋 À faire |
+| **Détection blocs visuels + verrouillage** | IA détecte zones avec assez de matière pour 1 panel → propose `📌 Panel suggéré` → bouton Verrouiller. Fond coloré + numéro. Toujours modifiable. | P0 | L | 📋 À faire |
+| **✏️ Modifier ce passage** (IA) | Sélection de texte → IA propose réécriture du passage. | P0 | M | 📋 À faire |
+| **Résumés IA compacts** (`ai_summary`) | Après sauvegarde : génère un résumé 80 mots du chapitre. Utilisé comme contexte IA au lieu du texte complet. Migration : `ADD COLUMN ai_summary TEXT`. | P0 | M | 📋 À faire |
+| **`✨ Suggérer un prompt` dans l'éditeur** | Bouton sur chaque bloc vide → IA propose prompt court basé sur chapitre + blocs précédents + historique. Injecté directement dans le champ prompt. | P0 | L | 📋 À faire |
+| **Découpage Chapitre → Panels** | **Gate feature Pro.** IA découpe le chapitre en liste de panels avec description, lieu, personnages, ambiance. CTA upgrade pour Free. | P1 | L | 📋 À faire |
+| **Limites caractères champs prompt** | Bloc panel : 400 chars · Asset : 300 chars · Style : 500 chars. | P1 | S | 📋 À faire |
+| **Import scénario** | Import .txt / copier-coller. | P1 | S | 📋 À faire |
+| **Renommage assets → mise à jour scénario** | Au renommage : modale confirmation + remplacement dans les chapitres. | P1 | M | 📋 À faire |
 | **BDD — Scénarios approuvés & versions** | Persistance des versions, flux accepter/rejeter. | P0 | M | ✅ Livré |
-| **Découpage IA (optionnel)** | IA : chapitre → panels (courtes descriptions). Structure uniquement ; scénario jamais dans les prompts d'image. | P0 | L | 📋 À faire |
-| **Détection des assets dans le scénario** | Surbrillance par type, hover (HoverCard), clic (Dialog). | P0 | M | ✅ Livré |
-| **IA — Éléments non créés** | Détection + panneau « Personnages / éléments mentionnés non créés », surbrillance ambre. | P0 | L | ✅ Livré |
-| **Liste « Ne pas créer » / précision détection** | Réduire faux positifs (règles dialogue, répétition, stop-words). Voir `Plan_Action_TextHighligh_No_Assets.md`. | P0 | M | ✅ En place (évolution continue) |
-| **Renommage d'assets → mise à jour scénario** | Au renommage : proposer (ou appliquer) le remplacement dans les chapitres concernés. Voir `Plan_Action_Developpement_Scénario.md` § 2. | P0 | M | 📋 À faire |
+| **Détection assets dans scénario** | Surbrillance par type, HoverCard, Dialog. | P0 | M | ✅ Livré |
+| **Éléments non créés** | Panneau MissingAssetsPanel + surbrillance ambre + option Ne pas créer. | P0 | L | ✅ Livré |
+| **Contrôle longueur chapitres** | `PanelCountBadge` (8–14 typique, barre progression). | P0 | M | ✅ Livré — commit a9f1279 |
 
 
 ### 2.2 Édition de l'œuvre (chapitres visuels, panels — uniquement visuel)

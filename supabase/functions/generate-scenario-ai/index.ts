@@ -25,6 +25,18 @@ import {
   PANELS_SYSTEM_PROMPT,
   buildPanelsPrompt,
 } from "./system-prompts/panels.ts";
+import {
+  DETECT_BLOCKS_SYSTEM_PROMPT,
+  buildDetectBlocksPrompt,
+} from "./system-prompts/detect-blocks.ts";
+import {
+  AI_SUMMARY_SYSTEM_PROMPT,
+  buildAiSummaryPrompt,
+} from "./system-prompts/ai-summary.ts";
+import {
+  SUGGEST_PROMPT_SYSTEM_PROMPT,
+  buildSuggestPromptPrompt,
+} from "./system-prompts/suggest-prompt.ts";
 
 // ═══════════════════════════════════════════════════════════════
 // CONFIGURATION
@@ -268,7 +280,7 @@ Deno.serve(async (req) => {
 
     // 4. Parse body
     let body: {
-      mode?: "scenario" | "chapter" | "panels";
+      mode?: "scenario" | "chapter" | "panels" | "detect_blocks" | "ai_summary" | "suggest_block_prompt";
       prompt?: string;
       num_chapters?: number;
       existing_content?: string;
@@ -277,6 +289,8 @@ Deno.serve(async (req) => {
       chapter_content?: string;
       chapter_number?: number;
       target_panel_count?: number;
+      previous_summaries?: string;
+      previous_prompts?: string[];
     };
     try {
       body = (await req.json()) as typeof body;
@@ -285,13 +299,16 @@ Deno.serve(async (req) => {
     }
 
     const { mode, prompt } = body;
-    if (!mode || !["scenario", "chapter", "panels"].includes(mode)) {
-      return jsonResponse(
-        { error: 'Le champ "mode" est requis ("scenario", "chapter" ou "panels").' },
-        400
-      );
+    if (
+      !mode ||
+      !["scenario", "chapter", "panels", "detect_blocks", "ai_summary", "suggest_block_prompt"].includes(mode)
+    ) {
+      return jsonResponse({ error: 'Le champ "mode" est requis.' }, 400);
     }
-    if (mode !== "panels" && !prompt?.trim()) {
+    if (
+      !["panels", "detect_blocks", "ai_summary", "suggest_block_prompt"].includes(mode) &&
+      !prompt?.trim()
+    ) {
       return jsonResponse(
         { error: "Le champ \"prompt\" est requis (votre instruction)." },
         400
@@ -333,8 +350,7 @@ Deno.serve(async (req) => {
         chapterContent: safeChapterContent,
         chapterNumber: body.chapter_number,
       });
-    } else {
-      // mode === "panels"
+    } else if (mode === "panels") {
       if (!body.chapter_content?.trim()) {
         return jsonResponse(
           {
@@ -353,6 +369,47 @@ Deno.serve(async (req) => {
         chapterContent: safeChapterContent,
         chapterNumber: body.chapter_number,
         targetPanelCount: body.target_panel_count,
+      });
+    } else if (mode === "detect_blocks") {
+      if (!body.chapter_content?.trim()) {
+        return jsonResponse({ error: '"chapter_content" requis pour detect_blocks.' }, 400);
+      }
+      systemPrompt = DETECT_BLOCKS_SYSTEM_PROMPT;
+      const safeContent = shrinkTextByTokens(body.chapter_content.trim(), 6_000);
+      inputWasTrimmed = safeContent !== body.chapter_content.trim();
+      userPrompt = buildDetectBlocksPrompt({
+        chapterTitle: body.chapter_title ?? "Sans titre",
+        chapterContent: safeContent,
+        chapterNumber: body.chapter_number,
+        targetPanelCount: body.target_panel_count,
+      });
+    } else if (mode === "ai_summary") {
+      if (!body.chapter_content?.trim()) {
+        return jsonResponse({ error: '"chapter_content" requis pour ai_summary.' }, 400);
+      }
+      systemPrompt = AI_SUMMARY_SYSTEM_PROMPT;
+      const safeContent = shrinkTextByTokens(body.chapter_content.trim(), 4_000);
+      inputWasTrimmed = safeContent !== body.chapter_content.trim();
+      userPrompt = buildAiSummaryPrompt({
+        chapterTitle: body.chapter_title ?? "Sans titre",
+        chapterContent: safeContent,
+        chapterNumber: body.chapter_number,
+      });
+    } else {
+      // mode === "suggest_block_prompt"
+      if (!body.chapter_content?.trim()) {
+        return jsonResponse({ error: '"chapter_content" requis pour suggest_block_prompt.' }, 400);
+      }
+      systemPrompt = SUGGEST_PROMPT_SYSTEM_PROMPT;
+      const safeContent = shrinkTextByTokens(body.chapter_content.trim(), 3_000);
+      inputWasTrimmed = safeContent !== body.chapter_content.trim();
+      const safeSummaries = body.previous_summaries
+        ? shrinkTextByTokens(body.previous_summaries.trim(), 1_500)
+        : undefined;
+      userPrompt = buildSuggestPromptPrompt({
+        chapterContent: safeContent,
+        previousSummaries: safeSummaries,
+        previousPrompts: body.previous_prompts,
       });
     }
 
@@ -410,6 +467,27 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Mode detect_blocks : parser le JSON et retourner { blocks }
+    if (mode === "detect_blocks") {
+      const cleaned = result.text.replace(/^[\s\S]*?\{/, "{").trim();
+      let parsed: {
+        blocks?: Array<{ panel_number: number; description: string; text_excerpt: string }>;
+      };
+      try {
+        parsed = JSON.parse(cleaned) as typeof parsed;
+      } catch {
+        return jsonResponse(
+          {
+            error: "L'IA n'a pas pu analyser le chapitre. Réessayez.",
+          },
+          502
+        );
+      }
+      const blocks = Array.isArray(parsed.blocks) ? parsed.blocks : [];
+      return jsonResponse({ blocks, mode, model: GROQ_MODEL }, 200);
+    }
+
+    // Modes texte : scenario, chapter, ai_summary, suggest_block_prompt
     return jsonResponse(
       {
         text: result.text,

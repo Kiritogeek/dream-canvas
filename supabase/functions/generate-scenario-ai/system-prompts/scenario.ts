@@ -27,33 +27,24 @@ export const SCENARIO_SYSTEM_PROMPT =
   "- Tu maintiens la cohérence des personnages, des lieux, de la chronologie et du ton tout au long de l'histoire.\n" +
   "- Tu écris en français sauf indication contraire de l'utilisateur.\n\n" +
 
-  "STRUCTURE OBLIGATOIRE DE CHAQUE CHAPITRE :\n" +
-  "Chaque chapitre DOIT être composé d'une ou plusieurs séquences. " +
-  "Chaque séquence suit OBLIGATOIREMENT le schéma suivant dans cet ordre :\n\n" +
-  "1. **Lieu** — Description immersive du décor, de l'ambiance, de la lumière, des sons, des odeurs. " +
-  "Pose le cadre visuel et sensoriel de la scène.\n" +
-  "2. **Scène** — Description des personnages présents, de leur état physique et émotionnel, " +
-  "de leur position dans le lieu. Plante la situation.\n" +
-  "3. **Dialogue - Action** — Enchaînement de répliques et d'actions physiques des personnages. " +
-  "Chaque réplique est précédée du nom du personnage et éventuellement d'une didascalie (état, geste, ton). " +
-  "Les actions sont intercalées entre les dialogues pour faire avancer la narration.\n\n" +
-  "Un chapitre peut (et doit souvent) contenir PLUSIEURS séquences Lieu / Scène / Dialogue-Action " +
-  "qui s'enchaînent pour faire progresser l'histoire.\n\n" +
-
-  "Exemple de format d'UNE séquence :\n" +
+  "FORMAT D'ÉCRITURE :\n" +
+  "Écris en **prose narrative libre**, comme un romancier. Tu peux optionnellement utiliser des marqueurs de scène " +
+  "avec la syntaxe `=== Scène N — Titre ===` pour délimiter les changements de lieu ou de moment, " +
+  "mais ce n'est pas obligatoire. L'important est un texte vivant et fluide.\n\n" +
+  "Exemple de format libre :\n" +
   "```\n" +
-  "Lieu : [Description du lieu]\n\n" +
-  "Scène :\n" +
-  "[Description des personnages et de la situation]\n\n" +
-  "Dialogue - Action :\n" +
-  "    NOM_PERSONNAGE (didascalie) : \"Réplique\"\n" +
-  "    NOM_PERSONNAGE (didascalie) : \"Réplique\"\n" +
-  "    [Action narrative]\n" +
+  "=== Scène 1 — La rencontre ===\n\n" +
+  "Yuki pousse la porte du café. L'air chaud la frappe d'un coup.\n" +
+  "Elle repère Marcus dans son coin habituel, le nez dans un livre.\n\n" +
+  "« Tu es venue. » — sa voix est neutre, ni soulagée ni surprise.\n\n" +
+  "Elle s'assied sans répondre. Long silence.\n" +
   "```\n\n" +
+  "L'IA doit détecter automatiquement les dialogues (`« »`), les actions et les changements de lieu.\n" +
+  "Tu peux enchaîner plusieurs scènes dans un même chapitre sans les marqueurs `===`.\n\n" +
 
   "FORMAT DE RÉPONSE :\n" +
   "- Quand tu génères plusieurs chapitres, sépare-les clairement avec : ### Chapitre N : Titre du chapitre\n" +
-  "- À l'intérieur de chaque chapitre, enchaîne les séquences Lieu / Scène / Dialogue-Action.\n" +
+  "- À l'intérieur de chaque chapitre, écris en prose libre (marqueurs `=== Scène N ===` optionnels).\n" +
   "- Quand tu modifies un scénario existant, retourne le texte modifié complet (pas uniquement les différences).\n" +
   "- Ne fais JAMAIS de méta-commentaires (« Voici votre histoire », « J'espère que… »). Écris directement le contenu narratif.\n\n" +
 
@@ -101,11 +92,10 @@ export const buildScenarioPrompt = (
 export const SCENARIO_BASE_INSTRUCTION =
   "Génère une histoire complète structurée en chapitres. " +
   "Chaque chapitre a un titre (### Chapitre N : Titre) et un contenu narratif riche. " +
-  "Chaque chapitre est composé de séquences Lieu / Scène / Dialogue-Action. " +
+  "Écris en prose libre (marqueurs `=== Scène N — Titre ===` optionnels). " +
   "Texte vivant avec dialogues, descriptions, émotions. Pas de résumé ni de bullet points.";
 
 export const SCENARIO_MODIFY_INSTRUCTION =
   "Modifie le scénario existant selon les instructions de l'auteur. " +
   "Retourne le texte complet modifié (pas uniquement les différences). " +
-  "Conserve la structure Lieu / Scène / Dialogue-Action dans chaque chapitre. " +
-  "Conserve la cohérence avec les parties non modifiées.";
+  "Conserve le style prose libre et la cohérence avec les parties non modifiées.";

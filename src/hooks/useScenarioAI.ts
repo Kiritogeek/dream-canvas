@@ -2,9 +2,12 @@
 import { useMutation } from "@tanstack/react-query";
 import {
   callScenarioAI,
-  type AIRequest,
+  type ScenarioAIRequest,
+  type ChapterAIRequest,
   type AIResponse,
 } from "@/services/scenarioAI";
+
+type ScenarioOrChapterRequest = ScenarioAIRequest | ChapterAIRequest;
 
 /**
  * Mutation pour appeler l'IA (mode "scenario" ou "chapter").
@@ -16,7 +19,7 @@ import {
  *   ai.mutate({ mode: "chapter", prompt: "...", chapter_title: "...", chapter_content: "..." });
  */
 export function useScenarioAI() {
-  return useMutation<AIResponse, Error, AIRequest>({
+  return useMutation<AIResponse, Error, ScenarioOrChapterRequest>({
     mutationFn: callScenarioAI,
   });
 }

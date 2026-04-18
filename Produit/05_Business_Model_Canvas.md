@@ -100,20 +100,26 @@
 
 ## 3. Modèle de revenus
 
-### 3.1 Freemium SaaS — Grille tarifaire implémentée
+### 3.1 Freemium SaaS — Grille tarifaire (mise à jour 18/04/2026)
+
+> **Logique Spotify** : même qualité pour tous, seule la quantité diffère. Un utilisateur Free génère avec le même modèle qu'un Pro → il voit la valeur → il upgarde pour en avoir plus.
 
 | | **Free** | **Pro** |
 |---|---------|---------|
 | **Prix** | 0 € | 14,99 €/mois |
-| **Modèle IA** | FLUX.1 Schnell (rapide) | FLUX.2 Pro / Pro Edit (haute qualité) |
-| **Générations/mois** | 20 | 300 |
-| **Projets & Assets** | Illimités | Illimités |
-| **Résolution** | 1024×1024 | 1024×1024 |
-| **Vues personnages** | Face seule | 4 vues (face, profil G/D, dos) |
-| **Images de référence** | — | 2 max par projet |
+| **Modèle IA** | **FLUX.2 Pro** (identique au Pro) | **FLUX.2 Pro** |
+| **Crédits/mois** | **20** | **300** |
+| **1 crédit =** | 1 génération (asset, sheet, bloc panel) | 1 génération (unifié) |
+| **Sheet personnage** | ✓ (fiche composite 4 angles) | ✓ |
+| **Cohérence panels** | ✓ (sheet injectée automatiquement) | ✓ |
+| **Scénario IA basique** | ✓ | ✓ |
+| **Découpage Chapitre → Panels** | ✗ (CTA upgrade) | **✓** |
+| **Priorité traitement** | Standard | Prioritaire |
 | **Support** | Communauté | Email |
 
-> **Note** : Le mécanisme de contrôle principal est le **quota de générations mensuelles** (20 Free / 300 Pro). Les projets et assets ne sont pas limités car la création d'un asset sans génération ne coûte rien. Seule la génération d'image consomme du quota.
+> **Note** : Le multi-vues (profil G/D/dos séparés) est remplacé par le **Sheet System** — une fiche composite 4 angles générée en 1 action, disponible pour tous les plans. La sheet est injectée automatiquement comme référence dans la génération de panels pour garantir la cohérence visuelle.
+
+> **⚠️ Stripe code implémenté (18/04) — déploiement après finalisation Scénario + Sheet System.**
 
 #### Plans futurs (non implémentés)
 

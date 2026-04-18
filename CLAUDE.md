@@ -7,8 +7,10 @@
 **Valeur principale** : générer des visuels cohérents en secondes, sans compétences en illustration.
 
 **Tiers** :
-- Free : 20 générations/mois, modèle FLUX.1 Schnell, pas de multi-vues personnage
-- Pro : 300 générations/mois, modèle FLUX.2 Pro, multi-vues (front/left/right/back)
+- Free : 20 crédits/mois — même modèle FLUX.2 Pro que le Pro (logique Spotify : même qualité, quantité différente)
+- Pro : 300 crédits/mois, 14,99 €/mois — Scénario IA Pro (Découpage → Panels), priorité traitement
+- 1 crédit = 1 génération (asset, sheet, bloc panel — unifié)
+- Multi-vues remplacés par **Sheet System** : fiche composite 4 angles, disponible Free ET Pro
 
 ---
 
@@ -295,19 +297,31 @@ Obligatoire avant tout merge :
 
 ---
 
-## Roadmap (résumé)
+## Roadmap (résumé — ordre strict)
 
-- **Q2 2026 PRIORITÉ** : Monétisation Stripe (checkout, webhook, RLS sur profiles.plan)
-- **En cours** : Édition Figma-like (sélection explicite, panneau propriétés, touches clavier)
-- **Livré** : Bulles de dialogue inline dans l'éditeur de panel, système de style, génération assets multi-vues, découpage IA
+1. **Scénario IA** — refonte workspace + Sheet System + résumés contexte IA
+2. **Finalisation plans Free/Pro** — après que Scénario et Sheet soient validés
+3. **Stripe** — code prêt, déploiement après finalisation des plans
+4. **Vue Admin** — `/admin`, accès `kiritogeek@gmail.com`, override plan, analytics
 
-Roadmap complète : `Produit/07_Roadmap_Produit.md`
+Roadmap complète : `wiki/Roadmap-2026.md` (source de vérité) · `Produit/07_Roadmap_Produit.md`
+
+---
+
+## Règle .md — Mettre à jour après chaque décision
+
+**Après chaque session où des décisions produit/technique sont prises :**
+- Mettre à jour les pages wiki concernées (`wiki/Roadmap-2026.md`, `wiki/Audits-Techniques.md`, etc.)
+- Créer une page wiki si la décision crée une nouvelle spec (ex : `[[Scenario-IA]]`)
+- Mettre à jour `wiki/index.md` si nouvelle page créée
+- Ajouter une entrée dans `log.md`
+- Mettre à jour `CLAUDE.md` si les tiers, la stack ou les règles changent
 
 ---
 
 ## Contexte utilisateur
 
-- Utilisateur principal : Louis Basnier (louis.basnier@naxos.fr)
+- Utilisateur principal : **Louis** Basnier (louis.basnier@naxos.fr) — appeler par son prénom
 - Interface en **français**
 - Cible : créateurs de webtoons / mangas sans compétences d'illustration
 - Philosophie UX : outil créatif professionnel, glassmorphisme, pas d'interface générique

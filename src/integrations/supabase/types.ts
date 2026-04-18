@@ -240,6 +240,8 @@ export type Database = {
           title: string
           content: string | null
           panels_outline: Json | null
+          ai_summary: string | null
+          locked_blocks: Json | null
           created_at: string
           updated_at: string
         }
@@ -251,6 +253,8 @@ export type Database = {
           title: string
           content?: string | null
           panels_outline?: Json | null
+          ai_summary?: string | null
+          locked_blocks?: Json | null
           created_at?: string
           updated_at?: string
         }
@@ -262,6 +266,8 @@ export type Database = {
           title?: string
           content?: string | null
           panels_outline?: Json | null
+          ai_summary?: string | null
+          locked_blocks?: Json | null
           created_at?: string
           updated_at?: string
         }

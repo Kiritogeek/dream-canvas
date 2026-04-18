@@ -798,7 +798,7 @@ export default function ScenarioChapterEditor() {
       >
         <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
           {/* Toolbar fine — toggle Écriture/Panels + chip Assets */}
-          <div className="flex items-center gap-2 px-4 sm:px-8 py-2 border-b border-border/50 shrink-0 sticky top-12 z-20 bg-background/95 backdrop-blur-xl">
+          <div className="flex items-center gap-2 px-4 sm:px-8 py-1.5 border-b border-border/50 shrink-0 bg-background/95 backdrop-blur-xl">
             {!chapterAIResult && (
               <div className="flex items-center gap-1 bg-muted/50 rounded-lg p-1">
                 <button
@@ -830,12 +830,6 @@ export default function ScenarioChapterEditor() {
                   )}
                 </button>
               </div>
-            )}
-
-            {viewMode === "visuels" && !chapterAIResult && (
-              <span className="text-xs text-muted-foreground italic">
-                Survolez un passage pour verrouiller / déverrouiller
-              </span>
             )}
 
             {/* Chip assets — pousse à droite */}
@@ -931,101 +925,74 @@ export default function ScenarioChapterEditor() {
             </div>
           )}
 
-          {/* Barre IA chapitre */}
-          {showIABar && !chapterAIResult && (
-            <div className="flex items-center gap-3 px-6 py-3 bg-background/95 backdrop-blur border-t border-border shrink-0">
-              <Sparkles className="h-3.5 w-3.5 text-primary shrink-0" />
-              <Input
-                value={chapterAIPrompt}
-                onChange={(e) => setChapterAIPrompt(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    handleChapterAI();
-                  }
-                }}
-                placeholder="Instruction pour l'IA (chapitre entier)…"
-                className="h-8 text-sm flex-1"
-                disabled={chapterAI.isPending}
-              />
-              <Button
-                size="sm"
-                className="h-8 gap-1 gradient-primary text-primary-foreground"
-                onClick={handleChapterAI}
-                disabled={
-                  chapterAI.isPending ||
-                  !chapterAIPrompt.trim() ||
-                  !content.trim()
-                }
-              >
-                {chapterAI.isPending ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Sparkles className="h-3.5 w-3.5" />
-                )}
-                Réviser
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-8 w-8 p-0"
-                onClick={() => {
-                  setShowIABar(false);
-                  setChapterAIPrompt("");
-                }}
-              >
-                <X className="h-3.5 w-3.5" />
-              </Button>
-            </div>
-          )}
         </main>
       </div>
 
-      {/* FABs — actions flottantes bas-droite */}
-      {!chapterAIResult && (
-        <div className="fixed bottom-6 right-6 flex flex-col items-end gap-3 z-40">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                onClick={() => setShowIABar((v) => !v)}
-                className={`h-11 w-11 rounded-full flex items-center justify-center shadow-dream border transition-all duration-200 ${
-                  showIABar
-                    ? "gradient-primary text-primary-foreground border-transparent scale-105"
-                    : "bg-background/95 backdrop-blur-xl border-border hover:border-primary/50 text-primary hover:scale-105"
-                }`}
-              >
-                <Sparkles className="h-4.5 w-4.5" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="left" className="max-w-[200px] text-left">
-              <p className="font-semibold text-xs mb-0.5">IA Chapitre</p>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Améliore le rythme, les dialogues ou la tension dramatique de ce chapitre.
-              </p>
-            </TooltipContent>
-          </Tooltip>
+      {/* Barre IA chapitre — fixed au bas de l'écran pour éviter tout masquage */}
+      {showIABar && !chapterAIResult && (
+        <div className="fixed bottom-0 left-0 right-0 z-50 flex items-center gap-3 px-6 py-3 bg-background/95 backdrop-blur-xl border-t border-border shadow-dream">
+          <Sparkles className="h-3.5 w-3.5 text-primary shrink-0" />
+          <Input
+            value={chapterAIPrompt}
+            onChange={(e) => setChapterAIPrompt(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                handleChapterAI();
+              }
+            }}
+            placeholder="Ex : rends la scène finale plus tendue, améliore les dialogues…"
+            className="h-8 text-sm flex-1"
+            disabled={chapterAI.isPending}
+            autoFocus
+          />
+          <Button
+            size="sm"
+            className="h-8 gap-1.5 gradient-primary text-primary-foreground shrink-0"
+            onClick={handleChapterAI}
+            disabled={chapterAI.isPending || !chapterAIPrompt.trim() || !content.trim()}
+          >
+            {chapterAI.isPending ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Sparkles className="h-3.5 w-3.5" />
+            )}
+            Réviser
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 w-8 p-0 shrink-0"
+            onClick={() => { setShowIABar(false); setChapterAIPrompt(""); }}
+          >
+            <X className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      )}
 
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                onClick={handleDetectBlocks}
-                disabled={isDetecting || !content.trim()}
-                className="h-14 w-14 rounded-full gradient-primary text-primary-foreground flex items-center justify-center shadow-dream transition-all duration-200 hover:scale-105 disabled:opacity-50 disabled:pointer-events-none disabled:hover:scale-100"
-              >
-                {isDetecting ? (
-                  <Loader2 className="h-6 w-6 animate-spin" />
-                ) : (
-                  <Search className="h-6 w-6" />
-                )}
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="left" className="max-w-[200px] text-left">
-              <p className="font-semibold text-xs mb-0.5">Détecter les panels</p>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Identifie les moments clés de ton chapitre qui deviendront des images dans ton webtoon.
-              </p>
-            </TooltipContent>
-          </Tooltip>
+      {/* FABs — pills flottantes bas-droite */}
+      {!chapterAIResult && !showIABar && (
+        <div className="fixed bottom-6 right-6 flex flex-col items-end gap-2.5 z-40">
+          <button
+            onClick={() => setShowIABar(true)}
+            className="flex items-center gap-2 pl-3.5 pr-4 h-10 rounded-full bg-background/95 backdrop-blur-xl border border-border hover:border-primary/50 shadow-md text-sm font-medium text-primary transition-all duration-200 hover:shadow-glow hover:scale-[1.03]"
+          >
+            <Sparkles className="h-4 w-4 shrink-0" />
+            <span>IA Chapitre</span>
+          </button>
+
+          <button
+            onClick={handleDetectBlocks}
+            disabled={isDetecting || !content.trim()}
+            className="flex items-center gap-2 pl-4 pr-5 h-12 rounded-full gradient-primary text-primary-foreground shadow-dream text-sm font-semibold transition-all duration-200 hover:scale-[1.03] disabled:opacity-50 disabled:pointer-events-none"
+          >
+            {isDetecting ? (
+              <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+            ) : (
+              <Search className="h-4 w-4 shrink-0" />
+            )}
+            <span>{isDetecting ? "Analyse…" : "Détecter les panels"}</span>
+          </button>
         </div>
       )}
 

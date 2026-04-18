@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, type ReactNode } from "react";
 import { useParams, Link } from "react-router-dom";
 import {
   ArrowLeft,
@@ -8,12 +8,16 @@ import {
   Check,
   X,
   Sparkles,
-  Send,
   Search,
   BarChart2,
-  Layers,
   Lock,
   Wand2,
+  PenLine,
+  Layers,
+  LayoutPanelTop,
+  Package,
+  Type,
+  Clock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,7 +37,7 @@ import { useScenarioAI } from "@/hooks/useScenarioAI";
 import { callDetectBlocks, callGenerateAiSummary } from "@/services/scenarioAI";
 import { estimatePanelCount } from "@/services/panels";
 import { TextDiff, TextDiffLegend } from "@/components/ui/TextDiff";
-import DashboardLayout from "@/components/DashboardLayout";
+import { ScenarioTextHighlighter } from "@/components/project/ScenarioTextHighlighter";
 import { useToast } from "@/hooks/use-toast";
 import type { LockedBlock, DetectedBlock } from "@/types";
 
@@ -42,28 +46,177 @@ import type { LockedBlock, DetectedBlock } from "@/types";
 // pendant la session. Quand la migration sera ajoutée, il suffira de passer
 // ces champs dans `updateChapter.mutate({ updates: { ... } })`.
 
-function StatCard({
+// ═══════════════════════════════════════════════════════════════
+// Sous-composants
+// ═══════════════════════════════════════════════════════════════
+
+function StatRow({
+  icon,
   label,
   value,
-  color,
+  note,
+  valueColor,
 }: {
+  icon: ReactNode;
   label: string;
-  value: string | number;
-  color?: string;
+  value: string;
+  note?: string;
+  valueColor?: "emerald";
 }) {
   return (
-    <div className="glass rounded-lg p-3 space-y-0.5">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p
-        className={`text-lg font-semibold font-display ${
-          color === "emerald" ? "text-emerald-500" : "text-foreground"
-        }`}
-      >
-        {value}
-      </p>
+    <div className="flex items-center gap-3">
+      <div className="shrink-0">{icon}</div>
+      <span className="text-sm text-muted-foreground flex-1">{label}</span>
+      <div className="text-right">
+        <span
+          className={`text-sm font-semibold ${
+            valueColor === "emerald" ? "text-emerald-500" : "text-foreground"
+          }`}
+        >
+          {value}
+        </span>
+        {note && (
+          <span className="text-xs text-muted-foreground ml-1.5">{note}</span>
+        )}
+      </div>
     </div>
   );
 }
+
+// ─── AnnotatedTextView ─────────────────────────────────────────
+
+interface AnnotatedSegment {
+  text: string;
+  panelNumber?: number;
+  isLocked?: boolean;
+}
+
+function buildSegments(
+  content: string,
+  detectedBlocks: DetectedBlock[],
+  lockedBlocks: LockedBlock[]
+): AnnotatedSegment[] {
+  // Merge : les blocs verrouillés ont priorité sur les détectés pour le même numéro
+  const allBlocks = [
+    ...lockedBlocks.map((b) => ({
+      panel_number: b.panel_number,
+      text_excerpt: b.text_excerpt,
+      isLocked: true,
+    })),
+    ...detectedBlocks
+      .filter(
+        (d) => !lockedBlocks.some((l) => l.panel_number === d.panel_number)
+      )
+      .map((d) => ({
+        panel_number: d.panel_number,
+        text_excerpt: d.text_excerpt,
+        isLocked: false,
+      })),
+  ];
+
+  const positioned = allBlocks
+    .map((b) => ({ ...b, start: content.indexOf(b.text_excerpt) }))
+    .filter((b) => b.start >= 0)
+    .sort((a, b) => a.start - b.start);
+
+  if (positioned.length === 0) return [{ text: content }];
+
+  const segments: AnnotatedSegment[] = [];
+  let cursor = 0;
+
+  for (const { panel_number, text_excerpt, start, isLocked } of positioned) {
+    const end = start + text_excerpt.length;
+    if (start < cursor) continue; // éviter les chevauchements
+    if (start > cursor) segments.push({ text: content.slice(cursor, start) });
+    segments.push({
+      text: content.slice(start, end),
+      panelNumber: panel_number,
+      isLocked,
+    });
+    cursor = end;
+  }
+  if (cursor < content.length) segments.push({ text: content.slice(cursor) });
+
+  return segments;
+}
+
+interface AnnotatedTextViewProps {
+  content: string;
+  detectedBlocks: DetectedBlock[];
+  lockedBlocks: LockedBlock[];
+  onToggleBlock: (block: DetectedBlock) => void;
+  onUnlockBlock: (panelNumber: number) => void;
+}
+
+function AnnotatedTextView({
+  content,
+  detectedBlocks,
+  lockedBlocks,
+  onToggleBlock,
+  onUnlockBlock,
+}: AnnotatedTextViewProps) {
+  const segments = buildSegments(content, detectedBlocks, lockedBlocks);
+
+  return (
+    <div className="text-base leading-[1.8] whitespace-pre-wrap">
+      {segments.map((seg, i) => {
+        if (seg.panelNumber === undefined) {
+          return <span key={i}>{seg.text}</span>;
+        }
+
+        const isLocked = seg.isLocked;
+        const detectedBlock = detectedBlocks.find(
+          (b) => b.panel_number === seg.panelNumber
+        );
+
+        return (
+          <span key={i} className="relative group">
+            <span
+              className={`relative inline rounded-sm px-0.5 ${
+                isLocked
+                  ? "bg-emerald-500/15 border-l-2 border-emerald-500 pl-1"
+                  : "bg-primary/10 border-l-2 border-primary pl-1"
+              }`}
+            >
+              <span
+                className={`absolute -left-7 top-0 text-[10px] font-bold font-mono px-1 py-0.5 rounded select-none ${
+                  isLocked
+                    ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400"
+                    : "bg-primary/15 text-primary"
+                }`}
+              >
+                P{seg.panelNumber}
+              </span>
+              {seg.text}
+              <span className="absolute -right-2 top-0 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                <button
+                  onClick={() => {
+                    if (isLocked) {
+                      onUnlockBlock(seg.panelNumber!);
+                    } else if (detectedBlock) {
+                      onToggleBlock(detectedBlock);
+                    }
+                  }}
+                  className={`text-[10px] font-medium px-1.5 py-0.5 rounded shadow-sm border transition-colors ${
+                    isLocked
+                      ? "bg-background border-emerald-500/30 text-emerald-600 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30"
+                      : "bg-background border-primary/30 text-primary hover:bg-primary/10"
+                  }`}
+                >
+                  {isLocked ? "Déverr." : "Verrouiller"}
+                </button>
+              </span>
+            </span>
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ScenarioChapterEditor
+// ═══════════════════════════════════════════════════════════════
 
 export default function ScenarioChapterEditor() {
   const { id: projectId, chapterId } = useParams<{
@@ -87,7 +240,10 @@ export default function ScenarioChapterEditor() {
   const [editingTitle, setEditingTitle] = useState(false);
 
   // Local state — UI
-  const [activeTab, setActiveTab] = useState<"stats" | "blocs" | "ia">("stats");
+  const [activeTab, setActiveTab] = useState<
+    "stats" | "panels" | "ia" | "assets"
+  >("stats");
+  const [viewMode, setViewMode] = useState<"edit" | "visuels">("edit");
   const [saveState, setSaveState] = useState<"clean" | "dirty" | "saving">(
     "clean"
   );
@@ -136,6 +292,15 @@ export default function ScenarioChapterEditor() {
     // — sinon l'auto-save overwrite-erait les frappes en cours.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chapter?.id]);
+
+  // ── Auto-resize textarea ─────────────────────────────────────
+
+  useEffect(() => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    ta.style.height = "auto";
+    ta.style.height = `${ta.scrollHeight}px`;
+  }, [content, viewMode]);
 
   // ── Calcul lecture (debounce 800ms) ──────────────────────────
 
@@ -303,7 +468,7 @@ export default function ScenarioChapterEditor() {
   const handleDetectBlocks = useCallback(async () => {
     if (!chapter || !content.trim()) return;
     setIsDetecting(true);
-    setActiveTab("blocs");
+    setActiveTab("panels");
     try {
       const result = await callDetectBlocks({
         mode: "detect_blocks",
@@ -315,9 +480,11 @@ export default function ScenarioChapterEditor() {
       setDetectedBlocks(result.blocks);
       if (result.blocks.length === 0) {
         toast({
-          title: "Aucun bloc détecté",
+          title: "Aucun panel détecté",
           description: "Le chapitre est peut-être trop court.",
         });
+      } else {
+        setViewMode("visuels");
       }
     } catch (err) {
       toast({
@@ -418,17 +585,15 @@ export default function ScenarioChapterEditor() {
 
   if (isLoadingChapter) {
     return (
-      <DashboardLayout>
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      </DashboardLayout>
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
     );
   }
 
   if (!chapter) {
     return (
-      <DashboardLayout>
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center p-8">
           <p className="text-muted-foreground mb-3">Chapitre introuvable.</p>
           <Link
@@ -438,202 +603,299 @@ export default function ScenarioChapterEditor() {
             Retour au scénario
           </Link>
         </div>
-      </DashboardLayout>
+      </div>
     );
   }
 
   // ── Rendu ────────────────────────────────────────────────────
 
   const targetPanels = project?.panels_target_per_chapter ?? null;
-  const progressPct = readingInfo && targetPanels
-    ? Math.min(100, Math.round((readingInfo.panels / targetPanels) * 100))
-    : 0;
+  const progressPct =
+    readingInfo && targetPanels
+      ? Math.min(100, Math.round((readingInfo.panels / targetPanels) * 100))
+      : 0;
+  const totalPanelsCount = detectedBlocks.length + lockedBlocks.length;
+  const hasVisuals = detectedBlocks.length > 0 || lockedBlocks.length > 0;
 
   return (
-    <DashboardLayout>
-      <div className="flex flex-col h-[calc(100vh-8rem)] -mx-6 sm:-mx-8 lg:-mx-10 -my-6 sm:-my-8">
-        {/* HEADER */}
-        <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-xl border-b border-border">
-          <div className="flex items-center gap-4 px-6 py-3 h-16">
-            <Link
-              to={`/dashboard/projects/${projectId}?tab=scenario`}
-              className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors shrink-0"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Scénario
-            </Link>
+    <div className="min-h-screen flex flex-col bg-background">
+      {/* HEADER */}
+      <header className="h-12 border-b border-border bg-background/95 backdrop-blur-xl sticky top-0 z-30 flex items-center gap-4 px-4 sm:px-6 shrink-0">
+        <Link
+          to={`/dashboard/projects/${projectId}?tab=scenario`}
+          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors shrink-0 group"
+        >
+          <ArrowLeft className="h-3.5 w-3.5 group-hover:-translate-x-0.5 transition-transform" />
+          <span className="font-medium">{project?.title ?? "Scénario"}</span>
+        </Link>
 
-            <div className="flex-1 min-w-0 group">
-              {editingTitle ? (
-                <Input
-                  value={titleDraft}
-                  onChange={(e) => setTitleDraft(e.target.value)}
-                  onBlur={saveTitle}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      saveTitle();
-                    }
-                    if (e.key === "Escape") {
-                      setTitleDraft(chapter.title);
-                      setEditingTitle(false);
-                    }
-                  }}
-                  className="h-9 text-lg font-display font-semibold max-w-md"
-                  autoFocus
-                />
-              ) : (
-                <button
-                  onClick={() => setEditingTitle(true)}
-                  className="flex items-center gap-2 font-display font-semibold text-lg hover:text-primary transition-colors"
-                  title="Renommer le chapitre"
-                >
-                  <span className="text-muted-foreground font-mono text-sm">
-                    {String(chapter.chapter_number).padStart(2, "0")}
+        <span className="text-muted-foreground/40 text-sm shrink-0">/</span>
+        <span className="text-sm text-muted-foreground shrink-0">Scénario</span>
+        <span className="text-muted-foreground/40 text-sm shrink-0">/</span>
+
+        <div className="flex-1 min-w-0 group">
+          {editingTitle ? (
+            <Input
+              value={titleDraft}
+              onChange={(e) => setTitleDraft(e.target.value)}
+              onBlur={saveTitle}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  saveTitle();
+                }
+                if (e.key === "Escape") {
+                  setTitleDraft(chapter.title);
+                  setEditingTitle(false);
+                }
+              }}
+              className="h-7 text-sm max-w-sm"
+              autoFocus
+            />
+          ) : (
+            <button
+              onClick={() => setEditingTitle(true)}
+              className="flex items-center gap-1.5 text-sm font-medium hover:text-primary transition-colors truncate"
+              title="Renommer le chapitre"
+            >
+              <span className="text-muted-foreground font-mono text-xs">
+                {String(chapter.chapter_number).padStart(2, "0")}
+              </span>
+              <span className="truncate">{chapter.title}</span>
+              <Pencil className="h-3 w-3 opacity-0 group-hover:opacity-50 transition-opacity shrink-0" />
+            </button>
+          )}
+        </div>
+
+        <div className="text-xs text-muted-foreground flex items-center gap-1 shrink-0">
+          {saveState === "saving" && (
+            <>
+              <Loader2 className="h-3 w-3 animate-spin" />
+              Sauvegarde...
+            </>
+          )}
+          {saveState === "clean" && (
+            <>
+              <Check className="h-3 w-3 text-emerald-500" />
+              Sauvegardé
+            </>
+          )}
+          {saveState === "dirty" && <span className="text-amber-500">•</span>}
+        </div>
+
+        <Button
+          size="sm"
+          onClick={handleManualSave}
+          disabled={saveState === "clean" || saveState === "saving"}
+          className="h-7 gap-1.5 gradient-primary text-primary-foreground shrink-0 text-xs"
+        >
+          <Save className="h-3 w-3" />
+          Sauvegarder
+        </Button>
+      </header>
+
+      {/* MAIN ZONE */}
+      <div
+        className="flex flex-1 overflow-hidden"
+        style={{ height: "calc(100vh - 48px)" }}
+      >
+        {/* ZONE TEXTE */}
+        <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
+          {/* Toolbar zone texte */}
+          <div className="flex items-center gap-2 px-4 sm:px-8 py-2 border-b border-border/50 shrink-0">
+            <div className="flex items-center gap-1 bg-muted/50 rounded-lg p-1">
+              <button
+                onClick={() => setViewMode("edit")}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+                  viewMode === "edit"
+                    ? "bg-background shadow-sm text-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <PenLine className="h-3 w-3" />
+                Écriture
+              </button>
+              <button
+                onClick={() => setViewMode("visuels")}
+                disabled={!hasVisuals}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+                  viewMode === "visuels"
+                    ? "bg-background shadow-sm text-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                } disabled:opacity-40 disabled:pointer-events-none`}
+              >
+                <Layers className="h-3 w-3" />
+                Visuels
+                {totalPanelsCount > 0 && (
+                  <span className="ml-0.5 bg-primary/20 text-primary text-[10px] font-bold rounded px-1">
+                    {totalPanelsCount}
                   </span>
-                  <span className="truncate">{chapter.title}</span>
-                  <Pencil className="h-3.5 w-3.5 opacity-0 group-hover:opacity-60 transition-opacity shrink-0" />
-                </button>
-              )}
+                )}
+              </button>
             </div>
 
-            <div className="text-xs text-muted-foreground flex items-center gap-1.5 shrink-0">
-              {saveState === "saving" && (
-                <>
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                  Sauvegarde...
-                </>
-              )}
-              {saveState === "clean" && (
-                <>
-                  <Check className="h-3 w-3 text-emerald-500" />
-                  Sauvegardé
-                </>
-              )}
-              {saveState === "dirty" && (
-                <span className="text-amber-500">Non sauvegardé</span>
-              )}
-            </div>
-
-            <Button
-              size="sm"
-              onClick={handleManualSave}
-              disabled={saveState === "clean" || saveState === "saving"}
-              className="gap-1.5 gradient-primary text-primary-foreground shrink-0"
-            >
-              <Save className="h-3.5 w-3.5" />
-              Sauvegarder
-            </Button>
-          </div>
-        </header>
-
-        {/* MAIN ZONE */}
-        <div className="flex-1 flex overflow-hidden">
-          {/* ZONE TEXTE */}
-          <div className="flex-1 flex flex-col overflow-hidden">
-            <div className="flex-1 overflow-y-auto p-6">
-              <textarea
-                ref={textareaRef}
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                onMouseUp={handleTextareaSelect}
-                onKeyUp={handleTextareaSelect}
-                placeholder="Écrivez votre chapitre ici… Sélectionnez un passage pour le modifier via l'IA."
-                className="w-full h-full min-h-[400px] resize-none text-base leading-relaxed bg-transparent border-0 focus:ring-0 focus:outline-none placeholder:text-muted-foreground/50"
-              />
-            </div>
-
-            {/* Barre sélection */}
-            {selectedText && (
-              <div className="flex items-center gap-3 px-6 py-3 bg-background/95 backdrop-blur border-t border-border">
-                <Pencil className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-                <span className="text-xs text-muted-foreground italic flex-1 truncate">
-                  « {selectedText.text.slice(0, 60)}
-                  {selectedText.text.length > 60 ? "…" : ""} »
-                </span>
-                <Input
-                  value={passagePrompt}
-                  onChange={(e) => setPassagePrompt(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") handleModifyPassage();
-                  }}
-                  placeholder="Instruction pour l'IA…"
-                  className="h-8 text-sm w-64"
-                />
-                <Button
-                  size="sm"
-                  className="h-8 gap-1 gradient-primary text-primary-foreground"
-                  onClick={handleModifyPassage}
-                  disabled={!passagePrompt.trim() || chapterAI.isPending}
-                >
-                  {chapterAI.isPending ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <Wand2 className="h-3.5 w-3.5" />
-                  )}
-                  Modifier
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 w-8 p-0"
-                  onClick={() => setSelectedText(null)}
-                >
-                  <X className="h-3.5 w-3.5" />
-                </Button>
-              </div>
+            {viewMode === "visuels" && (
+              <span className="text-xs text-muted-foreground italic ml-2">
+                Survolez un passage pour verrouiller / déverrouiller
+              </span>
             )}
           </div>
 
-          {/* PANNEAU DROIT */}
-          <aside className="w-72 border-l border-border overflow-y-auto shrink-0">
-            <Tabs
-              value={activeTab}
-              onValueChange={(v) => setActiveTab(v as typeof activeTab)}
-              className="w-full"
-            >
-              <div className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b border-border p-2">
-                <TabsList className="w-full grid grid-cols-3">
-                  <TabsTrigger value="stats" className="text-xs">
-                    <BarChart2 className="h-3.5 w-3.5 mr-1" />
-                    Stats
-                  </TabsTrigger>
-                  <TabsTrigger value="blocs" className="text-xs">
-                    <Layers className="h-3.5 w-3.5 mr-1" />
-                    Blocs
-                  </TabsTrigger>
-                  <TabsTrigger value="ia" className="text-xs">
-                    <Sparkles className="h-3.5 w-3.5 mr-1" />
-                    IA
-                  </TabsTrigger>
-                </TabsList>
-              </div>
+          {/* Wrapper scrollable — UNE SEULE scrollbar */}
+          <div className="flex-1 overflow-y-auto">
+            <div className="max-w-3xl mx-auto px-8 py-8">
+              {viewMode === "edit" ? (
+                <textarea
+                  ref={textareaRef}
+                  value={content}
+                  onChange={(e) => setContent(e.target.value)}
+                  onMouseUp={handleTextareaSelect}
+                  onKeyUp={handleTextareaSelect}
+                  placeholder="Commencez à écrire votre chapitre..."
+                  className="w-full resize-none bg-transparent border-0 focus:ring-0 focus:outline-none text-base leading-[1.8] placeholder:text-muted-foreground/40 min-h-[calc(100vh-200px)]"
+                  style={{ height: "auto" }}
+                />
+              ) : (
+                <AnnotatedTextView
+                  content={content}
+                  detectedBlocks={detectedBlocks}
+                  lockedBlocks={lockedBlocks}
+                  onToggleBlock={toggleBlock}
+                  onUnlockBlock={unlockBlock}
+                />
+              )}
+            </div>
+          </div>
 
+          {/* Barre sélection */}
+          {selectedText && viewMode === "edit" && (
+            <div className="flex items-center gap-3 px-6 py-3 bg-background/95 backdrop-blur border-t border-border shrink-0">
+              <Pencil className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+              <span className="text-xs text-muted-foreground italic flex-1 truncate">
+                « {selectedText.text.slice(0, 60)}
+                {selectedText.text.length > 60 ? "…" : ""} »
+              </span>
+              <Input
+                value={passagePrompt}
+                onChange={(e) => setPassagePrompt(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleModifyPassage();
+                }}
+                placeholder="Instruction pour l'IA…"
+                className="h-8 text-sm w-64"
+              />
+              <Button
+                size="sm"
+                className="h-8 gap-1 gradient-primary text-primary-foreground"
+                onClick={handleModifyPassage}
+                disabled={!passagePrompt.trim() || chapterAI.isPending}
+              >
+                {chapterAI.isPending ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Wand2 className="h-3.5 w-3.5" />
+                )}
+                Modifier
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0"
+                onClick={() => setSelectedText(null)}
+              >
+                <X className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          )}
+        </main>
+
+        {/* PANNEAU DROIT */}
+        <aside className="w-72 shrink-0 border-l border-border flex flex-col overflow-hidden">
+          <Tabs
+            value={activeTab}
+            onValueChange={(v) => setActiveTab(v as typeof activeTab)}
+            className="w-full flex flex-col flex-1 overflow-hidden"
+          >
+            <div className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b border-border p-2 shrink-0">
+              <TabsList className="w-full grid grid-cols-4">
+                <TabsTrigger value="stats" className="text-xs">
+                  <BarChart2 className="h-3.5 w-3.5 mr-1" />
+                  Stats
+                </TabsTrigger>
+                <TabsTrigger value="panels" className="text-xs">
+                  <LayoutPanelTop className="h-3.5 w-3.5 mr-1" />
+                  Panels
+                </TabsTrigger>
+                <TabsTrigger value="ia" className="text-xs">
+                  <Sparkles className="h-3.5 w-3.5 mr-1" />
+                  IA
+                </TabsTrigger>
+                <TabsTrigger value="assets" className="text-xs">
+                  <Package className="h-3.5 w-3.5 mr-1" />
+                  Assets
+                </TabsTrigger>
+              </TabsList>
+            </div>
+
+            <div className="flex-1 overflow-y-auto">
               {/* Onglet Stats */}
               <TabsContent value="stats" className="mt-0">
-                <div className="p-4 space-y-4">
-                  <div className="grid grid-cols-2 gap-3">
-                    <StatCard label="Mots" value={readingInfo?.words ?? 0} />
-                    <StatCard
+                <div className="p-4 space-y-5">
+                  <div className="space-y-3">
+                    <StatRow
+                      icon={<Type className="h-3.5 w-3.5 text-primary" />}
+                      label="Mots"
+                      value={
+                        readingInfo?.words.toLocaleString("fr-FR") ?? "0"
+                      }
+                    />
+                    <StatRow
+                      icon={
+                        <LayoutPanelTop className="h-3.5 w-3.5 text-amber-500" />
+                      }
                       label="Panels estimés"
                       value={readingInfo ? `~${readingInfo.panels}` : "—"}
+                      note={
+                        targetPanels ? `cible : ${targetPanels}` : undefined
+                      }
                     />
-                    <StatCard
-                      label="Temps lecture"
+                    <StatRow
+                      icon={<Clock className="h-3.5 w-3.5 text-mint" />}
+                      label="Lecture"
                       value={readingInfo ? `~${readingInfo.minutes} min` : "—"}
                     />
-                    <StatCard
-                      label="Blocs verrouillés"
-                      value={lockedBlocks.length}
-                      color={lockedBlocks.length > 0 ? "emerald" : undefined}
-                    />
+                    {lockedBlocks.length > 0 && (
+                      <StatRow
+                        icon={<Lock className="h-3.5 w-3.5 text-emerald-500" />}
+                        label="Panels verrouillés"
+                        value={String(lockedBlocks.length)}
+                        valueColor="emerald"
+                      />
+                    )}
                   </div>
 
+                  <div className="border-t border-border/50" />
+
                   {/* Cible panels */}
-                  <div className="space-y-1.5">
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                      Cible panels par chapitre
-                    </p>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                        Cible panels/chapitre
+                      </p>
+                      {!editingTarget && (
+                        <button
+                          onClick={() => {
+                            setPanelsTargetDraft(
+                              String(project?.panels_target_per_chapter ?? 40)
+                            );
+                            setEditingTarget(true);
+                          }}
+                          className="text-xs text-primary hover:underline"
+                        >
+                          Modifier
+                        </button>
+                      )}
+                    </div>
                     {editingTarget ? (
                       <div className="flex gap-2">
                         <Input
@@ -644,82 +906,106 @@ export default function ScenarioChapterEditor() {
                           type="number"
                           min={1}
                           max={200}
-                          className="h-8 text-sm"
+                          className="h-7 text-sm"
                           autoFocus
                         />
                         <Button
                           size="sm"
-                          className="h-8 w-8 p-0"
+                          className="h-7 w-7 p-0"
                           onClick={saveTarget}
                         >
-                          <Check className="h-3.5 w-3.5" />
+                          <Check className="h-3 w-3" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-8 w-8 p-0"
+                          className="h-7 w-7 p-0"
                           onClick={() => setEditingTarget(false)}
                         >
-                          <X className="h-3.5 w-3.5" />
+                          <X className="h-3 w-3" />
                         </Button>
                       </div>
                     ) : (
-                      <button
-                        onClick={() => {
-                          setPanelsTargetDraft(
-                            String(project?.panels_target_per_chapter ?? 40)
-                          );
-                          setEditingTarget(true);
-                        }}
-                        className="flex items-center gap-2 text-sm font-semibold text-foreground hover:text-primary transition-colors"
-                      >
-                        {project?.panels_target_per_chapter ?? "—"} panels
-                        <Pencil className="h-3 w-3 opacity-50" />
-                      </button>
+                      <p className="text-2xl font-bold font-display text-foreground">
+                        {project?.panels_target_per_chapter ?? "—"}
+                        <span className="text-sm font-normal text-muted-foreground ml-1">
+                          panels
+                        </span>
+                      </p>
                     )}
                   </div>
 
                   {/* Progression */}
-                  {readingInfo && targetPanels && (
-                    <div className="space-y-1">
+                  {readingInfo && targetPanels ? (
+                    <div className="space-y-1.5">
                       <div className="flex justify-between text-xs text-muted-foreground">
-                        <span>Progression</span>
-                        <span>{progressPct}%</span>
+                        <span>Progression vers la cible</span>
+                        <span
+                          className={
+                            progressPct >= 90
+                              ? "text-emerald-500 font-medium"
+                              : ""
+                          }
+                        >
+                          {progressPct}%
+                        </span>
                       </div>
-                      <div className="h-2 rounded-full bg-primary/15 overflow-hidden">
+                      <div className="h-1.5 rounded-full bg-primary/15 overflow-hidden">
                         <div
-                          className="h-full rounded-full gradient-primary transition-all duration-500"
+                          className="h-full rounded-full gradient-primary transition-all duration-700"
                           style={{ width: `${progressPct}%` }}
                         />
                       </div>
                     </div>
-                  )}
+                  ) : null}
                 </div>
               </TabsContent>
 
-              {/* Onglet Blocs */}
-              <TabsContent value="blocs" className="mt-0">
+              {/* Onglet Panels */}
+              <TabsContent value="panels" className="mt-0">
                 <div className="p-4 space-y-4">
+                  <p className="text-xs text-muted-foreground italic mb-3">
+                    Identifiez les moments qui deviendront des{" "}
+                    <strong className="text-foreground">images</strong> dans
+                    votre webtoon.
+                  </p>
+
                   <Button
                     onClick={handleDetectBlocks}
                     disabled={isDetecting || !content.trim()}
                     className="w-full gap-2 gradient-primary text-primary-foreground"
+                    size="default"
                   >
                     {isDetecting ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Analyse en cours…
+                      </>
                     ) : (
-                      <Search className="h-4 w-4" />
+                      <>
+                        <Search className="h-4 w-4" />
+                        Détecter les panels
+                      </>
                     )}
-                    {isDetecting
-                      ? "Analyse en cours…"
-                      : "Détecter les blocs"}
                   </Button>
+
+                  {lockedBlocks.length > 0 && detectedBlocks.length === 0 && (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 rounded-lg p-2.5">
+                      <Lock className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                      <span>
+                        {lockedBlocks.length} panel
+                        {lockedBlocks.length > 1 ? "s" : ""} verrouillé
+                        {lockedBlocks.length > 1 ? "s" : ""} depuis la dernière
+                        détection.
+                      </span>
+                    </div>
+                  )}
 
                   {detectedBlocks.length > 0 && (
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
                         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                          {detectedBlocks.length} blocs suggérés
+                          {detectedBlocks.length} panels suggérés
                         </p>
                         <Button
                           variant="ghost"
@@ -782,7 +1068,7 @@ export default function ScenarioChapterEditor() {
                     <div className="space-y-2">
                       <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
                         <Lock className="h-3 w-3 text-emerald-500" />
-                        {lockedBlocks.length} bloc
+                        {lockedBlocks.length} panel
                         {lockedBlocks.length > 1 ? "s" : ""} verrouillé
                         {lockedBlocks.length > 1 ? "s" : ""}
                       </p>
@@ -814,8 +1100,8 @@ export default function ScenarioChapterEditor() {
 
                   {detectedBlocks.length === 0 && lockedBlocks.length === 0 && (
                     <p className="text-sm text-muted-foreground text-center py-4">
-                      Cliquez sur « Détecter les blocs » pour analyser votre
-                      chapitre et identifier les moments forts.
+                      Cliquez sur « Détecter les panels » pour identifier les
+                      moments forts qui deviendront des images.
                     </p>
                   )}
                 </div>
@@ -824,15 +1110,18 @@ export default function ScenarioChapterEditor() {
               {/* Onglet IA */}
               <TabsContent value="ia" className="mt-0">
                 <div className="p-4 space-y-4">
-                  <div className="space-y-2">
-                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                      IA Chapitre
+                  <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="h-3.5 w-3.5 text-primary" />
+                      <span className="text-xs font-semibold uppercase tracking-wide text-primary">
+                        IA Chapitre
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Améliorez ce chapitre pour le lecteur : rythme, dialogues,
+                      tension dramatique.
                     </p>
-                    <p className="text-xs text-muted-foreground">
-                      Améliorez ce chapitre pour le lecteur : rythme,
-                      dialogues, tension.
-                    </p>
-                    <div className="flex gap-2">
+                    <div className="space-y-2">
                       <Input
                         value={chapterAIPrompt}
                         onChange={(e) => setChapterAIPrompt(e.target.value)}
@@ -842,13 +1131,12 @@ export default function ScenarioChapterEditor() {
                             handleChapterAI();
                           }
                         }}
-                        placeholder="Ex : rendre la scène plus tendue…"
-                        className="h-8 text-sm flex-1"
+                        placeholder="Ex: rendre la scène finale plus tendue…"
+                        className="h-8 text-sm"
+                        disabled={chapterAI.isPending}
                       />
                       <Button
-                        size="sm"
-                        className="h-8 w-8 p-0 shrink-0"
-                        variant="outline"
+                        className="w-full gap-2 h-8 text-xs gradient-primary text-primary-foreground"
                         onClick={handleChapterAI}
                         disabled={
                           chapterAI.isPending ||
@@ -859,21 +1147,29 @@ export default function ScenarioChapterEditor() {
                         {chapterAI.isPending ? (
                           <Loader2 className="h-3.5 w-3.5 animate-spin" />
                         ) : (
-                          <Send className="h-3.5 w-3.5" />
+                          <Sparkles className="h-3.5 w-3.5" />
                         )}
+                        {chapterAI.isPending
+                          ? "Génération…"
+                          : "Réviser le chapitre"}
                       </Button>
                     </div>
+                    {!content.trim() && (
+                      <p className="text-xs text-amber-500">
+                        Écrivez d'abord du contenu.
+                      </p>
+                    )}
                   </div>
 
                   {chapterAIResult && (
-                    <div className="space-y-2 rounded-lg border border-primary/20 bg-primary/5 p-3">
+                    <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-3">
                       <div className="flex items-center justify-between gap-2">
-                        <p className="text-xs font-medium">
-                          Version proposée :
+                        <p className="text-xs font-semibold">
+                          Version proposée
                         </p>
                         <TextDiffLegend />
                       </div>
-                      <div className="max-h-48 overflow-y-auto rounded bg-muted/30 p-2.5 border border-border/30 text-sm">
+                      <div className="max-h-52 overflow-y-auto rounded bg-background p-2.5 text-xs">
                         <TextDiff
                           oldText={content}
                           newText={chapterAIResult}
@@ -903,20 +1199,34 @@ export default function ScenarioChapterEditor() {
                       </div>
                     </div>
                   )}
+                </div>
+              </TabsContent>
 
-                  {assets.length === 0 && (
-                    <p className="text-xs text-muted-foreground text-center py-2 border-t border-border/50 mt-4 pt-4">
-                      Astuce : créez des assets dans l'onglet Assets pour
-                      enrichir votre chapitre.
+              {/* Onglet Assets */}
+              <TabsContent value="assets" className="mt-0">
+                <div className="p-4 space-y-3">
+                  <p className="text-xs text-muted-foreground italic">
+                    Assets détectés dans ce chapitre. Survolez pour voir le
+                    détail.
+                  </p>
+                  {content.trim() ? (
+                    <ScenarioTextHighlighter
+                      text={content}
+                      assets={assets}
+                      onCreateAsset={undefined}
+                      className="text-sm leading-relaxed"
+                    />
+                  ) : (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      Commencez à écrire pour voir les assets détectés.
                     </p>
                   )}
                 </div>
               </TabsContent>
-            </Tabs>
-          </aside>
-        </div>
+            </div>
+          </Tabs>
+        </aside>
       </div>
-
-    </DashboardLayout>
+    </div>
   );
 }

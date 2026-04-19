@@ -2643,37 +2643,32 @@ export default function ChapterDetail() {
         }}
       >
         <DialogContent
-          className="max-w-[100vw] w-[100vw] h-[100vh] max-h-[100vh] overflow-hidden flex flex-col gap-0 p-0 bg-background border-0 rounded-none shadow-none [&>button]:right-4 [&>button]:top-4 [&>button]:h-9 [&>button]:w-9 [&>button]:p-0 [&>button]:inline-flex [&>button]:items-center [&>button]:justify-center [&>button]:rounded-full [&>button]:border [&>button]:border-white/20 [&>button]:bg-black/55 [&>button]:text-white [&>button]:opacity-100 [&>button]:shadow-md [&>button]:backdrop-blur-sm [&>button]:transition-colors [&>button]:duration-150 [&>button[data-state=open]]:bg-black/55 [&>button[data-state=open]]:text-white [&>button:hover]:border-primary/80 [&>button:hover]:bg-primary/85 [&>button:hover]:text-primary-foreground [&>button]:focus-visible:ring-2 [&>button]:focus-visible:ring-white/70 [&>button]:focus-visible:ring-offset-0 [&>button_svg]:m-0 [&>button_svg]:h-4 [&>button_svg]:w-4"
+          className="max-w-[100vw] w-[100vw] h-[100vh] max-h-[100vh] overflow-hidden flex flex-col gap-0 p-0 bg-background border-0 rounded-none shadow-none [&>button.absolute]:hidden"
           aria-describedby={undefined}
         >
           <DialogHeader className="px-6 pt-4 pb-4 border-b border-border/60 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 shrink-0">
             <div className="flex items-center justify-between gap-4">
-              <DialogTitle className="text-base font-medium">
+              <Link
+                to={`/dashboard/projects/${projectId}?tab=edition`}
+                className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                onClick={closePanelEditor}
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Retour au projet
+              </Link>
+              <DialogTitle className="text-base font-medium truncate">
                 Éditeur de canvas
               </DialogTitle>
-              <div className="flex items-center gap-3">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="gap-1.5 shrink-0"
-                  onClick={() => setSliceModalOpen(true)}
-                >
-                  <Download className="h-3.5 w-3.5" />
-                  Découper & télécharger
-                </Button>
-                <Link
-                  to={`/dashboard/projects/${projectId}`}
-                  className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-                  onClick={closePanelEditor}
-                >
-                  <ArrowLeft className="h-4 w-4" />
-                  Retour au projet
-                </Link>
-              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5 shrink-0"
+                onClick={() => setSliceModalOpen(true)}
+              >
+                <Download className="h-3.5 w-3.5" />
+                Découper & télécharger
+              </Button>
             </div>
-            <p className="text-xs text-muted-foreground">
-              Navigation d’édition via le menu à gauche (logo + sous-menu).
-            </p>
           </DialogHeader>
           {expandedPanelId && (() => {
             const panel = panels.find((p) => p.id === expandedPanelId);

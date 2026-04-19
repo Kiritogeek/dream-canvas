@@ -294,7 +294,9 @@ export function ScenarioSection({ projectId, project }: ScenarioSectionProps) {
         <Textarea
           value={aiPrompt}
           onChange={(e) => setAiPrompt(e.target.value)}
-          placeholder="Décrivez ce chapitre : lieu, personnages, situation, dialogues… Un prompt = un chapitre généré."
+          placeholder={chapters.length > 0
+            ? `Décrivez ce qui se passe dans le Chapitre ${chapters.length + 1} : lieu, personnages, événements, rebondissements…`
+            : "Décrivez le début de votre histoire : univers, personnages, situation de départ…"}
           rows={4}
           className="text-base"
         />
@@ -312,9 +314,16 @@ export function ScenarioSection({ projectId, project }: ScenarioSectionProps) {
               return;
             }
             const recentChapters = chapters.slice(-SCENARIO_RECENT_CHAPTERS_FOR_IA);
+            const nextChapterNumber = chapters.length + 1;
             const existingContent =
               recentChapters.length > 0
-                ? recentChapters.map((c) => {
+                ? recentChapters.map((c, index) => {
+                    const isLast = index === recentChapters.length - 1;
+                    if (isLast) {
+                      // Dernier chapitre : contenu complet pour que l'IA enchaîne précisément
+                      const content = c.content?.trim() ?? "(vide)";
+                      return `Chapitre ${c.chapter_number} : ${c.title}\n${content}`;
+                    }
                     const summary = (c as { ai_summary?: string | null }).ai_summary?.trim();
                     if (summary) {
                       return `Chapitre ${c.chapter_number} (${c.title}) — résumé : ${summary}`;
@@ -330,6 +339,7 @@ export function ScenarioSection({ projectId, project }: ScenarioSectionProps) {
                 prompt: aiPrompt.trim(),
                 existing_content: existingContent,
                 project_description: project.description ?? undefined,
+                next_chapter_number: nextChapterNumber,
               },
               {
                 onSuccess: (data) => {
@@ -357,8 +367,8 @@ export function ScenarioSection({ projectId, project }: ScenarioSectionProps) {
             <>
               <Sparkles className="h-4 w-4" />
               {chapters.length > 0
-                ? "Générer le prochain chapitre"
-                : "Générer le premier chapitre"}
+                ? `Générer le Chapitre ${chapters.length + 1}`
+                : "Générer le Chapitre 1"}
             </>
           )}
         </Button>

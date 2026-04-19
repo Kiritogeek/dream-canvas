@@ -1,5 +1,10 @@
 // Hook — Plan utilisateur et usage mensuel
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+// Le changement de plan passe OBLIGATOIREMENT par Stripe :
+//   goToCheckout() → Stripe Checkout (Free → Pro)
+//   goToPortal()   → Stripe Customer Portal (annulation, moyen de paiement, etc.)
+// La colonne profiles.plan n'est jamais modifiée côté client (cf. migration 20260418120000).
+
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import type { UserPlan, UsageInfo, TierLimits } from "@/types";
@@ -41,17 +46,41 @@ async function fetchMonthlyUsage(userId: string): Promise<number> {
   return count ?? 0;
 }
 
-/** Met à jour le plan dans la table profiles */
-async function updateUserPlan(userId: string, newPlan: UserPlan): Promise<void> {
-  const { error } = await supabase
-    .from("profiles")
-    .update({ plan: newPlan })
-    .eq("user_id", userId);
-
-  if (error) throw error;
+/** Crée une session Stripe Checkout → retourne l'URL de paiement */
+async function createCheckoutSession(accessToken: string): Promise<string> {
+  const res = await fetch(
+    `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-checkout-session`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+    }
+  );
+  if (!res.ok) throw new Error("Erreur création session Stripe");
+  const { url } = (await res.json()) as { url: string };
+  return url;
 }
 
-/** Hook combiné : plan + usage + limites + mutation */
+/** Crée une session Stripe Customer Portal → retourne l'URL de gestion */
+async function createPortalSession(accessToken: string): Promise<string> {
+  const res = await fetch(
+    `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-portal-session`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+    }
+  );
+  if (!res.ok) throw new Error("Erreur création session Portal");
+  const { url } = (await res.json()) as { url: string };
+  return url;
+}
+
+/** Hook combiné : plan + usage + limites + actions Stripe */
 export function useUserPlan() {
   const { user } = useAuth();
   const qc = useQueryClient();
@@ -70,14 +99,6 @@ export function useUserPlan() {
     staleTime: 30_000,
   });
 
-  const changePlanMutation = useMutation({
-    mutationFn: (newPlan: UserPlan) => updateUserPlan(user!.id, newPlan),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["userPlan"] });
-      qc.invalidateQueries({ queryKey: ["monthlyUsage"] });
-    },
-  });
-
   const plan: UserPlan = planQuery.data ?? "free";
   const limits: TierLimits = TIER_CONFIG[plan];
   const monthlyUsage = usageQuery.data ?? 0;
@@ -88,12 +109,35 @@ export function useUserPlan() {
     plan,
   };
 
+  /** Redirige vers Stripe Checkout pour passer Pro */
+  const goToCheckout = async () => {
+    await supabase.auth.refreshSession();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session) throw new Error("Session Supabase introuvable");
+    const url = await createCheckoutSession(session.access_token);
+    window.location.href = url;
+  };
+
+  /** Redirige vers Stripe Customer Portal pour gérer son abonnement */
+  const goToPortal = async () => {
+    await supabase.auth.refreshSession();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session) throw new Error("Session Supabase introuvable");
+    const url = await createPortalSession(session.access_token);
+    window.location.href = url;
+  };
+
   return {
     plan,
     limits,
     usageInfo,
     isLoading: planQuery.isLoading || usageQuery.isLoading,
-    changePlan: changePlanMutation,
+    goToCheckout,
+    goToPortal,
     /** Invalider le cache pour forcer un rafraîchissement */
     invalidate: () => {
       qc.invalidateQueries({ queryKey: ["userPlan"] });

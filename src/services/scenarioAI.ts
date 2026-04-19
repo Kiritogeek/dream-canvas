@@ -8,6 +8,7 @@ export interface ScenarioAIRequest {
   prompt: string;
   existing_content?: string;
   project_description?: string;
+  next_chapter_number?: number;
 }
 
 export interface ChapterAIRequest {
@@ -121,13 +122,17 @@ async function callEdgeFunction<T>(payload: AIRequest): Promise<T> {
     if (res.status === 401) {
       throw new Error(MSG_401);
     }
-    const details = resBody?.details ?? resBody?.error ?? res.statusText;
-    const msg =
-      typeof details === "string"
-        ? details
-        : typeof details === "object" && details !== null
-          ? (details as { message?: string }).message ?? JSON.stringify(details)
-          : String(details);
+    // 429 = limite quotidienne / TPM Groq atteinte. Toujours afficher le
+    // message court de l'Edge Function plutôt que le JSON Groq brut.
+    if (res.status === 429 || resBody?.rateLimited) {
+      throw new Error(
+        resBody?.error ??
+          "Limite quotidienne IA atteinte. Réessayez dans quelques heures."
+      );
+    }
+    const errorField = typeof resBody?.error === "string" ? resBody.error : res.statusText;
+    const detailsField = typeof resBody?.details === "string" ? resBody.details : null;
+    const msg = detailsField ? `${errorField} — ${detailsField}` : errorField;
     throw new Error(msg || `Erreur serveur (${res.status})`);
   }
 

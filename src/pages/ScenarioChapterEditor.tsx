@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo, type ReactNode } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
   Pencil,
@@ -8,9 +8,8 @@ import {
   Check,
   X,
   Sparkles,
-  Search,
+  Scissors,
   Lock,
-  Wand2,
   PenLine,
   Layers,
   LayoutPanelTop,
@@ -31,17 +30,12 @@ import {
 import { useProject, useUpdateProject } from "@/hooks/useProjects";
 import { useAssets } from "@/hooks/useAssets";
 import { useScenarioAI } from "@/hooks/useScenarioAI";
+import { useUserPlan } from "@/hooks/useUserPlan";
 import { callDetectBlocks, callGenerateAiSummary } from "@/services/scenarioAI";
 import { estimatePanelCount } from "@/services/panels";
-import { TextDiff, TextDiffLegend } from "@/components/ui/TextDiff";
 import { ScenarioTextHighlighter } from "@/components/project/ScenarioTextHighlighter";
 import { useToast } from "@/hooks/use-toast";
 import type { LockedBlock, DetectedBlock } from "@/types";
-
-// NOTE : Les colonnes `ai_summary` et `locked_blocks` n'existent pas (encore)
-// dans le schéma `scenario_chapters`. On garde ces données en état local
-// pendant la session. Quand la migration sera ajoutée, il suffira de passer
-// ces champs dans `updateChapter.mutate({ updates: { ... } })`.
 
 // ═══════════════════════════════════════════════════════════════
 // Sous-composants
@@ -211,6 +205,33 @@ function AnnotatedTextView({
   );
 }
 
+// ─── DiffColumns ───────────────────────────────────────────────
+
+function DiffColumns({ original, revised }: { original: string; revised: string }) {
+  const origParas = original.split(/\n\n+/);
+  const revisedParas = revised.split(/\n\n+/);
+
+  return (
+    <>
+      {revisedParas.map((para, i) => {
+        const isChanged = para.trim() !== (origParas[i] ?? "").trim();
+        return (
+          <p
+            key={i}
+            className={`mb-4 last:mb-0 rounded px-1 -mx-1 transition-colors ${
+              isChanged
+                ? "bg-amber-400/10 text-foreground"
+                : "text-foreground"
+            }`}
+          >
+            {para}
+          </p>
+        );
+      })}
+    </>
+  );
+}
+
 // ═══════════════════════════════════════════════════════════════
 // ScenarioChapterEditor
 // ═══════════════════════════════════════════════════════════════
@@ -221,6 +242,7 @@ export default function ScenarioChapterEditor() {
     chapterId: string;
   }>();
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   // Data
   const { data: chapter, isLoading: isLoadingChapter } =
@@ -230,6 +252,8 @@ export default function ScenarioChapterEditor() {
   const updateChapter = useUpdateScenarioChapter();
   const updateProject = useUpdateProject();
   const chapterAI = useScenarioAI();
+  const { plan } = useUserPlan();
+  const isPro = plan === "pro";
 
   // Local state — content / title
   const [content, setContent] = useState("");
@@ -252,12 +276,6 @@ export default function ScenarioChapterEditor() {
   const [showIABar, setShowIABar] = useState(false);
 
   // Local state — sélection / IA
-  const [selectedText, setSelectedText] = useState<{
-    text: string;
-    start: number;
-    end: number;
-  } | null>(null);
-  const [passagePrompt, setPassagePrompt] = useState("");
   const [chapterAIPrompt, setChapterAIPrompt] = useState("");
   const [chapterAIResult, setChapterAIResult] = useState<string | null>(null);
 
@@ -273,9 +291,16 @@ export default function ScenarioChapterEditor() {
   const [editingTarget, setEditingTarget] = useState(false);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const lastScrollTopRef = useRef<number>(0);
+  // Bloque onScroll pendant le toggle assets pour éviter que l'effondrement
+  // du contenu n'écrase lastScrollTopRef avec une valeur clampée.
+  const isTransitioningRef = useRef<boolean>(false);
 
   // Ref pour éviter de marquer "dirty" pendant la synchro initiale
   const initialSyncDoneRef = useRef(false);
+  // Throttle ai_summary : max 1 appel Groq toutes les 2 min pour économiser le budget TPM
+  const lastAiSummaryCallRef = useRef<number>(0);
 
   // ── Sync content depuis la BDD (chargement initial) ──────────
 
@@ -332,7 +357,22 @@ export default function ScenarioChapterEditor() {
     if (!ta) return;
     ta.style.height = "auto";
     ta.style.height = `${ta.scrollHeight}px`;
-  }, [content, viewMode]);
+  }, [content, viewMode, showAssets]);
+
+  // ── Préserver la position de scroll lors du toggle Assets ────
+  // setTimeout(0) garantit que l'auto-resize a déjà tourné avant de restaurer.
+
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    const saved = lastScrollTopRef.current;
+    isTransitioningRef.current = true;
+    const t = setTimeout(() => {
+      container.scrollTop = saved;
+      isTransitioningRef.current = false;
+    }, 50);
+    return () => clearTimeout(t);
+  }, [showAssets]);
 
   // ── Calcul lecture (debounce 800ms) ──────────────────────────
 
@@ -375,9 +415,9 @@ export default function ScenarioChapterEditor() {
           onSuccess: () => {
             setSaveState("clean");
             const words = content.trim().split(/\s+/).filter(Boolean).length;
-            if (words >= 50) {
-              // Fire-and-forget : résumé IA (non persistant tant que la colonne
-              // n'existe pas côté DB). On ignore silencieusement toute erreur.
+            const now = Date.now();
+            if (words >= 50 && now - lastAiSummaryCallRef.current > 120_000) {
+              lastAiSummaryCallRef.current = now;
               callGenerateAiSummary({
                 mode: "ai_summary",
                 chapter_content: content,
@@ -461,52 +501,6 @@ export default function ScenarioChapterEditor() {
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [handleManualSave]);
-
-  // ── Textarea selection ───────────────────────────────────────
-
-  const handleTextareaSelect = useCallback(() => {
-    const ta = textareaRef.current;
-    if (!ta) return;
-    const { selectionStart: start, selectionEnd: end } = ta;
-    if (end > start && content.slice(start, end).trim().length > 10) {
-      setSelectedText({ text: content.slice(start, end), start, end });
-    } else {
-      setSelectedText(null);
-    }
-  }, [content]);
-
-  // ── Modifier un passage via l'IA ──────────────────────────────
-
-  const handleModifyPassage = useCallback(() => {
-    if (!chapter || !selectedText || !passagePrompt.trim()) return;
-    chapterAI.mutate(
-      {
-        mode: "chapter",
-        prompt: passagePrompt.trim(),
-        chapter_title: chapter.title,
-        chapter_content: selectedText.text,
-        chapter_number: chapter.chapter_number,
-      },
-      {
-        onSuccess: (data) => {
-          const newContent =
-            content.slice(0, selectedText.start) +
-            data.text +
-            content.slice(selectedText.end);
-          setContent(newContent);
-          setSelectedText(null);
-          setPassagePrompt("");
-          toast({ title: "Passage modifié par l'IA" });
-        },
-        onError: (err) =>
-          toast({
-            title: "Erreur IA",
-            description: err.message,
-            variant: "destructive",
-          }),
-      }
-    );
-  }, [chapter, selectedText, passagePrompt, chapterAI, content, toast]);
 
   // ── Détecter les blocs ────────────────────────────────────────
 
@@ -759,58 +753,27 @@ export default function ScenarioChapterEditor() {
           )}
         </div>
 
-        {/* Zone droite : stats chips OU boutons diff selon le mode */}
-        {chapterAIResult ? (
-          /* Mode diff : Accepter / Rejeter */
-          <div className="flex items-center gap-2 shrink-0">
-            <Button
-              size="sm"
-              className="h-7 gap-1.5 gradient-primary text-primary-foreground text-xs"
-              onClick={() => {
-                setContent(chapterAIResult);
-                setChapterAIResult(null);
-                setChapterAIPrompt("");
-                setShowIABar(false);
-                toast({ title: "Version acceptée" });
-              }}
-            >
-              <Check className="h-3 w-3" />
-              Accepter
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-7 gap-1.5 text-xs"
-              onClick={() => setChapterAIResult(null)}
-            >
-              <X className="h-3 w-3" />
-              Rejeter
-            </Button>
-          </div>
-        ) : (
-          /* Mode normal : chips stats + boutons action */
-          <div className="flex items-center gap-2 shrink-0">
-            {readingInfo && (
-              <>
-                <span className="flex items-center gap-1 text-xs text-muted-foreground bg-muted/60 rounded-full px-2.5 py-1">
-                  <Type className="h-3 w-3" />
-                  {readingInfo.words.toLocaleString("fr-FR")} mots
+        {/* Zone droite : stats chips — toujours visibles */}
+        <div className="flex items-center gap-2 shrink-0">
+          {readingInfo && (
+            <>
+              <span className="flex items-center gap-1 text-xs text-muted-foreground bg-muted/60 rounded-full px-2.5 py-1">
+                <Type className="h-3 w-3" />
+                {readingInfo.words.toLocaleString("fr-FR")} mots
+              </span>
+              <span className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400 bg-amber-500/10 rounded-full px-2.5 py-1">
+                <LayoutPanelTop className="h-3 w-3" />
+                ~{readingInfo.panels} panels
+              </span>
+              {lockedBlocks.length > 0 && (
+                <span className="flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 rounded-full px-2.5 py-1">
+                  <Lock className="h-3 w-3" />
+                  {lockedBlocks.length} verrouillé{lockedBlocks.length > 1 ? "s" : ""}
                 </span>
-                <span className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400 bg-amber-500/10 rounded-full px-2.5 py-1">
-                  <LayoutPanelTop className="h-3 w-3" />
-                  ~{readingInfo.panels} panels
-                </span>
-                {lockedBlocks.length > 0 && (
-                  <span className="flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 rounded-full px-2.5 py-1">
-                    <Lock className="h-3 w-3" />
-                    {lockedBlocks.length} verrouillé{lockedBlocks.length > 1 ? "s" : ""}
-                  </span>
-                )}
-              </>
-            )}
-
-          </div>
-        )}
+              )}
+            </>
+          )}
+        </div>
 
         {/* Save state + bouton save */}
         <div className="text-xs text-muted-foreground flex items-center gap-1 shrink-0">
@@ -880,10 +843,13 @@ export default function ScenarioChapterEditor() {
               </div>
             )}
 
-            {/* Toggle Assets — ON/OFF indépendant */}
-            {!chapterAIResult && (
+            {/* Toggle Assets — ON/OFF, uniquement en mode Écriture */}
+            {!chapterAIResult && viewMode === "edit" && (
               <button
-                onClick={() => setShowAssets((v) => !v)}
+                onClick={() => {
+                  lastScrollTopRef.current = scrollContainerRef.current?.scrollTop ?? lastScrollTopRef.current;
+                  setShowAssets((v) => !v);
+                }}
                 className={`ml-auto flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border transition-colors ${
                   showAssets
                     ? "bg-primary/10 border-primary/40 text-primary"
@@ -902,16 +868,48 @@ export default function ScenarioChapterEditor() {
           </div>
 
           {/* Zone texte scrollable — UNE scrollbar */}
-          <div className="flex-1 overflow-y-auto">
-            <div className="max-w-3xl mx-auto px-8 py-8">
-              {chapterAIResult ? (
-                <>
-                  <div className="flex items-center gap-2 mb-4">
-                    <TextDiffLegend />
+          <div
+            ref={scrollContainerRef}
+            className={`flex-1 ${chapterAIResult ? "overflow-hidden flex flex-col min-h-0" : "overflow-y-auto"}`}
+            onScroll={(e) => { if (!isTransitioningRef.current) lastScrollTopRef.current = e.currentTarget.scrollTop; }}
+          >
+            {chapterAIResult ? (
+              /* Vue deux colonnes — original vs proposition IA */
+              <div className="flex gap-0 flex-1 min-h-0 h-full overflow-hidden">
+                {/* Colonne gauche — original */}
+                <div className="flex-1 flex flex-col min-w-0 px-8 py-8 pb-24 overflow-y-auto">
+                  <div className="max-w-xl mx-auto w-full">
+                    <div className="text-xs font-medium text-muted-foreground mb-4 flex items-center gap-1.5">
+                      <span className="h-2 w-2 rounded-full bg-muted-foreground/40 inline-block" />
+                      Original
+                    </div>
+                    <div className="text-base leading-[1.8] text-muted-foreground/70 whitespace-pre-wrap">
+                      {content}
+                    </div>
                   </div>
-                  <TextDiff oldText={content} newText={chapterAIResult} />
-                </>
-              ) : viewMode === "visuels" ? (
+                </div>
+
+                {/* Séparateur */}
+                <div className="w-px bg-border/60 shrink-0" />
+
+                {/* Colonne droite — proposition IA */}
+                <div className="flex-1 flex flex-col min-w-0 px-8 py-8 pb-24 overflow-y-auto">
+                  <div className="max-w-xl mx-auto w-full">
+                    <div className="text-xs font-medium text-amber-400 mb-4 flex items-center gap-1.5">
+                      <Sparkles className="h-3 w-3" />
+                      Proposition IA
+                    </div>
+                    <div className="text-base leading-[1.8]">
+                      <DiffColumns original={content} revised={chapterAIResult} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            {!chapterAIResult && (
+            <div className="max-w-3xl mx-auto px-8 py-8">
+              {viewMode === "visuels" ? (
                 /* Vue Panels : cartes au centre, remplace le texte */
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
@@ -941,7 +939,7 @@ export default function ScenarioChapterEditor() {
                     <div className="flex flex-col items-center justify-center py-20 gap-3 text-center">
                       <Layers className="h-8 w-8 text-muted-foreground/20" />
                       <p className="text-sm text-muted-foreground">
-                        Aucun panel détecté. Cliquez sur «&nbsp;Détecter les panels&nbsp;» pour identifier les images à générer.
+                        Aucun panel détecté. Cliquez sur «&nbsp;Diviser en panels&nbsp;» pour identifier les images à générer.
                       </p>
                     </div>
                   ) : (
@@ -958,7 +956,6 @@ export default function ScenarioChapterEditor() {
                                 ? "border-emerald-500/40 bg-emerald-500/5"
                                 : "border-border bg-card/60 hover:border-primary/30"
                             }`}
-                            style={{ aspectRatio: "8 / 5" }}
                           >
                             {/* En-tête */}
                             <div className="flex items-center justify-between gap-2 px-5 py-3 border-b border-border/50 shrink-0">
@@ -983,13 +980,13 @@ export default function ScenarioChapterEditor() {
                               </button>
                             </div>
 
-                            {/* Corps — description centrée */}
-                            <div className="flex-1 flex flex-col justify-center px-8 py-6 gap-4">
-                              <p className="text-base font-medium leading-relaxed text-foreground">
+                            {/* Corps */}
+                            <div className="flex flex-col px-6 py-5 gap-4">
+                              <p className="text-base leading-relaxed text-foreground">
                                 {block.description}
                               </p>
-                              <p className="text-xs text-muted-foreground italic line-clamp-3">
-                                « {block.text_excerpt} »
+                              <p className="text-xs text-muted-foreground italic line-clamp-5 border-l-2 border-border pl-3">
+                                {block.text_excerpt}
                               </p>
                             </div>
                           </div>
@@ -999,71 +996,73 @@ export default function ScenarioChapterEditor() {
                   )}
                 </div>
               ) : showAssets ? (
-                <ScenarioTextHighlighter
-                  text={content}
-                  assets={assets}
-                  onCreateAsset={undefined}
-                  className="text-base leading-[1.8]"
-                  hideIndicator
-                />
+                <>
+                  <ScenarioTextHighlighter
+                    text={content}
+                    assets={assets}
+                    onCreateAsset={undefined}
+                    className="text-base leading-[1.8]"
+                    hideIndicator
+                  />
+                  <div style={{ height: "40vh" }} />
+                </>
               ) : (
-                <textarea
-                  ref={textareaRef}
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
-                  onMouseUp={handleTextareaSelect}
-                  onKeyUp={handleTextareaSelect}
-                  placeholder="Commencez à écrire votre chapitre..."
-                  className="w-full resize-none bg-transparent border-0 focus:ring-0 focus:outline-none text-base leading-[1.8] placeholder:text-muted-foreground/40 min-h-[300px]"
-                  style={{ height: "auto" }}
-                />
+                <>
+                  <textarea
+                    ref={textareaRef}
+                    value={content}
+                    onChange={(e) => setContent(e.target.value)}
+                    placeholder="Commencez à écrire votre chapitre..."
+                    className="w-full resize-none bg-transparent border-0 focus:ring-0 focus:outline-none text-base leading-[1.8] placeholder:text-muted-foreground/40 min-h-[300px]"
+                    style={{ height: "auto" }}
+                  />
+                  <div style={{ height: "40vh" }} />
+                </>
               )}
             </div>
+            )}
           </div>
-
-          {/* Barre sélection */}
-          {selectedText && viewMode === "edit" && !chapterAIResult && (
-            <div className="flex items-center gap-3 px-6 py-3 bg-background/95 backdrop-blur border-t border-border shrink-0">
-              <Pencil className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-              <span className="text-xs text-muted-foreground italic flex-1 truncate">
-                « {selectedText.text.slice(0, 60)}
-                {selectedText.text.length > 60 ? "…" : ""} »
-              </span>
-              <Input
-                value={passagePrompt}
-                onChange={(e) => setPassagePrompt(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleModifyPassage();
-                }}
-                placeholder="Instruction pour l'IA…"
-                className="h-8 text-sm w-64"
-              />
-              <Button
-                size="sm"
-                className="h-8 gap-1 gradient-primary text-primary-foreground"
-                onClick={handleModifyPassage}
-                disabled={!passagePrompt.trim() || chapterAI.isPending}
-              >
-                {chapterAI.isPending ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Wand2 className="h-3.5 w-3.5" />
-                )}
-                Modifier
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-8 w-8 p-0"
-                onClick={() => setSelectedText(null)}
-              >
-                <X className="h-3.5 w-3.5" />
-              </Button>
-            </div>
-          )}
 
         </main>
       </div>
+
+      {/* Barre d'action diff — proposition IA accepter/annuler */}
+      {chapterAIResult && (
+        <div className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-between gap-4 px-6 py-3 bg-background/95 backdrop-blur-xl border-t border-border shadow-dream">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Sparkles className="h-4 w-4 text-amber-400 shrink-0" />
+            <span>
+              Proposition IA — les passages{" "}
+              <span className="text-amber-400 font-medium">surlignés</span>{" "}
+              ont été modifiés
+            </span>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setChapterAIResult(null)}
+            >
+              <X className="h-3.5 w-3.5 mr-1.5" />
+              Annuler
+            </Button>
+            <Button
+              size="sm"
+              className="gradient-primary text-primary-foreground shadow-dream"
+              onClick={() => {
+                setContent(chapterAIResult);
+                setChapterAIResult(null);
+                setChapterAIPrompt("");
+                setShowIABar(false);
+                toast({ title: "Texte mis à jour" });
+              }}
+            >
+              <Check className="h-3.5 w-3.5 mr-1.5" />
+              Remplacer mon texte
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Barre IA chapitre — fixed au bas de l'écran pour éviter tout masquage */}
       {showIABar && !chapterAIResult && (
@@ -1119,16 +1118,34 @@ export default function ScenarioChapterEditor() {
           </button>
 
           <button
-            onClick={handleDetectBlocks}
-            disabled={isDetecting || !content.trim()}
-            className="flex items-center gap-2 pl-4 pr-5 h-12 rounded-full gradient-primary text-primary-foreground shadow-dream text-sm font-semibold transition-all duration-200 hover:scale-[1.03] disabled:opacity-50 disabled:pointer-events-none"
+            onClick={isPro ? handleDetectBlocks : () => navigate("/dashboard/plans")}
+            disabled={isDetecting || (isPro && !content.trim())}
+            title={!isPro ? "Fonctionnalité Pro — Cliquez pour mettre à niveau" : undefined}
+            className={`flex items-center gap-2 pl-4 pr-5 h-12 rounded-full text-sm font-semibold transition-all duration-200 disabled:opacity-50 disabled:pointer-events-none ${
+              isPro
+                ? "gradient-primary text-primary-foreground shadow-dream hover:scale-[1.03]"
+                : "bg-white/10 text-white/60 border border-white/15 cursor-pointer hover:bg-white/15"
+            }`}
           >
             {isDetecting ? (
-              <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+              <>
+                <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                <span>Division en cours…</span>
+              </>
+            ) : isPro ? (
+              <>
+                <Scissors className="h-4 w-4 shrink-0" />
+                <span>Diviser en panels</span>
+              </>
             ) : (
-              <Search className="h-4 w-4 shrink-0" />
+              <>
+                <Lock className="h-4 w-4 shrink-0" />
+                <span>Diviser en panels</span>
+                <span className="ml-1 text-[11px] bg-amber-400/30 text-amber-300 border border-amber-400/40 px-2 py-0.5 rounded-full font-bold tracking-wide">
+                  PRO
+                </span>
+              </>
             )}
-            <span>{isDetecting ? "Analyse…" : "Détecter les panels"}</span>
           </button>
         </div>
       )}

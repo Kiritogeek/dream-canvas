@@ -80,7 +80,9 @@ import {
   PANEL_HEIGHT_DEFAULT,
   PANEL_HEIGHT_MIN,
   PANEL_HEIGHT_MAX,
+  estimatePanelCount,
 } from "@/services/panels";
+import { callSuggestBlockPrompt } from "@/services/scenarioAI";
 import { PanelCountBadge } from "@/components/project/PanelCountBadge";
 import { updateScenarioChapter } from "@/services/scenarioChapters";
 import { renderPanelToCanvas, renderChapterToCanvas, downloadCanvas } from "@/services/exportPanel";
@@ -246,6 +248,8 @@ export default function ChapterDetail() {
   /** Brouillons des prompts par bloc : clé = `${panelId}-${blockId}` */
   const [blockPromptDrafts, setBlockPromptDrafts] = useState<Record<string, string>>({});
   const [blockNameDrafts, setBlockNameDrafts] = useState<Record<string, string>>({});
+  /** Blocs en train de générer une suggestion IA de prompt (clé = `${panelId}-${blockId}`). */
+  const [suggestingBlockKeys, setSuggestingBlockKeys] = useState<Set<string>>(() => new Set());
   /** Brouillon hauteur du panel (modale édition), chaîne pour autoriser le champ vide ; null = afficher la valeur réelle */
   const [panelHeightDraft, setPanelHeightDraft] = useState<string | null>(null);
   /** Bloc en cours d'édition de prompt : clé = `${panelId}-${blockId}` */
@@ -1190,6 +1194,62 @@ export default function ChapterDetail() {
       );
     };
 
+    /**
+     * Suggère un prompt image via l'IA pour un bloc vide.
+     * Contexte fourni à l'IA : chapitre texte courant, résumés IA des chapitres précédents,
+     * prompts des blocs précédents dans ce panel.
+     */
+    const handleSuggestBlockPrompt = async (block: PanelBlock) => {
+      const blockKey = `${panel.id}-${block.id}`;
+      const blockIndex = blocks.findIndex((b) => b.id === block.id);
+      if (blockIndex < 0) return;
+
+      setSuggestingBlockKeys((prev) => {
+        const next = new Set(prev);
+        next.add(blockKey);
+        return next;
+      });
+
+      try {
+        const previousPrompts = blocks
+          .slice(0, blockIndex)
+          .map((b) => b.prompt)
+          .filter((p): p is string => !!p?.trim());
+
+        const previousSummaries =
+          scenarioChapters
+            ?.filter((sc) => sc.chapter_number < (chapter?.chapter_number ?? 999))
+            .sort((a, b) => a.chapter_number - b.chapter_number)
+            .map((sc) => sc.ai_summary?.trim() ?? sc.content?.slice(0, 200) ?? "")
+            .filter(Boolean)
+            .join("\n\n") || undefined;
+
+        const result = await callSuggestBlockPrompt({
+          mode: "suggest_block_prompt",
+          chapter_content: scenarioChapter?.content ?? "",
+          previous_summaries: previousSummaries,
+          previous_prompts: previousPrompts,
+        });
+
+        const suggested = result.text.slice(0, 400);
+        setBlockPromptDrafts((prev) => ({ ...prev, [blockKey]: suggested }));
+        handleSaveBlockPrompt(block, suggested, { silent: true });
+        toast({ title: "Prompt suggéré par l'IA" });
+      } catch (err) {
+        toast({
+          title: "Erreur",
+          description: err instanceof Error ? err.message : String(err),
+          variant: "destructive",
+        });
+      } finally {
+        setSuggestingBlockKeys((prev) => {
+          const next = new Set(prev);
+          next.delete(blockKey);
+          return next;
+        });
+      }
+    };
+
     const handleGenerateBlock = (block: PanelBlock) => {
       const promptToUse = (blockPromptDrafts[`${panel.id}-${block.id}`] ?? block.prompt ?? "").trim() || (panel.prompt ?? "").trim();
       if (!project) return;
@@ -1376,6 +1436,27 @@ export default function ChapterDetail() {
                           placeholder="Description visuelle de ce bloc…"
                           className="min-h-[100px] text-sm resize-y"
                         />
+                        {!block.image_url && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="gap-1.5 h-7 text-xs"
+                            disabled={suggestingBlockKeys.has(blockKey) || !scenarioChapter?.content?.trim()}
+                            onClick={() => handleSuggestBlockPrompt(block)}
+                            title={
+                              !scenarioChapter?.content?.trim()
+                                ? "Associez un chapitre de scénario avec du contenu pour utiliser l'IA"
+                                : "L'IA suggère un prompt à partir du contexte (chapitre + blocs précédents)"
+                            }
+                          >
+                            {suggestingBlockKeys.has(blockKey) ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <Sparkles className="h-3 w-3" />
+                            )}
+                            Suggérer un prompt
+                          </Button>
+                        )}
                       </div>
                       <div className="space-y-2">
                         <span className="text-xs font-medium text-muted-foreground">Dimensions</span>
@@ -2272,13 +2353,26 @@ export default function ChapterDetail() {
                 {chapter.synopsis}
               </p>
             )}
-            <div className="mt-1">
+            <div className="mt-1 flex flex-wrap items-center gap-2">
               <PanelCountBadge
                 content={scenarioChapter?.content}
                 panelsTarget={project?.panels_target_per_chapter}
                 actualCount={panels.length}
                 variant="editor"
               />
+              {(() => {
+                const scContent = scenarioChapter?.content;
+                if (!scContent) return null;
+                const words = scContent.trim().split(/\s+/).filter(Boolean).length;
+                if (words < 30) return null;
+                const mins = Math.max(1, Math.round((words / 200) * 60 / 60));
+                const estimated = estimatePanelCount(scContent);
+                return (
+                  <span className="text-xs text-muted-foreground">
+                    ~{estimated} panels · ~{mins} min de lecture
+                  </span>
+                );
+              })()}
             </div>
           </div>
         </div>

@@ -18,3 +18,21 @@ verify_jwt = false
 
 [functions.generate-landing-showcase]
 verify_jwt = false
+
+# Stripe : checkout + portal exigent un JWT utilisateur valide (verifyUserFromToken en interne).
+# Même remarque que les autres fonctions : verify_jwt=false à la passerelle, mais vérification
+# assurée dans le handler via /auth/v1/user.
+[functions.create-checkout-session]
+verify_jwt = false
+
+[functions.create-portal-session]
+verify_jwt = false
+
+# Webhook Stripe : jamais de JWT utilisateur — Stripe envoie sa propre signature (stripe-signature).
+# La vérification est faite dans le handler via stripe.webhooks.constructEventAsync.
+[functions.stripe-webhook]
+verify_jwt = false
+
+# Admin : override plan (kiritogeek@gmail.com uniquement, vérification email dans le handler).
+[functions.admin-set-plan]
+verify_jwt = false

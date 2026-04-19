@@ -65,18 +65,21 @@ export const buildScenarioPrompt = (
   opts?: {
     existingContent?: string;
     projectDescription?: string;
+    nextChapterNumber?: number;
   }
 ): string => {
   let prompt = "";
 
-  // Contexte du projet
   if (opts?.projectDescription?.trim()) {
     prompt += `CONTEXTE DU PROJET :\n${opts.projectDescription.trim()}\n\n`;
   }
 
-  // Scénario existant : chapitres les plus récents uniquement (limite taille prompt)
   if (opts?.existingContent?.trim()) {
-    prompt += `SCÉNARIO EXISTANT (chapitres les plus récents — contexte pour enchaîner) :\n\n${opts.existingContent.trim()}\n\n`;
+    prompt += `SCÉNARIO EXISTANT (chapitres les plus récents — le dernier est fourni en intégralité pour assurer une continuité parfaite) :\n\n${opts.existingContent.trim()}\n\n`;
+  }
+
+  if (opts?.nextChapterNumber) {
+    prompt += `OBJECTIF : Écrire le Chapitre ${opts.nextChapterNumber} de l'histoire, en enchaînant naturellement depuis la fin du dernier chapitre ci-dessus.\n\n`;
   }
 
   // Instruction de l'auteur (toujours en dernier = priorité maximale)

@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   Check,
@@ -9,13 +11,17 @@ import {
   Users,
   Eye,
   Crown,
+  Loader2,
+  Settings,
+  FlaskConical,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useUserPlan } from "@/hooks/useUserPlan";
+import { useAuth } from "@/hooks/useAuth";
 import DashboardLayout from "@/components/DashboardLayout";
-import type { UserPlan } from "@/types";
 import { TIER_CONFIG } from "@/types";
+import { supabase } from "@/integrations/supabase/client";
 
 interface FeatureRow {
   label: string;
@@ -77,32 +83,87 @@ function FeatureValue({ value }: { value: string | boolean }) {
 
 export default function Plans() {
   const { toast } = useToast();
-  const { plan, usageInfo, changePlan } = useUserPlan();
+  const { user } = useAuth();
+  const { plan, usageInfo, goToCheckout, goToPortal, invalidate } = useUserPlan();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [isRedirecting, setIsRedirecting] = useState(false);
+  const [isTogglingPlan, setIsTogglingPlan] = useState(false);
+  const isAdmin = user?.email === "kiritogeek@gmail.com";
 
-  const handleChangePlan = (targetPlan: UserPlan) => {
-    if (targetPlan === plan) return;
+  const handleAdminTogglePlan = async () => {
+    setIsTogglingPlan(true);
+    try {
+      await supabase.auth.refreshSession();
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Session introuvable");
+      const newPlan = plan === "pro" ? "free" : "pro";
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-set-plan`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+          body: JSON.stringify({ plan: newPlan }),
+        }
+      );
+      if (!res.ok) throw new Error("Erreur serveur");
+      invalidate();
+      toast({ title: `Plan basculé → ${newPlan.toUpperCase()}`, description: "Rafraîchis la page si l'UI ne se met pas à jour." });
+    } catch (err) {
+      toast({ title: "Erreur", description: err instanceof Error ? err.message : "Échec", variant: "destructive" });
+    } finally {
+      setIsTogglingPlan(false);
+    }
+  };
 
-    changePlan.mutate(targetPlan, {
-      onSuccess: () => {
-        toast({
-          title:
-            targetPlan === "pro"
-              ? "Bienvenue dans le plan Pro !"
-              : "Retour au plan Free",
-          description:
-            targetPlan === "pro"
-              ? "Vous avez maintenant accès à toutes les fonctionnalités."
-              : "Votre plan a été rétrogradé. Vos données sont conservées.",
-        });
-      },
-      onError: (err) => {
-        toast({
-          title: "Erreur",
-          description: err.message,
-          variant: "destructive",
-        });
-      },
-    });
+  // Toasts retour Stripe : ?success=true ou ?canceled=true
+  useEffect(() => {
+    if (searchParams.get("success") === "true") {
+      toast({
+        title: "Bienvenue dans le plan Pro !",
+        description:
+          "Votre abonnement est actif. Vous avez maintenant accès à toutes les fonctionnalités.",
+      });
+      invalidate();
+      searchParams.delete("success");
+      setSearchParams(searchParams, { replace: true });
+    } else if (searchParams.get("canceled") === "true") {
+      toast({
+        title: "Paiement annulé",
+        description: "Vous pouvez réessayer quand vous le souhaitez.",
+        variant: "destructive",
+      });
+      searchParams.delete("canceled");
+      setSearchParams(searchParams, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleCheckout = async () => {
+    try {
+      setIsRedirecting(true);
+      await goToCheckout();
+    } catch (err) {
+      setIsRedirecting(false);
+      toast({
+        title: "Erreur",
+        description: err instanceof Error ? err.message : "Impossible de lancer le paiement.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handlePortal = async () => {
+    try {
+      setIsRedirecting(true);
+      await goToPortal();
+    } catch (err) {
+      setIsRedirecting(false);
+      toast({
+        title: "Erreur",
+        description: err instanceof Error ? err.message : "Impossible d'ouvrir le portail.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -122,6 +183,45 @@ export default function Plans() {
             libérer tout le potentiel de DreamWeave.
           </p>
         </motion.div>
+
+        {/* Bandeau admin — visible uniquement pour kiritogeek@gmail.com */}
+        {isAdmin && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex items-center justify-between gap-4 glass rounded-xl p-3 px-4 border border-violet-500/30 bg-violet-500/5"
+          >
+            <div className="flex items-center gap-2 text-sm text-violet-300">
+              <FlaskConical className="h-4 w-4 shrink-0" />
+              <span>Mode admin — plan actuel : <strong>{plan.toUpperCase()}</strong></span>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              className="border-violet-500/40 text-violet-300 hover:bg-violet-500/10 hover:text-violet-200"
+              onClick={handleAdminTogglePlan}
+              disabled={isTogglingPlan}
+            >
+              {isTogglingPlan ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                `Basculer → ${plan === "pro" ? "Free" : "Pro"}`
+              )}
+            </Button>
+          </motion.div>
+        )}
+
+        {/* Bannière de redirection Stripe */}
+        {isRedirecting && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="glass rounded-xl p-4 flex items-center justify-center gap-3 text-sm text-primary"
+          >
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span>Redirection vers Stripe…</span>
+          </motion.div>
+        )}
 
         {/* Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
@@ -176,20 +276,9 @@ export default function Plans() {
               ))}
             </ul>
 
-            {plan === "free" ? (
-              <Button variant="outline" className="w-full" disabled>
-                Plan actuel
-              </Button>
-            ) : (
-              <Button
-                variant="outline"
-                className="w-full"
-                onClick={() => handleChangePlan("free")}
-                disabled={changePlan.isPending}
-              >
-                {changePlan.isPending ? "Changement..." : "Passer au Free"}
-              </Button>
-            )}
+            <Button variant="outline" className="w-full" disabled>
+              {plan === "free" ? "Plan actuel" : "Plan de base"}
+            </Button>
           </motion.div>
 
           {/* Pro Plan */}
@@ -253,19 +342,34 @@ export default function Plans() {
 
             {plan === "pro" ? (
               <Button
-                className="w-full bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:from-amber-600 hover:to-orange-600"
-                disabled
+                variant="outline"
+                className="w-full"
+                onClick={handlePortal}
+                disabled={isRedirecting}
               >
-                Plan actuel
+                {isRedirecting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Redirection…
+                  </>
+                ) : (
+                  <>
+                    <Settings className="h-4 w-4 mr-2" />
+                    Gérer l'abonnement
+                  </>
+                )}
               </Button>
             ) : (
               <Button
                 className="w-full bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:from-amber-600 hover:to-orange-600 shadow-lg"
-                onClick={() => handleChangePlan("pro")}
-                disabled={changePlan.isPending}
+                onClick={handleCheckout}
+                disabled={isRedirecting}
               >
-                {changePlan.isPending ? (
-                  "Changement..."
+                {isRedirecting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Redirection…
+                  </>
                 ) : (
                   <>
                     <Zap className="h-4 w-4 mr-2" />
@@ -373,8 +477,8 @@ export default function Plans() {
 
         {/* Note */}
         <p className="text-xs text-center text-muted-foreground pb-6 sm:pb-8">
-          Le paiement sera bientôt disponible via Stripe. En attendant, vous
-          pouvez tester le plan Pro directement.
+          Paiement sécurisé par Stripe. Vous pouvez annuler à tout moment depuis
+          la page « Gérer l'abonnement ».
         </p>
       </div>
     </DashboardLayout>

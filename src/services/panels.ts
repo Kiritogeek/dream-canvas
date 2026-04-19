@@ -78,10 +78,10 @@ export function getPanelSpeechBubbles(panel: Panel | null | undefined): SpeechBu
  */
 export function estimatePanelCount(content: string | null | undefined): number {
   if (!content?.trim()) return 0;
-  const len = content.trim().length;
-  const minPanels = 1;
-  const maxPanels = 50;
-  const estimated = Math.round(len / 500) || minPanels;
+  const words = content.trim().split(/\s+/).filter(Boolean).length;
+  const minPanels = 5;
+  const maxPanels = 20;
+  const estimated = Math.round(words / 50) || minPanels;
   return Math.max(minPanels, Math.min(maxPanels, estimated));
 }
 

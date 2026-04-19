@@ -44,12 +44,12 @@ export default function EmailVerification() {
     // Écouter les changements d'état d'authentification
     // Supabase peut automatiquement créer une session quand l'utilisateur clique sur le lien
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log("Changement d'état auth:", event, session?.user?.email);
-      
+      if (import.meta.env.DEV) console.log("Changement d'état auth:", event, session?.user?.email);
+
       if (event === "SIGNED_IN" && session?.user) {
         // Vérifier si l'email est confirmé
         if (session.user.email_confirmed_at) {
-          console.log("Utilisateur connecté avec email confirmé");
+          if (import.meta.env.DEV) console.log("Utilisateur connecté avec email confirmé");
           setStatus("success");
           setMessage("Votre email a été vérifié avec succès ! Vous êtes maintenant connecté.");
           toast({
@@ -77,13 +77,13 @@ export default function EmailVerification() {
       const accessToken = urlParams.access_token;
       const refreshToken = urlParams.refresh_token;
       
-      console.log("Paramètres URL détectés:", { token, type, tokenHash, accessToken, refreshToken, urlParams });
+      if (import.meta.env.DEV) console.log("Paramètres URL détectés:", { token, type, tokenHash, urlParams });
 
       // Si on a un access_token dans le hash, Supabase a déjà vérifié l'email
       // C'est le cas quand la vérification se fait automatiquement via le hash
       if (accessToken && refreshToken) {
         try {
-          console.log("Tentative de connexion avec access_token depuis le hash");
+          if (import.meta.env.DEV) console.log("Tentative de connexion avec access_token depuis le hash");
           const { data, error } = await supabase.auth.setSession({
             access_token: accessToken,
             refresh_token: refreshToken,
@@ -95,7 +95,7 @@ export default function EmailVerification() {
           }
 
           if (data.user && data.session) {
-            console.log("Session créée avec succès, email vérifié");
+            if (import.meta.env.DEV) console.log("Session créée avec succès, email vérifié");
             setStatus("success");
             setMessage("Votre email a été vérifié avec succès ! Vous êtes maintenant connecté.");
             toast({
@@ -119,7 +119,7 @@ export default function EmailVerification() {
       // Si on a un token_hash, c'est le nouveau format de Supabase
       if (tokenHash && (type === "signup" || type === "email")) {
         try {
-          console.log("Tentative de vérification avec token_hash");
+          if (import.meta.env.DEV) console.log("Tentative de vérification avec token_hash");
           const { data, error } = await supabase.auth.verifyOtp({
             token_hash: tokenHash,
             type: type === "email" ? "email" : "signup",
@@ -138,7 +138,7 @@ export default function EmailVerification() {
           }
 
           if (data.user) {
-            console.log("Email vérifié avec succès via token_hash");
+            if (import.meta.env.DEV) console.log("Email vérifié avec succès via token_hash");
             setStatus("success");
             setMessage("Votre email a été vérifié avec succès ! Vous pouvez maintenant vous connecter.");
             toast({
@@ -164,7 +164,7 @@ export default function EmailVerification() {
       // Si on a un token classique (ancien format)
       if (token && (type === "signup" || type === "email")) {
         try {
-          console.log("Tentative de vérification avec token classique");
+          if (import.meta.env.DEV) console.log("Tentative de vérification avec token classique");
           const { data, error } = await supabase.auth.verifyOtp({
             token,
             type: type === "email" ? "email" : "signup",
@@ -183,7 +183,7 @@ export default function EmailVerification() {
           }
 
           if (data.user) {
-            console.log("Email vérifié avec succès via token");
+            if (import.meta.env.DEV) console.log("Email vérifié avec succès via token");
             setStatus("success");
             setMessage("Votre email a été vérifié avec succès !");
             window.history.replaceState(null, "", window.location.pathname);
@@ -204,7 +204,7 @@ export default function EmailVerification() {
       // (peut arriver si la vérification s'est faite automatiquement)
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
-        console.log("Utilisateur déjà connecté, vérification peut-être déjà effectuée");
+        if (import.meta.env.DEV) console.log("Utilisateur déjà connecté, vérification peut-être déjà effectuée");
         // Vérifier si l'email est confirmé
         if (session.user.email_confirmed_at) {
           setStatus("success");

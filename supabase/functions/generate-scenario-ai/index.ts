@@ -1,10 +1,17 @@
-// Edge Function: IA Scénario & IA Chapitre via Groq (Llama 3.3 70B)
+// Edge Function: IA Scénario & IA Chapitre via Google Gemini Flash
 // Secrets requis :
-//   - GROQ_API_KEY (Supabase → Edge Functions → Secrets)
+//   - GEMINI_API_KEY (Supabase → Edge Functions → Secrets)
 //
-// Deux modes :
-//   "scenario" → IA Scénario (scénariste, au service de l'UTILISATEUR)
-//   "chapter"  → IA Chapitre (éditeur, au service du LECTEUR)
+// Gemini expose un endpoint OpenAI-compatible, ce qui permet de réutiliser
+// le même format body/parsing qu'auparavant sans adaptation.
+//
+// Modes supportés :
+//   "scenario"             → IA Scénario (scénariste, au service de l'UTILISATEUR)
+//   "chapter"              → IA Chapitre (éditeur, au service du LECTEUR)
+//   "panels"               → Découpage panels (JSON)
+//   "detect_blocks"        → Détection de blocs visuels (JSON)
+//   "ai_summary"           → Résumé de chapitre
+//   "suggest_block_prompt" → Suggestion de prompt pour un bloc
 
 declare const Deno: {
   serve: (handler: (req: Request) => Promise<Response> | Response) => void;
@@ -42,15 +49,17 @@ import {
 // CONFIGURATION
 // ═══════════════════════════════════════════════════════════════
 
-const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
-const GROQ_MODEL = "llama-3.3-70b-versatile";
-const GROQ_TIMEOUT_MS = 120_000;
-// Limite TPM observée côté org Groq (capture utilisateur : 12k).
-// On garde une marge pour éviter les rejets "Request too large".
-const GROQ_TPM_LIMIT = 12_000;
-const GROQ_SAFE_INPUT_TOKENS = 8_500;
-const GROQ_MIN_OUTPUT_TOKENS = 512;
-const GROQ_MAX_OUTPUT_TOKENS = 3_072;
+const AI_API_URL =
+  "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
+// WHY : `gemini-1.5-flash` a été déprécié par Google en septembre 2025 et
+// renvoie 404 sur l'endpoint v1beta. `gemini-2.5-flash` est le successeur
+// recommandé (rapide, économique, fenêtre contextuelle 1M tokens).
+const AI_MODEL = "gemini-2.5-flash";
+// Fallback si le modèle principal renvoie 429 (rate limit / quota épuisé).
+// `gemini-2.5-flash-lite` a un quota free tier ~3x plus généreux.
+const AI_FALLBACK_MODEL = "gemini-2.5-flash-lite";
+const AI_TIMEOUT_MS = 60_000;
+const AI_MAX_OUTPUT_TOKENS = 8_192;
 
 // ── CORS ──────────────────────────────────────────────────────
 
@@ -81,15 +90,6 @@ function shrinkTextByTokens(text: string, maxTokens: number): string {
   if (estimated <= maxTokens) return text;
   const maxChars = Math.max(0, maxTokens * 4);
   return text.slice(0, maxChars);
-}
-
-function clampOutputTokens(inputTokens: number): number {
-  const remaining = GROQ_TPM_LIMIT - inputTokens;
-  const safeRemaining = Math.max(0, remaining - 500);
-  return Math.max(
-    GROQ_MIN_OUTPUT_TOKENS,
-    Math.min(GROQ_MAX_OUTPUT_TOKENS, safeRemaining)
-  );
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -151,76 +151,164 @@ function tryClosePanelsJson(raw: string): string {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// APPEL GROQ (LLAMA 3.3 70B)
+// APPEL IA (GEMINI FLASH — endpoint OpenAI-compatible)
 // ═══════════════════════════════════════════════════════════════
 
-async function callGroq(
+type AIResult =
+  | { text: string; modelUsed: string }
+  | { error: string; status?: number; rateLimited?: boolean };
+
+async function callAIOnce(
+  model: string,
   systemPrompt: string,
   userPrompt: string,
-  groqKey: string
-): Promise<{ text: string } | { error: string }> {
+  apiKey: string,
+  jsonMode = false
+): Promise<AIResult> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), GROQ_TIMEOUT_MS);
-
+  const timeout = setTimeout(() => controller.abort(), AI_TIMEOUT_MS);
   try {
-    const systemTokens = estimateTokens(systemPrompt);
-    const userTokens = estimateTokens(userPrompt);
-    const totalInputTokens = systemTokens + userTokens;
-    const outputTokens = clampOutputTokens(totalInputTokens);
+    const body: Record<string, unknown> = {
+      model,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      // WHY : pour les modes structurés (detect_blocks, panels), une
+      // température basse + top_p resserré réduit drastiquement le risque
+      // de réponse hors-format. Pour les modes créatifs on garde 0.8.
+      temperature: jsonMode ? 0.2 : 0.8,
+      max_tokens: AI_MAX_OUTPUT_TOKENS,
+      top_p: jsonMode ? 0.5 : 0.9,
+    };
+    if (jsonMode) {
+      // Gemini supporte response_format via l'endpoint OpenAI-compatible.
+      // Force la sortie en JSON valide, sans fence markdown ni préambule.
+      body.response_format = { type: "json_object" };
+    }
 
-    const res = await fetch(GROQ_API_URL, {
+    const res = await fetch(AI_API_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${groqKey}`,
+        Authorization: `Bearer ${apiKey}`,
       },
-      body: JSON.stringify({
-        model: GROQ_MODEL,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        temperature: 0.8,
-        max_tokens: outputTokens,
-        top_p: 0.9,
-      }),
+      body: JSON.stringify(body),
       signal: controller.signal,
     });
-
     const raw = await res.text();
-
     if (!res.ok) {
-      console.error("[generate-scenario-ai] Groq erreur:", res.status, raw.slice(0, 300));
+      console.error(
+        `[generate-scenario-ai] Gemini erreur (${model}):`,
+        res.status,
+        raw.slice(0, 300)
+      );
       return {
-        error: `Groq erreur ${res.status}: ${raw.slice(0, 200)}`,
+        error: `Gemini erreur ${res.status}: ${raw.slice(0, 200)}`,
+        status: res.status,
+        rateLimited: res.status === 429,
       };
     }
-
-    let json: {
-      choices?: Array<{ message?: { content?: string } }>;
-    };
+    let json: { choices?: Array<{ message?: { content?: string } }> };
     try {
       json = JSON.parse(raw);
     } catch {
-      return { error: "Réponse invalide de Groq" };
+      return { error: "Réponse invalide de Gemini" };
     }
-
     const text = json.choices?.[0]?.message?.content?.trim();
-    if (!text) {
-      return { error: "Groq n'a pas retourné de texte" };
-    }
-
-    return { text };
+    if (!text) return { error: "Gemini n'a pas retourné de texte" };
+    return { text, modelUsed: model };
   } catch (err) {
     if (err instanceof Error && err.name === "AbortError") {
-      return { error: "Timeout : la génération a pris trop de temps." };
+      return { error: "Timeout." };
     }
-    return {
-      error: err instanceof Error ? err.message : String(err),
-    };
+    return { error: err instanceof Error ? err.message : String(err) };
   } finally {
     clearTimeout(timeout);
   }
+}
+
+async function callAI(
+  systemPrompt: string,
+  userPrompt: string,
+  apiKey: string,
+  jsonMode = false
+): Promise<AIResult> {
+  const primary = await callAIOnce(
+    AI_MODEL,
+    systemPrompt,
+    userPrompt,
+    apiKey,
+    jsonMode
+  );
+  if ("text" in primary) return primary;
+
+  // WHY : sur 429 (quota épuisé) on bascule automatiquement sur le modèle
+  // lite pour ne pas bloquer l'utilisateur. Qualité légèrement moindre mais
+  // suffisante pour les modes structurés (detect_blocks, ai_summary).
+  if (primary.rateLimited) {
+    console.warn(
+      `[generate-scenario-ai] ${AI_MODEL} rate-limited (429), fallback → ${AI_FALLBACK_MODEL}`
+    );
+    const fallback = await callAIOnce(
+      AI_FALLBACK_MODEL,
+      systemPrompt,
+      userPrompt,
+      apiKey,
+      jsonMode
+    );
+    if ("text" in fallback) return fallback;
+    if (fallback.rateLimited) {
+      return {
+        error:
+          "Limite quotidienne Gemini atteinte sur les deux modèles. Réessayez dans quelques heures.",
+        status: 429,
+        rateLimited: true,
+      };
+    }
+    return fallback;
+  }
+  return primary;
+}
+
+// ── Extraction robuste d'un objet JSON depuis une réponse LLM ───
+// WHY : même avec response_format, Gemini peut occasionnellement entourer
+// le JSON de fences markdown (```json ... ```) ou ajouter du texte. Cette
+// fonction extrait le premier objet JSON balanced du texte reçu.
+function extractJsonObject(raw: string): string {
+  let s = raw.trim();
+  // Enlever les fences markdown éventuels
+  s = s.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
+  // Trouver le premier { et son } correspondant (équilibrage des accolades
+  // en ignorant les chaînes JSON).
+  const start = s.indexOf("{");
+  if (start < 0) return s;
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+  for (let i = start; i < s.length; i++) {
+    const ch = s[i];
+    if (inString) {
+      if (escape) {
+        escape = false;
+      } else if (ch === "\\") {
+        escape = true;
+      } else if (ch === '"') {
+        inString = false;
+      }
+      continue;
+    }
+    if (ch === '"') {
+      inString = true;
+    } else if (ch === "{") {
+      depth++;
+    } else if (ch === "}") {
+      depth--;
+      if (depth === 0) return s.slice(start, i + 1);
+    }
+  }
+  // Pas équilibré : retourner depuis le premier { (tryClosePanelsJson tentera de réparer)
+  return s.slice(start);
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -244,13 +332,13 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // 1. Vérification GROQ_API_KEY
-    const groqKey = Deno.env.get("GROQ_API_KEY");
-    if (!groqKey) {
+    // 1. Vérification GEMINI_API_KEY
+    const geminiKey = Deno.env.get("GEMINI_API_KEY");
+    if (!geminiKey) {
       return jsonResponse(
         {
           error:
-            "GROQ_API_KEY non configurée. Supabase → Edge Functions → Secrets → ajouter GROQ_API_KEY.",
+            "GEMINI_API_KEY non configurée. Supabase → Edge Functions → Secrets → ajouter GEMINI_API_KEY.",
         },
         500
       );
@@ -285,6 +373,7 @@ Deno.serve(async (req) => {
       num_chapters?: number;
       existing_content?: string;
       project_description?: string;
+      next_chapter_number?: number;
       chapter_title?: string;
       chapter_content?: string;
       chapter_number?: number;
@@ -330,6 +419,7 @@ Deno.serve(async (req) => {
       userPrompt = buildScenarioPrompt(prompt!, {
         existingContent: safeExistingContent,
         projectDescription: body.project_description,
+        nextChapterNumber: body.next_chapter_number,
       });
     } else if (mode === "chapter") {
       if (!body.chapter_content?.trim()) {
@@ -375,7 +465,9 @@ Deno.serve(async (req) => {
         return jsonResponse({ error: '"chapter_content" requis pour detect_blocks.' }, 400);
       }
       systemPrompt = DETECT_BLOCKS_SYSTEM_PROMPT;
-      const safeContent = shrinkTextByTokens(body.chapter_content.trim(), 6_000);
+      // Gemini Flash dispose d'un large budget de tokens : on peut confier
+      // davantage de contexte pour un découpage plus fidèle.
+      const safeContent = shrinkTextByTokens(body.chapter_content.trim(), 4_000);
       inputWasTrimmed = safeContent !== body.chapter_content.trim();
       userPrompt = buildDetectBlocksPrompt({
         chapterTitle: body.chapter_title ?? "Sans titre",
@@ -413,28 +505,29 @@ Deno.serve(async (req) => {
       });
     }
 
-    const systemTokens = estimateTokens(systemPrompt);
-    const userTokens = estimateTokens(userPrompt);
-    const totalInputTokens = systemTokens + userTokens;
-    if (totalInputTokens > GROQ_SAFE_INPUT_TOKENS) {
-      // Deuxième passe de sécurité si les prompts construits sont encore trop longs.
-      const allowedUserTokens = Math.max(
-        1_000,
-        GROQ_SAFE_INPUT_TOKENS - systemTokens
-      );
-      const shrunkUserPrompt = shrinkTextByTokens(userPrompt, allowedUserTokens);
-      inputWasTrimmed = inputWasTrimmed || shrunkUserPrompt !== userPrompt;
-      userPrompt = shrunkUserPrompt;
-    }
-
-    // 6. Appel Groq
+    // 6. Appel IA
     console.log(
       `[generate-scenario-ai] mode=${mode}, user=${userId}, prompt_length=${userPrompt.length}, trimmed=${inputWasTrimmed}`
     );
 
-    const result = await callGroq(systemPrompt, userPrompt, groqKey);
+    // Activer le mode JSON strict pour les modes structurés
+    const jsonMode = mode === "panels" || mode === "detect_blocks";
+    const result = await callAI(systemPrompt, userPrompt, geminiKey, jsonMode);
 
     if ("error" in result) {
+      // Propager le 429 tel quel (rate limit / quota Gemini épuisé) pour
+      // que le client affiche un message dédié.
+      if (result.rateLimited) {
+        return jsonResponse(
+          {
+            error:
+              "Limite quotidienne IA atteinte. Le quota Gemini se réinitialise toutes les 24h. Réessayez plus tard.",
+            details: result.error,
+            rateLimited: true,
+          },
+          429
+        );
+      }
       return jsonResponse(
         { error: "Échec génération IA", details: result.error },
         502
@@ -443,15 +536,19 @@ Deno.serve(async (req) => {
 
     // Mode panels : parser le JSON et retourner { panels }
     if (mode === "panels") {
-      const cleaned = result.text.replace(/^[\s\S]*?\{/, "{").trim();
+      const cleaned = extractJsonObject(result.text);
       let parsed: { panels?: Array<{ description: string; context?: { lieu?: string; scene?: string; personnages?: string } }> };
 
       try {
-        // Tenter parse direct
         const closed = tryClosePanelsJson(cleaned);
         parsed = JSON.parse(closed) as typeof parsed;
-      } catch {
-        // Réponse tronquée ou invalide : message clair (sans renvoyer le JSON brut)
+      } catch (parseErr) {
+        console.error(
+          "[generate-scenario-ai] panels parse failed:",
+          (parseErr as Error).message,
+          "raw:",
+          result.text.slice(0, 500)
+        );
         return jsonResponse(
           {
             error:
@@ -462,29 +559,45 @@ Deno.serve(async (req) => {
       }
       const panels = Array.isArray(parsed.panels) ? parsed.panels : [];
       return jsonResponse(
-        { panels, mode, model: GROQ_MODEL },
+        { panels, mode, model: result.modelUsed },
         200
       );
     }
 
     // Mode detect_blocks : parser le JSON et retourner { blocks }
     if (mode === "detect_blocks") {
-      const cleaned = result.text.replace(/^[\s\S]*?\{/, "{").trim();
+      const cleaned = extractJsonObject(result.text);
       let parsed: {
         blocks?: Array<{ panel_number: number; description: string; text_excerpt: string }>;
       };
       try {
-        parsed = JSON.parse(cleaned) as typeof parsed;
-      } catch {
+        const closed = tryClosePanelsJson(cleaned);
+        parsed = JSON.parse(closed) as typeof parsed;
+      } catch (parseErr) {
+        // Logger la réponse brute pour pouvoir diagnostiquer (visible dans
+        // les logs Supabase Edge Functions, pas exposé au client).
+        console.error(
+          "[generate-scenario-ai] detect_blocks parse failed:",
+          (parseErr as Error).message,
+          "raw:",
+          result.text.slice(0, 500)
+        );
         return jsonResponse(
           {
-            error: "L'IA n'a pas pu analyser le chapitre. Réessayez.",
+            error:
+              "L'IA n'a pas pu produire un découpage valide. Réessayez (le chapitre est peut-être trop court ou trop ambigu).",
           },
           502
         );
       }
       const blocks = Array.isArray(parsed.blocks) ? parsed.blocks : [];
-      return jsonResponse({ blocks, mode, model: GROQ_MODEL }, 200);
+      if (blocks.length === 0) {
+        console.warn(
+          "[generate-scenario-ai] detect_blocks returned 0 blocks, raw:",
+          result.text.slice(0, 500)
+        );
+      }
+      return jsonResponse({ blocks, mode, model: result.modelUsed }, 200);
     }
 
     // Modes texte : scenario, chapter, ai_summary, suggest_block_prompt
@@ -492,7 +605,7 @@ Deno.serve(async (req) => {
       {
         text: result.text,
         mode,
-        model: GROQ_MODEL,
+        model: result.modelUsed,
       },
       200
     );

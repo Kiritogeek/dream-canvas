@@ -1,4 +1,4 @@
-// Écran d'édition d'un chapitre visuel — double visualisation + panels (liberté de création)
+﻿// Écran d'édition d'un chapitre visuel — double visualisation + panels (liberté de création)
 // Gauche : chapitre texte (scénario) avec Aperçu = surbrillance assets + hover. Droite : panels (l'utilisateur crée le nombre qu'il souhaite).
 import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
@@ -7,6 +7,7 @@ import {
   ArrowLeft,
   LayoutPanelTop,
   Plus,
+  Minus,
   ChevronDown,
   BookOpen,
   Save,
@@ -357,6 +358,9 @@ export default function ChapterDetail() {
   const [selectedSpeechBubbleIdInModal, setSelectedSpeechBubbleIdInModal] = useState<{ panelId: string; bubbleId: string } | null>(null);
   /** Modal de découpage et téléchargement ZIP */
   const [sliceModalOpen, setSliceModalOpen] = useState(false);
+  /** Niveau de zoom du canvas éditeur (0.1–2.0, défaut 0.5) */
+  const [zoomLevel, setZoomLevel] = useState(0.5);
+  const zoomRef = useRef(0.5);
 
   // Réduit la duplication des resets d'état de l'éditeur panel.
   const resetPanelEditorUiState = useCallback(() => {
@@ -470,9 +474,10 @@ export default function ChapterDetail() {
   /** Convertit viewport -> coords logiques canvas. getBoundingClientRect() reflète déjà le scroll (le canvas bouge dans la viewport), donc pas d’ajout de scroll. */
   const viewportToCanvas = (canvasEl: HTMLDivElement, clientX: number, clientY: number) => {
     const rect = canvasEl.getBoundingClientRect();
+    const scale = canvasEl.offsetWidth > 0 ? rect.width / canvasEl.offsetWidth : 1;
     return {
-      x: clientX - rect.left,
-      y: clientY - rect.top,
+      x: (clientX - rect.left) / scale,
+      y: (clientY - rect.top) / scale,
     };
   };
 
@@ -886,6 +891,26 @@ export default function ChapterDetail() {
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [expandedPanelId, selectedBlockIdInModal, selectedColorBlockIdInModal, selectedSpeechBubbleIdInModal, panels, updatePanelMutation, toast]);
+
+  useEffect(() => {
+    zoomRef.current = zoomLevel;
+  }, [zoomLevel]);
+
+  useEffect(() => {
+    if (!expandedPanelId) return;
+    const handleWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey) return;
+      e.preventDefault();
+      setZoomLevel((prev) => {
+        const delta = e.deltaY > 0 ? -0.1 : 0.1;
+        const next = Math.min(2, Math.max(0.1, Math.round((prev + delta) * 10) / 10));
+        zoomRef.current = next;
+        return next;
+      });
+    };
+    document.addEventListener("wheel", handleWheel, { passive: false });
+    return () => document.removeEventListener("wheel", handleWheel);
+  }, [expandedPanelId]);
 
   const loading = loadingChapter || loadingPanels;
   const canSaveLink =
@@ -1766,8 +1791,10 @@ export default function ChapterDetail() {
             </div>
           )}
         </aside>
-        {/* Centre : panel 800px de large exactement */}
+        {/* Centre : panel 800px de large exactement, zoomable via contrôles header ou Ctrl+Scroll */}
         <div className="flex-1 min-w-0 flex items-start justify-center overflow-auto p-6 bg-background">
+          <div style={{ width: PANEL_WIDTH * zoomLevel, height: panelHeight * zoomLevel, flexShrink: 0 }}>
+            <div style={{ transform: `scale(${zoomLevel})`, transformOrigin: "top left", width: PANEL_WIDTH }}>
           <div className="rounded-2xl border-2 border-border bg-muted shadow-lg min-w-0 ring-2 ring-border/60 shadow-[inset_0_3px_8px_-2px_rgba(0,0,0,0.15),inset_0_-3px_8px_-2px_rgba(0,0,0,0.15)]">
             <div className="relative shrink-0 bg-muted rounded-xl overflow-hidden" style={{ width: PANEL_WIDTH, height: panelHeight }}>
               <div
@@ -1813,8 +1840,9 @@ export default function ChapterDetail() {
                       const canvasEl = canvasRefByPanel.current[panel.id];
                       if (!canvasEl) return;
                       const rect = canvasEl.getBoundingClientRect();
-                      const startMouseX = e.clientX - rect.left;
-                      const startMouseY = e.clientY - rect.top;
+                      const _dragScale = canvasEl.offsetWidth > 0 ? canvasEl.getBoundingClientRect().width / canvasEl.offsetWidth : 1;
+                      const startMouseX = (e.clientX - rect.left) / _dragScale;
+                      const startMouseY = (e.clientY - rect.top) / _dragScale;
                       const el = e.currentTarget as HTMLDivElement;
                       draggingColorBlockElRef.current = el;
                       draggingColorBlockDataRef.current = { panelId: panel.id, colorBlockId: cb.id, startX: cb.x, startY: cb.y, startMouseX, startMouseY, width: cb.width, height: cb.height, rectLeft: rect.left, rectTop: rect.top };
@@ -1840,8 +1868,9 @@ export default function ChapterDetail() {
                         if (!data) return;
                         const canvas = canvasRefByPanel.current[data.panelId];
                         const r = canvas?.getBoundingClientRect();
-                        const canvasMouseX = r ? ev.clientX - r.left : ev.clientX - data.rectLeft;
-                        const canvasMouseY = r ? ev.clientY - r.top : ev.clientY - data.rectTop;
+                        const _cbMs = canvas && canvas.offsetWidth > 0 ? r!.width / canvas.offsetWidth : 1;
+                        const canvasMouseX = r ? (ev.clientX - r.left) / _cbMs : (ev.clientX - data.rectLeft) / zoomRef.current;
+                        const canvasMouseY = r ? (ev.clientY - r.top) / _cbMs : (ev.clientY - data.rectTop) / zoomRef.current;
                         const newX = Math.max(0, Math.min(PANEL_WIDTH - data.width, data.startX + (canvasMouseX - data.startMouseX)));
                         const newY = Math.max(0, Math.min(panelH - data.height, data.startY + (canvasMouseY - data.startMouseY)));
                         const g = dragColorBlockGhostRefByPanel.current[data.panelId];
@@ -1989,8 +2018,9 @@ export default function ChapterDetail() {
                         const canvasEl = canvasRefByPanel.current[panel.id];
                         if (!canvasEl) return;
                         const rect = canvasEl.getBoundingClientRect();
-                        const startMouseX = e.clientX - rect.left;
-                        const startMouseY = e.clientY - rect.top;
+                        const _cbScale = canvasEl.offsetWidth > 0 ? rect.width / canvasEl.offsetWidth : 1;
+                        const startMouseX = (e.clientX - rect.left) / _cbScale;
+                        const startMouseY = (e.clientY - rect.top) / _cbScale;
                         const el = e.currentTarget as HTMLDivElement;
                         draggingBlockElRef.current = el;
                         draggingBlockDataRef.current = { panelId: panel.id, blockId: block.id, startBlockX: block.x, startBlockY: block.y, startMouseX, startMouseY, blockWidth: block.width, blockHeight: block.height, rectLeft: rect.left, rectTop: rect.top };
@@ -2009,8 +2039,9 @@ export default function ChapterDetail() {
                           if (!data) return;
                           const canvas = canvasRefByPanel.current[data.panelId];
                           const rect = canvas?.getBoundingClientRect();
-                          const canvasMouseX = rect ? ev.clientX - rect.left : ev.clientX - data.rectLeft;
-                          const canvasMouseY = rect ? ev.clientY - rect.top : ev.clientY - data.rectTop;
+                          const _ibMs = canvas && canvas.offsetWidth > 0 ? rect!.width / canvas.offsetWidth : 1;
+                          const canvasMouseX = rect ? (ev.clientX - rect.left) / _ibMs : (ev.clientX - data.rectLeft) / zoomRef.current;
+                          const canvasMouseY = rect ? (ev.clientY - rect.top) / _ibMs : (ev.clientY - data.rectTop) / zoomRef.current;
                           const newX = Math.max(0, Math.min(PANEL_WIDTH - data.blockWidth, data.startBlockX + (canvasMouseX - data.startMouseX)));
                           const newY = Math.max(0, Math.min(panelH - data.blockHeight, data.startBlockY + (canvasMouseY - data.startMouseY)));
                           const g = dragGhostRefByPanel.current[data.panelId];
@@ -2170,8 +2201,9 @@ export default function ChapterDetail() {
                       const canvasEl = canvasRefByPanel.current[panel.id];
                       if (!canvasEl) return;
                       const rect = canvasEl.getBoundingClientRect();
-                      const startMouseX = e.clientX - rect.left;
-                      const startMouseY = e.clientY - rect.top;
+                      const _dragScale = canvasEl.offsetWidth > 0 ? canvasEl.getBoundingClientRect().width / canvasEl.offsetWidth : 1;
+                      const startMouseX = (e.clientX - rect.left) / _dragScale;
+                      const startMouseY = (e.clientY - rect.top) / _dragScale;
                       const el = e.currentTarget as HTMLDivElement;
                       draggingSpeechBubbleElRef.current = el;
                       draggingSpeechBubbleDataRef.current = { panelId: panel.id, bubbleId: bubble.id, startX: geom.x, startY: geom.y, startMouseX, startMouseY, width: geom.width, height: totalH, rectLeft: rect.left, rectTop: rect.top };
@@ -2190,8 +2222,9 @@ export default function ChapterDetail() {
                         if (!data) return;
                         const canvas = canvasRefByPanel.current[data.panelId];
                         const r = canvas?.getBoundingClientRect();
-                        const canvasMouseX = r ? ev.clientX - r.left : ev.clientX - data.rectLeft;
-                        const canvasMouseY = r ? ev.clientY - r.top : ev.clientY - data.rectTop;
+                        const _cbMs = canvas && canvas.offsetWidth > 0 ? r!.width / canvas.offsetWidth : 1;
+                        const canvasMouseX = r ? (ev.clientX - r.left) / _cbMs : (ev.clientX - data.rectLeft) / zoomRef.current;
+                        const canvasMouseY = r ? (ev.clientY - r.top) / _cbMs : (ev.clientY - data.rectTop) / zoomRef.current;
                         const newX = Math.max(0, Math.min(PANEL_WIDTH - data.width, data.startX + (canvasMouseX - data.startMouseX)));
                         const newY = Math.max(0, Math.min(panelH - data.height, data.startY + (canvasMouseY - data.startMouseY)));
                         const g = dragSpeechBubbleGhostRefByPanel.current[data.panelId];
@@ -2319,6 +2352,8 @@ export default function ChapterDetail() {
                 style={{ display: "none", left: 0, top: 0, width: 0, height: 0 }}
               />
               </div>
+            </div>
+          </div>
             </div>
           </div>
         </div>
@@ -2659,6 +2694,27 @@ export default function ChapterDetail() {
               <DialogTitle className="text-base font-medium truncate">
                 Éditeur de canvas
               </DialogTitle>
+              <div className="flex items-center gap-1 shrink-0">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 w-7 p-0"
+                  onClick={() => setZoomLevel((l) => Math.max(0.1, Math.round((l - 0.1) * 10) / 10))}
+                  title="Dézoomer (Ctrl+Scroll)"
+                >
+                  <Minus className="h-3.5 w-3.5" />
+                </Button>
+                <span className="text-xs font-mono w-10 text-center tabular-nums select-none">{Math.round(zoomLevel * 100)}%</span>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 w-7 p-0"
+                  onClick={() => setZoomLevel((l) => Math.min(2, Math.round((l + 0.1) * 10) / 10))}
+                  title="Zoomer (Ctrl+Scroll)"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                </Button>
+              </div>
               <Button
                 size="sm"
                 variant="outline"

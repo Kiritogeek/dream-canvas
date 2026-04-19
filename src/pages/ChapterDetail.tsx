@@ -85,9 +85,9 @@ import {
 } from "@/services/panels";
 import { callSuggestBlockPrompt } from "@/services/scenarioAI";
 import { PanelCountBadge } from "@/components/project/PanelCountBadge";
-import { renderPanelToCanvas, renderChapterToCanvas, downloadCanvas } from "@/services/exportPanel";
+import { renderPanelToCanvas, renderChapterToCanvas, downloadCanvas, exportChapterAsZip } from "@/services/exportPanel";
 import type { Json } from "@/integrations/supabase/types";
-import type { Panel, PanelBlock, PanelLayout, ColorBlock, ColorBlockFill, SpeechBubble, SpeechBubbleType, PanelOutlineItem } from "@/types";
+import type { Panel, PanelBlock, PanelLayout, ColorBlock, ColorBlockFill, SpeechBubble, SpeechBubbleType } from "@/types";
 import {
   DEFAULT_SPEECH_BUBBLE_WIDTH,
   DEFAULT_SPEECH_BUBBLE_HEIGHT,
@@ -238,13 +238,37 @@ export default function ChapterDetail() {
   const queryClient = useQueryClient();
   const { data: panels = [], isLoading: loadingPanels } = usePanels(chapterId);
   const createPanelMutation = useCreatePanel(chapterId ?? "");
-  const createFromOutlineMutation = useCreatePanelsFromOutline(chapterId ?? "");
+  const _createFromOutlineMutation = useCreatePanelsFromOutline(chapterId ?? "");
   const updatePanelMutation = useUpdatePanel(chapterId ?? "");
   const deletePanelMutation = useDeletePanel(chapterId ?? "");
   /** Panel dont la suppression est en attente de confirmation */
   const [panelToDeleteId, setPanelToDeleteId] = useState<string | null>(null);
   const generatePanelImage = useGeneratePanelImage(chapterId ?? "");
   const panelsQueryKey = ["panels", chapterId] as const;
+
+  const CANVAS_HEIGHT = 50_000;
+
+  useEffect(() => {
+    if (!chapterId || loadingPanels || panels.length > 0) return;
+    createPanelMutation.mutate(undefined, {
+      onSuccess: (newPanel) => {
+        const layout: PanelLayout = { blocks: [], panelHeight: CANVAS_HEIGHT };
+        updatePanelMutation.mutate({
+          id: newPanel.id,
+          updates: { layout: layout as unknown as Json },
+        });
+      },
+      onError: (err) => toast({ title: "Erreur création canvas", description: err.message, variant: "destructive" }),
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chapterId, loadingPanels, panels.length]);
+
+  useEffect(() => {
+    if (panels.length > 0 && !expandedPanelId) {
+      setExpandedPanelId(panels[0].id);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [panels.length]);
 
   /** Brouillons des prompts par bloc : clé = `${panelId}-${blockId}` */
   const [blockPromptDrafts, setBlockPromptDrafts] = useState<Record<string, string>>({});
@@ -264,7 +288,7 @@ export default function ChapterDetail() {
   /** Refs du canvas de prévisualisation par panel (utilisées pour l'export PNG) */
   const exportCanvasRefByPanel = useRef<Record<string, HTMLDivElement | null>>({});
   /** Export en cours : id du panel exporté individuellement, ou null */
-  const [exportingPanel, setExportingPanel] = useState<string | null>(null);
+  const [_exportingPanel, _setExportingPanel] = useState<string | null>(null);
   /** Export du chapitre entier en cours */
   const [exportingChapter, setExportingChapter] = useState(false);
   /** Élément ghost pour le drag « nouveau bloc » (setDragImage) */
@@ -331,6 +355,8 @@ export default function ChapterDetail() {
   const [selectedColorBlockIdInModal, setSelectedColorBlockIdInModal] = useState<{ panelId: string; colorBlockId: string } | null>(null);
   /** Bulle de dialogue sélectionnée (onglet Dialogue) pour éditer le texte et le style */
   const [selectedSpeechBubbleIdInModal, setSelectedSpeechBubbleIdInModal] = useState<{ panelId: string; bubbleId: string } | null>(null);
+  /** Modal de découpage et téléchargement ZIP */
+  const [sliceModalOpen, setSliceModalOpen] = useState(false);
 
   // Réduit la duplication des resets d'état de l'éditeur panel.
   const resetPanelEditorUiState = useCallback(() => {
@@ -763,19 +789,19 @@ export default function ChapterDetail() {
     };
   }, [resizingSpeechBubbleState, panels]);
 
-  const handleExportPanel = async (panel: Panel) => {
+  const _handleExportPanel = async (panel: Panel) => {
     const el = exportCanvasRefByPanel.current[panel.id];
     if (!el) return;
-    setExportingPanel(panel.id);
+    _setExportingPanel(panel.id);
     try {
       const canvas = await renderPanelToCanvas(el);
       downloadCanvas(canvas, `panel-${panel.panel_number}.png`);
     } finally {
-      setExportingPanel(null);
+      _setExportingPanel(null);
     }
   };
 
-  const handleExportChapter = async () => {
+  const _handleExportChapter = async () => {
     // TODO: panels fermés = ref null — expansion requise pour les panels non visibles
     const orderedPanels = [...panels].sort((a, b) => a.panel_number - b.panel_number);
     const els = orderedPanels
@@ -2535,253 +2561,42 @@ export default function ChapterDetail() {
             </Collapsible>
           </div>
 
-          {/* Droite : Panels */}
-          <div className="flex-1 min-w-0 space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Chaque panel est une structure{" "}
-              <strong>
-                {PANEL_WIDTH}×{PANEL_HEIGHT_DEFAULT}
-              </strong>{" "}
-              pixels par défaut (blocs, bulles, effets).
-            </p>
-
-            <div className="w-full max-w-[840px] rounded-lg border border-border bg-muted/20 p-3 text-sm text-muted-foreground space-y-2">
-                <p className="font-medium text-foreground">
-                  Liberté de création
-                </p>
-                <p className="mt-1">
-                  Vous êtes libre de créer autant de panels que vous le souhaitez. Le scénario à gauche vous sert de référence ; l'agencement des panels et des blocs est à vous.
-                </p>
+          {/* Droite : Canvas (chargement automatique) */}
+          <div className="flex-1 min-w-0 flex items-center justify-center py-20">
+            <div className="flex flex-col items-center gap-3 text-muted-foreground">
+              <Loader2 className="h-8 w-8 animate-spin" style={{ color: "hsl(var(--lavender))" }} />
+              <p className="text-sm">Chargement du canvas...</p>
             </div>
-
-            {panels.length === 0 ? (
-              <div className="w-full max-w-[840px] glass rounded-xl border border-border overflow-hidden">
-                <div className="flex flex-col items-center justify-center gap-5 py-10 px-6 text-center">
-                  <div className="rounded-full bg-muted/60 p-4">
-                    <LayoutPanelTop className="h-8 w-8 text-muted-foreground" />
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-base font-medium text-foreground">
-                      Aucun panel
-                    </p>
-                    <p className="text-sm text-muted-foreground max-w-sm">
-                      Créez votre premier panel pour commencer à composer la planche.
-                    </p>
-                  </div>
-                  {(() => {
-                    const outline = scenarioChapter?.panels_outline;
-                    if (!Array.isArray(outline) || outline.length === 0) return null;
-                    type StoredBlock = { panel_number: number; block_number?: number; description: string };
-                    const stored = outline as StoredBlock[];
-                    const panelMap = new Map<number, string[]>();
-                    stored.forEach((b) => {
-                      const arr = panelMap.get(b.panel_number) ?? [];
-                      arr.push(b.description);
-                      panelMap.set(b.panel_number, arr);
-                    });
-                    const panelCount = panelMap.size;
-                    const outlineItems: PanelOutlineItem[] = Array.from(panelMap.entries())
-                      .sort(([a], [b]) => a - b)
-                      .map(([, descs]) => ({ description: descs.join("\n\n") }));
-                    return (
-                      <Button
-                        onClick={() => createFromOutlineMutation.mutate(outlineItems, {
-                          onSuccess: () => toast({ title: `${panelCount} panels importés depuis le découpage IA` }),
-                          onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }),
-                        })}
-                        disabled={!chapterId || createFromOutlineMutation.isPending}
-                        className="w-full max-w-sm gap-2 h-11 rounded-xl gradient-primary text-primary-foreground font-semibold shadow-dream"
-                      >
-                        {createFromOutlineMutation.isPending ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Sparkles className="h-4 w-4" />
-                        )}
-                        Importer {panelCount} panel{panelCount > 1 ? "s" : ""} du découpage IA
-                      </Button>
-                    );
-                  })()}
-                  <Button
-                    onClick={() => createPanelMutation.mutate(undefined, {
-                      onSuccess: () => toast({ title: "Panel ajouté" }),
-                      onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }),
-                    })}
-                    disabled={!chapterId || createPanelMutation.isPending}
-                    variant="outline"
-                    className="w-full max-w-sm gap-2 h-11 rounded-xl border-dashed border-2 border-border/80 bg-muted/30 hover:bg-muted/50 hover:border-primary/30 text-foreground font-medium"
-                  >
-                    {createPanelMutation.isPending ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Plus className="h-4 w-4" />
-                    )}
-                    Ajouter un panel
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between gap-4">
-                  <h2 className="text-lg font-display font-semibold">
-                    Panels ({panels.length})
-                  </h2>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="gap-1.5 shrink-0"
-                    disabled={exportingChapter || panels.length === 0}
-                    onClick={handleExportChapter}
-                    title="Télécharger le chapitre complet en PNG"
-                  >
-                    {exportingChapter ? (
-                      <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Export…</>
-                    ) : (
-                      <><Download className="h-3.5 w-3.5" /> Télécharger le chapitre</>
-                    )}
-                  </Button>
-                </div>
-                <div className="space-y-4">
-                  {panels.map((panel) => {
-                    const blocks = getPanelBlocks(panel);
-                    const previewColorBlocks = getPanelColorBlocks(panel);
-                    return (
-                      <div
-                        key={panel.id}
-                        className="glass rounded-xl overflow-hidden border border-border max-w-[840px]"
-                      >
-                        <div className="p-3 border-b border-border flex flex-wrap items-center justify-between gap-4">
-                          <h3 className="font-medium text-sm shrink-0">
-                            Panel {panel.panel_number} — {PANEL_WIDTH}×{getPanelHeight(panel)}
-                          </h3>
-                          <div className="flex items-center gap-2 shrink-0">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="gap-1.5"
-                              onClick={() => setExpandedPanelId(panel.id)}
-                              title="Ouvrir l'édition du panel"
-                            >
-                              <Pencil className="h-3.5 w-3.5" />
-                              Edition
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="gap-1.5"
-                              disabled={exportingPanel === panel.id}
-                              onClick={() => handleExportPanel(panel)}
-                              title="Télécharger ce panel en PNG"
-                            >
-                              {exportingPanel === panel.id ? (
-                                <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Export…</>
-                              ) : (
-                                <><Download className="h-3.5 w-3.5" /> PNG</>
-                              )}
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10"
-                              onClick={() => setPanelToDeleteId(panel.id)}
-                              title="Supprimer le panel"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                              Supprimer
-                            </Button>
-                          </div>
-                        </div>
-
-                        {/* Vue lecture seule du panel — édition dans la modale */}
-                        <div
-                          className="overflow-x-hidden overflow-y-auto"
-                          style={{ maxHeight: "80vh" }}
-                        >
-                          <div className="border-b border-border pl-4 pr-6 py-[15px] min-w-[840px]">
-                            <div className="mx-auto w-max relative rounded-xl border border-border bg-muted shadow-[inset_0_3px_8px_-2px_rgba(0,0,0,0.15),inset_0_-3px_8px_-2px_rgba(0,0,0,0.15)]" style={{ width: PANEL_WIDTH, height: getPanelHeight(panel) }}>
-                              <div
-                                ref={(el) => { exportCanvasRefByPanel.current[panel.id] = el; }}
-                                className="absolute left-0 top-0 rounded-lg overflow-hidden"
-                                style={{
-                                  width: PANEL_WIDTH,
-                                  height: getPanelHeight(panel),
-                                  backgroundColor: "#ffffff",
-                                }}
-                              >
-                              {/* Blocs de couleur (arrière-plan) — prévisualisation = tout ce qui sera exporté (ex. PDF) */}
-                              {previewColorBlocks.map((cb) => {
-                                const bgStyle = cb.fill.type === "solid"
-                                  ? { backgroundColor: cb.fill.color }
-                                  : { background: `linear-gradient(${cb.fill.angle ?? 90}deg, ${cb.fill.from}, ${cb.fill.to})` };
-                                return (
-                                  <div
-                                    key={cb.id}
-                                    className="absolute border border-border/80"
-                                    style={{
-                                      left: cb.x,
-                                      top: cb.y,
-                                      width: cb.width,
-                                      height: cb.height,
-                                      ...bgStyle,
-                                      zIndex: 0,
-                                    }}
-                                  />
-                                );
-                              })}
-                              {blocks.length === 0 ? (
-                                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-center p-6 text-muted-foreground text-sm" style={{ zIndex: 10 }}>
-                                  <Square className="h-10 w-10 opacity-50" />
-                                  <p>Aucun bloc. Cliquez sur Edition pour configurer le panel.</p>
-                                </div>
-                              ) : (
-                                blocks.map((block) => (
-                                  <div
-                                    key={block.id}
-                                    className="absolute overflow-hidden ring-1 ring-border bg-background/95"
-                                    style={{ left: block.x, top: block.y, width: block.width, height: block.height, zIndex: 10 }}
-                                  >
-                                    {block.image_url ? (
-                                      <ImageWithFallback src={block.image_url} alt="" className="w-full h-full object-fill" />
-                                    ) : (
-                                      <div className="w-full h-full flex items-center justify-center text-xs text-muted-foreground p-2 bg-muted/50">
-                                        Bloc
-                                      </div>
-                                    )}
-                                  </div>
-                                ))
-                              )}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {panels.length > 0 && (
-              <div className="pt-4 w-full max-w-[840px]">
-                <Button
-                  onClick={() => createPanelMutation.mutate(undefined, {
-                    onSuccess: () => toast({ title: "Panel ajouté" }),
-                    onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }),
-                  })}
-                  disabled={!chapterId || createPanelMutation.isPending}
-                  variant="outline"
-                  className="w-full gap-2 h-11 rounded-xl border-dashed border-2 border-border/80 bg-muted/30 hover:bg-muted/50 hover:border-primary/30 text-foreground font-medium"
-                >
-                  {createPanelMutation.isPending ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Plus className="h-4 w-4" />
-                  )}
-                  Ajouter un panel
-                </Button>
-              </div>
-            )}
           </div>
+          {/* Refs cachés pour l'export — le canvas de chaque panel est monté hors écran */}
+          {panels.map((panel) => {
+            const previewColorBlocks = getPanelColorBlocks(panel);
+            const blocks = getPanelBlocks(panel);
+            return (
+              <div key={panel.id} style={{ position: "fixed", left: -9999, top: 0, pointerEvents: "none", zIndex: -1 }}>
+                <div
+                  ref={(el) => { exportCanvasRefByPanel.current[panel.id] = el; }}
+                  style={{ width: PANEL_WIDTH, height: getPanelHeight(panel), backgroundColor: "#ffffff", position: "relative", overflow: "hidden" }}
+                >
+                  {previewColorBlocks.map((cb) => {
+                    const bgStyle = cb.fill.type === "solid"
+                      ? { backgroundColor: cb.fill.color }
+                      : { background: `linear-gradient(${cb.fill.angle ?? 90}deg, ${cb.fill.from}, ${cb.fill.to})` };
+                    return (
+                      <div key={cb.id} style={{ position: "absolute", left: cb.x, top: cb.y, width: cb.width, height: cb.height, zIndex: 0, ...bgStyle }} />
+                    );
+                  })}
+                  {blocks.map((block) => (
+                    <div key={block.id} style={{ position: "absolute", left: block.x, top: block.y, width: block.width, height: block.height, zIndex: 10, overflow: "hidden" }}>
+                      {block.image_url ? (
+                        <ImageWithFallback src={block.image_url} alt="" className="w-full h-full object-fill" />
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 
@@ -2834,8 +2649,27 @@ export default function ChapterDetail() {
           <DialogHeader className="px-6 pt-4 pb-4 border-b border-border/60 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 shrink-0">
             <div className="flex items-center justify-between gap-4">
               <DialogTitle className="text-base font-medium">
-                Edition du panel {expandedPanelId ? `— Panel ${panels.find((p) => p.id === expandedPanelId)?.panel_number ?? ""}` : ""}
+                Éditeur de canvas
               </DialogTitle>
+              <div className="flex items-center gap-3">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5 shrink-0"
+                  onClick={() => setSliceModalOpen(true)}
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  Découper & télécharger
+                </Button>
+                <Link
+                  to={`/dashboard/projects/${projectId}`}
+                  className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  onClick={closePanelEditor}
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  Retour au projet
+                </Link>
+              </div>
             </div>
             <p className="text-xs text-muted-foreground">
               Navigation d’édition via le menu à gauche (logo + sous-menu).
@@ -2857,6 +2691,73 @@ export default function ChapterDetail() {
       >
         500×500
       </div>
+
+      {/* Modal découpage & export ZIP */}
+      <Dialog open={sliceModalOpen} onOpenChange={setSliceModalOpen}>
+        <DialogContent className="glass max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="font-display">Découper le chapitre</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="rounded-lg bg-muted/40 border border-border p-4 space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Hauteur du canvas</span>
+                <span className="font-medium tabular-nums">
+                  {panels[0] ? getPanelHeight(panels[0]).toLocaleString() : "–"} px
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Découpe fixe</span>
+                <span className="font-medium">1 280 px / panel</span>
+              </div>
+              <div className="flex justify-between text-foreground font-semibold">
+                <span>Panels générés</span>
+                <span className="tabular-nums">
+                  {panels[0] ? Math.ceil(getPanelHeight(panels[0]) / 1280) : "–"}
+                </span>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Le chapitre sera découpé en tranches de 1 280px et téléchargé en ZIP.
+              Seules les zones avec du contenu visible seront incluses.
+            </p>
+            <Button
+              className="w-full gradient-primary text-primary-foreground gap-2"
+              disabled={exportingChapter}
+              onClick={async () => {
+                if (!panels[0] || !project) return;
+                const panelId = panels[0].id;
+                const el = exportCanvasRefByPanel.current[panelId];
+                if (!el) {
+                  toast({ title: "Canvas non disponible", description: "Ouvrez d'abord le panel dans l'éditeur.", variant: "destructive" });
+                  return;
+                }
+                setExportingChapter(true);
+                try {
+                  await exportChapterAsZip(
+                    el,
+                    project.title ?? "Projet",
+                    chapter?.chapter_number ?? 1,
+                    1280
+                  );
+                  toast({ title: "ZIP téléchargé" });
+                  setSliceModalOpen(false);
+                } catch (err) {
+                  toast({ title: "Erreur export", description: String(err), variant: "destructive" });
+                } finally {
+                  setExportingChapter(false);
+                }
+              }}
+            >
+              {exportingChapter ? (
+                <><Loader2 className="h-4 w-4 animate-spin" /> Export en cours...</>
+              ) : (
+                <><Download className="h-4 w-4" /> Télécharger le ZIP</>
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }

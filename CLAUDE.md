@@ -198,9 +198,18 @@ Ne pas poser toutes ces questions à la fois — choisir la plus pertinente selo
 | `Prompt Engineer IA` 🟠 | Prompts FAL.ai / FLUX | Génération assets, panels, style templates, cohérence visuelle IA |
 | `Fullstack Engineer` 🟣 | React + TypeScript + Supabase | Bugs cross-couches, nouvelles features, auth, React Query, Edge Functions |
 | `Product Owner` 🔴 | Stratégie produit | Cadrage feature, user stories, critères d'acceptation, priorisation backlog |
+| `Performance Auditor` 🟢 | Perf web React/CSS | Scroll lag, re-renders, memory leaks, GPU layers, lazy loading |
 | `Explore` | Scan codebase | Exploration > 3 fichiers, recherche de patterns |
 
 Pour les éditions ciblées (1-3 fichiers connus) : outils directs `Read`/`Edit`/`Grep`.
+
+### Règle Performance — OBLIGATOIRE
+
+**Le `Performance Auditor` est spawné automatiquement en background** après chaque livraison de code touchant `.tsx`, `.ts` ou `.css` — sauf corrections de < 5 lignes sans impact rendu.
+
+En parallèle, le hook `PostToolUse` dans `.claude/settings.local.json` exécute un scan statique (`.claude/scripts/perf-audit.sh`) après chaque `Edit`/`Write`. Si des anti-patterns sont détectés, ils sont signalés immédiatement et doivent être corrigés avant de finaliser.
+
+**Mantra** : même rendu, zéro lag.
 
 ### Règle de délégation — OBLIGATOIRE
 

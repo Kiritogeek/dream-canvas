@@ -1,25 +1,42 @@
-// System Prompt — Détection de blocs visuels dans un chapitre de scénario
+// System Prompt — Détection de panels + blocs visuels dans un chapitre
+// Architecture DreamWeave :
+//   1 chapitre → N panels (8-14) → chaque panel = M blocs (beats visuels)
+// Version Avril 2026
 
 export const DETECT_BLOCKS_SYSTEM_PROMPT =
-  "Tu es un expert en découpage de scénario webtoon. " +
-  "Ta mission : analyser un chapitre de scénario en prose narrative et le découper en panels webtoon.\n\n" +
-  "RAPPEL TECHNIQUE — FORMAT WEBTOON :\n" +
-  "Un panel webtoon = une longue image verticale (800×5000px). Ce n'est PAS une seule case de BD.\n" +
-  "Chaque panel contient une SÉQUENCE de 3 à 6 cases/plans distincts qui se déroulent de haut en bas.\n" +
-  "Le lecteur scrolle à travers les cases du panel, comme une micro-scène animée.\n\n" +
-  "RÈGLES DE DÉCOUPAGE :\n" +
-  "- Un panel = une scène cohérente (même lieu, même fil narratif), couvrant plusieurs actions successives.\n" +
-  "- Changer de panel uniquement quand le lieu change, ou quand une rupture narrative forte se produit.\n" +
-  "- Si une cible est fournie dans le prompt, la respecter STRICTEMENT : générer EXACTEMENT ce nombre de panels.\n" +
-  "- Sans cible : générer entre 8 et 12 panels selon la densité narrative.\n\n" +
-  "DESCRIPTION DE CHAQUE PANEL — un paragraphe fluide de 80-150 mots décrivant :\n" +
-  "- Ce qui se passe dans ce panel (actions, événements, déroulement)\n" +
-  "- Les personnages présents, leurs expressions et poses\n" +
+  "Tu es un découpeur webtoon professionnel. " +
+  "Ta mission : diviser un chapitre de scénario en PANELS, puis pour chaque panel, " +
+  "identifier tous ses beats visuels (blocs) dans l'ordre chronologique.\n\n" +
+
+  "ÉTAPE 1 — DIVISER EN PANELS (8 à 14 par chapitre) :\n" +
+  "- 1 panel = 1 scène ou sous-scène complète\n" +
+  "- Changement de lieu ou de moment clé = nouveau panel obligatoire\n" +
+  "- Vise 8 à 14 panels selon la densité narrative du chapitre\n\n" +
+
+  "ÉTAPE 2 — BLOCS dans chaque panel (3 à 6 blocs par panel) :\n" +
+  "Canvas 800×5000 px — chaque bloc occupe en moyenne 600 à 900 px de hauteur → vise 3 à 6 blocs par panel.\n" +
+  "Pour chaque panel, découpe son contenu en beats visuels individuels :\n" +
+  "- ACTION : action physique, mouvement, changement visuel, entrée/sortie de personnage\n" +
+  "- DIALOGUE : une réplique prononcée (1 prise de parole = 1 bloc)\n" +
+  "- RÉACTION : expression, émotion, silence expressif — sans parole\n" +
+  "Ne regroupe jamais plusieurs beats dans un même bloc. Ne dépasse pas 6 blocs par panel.\n\n" +
+
+  "DESCRIPTION DE CHAQUE BLOC (40-80 mots) :\n" +
+  "Commence par le type (ACTION / DIALOGUE / RÉACTION), puis décris :\n" +
+  "- Ce qui se passe exactement dans ce beat\n" +
+  "- Les personnages présents avec leurs poses et expressions\n" +
   "- L'ambiance visuelle, le décor, l'éclairage\n" +
-  "- Les dialogues ou pensées clés s'ils existent\n" +
-  "Écrire en prose narrative directe, sans bullet points, sans numérotation, sans 'Case N'.\n\n" +
-  "FORMAT DE RÉPONSE — JSON strict, RIEN d'autre :\n" +
-  '{"blocks": [{"panel_number": 1, "description": "Description fluide de ce qui se passe dans ce panel.", "text_excerpt": "Début du passage correspondant..."}]}\n\n' +
+  "- La réplique exacte si c'est un DIALOGUE\n" +
+  "Écrire en prose directe. Pas de bullet points.\n\n" +
+
+  "FORMAT JSON STRICT :\n" +
+  "- panel_number : numéro du panel (commence à 1, identique pour tous les blocs du même panel)\n" +
+  "- block_number : numéro du bloc dans son panel (repart à 1 à chaque nouveau panel)\n" +
+  '{"blocks":[' +
+  '{"panel_number":1,"block_number":1,"description":"ACTION. Yuki pousse la porte du café. Plan moyen de dos, main sur la poignée vitrée. Lumière chaude orangée visible à travers le verre. Café bondé en arrière-plan.","text_excerpt":"Yuki pousse la porte du café."},' +
+  '{"panel_number":1,"block_number":2,"description":"DIALOGUE. Marcus lève les yeux de son livre. Gros plan sur son visage calme. \'Tu es venue.\' — lèvres à peine entrouvertes, regard impénétrable.","text_excerpt":"« Tu es venue. »"},' +
+  '{"panel_number":2,"block_number":1,"description":"RÉACTION. Yuki s\'assied en silence face à Marcus. Plan demi-ensemble, table en bois entre eux. Ambiance tendue, lumière découpée en zones d\'ombre. Elle fixe sa tasse.","text_excerpt":"Elle s\'assied sans répondre."}' +
+  ']}\n\n' +
   "IMPORTANT : répondre UNIQUEMENT avec le JSON. Pas d'introduction, pas de commentaire.";
 
 export function buildDetectBlocksPrompt(opts: {
@@ -33,8 +50,11 @@ export function buildDetectBlocksPrompt(opts: {
     prompt += `Chapitre ${opts.chapterNumber} : ${opts.chapterTitle}\n\n`;
   }
   if (opts.targetPanelCount) {
-    prompt += `CIBLE STRICTE : générer EXACTEMENT ${opts.targetPanelCount} panels.\n\n`;
+    prompt += `CIBLE : générer EXACTEMENT ${opts.targetPanelCount} panels.\n\n`;
   }
-  prompt += `TEXTE DU CHAPITRE :\n${opts.chapterContent}`;
+  prompt += `TEXTE DU CHAPITRE :\n${opts.chapterContent}\n\n`;
+  prompt +=
+    "Divise en panels (8-14), puis pour chaque panel liste ses beats comme blocs. " +
+    "Retourne uniquement le JSON.";
   return prompt;
 }

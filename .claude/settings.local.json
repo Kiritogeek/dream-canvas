@@ -26,7 +26,42 @@
       "Bash(cat *)",
       "Glob(**)",
       "Grep(**)",
-      "Bash(node -e \"const pkg = require\\('./package.json'\\); console.log\\(JSON.stringify\\(pkg['lint-staged'], null, 2\\)\\)\")"
+      "Bash(node -e \"const pkg = require\\('./package.json'\\); console.log\\(JSON.stringify\\(pkg['lint-staged'], null, 2\\)\\)\")",
+      "Bash(git push *)",
+      "WebSearch",
+      "WebFetch(domain:www.visuallanguagelab.com)",
+      "WebFetch(domain:mattreadscomics.com)",
+      "WebFetch(domain:www.s-morishitastudio.com)",
+      "WebFetch(domain:pmc.ncbi.nlm.nih.gov)",
+      "Bash(tee /tmp/tsc.log)",
+      "Bash(echo \"EXIT=$?\")",
+      "Bash(echo \"--- Exit code: $? ---\")",
+      "Bash(npx eslint *)",
+      "Bash(echo \"--- Exit: $? ---\")",
+      "Bash(git commit --no-verify -m ' *)",
+      "Bash(git commit *)",
+      "Bash(grep -v \"//\\\\|^\\\\s*//\")",
+      "Bash(npm --version)",
+      "Bash(claude --version)",
+      "Bash(openclaw --version)",
+      "Bash(openclaw config *)",
+      "Bash(openclaw hooks *)",
+      "Bash(python3 -c ' *)",
+      "Bash(setx DISCORD_BOT_TOKEN *)",
+      "Bash(xxd .husky/pre-commit)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \".claude/scripts/perf-audit.sh\""
+          }
+        ]
+      }
     ]
   }
 }

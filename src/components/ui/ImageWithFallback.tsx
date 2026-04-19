@@ -58,15 +58,15 @@ function processLoadQueue() {
 
 function queueImageLoad(src: string): Promise<void> {
   return new Promise((resolve, reject) => {
-    // Vérifier si déjà en cours
+    // Si déjà en cours de chargement, mettre en attente sans dupliquer
     if (activeLoads.has(src)) {
-      // Attendre que le chargement en cours se termine
       const checkInterval = setInterval(() => {
         if (!activeLoads.has(src)) {
           clearInterval(checkInterval);
           resolve();
         }
       }, 100);
+      // L'interval se nettoie lui-même via clearInterval dans le callback
       return;
     }
 
@@ -86,7 +86,6 @@ export function ImageWithFallback({
 }: ImageWithFallbackProps) {
   const [hasError, setHasError] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [retryCount, setRetryCount] = useState(0);
   const [imageSrc, setImageSrc] = useState<string | null>(null);
   const mountedRef = useRef(true);
   const retryCountRef = useRef(0);
@@ -134,7 +133,6 @@ export function ImageWithFallback({
 
     setHasError(false);
     setIsLoading(true);
-    setRetryCount(0);
     setImageSrc(null);
 
     // Utiliser la queue pour charger l'image
@@ -154,6 +152,7 @@ export function ImageWithFallback({
     return () => {
       mountedRef.current = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [src]);
 
   if (!src || hasError) {

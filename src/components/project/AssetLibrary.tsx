@@ -508,6 +508,8 @@ export function AssetLibrary({
               src={previewAsset.image_url}
               alt={previewAsset.name}
               className="w-full rounded-lg object-contain max-h-[70vh]"
+              loading="lazy"
+              decoding="async"
             />
           )}
         </DialogContent>
@@ -611,6 +613,8 @@ export function AssetLibrary({
                   src={editTarget.image_url}
                   alt={editTarget.name}
                   className="w-24 h-32 object-cover rounded-lg flex-shrink-0"
+                  loading="lazy"
+                  decoding="async"
                 />
                 <div className="flex-1 space-y-4">
                   <div className="space-y-2">

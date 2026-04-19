@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo, type ReactNode } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
@@ -10,19 +10,16 @@ import {
   Sparkles,
   Scissors,
   Lock,
+  Unlock,
   PenLine,
   Layers,
   LayoutPanelTop,
   Package,
   Type,
+  AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import {
   useScenarioChapter,
   useUpdateScenarioChapter,
@@ -35,172 +32,101 @@ import { callDetectBlocks, callGenerateAiSummary } from "@/services/scenarioAI";
 import { estimatePanelCount } from "@/services/panels";
 import { ScenarioTextHighlighter } from "@/components/project/ScenarioTextHighlighter";
 import { useToast } from "@/hooks/use-toast";
-import type { LockedBlock, DetectedBlock } from "@/types";
+import type { LockedBlock, DetectedBlock, AssetType } from "@/types";
 
-// ═══════════════════════════════════════════════════════════════
-// Sous-composants
-// ═══════════════════════════════════════════════════════════════
+// ─── FormatCEditor ─────────────────────────────────────────────
 
-function StatRow({
-  icon,
-  label,
-  value,
-  note,
-  valueColor,
-}: {
-  icon: ReactNode;
-  label: string;
-  value: string;
-  note?: string;
-  valueColor?: "emerald";
-}) {
-  return (
-    <div className="flex items-center gap-3">
-      <div className="shrink-0">{icon}</div>
-      <span className="text-sm text-muted-foreground flex-1">{label}</span>
-      <div className="text-right">
-        <span
-          className={`text-sm font-semibold ${
-            valueColor === "emerald" ? "text-emerald-500" : "text-foreground"
-          }`}
-        >
-          {value}
+const EDITOR_FONT_STYLE: React.CSSProperties = {
+  fontFamily: "inherit",
+  fontSize: "1rem",
+  lineHeight: "1.8",
+  whiteSpace: "pre-wrap",
+  wordBreak: "break-word",
+  overflowWrap: "break-word",
+  padding: 0,
+  margin: 0,
+};
+
+function renderFormatCHighlight(text: string): React.ReactNode[] {
+  const lines = text.split("\n");
+  const nodes: React.ReactNode[] = [];
+  lines.forEach((line, i) => {
+    let span: React.ReactNode;
+
+    const scenePrefix = line.match(/^(###\s)/)?.[1];
+    const blockquotePrefix = line.match(/^(>\s*)/)?.[1];
+
+    if (scenePrefix) {
+      span = (
+        <span key={`h-${i}`} style={{ color: "hsl(275, 45%, 60%)", fontWeight: 700 }}>
+          {line.slice(scenePrefix.length)}
         </span>
-        {note && (
-          <span className="text-xs text-muted-foreground ml-1.5">{note}</span>
+      );
+    } else if (blockquotePrefix) {
+      const rest = line.slice(blockquotePrefix.length);
+      const color = /^Personnages\s*:/i.test(rest)
+        ? "hsl(275, 38%, 55%)"
+        : "hsl(170, 40%, 55%)";
+      span = <span key={`h-${i}`} style={{ color }}>{rest}</span>;
+    } else if (/^-{3,}\s*$/.test(line)) {
+      span = (
+        <span key={`h-${i}`} style={{ color: "hsl(0, 0%, 58%)" }}>
+          {line}
+        </span>
+      );
+    } else if (/«/.test(line)) {
+      span = (
+        <span key={`h-${i}`} style={{ fontStyle: "italic", color: "hsl(275, 22%, 52%)" }}>
+          {line}
+        </span>
+      );
+    } else {
+      span = (
+        <span key={`h-${i}`} style={{ color: "hsl(var(--foreground))" }}>
+          {line}
+        </span>
+      );
+    }
+    nodes.push(span);
+    if (i < lines.length - 1) nodes.push("\n");
+  });
+  return nodes;
+}
+
+interface FormatCEditorProps {
+  value: string;
+  onChange: (v: string) => void;
+  textareaRef: React.RefObject<HTMLTextAreaElement>;
+  placeholder?: string;
+}
+
+function FormatCEditor({ value, onChange, textareaRef, placeholder }: FormatCEditorProps) {
+  return (
+    <div className="relative min-h-[300px]">
+      {/* Highlight layer — in-flow, drives container height */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none select-none"
+        style={{ ...EDITOR_FONT_STYLE, minHeight: 300 }}
+      >
+        {value ? renderFormatCHighlight(value) : (
+          <span style={{ color: "transparent" }}>{placeholder ?? " "}</span>
         )}
       </div>
-    </div>
-  );
-}
-
-// ─── AnnotatedTextView ─────────────────────────────────────────
-
-interface AnnotatedSegment {
-  text: string;
-  panelNumber?: number;
-  isLocked?: boolean;
-}
-
-function buildSegments(
-  content: string,
-  detectedBlocks: DetectedBlock[],
-  lockedBlocks: LockedBlock[]
-): AnnotatedSegment[] {
-  // Merge : les blocs verrouillés ont priorité sur les détectés pour le même numéro
-  const allBlocks = [
-    ...lockedBlocks.map((b) => ({
-      panel_number: b.panel_number,
-      text_excerpt: b.text_excerpt,
-      isLocked: true,
-    })),
-    ...detectedBlocks
-      .filter(
-        (d) => !lockedBlocks.some((l) => l.panel_number === d.panel_number)
-      )
-      .map((d) => ({
-        panel_number: d.panel_number,
-        text_excerpt: d.text_excerpt,
-        isLocked: false,
-      })),
-  ];
-
-  const positioned = allBlocks
-    .map((b) => ({ ...b, start: content.indexOf(b.text_excerpt) }))
-    .filter((b) => b.start >= 0)
-    .sort((a, b) => a.start - b.start);
-
-  if (positioned.length === 0) return [{ text: content }];
-
-  const segments: AnnotatedSegment[] = [];
-  let cursor = 0;
-
-  for (const { panel_number, text_excerpt, start, isLocked } of positioned) {
-    const end = start + text_excerpt.length;
-    if (start < cursor) continue; // éviter les chevauchements
-    if (start > cursor) segments.push({ text: content.slice(cursor, start) });
-    segments.push({
-      text: content.slice(start, end),
-      panelNumber: panel_number,
-      isLocked,
-    });
-    cursor = end;
-  }
-  if (cursor < content.length) segments.push({ text: content.slice(cursor) });
-
-  return segments;
-}
-
-interface AnnotatedTextViewProps {
-  content: string;
-  detectedBlocks: DetectedBlock[];
-  lockedBlocks: LockedBlock[];
-  onToggleBlock: (block: DetectedBlock) => void;
-  onUnlockBlock: (panelNumber: number) => void;
-}
-
-function AnnotatedTextView({
-  content,
-  detectedBlocks,
-  lockedBlocks,
-  onToggleBlock,
-  onUnlockBlock,
-}: AnnotatedTextViewProps) {
-  const segments = buildSegments(content, detectedBlocks, lockedBlocks);
-
-  return (
-    <div className="text-base leading-[1.8] whitespace-pre-wrap">
-      {segments.map((seg, i) => {
-        if (seg.panelNumber === undefined) {
-          return <span key={i}>{seg.text}</span>;
-        }
-
-        const isLocked = seg.isLocked;
-        const detectedBlock = detectedBlocks.find(
-          (b) => b.panel_number === seg.panelNumber
-        );
-
-        return (
-          <span key={i} className="relative group">
-            <span
-              className={`relative inline rounded-sm px-0.5 ${
-                isLocked
-                  ? "bg-emerald-500/15 border-l-2 border-emerald-500 pl-1"
-                  : "bg-primary/10 border-l-2 border-primary pl-1"
-              }`}
-            >
-              <span
-                className={`absolute -left-7 top-0 text-[10px] font-bold font-mono px-1 py-0.5 rounded select-none ${
-                  isLocked
-                    ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400"
-                    : "bg-primary/15 text-primary"
-                }`}
-              >
-                P{seg.panelNumber}
-              </span>
-              {seg.text}
-              <span className="absolute -right-2 top-0 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                <button
-                  onClick={() => {
-                    if (isLocked) {
-                      onUnlockBlock(seg.panelNumber!);
-                    } else if (detectedBlock) {
-                      onToggleBlock(detectedBlock);
-                    }
-                  }}
-                  className={`text-[10px] font-medium px-1.5 py-0.5 rounded shadow-sm border transition-colors ${
-                    isLocked
-                      ? "bg-background border-emerald-500/30 text-emerald-600 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30"
-                      : "bg-background border-primary/30 text-primary hover:bg-primary/10"
-                  }`}
-                >
-                  {isLocked ? "Déverr." : "Verrouiller"}
-                </button>
-              </span>
-            </span>
-          </span>
-        );
-      })}
+      {/* Transparent textarea overlay */}
+      <textarea
+        ref={textareaRef}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="absolute inset-0 w-full resize-none border-0 focus:ring-0 focus:outline-none bg-transparent overflow-hidden placeholder:text-muted-foreground/40"
+        style={{
+          ...EDITOR_FONT_STYLE,
+          color: "transparent",
+          caretColor: "hsl(var(--foreground))",
+          height: "100%",
+        }}
+      />
     </div>
   );
 }
@@ -271,9 +197,21 @@ export default function ScenarioChapterEditor() {
   const [lockedBlocks, setLockedBlocks] = useState<LockedBlock[]>([]);
   const [detectedBlocks, setDetectedBlocks] = useState<DetectedBlock[]>([]);
   const [isDetecting, setIsDetecting] = useState(false);
+  // Contenu au moment de la dernière détection — pour P2 warning
+  const [detectedAtContent, setDetectedAtContent] = useState("");
 
   // Local state — IA barre
   const [showIABar, setShowIABar] = useState(false);
+
+  // Local state — éléments à ne pas proposer comme assets (persisté par projet)
+  const [dismissedMissingNames, setDismissedMissingNames] = useState<Set<string>>(() => {
+    try {
+      const saved = localStorage.getItem(`dw:dismissed-missing:${projectId}`);
+      return saved ? new Set(JSON.parse(saved) as string[]) : new Set();
+    } catch {
+      return new Set();
+    }
+  });
 
   // Local state — sélection / IA
   const [chapterAIPrompt, setChapterAIPrompt] = useState("");
@@ -314,6 +252,7 @@ export default function ScenarioChapterEditor() {
       // Restaurer les blocs depuis panels_outline
       type StoredBlock = {
         panel_number: number;
+        block_number?: number;
         description: string;
         text_excerpt: string;
         locked?: boolean;
@@ -321,27 +260,34 @@ export default function ScenarioChapterEditor() {
       const outline = chapter.panels_outline;
       if (Array.isArray(outline) && outline.length > 0) {
         const stored = outline as StoredBlock[];
-        const detected: DetectedBlock[] = stored.map(
-          ({ panel_number, description, text_excerpt }) => ({
-            panel_number,
-            description,
-            text_excerpt,
-          })
-        );
+        // Assign block_number if missing (old data without block_number)
+        const counters: Record<number, number> = {};
+        const detected: DetectedBlock[] = stored.map((b) => {
+          counters[b.panel_number] = (counters[b.panel_number] ?? 0) + 1;
+          return {
+            panel_number: b.panel_number,
+            block_number: b.block_number ?? counters[b.panel_number],
+            description: b.description,
+            text_excerpt: b.text_excerpt,
+          };
+        });
         const locked: LockedBlock[] = stored
           .filter((b) => b.locked)
-          .map((b) => ({
-            id: `${b.panel_number}-restored`,
+          .map((b, idx) => ({
+            id: `${b.panel_number}-${b.block_number ?? idx}-restored`,
             panel_number: b.panel_number,
+            block_number: b.block_number ?? 1,
             description: b.description,
             text_excerpt: b.text_excerpt,
           }));
         setDetectedBlocks(detected);
         setLockedBlocks(locked);
+        setDetectedAtContent(chapter.content ?? "");
         setViewMode("visuels");
       } else {
         setDetectedBlocks([]);
         setLockedBlocks([]);
+        setDetectedAtContent("");
         setViewMode("edit");
       }
     }
@@ -349,15 +295,6 @@ export default function ScenarioChapterEditor() {
     // — sinon l'auto-save overwrite-erait les frappes en cours.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chapter?.id]);
-
-  // ── Auto-resize textarea ─────────────────────────────────────
-
-  useEffect(() => {
-    const ta = textareaRef.current;
-    if (!ta) return;
-    ta.style.height = "auto";
-    ta.style.height = `${ta.scrollHeight}px`;
-  }, [content, viewMode, showAssets]);
 
   // ── Préserver la position de scroll lors du toggle Assets ────
   // setTimeout(0) garantit que l'auto-resize a déjà tourné avant de restaurer.
@@ -513,7 +450,6 @@ export default function ScenarioChapterEditor() {
         chapter_content: content,
         chapter_title: chapter.title,
         chapter_number: chapter.chapter_number,
-        target_panel_count: estimatePanelCount(content),
       });
       setDetectedBlocks(result.blocks);
       if (result.blocks.length === 0) {
@@ -522,6 +458,7 @@ export default function ScenarioChapterEditor() {
           description: "Le chapitre est peut-être trop court.",
         });
       } else {
+        setDetectedAtContent(content);
         setViewMode("visuels");
         updateChapter.mutate({
           id: chapter.id,
@@ -540,9 +477,18 @@ export default function ScenarioChapterEditor() {
     } finally {
       setIsDetecting(false);
     }
-  }, [chapter, content, project, toast]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chapter, content, toast]);
 
   // ── Toggle / unlock un bloc ──────────────────────────────────
+
+  const isBlockLocked = useCallback(
+    (b: DetectedBlock) =>
+      lockedBlocks.some(
+        (l) => l.panel_number === b.panel_number && l.block_number === b.block_number
+      ),
+    [lockedBlocks]
+  );
 
   const savePanelsOutline = useCallback(
     (detected: DetectedBlock[], locked: LockedBlock[]) => {
@@ -553,7 +499,9 @@ export default function ScenarioChapterEditor() {
         updates: {
           panels_outline: detected.map((b) => ({
             ...b,
-            locked: locked.some((l) => l.panel_number === b.panel_number),
+            locked: locked.some(
+              (l) => l.panel_number === b.panel_number && l.block_number === b.block_number
+            ),
           })),
         },
       });
@@ -563,54 +511,73 @@ export default function ScenarioChapterEditor() {
 
   const toggleBlock = useCallback(
     (block: DetectedBlock) => {
-      const isLocked = lockedBlocks.some(
-        (b) => b.panel_number === block.panel_number
-      );
-      const newLocked = isLocked
-        ? lockedBlocks.filter((b) => b.panel_number !== block.panel_number)
+      const locked = isBlockLocked(block);
+      const newLocked = locked
+        ? lockedBlocks.filter(
+            (l) => !(l.panel_number === block.panel_number && l.block_number === block.block_number)
+          )
         : [
             ...lockedBlocks,
             {
-              id: `${block.panel_number}-${Date.now()}`,
+              id: `${block.panel_number}-${block.block_number}-${Date.now()}`,
               panel_number: block.panel_number,
+              block_number: block.block_number,
               description: block.description,
               text_excerpt: block.text_excerpt,
             },
-          ].sort((a, b) => a.panel_number - b.panel_number);
+          ];
       setLockedBlocks(newLocked);
       savePanelsOutline(detectedBlocks, newLocked);
     },
-    [lockedBlocks, detectedBlocks, savePanelsOutline]
-  );
-
-  const unlockBlock = useCallback(
-    (panelNumber: number) => {
-      const newLocked = lockedBlocks.filter(
-        (b) => b.panel_number !== panelNumber
-      );
-      setLockedBlocks(newLocked);
-      savePanelsOutline(detectedBlocks, newLocked);
-    },
-    [lockedBlocks, detectedBlocks, savePanelsOutline]
+    [lockedBlocks, detectedBlocks, isBlockLocked, savePanelsOutline]
   );
 
   const lockAllDetected = useCallback(() => {
-    const newBlocks: LockedBlock[] = detectedBlocks
-      .filter((d) => !lockedBlocks.some((l) => l.panel_number === d.panel_number))
+    const toAdd: LockedBlock[] = detectedBlocks
+      .filter((d) => !isBlockLocked(d))
       .map((d) => ({
-        id: `${d.panel_number}-${Date.now()}`,
+        id: `${d.panel_number}-${d.block_number}-${Date.now()}`,
         panel_number: d.panel_number,
+        block_number: d.block_number,
         description: d.description,
         text_excerpt: d.text_excerpt,
       }));
-    if (newBlocks.length > 0) {
-      const newLocked = [...lockedBlocks, ...newBlocks].sort(
-        (a, b) => a.panel_number - b.panel_number
-      );
+    if (toAdd.length > 0) {
+      const newLocked = [...lockedBlocks, ...toAdd];
       setLockedBlocks(newLocked);
       savePanelsOutline(detectedBlocks, newLocked);
     }
-  }, [detectedBlocks, lockedBlocks, savePanelsOutline]);
+  }, [detectedBlocks, lockedBlocks, isBlockLocked, savePanelsOutline]);
+
+  const unlockAllBlocks = useCallback(() => {
+    const newLocked: LockedBlock[] = [];
+    setLockedBlocks(newLocked);
+    savePanelsOutline(detectedBlocks, newLocked);
+  }, [detectedBlocks, savePanelsOutline]);
+
+  // ── Set des clés verrouillées — O(1) lookup en render ────────
+
+  const lockedKeySet = useMemo(
+    () => new Set(lockedBlocks.map((l) => `${l.panel_number}-${l.block_number}`)),
+    [lockedBlocks]
+  );
+
+  // ── Grouper les blocs détectés par panel ──────────────────────
+
+  const groupedPanels = useMemo(() => {
+    const map = new Map<number, DetectedBlock[]>();
+    for (const block of detectedBlocks) {
+      const arr = map.get(block.panel_number) ?? [];
+      arr.push(block);
+      map.set(block.panel_number, arr);
+    }
+    return Array.from(map.entries())
+      .sort(([a], [b]) => a - b)
+      .map(([panelNumber, blocks]) => ({
+        panelNumber,
+        blocks: [...blocks].sort((a, b) => a.block_number - b.block_number),
+      }));
+  }, [detectedBlocks]);
 
   // ── IA chapitre complet ──────────────────────────────────────
 
@@ -665,7 +632,22 @@ export default function ScenarioChapterEditor() {
     setEditingTarget(false);
   }, [panelsTargetDraft, project, updateProject, toast]);
 
-  // ── Assets détectés dans le texte ────────────────────────────
+  // ── Dismiss missing asset name ───────────────────────────────
+
+  const handleDismissMissing = useCallback((name: string) => {
+    setDismissedMissingNames((prev) => {
+      const next = new Set(prev);
+      next.add(name.toLowerCase());
+      try {
+        localStorage.setItem(`dw:dismissed-missing:${projectId}`, JSON.stringify([...next]));
+      } catch { /* localStorage indisponible */ }
+      return next;
+    });
+  }, [projectId]);
+
+  const handleCreateAssetFromText = useCallback((_name: string, _type: AssetType) => {
+    navigate(`/dashboard/projects/${projectId}?tab=assets`);
+  }, [navigate, projectId]);
 
   // ── Loading / error states ───────────────────────────────────
 
@@ -695,12 +677,7 @@ export default function ScenarioChapterEditor() {
 
   // ── Rendu ────────────────────────────────────────────────────
 
-  const targetPanels = project?.panels_target_per_chapter ?? null;
-  const progressPct =
-    readingInfo && targetPanels
-      ? Math.min(100, Math.round((readingInfo.panels / targetPanels) * 100))
-      : 0;
-  const hasVisuals = detectedBlocks.length > 0 || lockedBlocks.length > 0;
+  const _targetPanels = project?.panels_target_per_chapter ?? null;
 
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">
@@ -763,7 +740,9 @@ export default function ScenarioChapterEditor() {
               </span>
               <span className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400 bg-amber-500/10 rounded-full px-2.5 py-1">
                 <LayoutPanelTop className="h-3 w-3" />
-                ~{readingInfo.panels} panels
+                {groupedPanels.length > 0
+                  ? `${groupedPanels.length} panel${groupedPanels.length > 1 ? "s" : ""}`
+                  : `~${readingInfo.panels} panels`}
               </span>
               {lockedBlocks.length > 0 && (
                 <span className="flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 rounded-full px-2.5 py-1">
@@ -834,9 +813,9 @@ export default function ScenarioChapterEditor() {
                 >
                   <Layers className="h-3 w-3" />
                   Panels
-                  {detectedBlocks.length > 0 && (
+                  {groupedPanels.length > 0 && (
                     <span className="ml-0.5 bg-primary/20 text-primary text-[10px] font-bold rounded px-1">
-                      {detectedBlocks.length}
+                      {groupedPanels.length}
                     </span>
                   )}
                 </button>
@@ -910,11 +889,18 @@ export default function ScenarioChapterEditor() {
             {!chapterAIResult && (
             <div className="max-w-3xl mx-auto px-8 py-8">
               {viewMode === "visuels" ? (
-                /* Vue Panels : cartes au centre, remplace le texte */
+                /* Vue Panels groupés : N panels, chacun contenant ses blocs */
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <p className="text-sm font-semibold text-foreground">
-                      {detectedBlocks.length} panel{detectedBlocks.length > 1 ? "s" : ""}
+                      {groupedPanels.length > 0 ? (
+                        <>
+                          {groupedPanels.length} panel{groupedPanels.length > 1 ? "s" : ""}
+                          <span className="text-muted-foreground ml-1.5 font-normal text-xs">
+                            · {detectedBlocks.length} blocs
+                          </span>
+                        </>
+                      ) : "Aucun panel"}
                       {lockedBlocks.length > 0 && (
                         <span className="text-emerald-500 ml-1.5 font-normal text-xs">
                           · {lockedBlocks.length} verrouillé{lockedBlocks.length > 1 ? "s" : ""}
@@ -922,20 +908,35 @@ export default function ScenarioChapterEditor() {
                       )}
                     </p>
                     {detectedBlocks.length > 0 && (
-                      <button
-                        onClick={lockAllDetected}
-                        disabled={detectedBlocks.every((d) =>
-                          lockedBlocks.some((l) => l.panel_number === d.panel_number)
-                        )}
-                        className="flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 disabled:opacity-40 disabled:pointer-events-none transition-colors"
-                      >
-                        <Lock className="h-3 w-3" />
-                        Tout verrouiller
-                      </button>
+                      detectedBlocks.every((d) => lockedKeySet.has(`${d.panel_number}-${d.block_number}`)) ? (
+                        <button
+                          onClick={unlockAllBlocks}
+                          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-destructive transition-colors"
+                        >
+                          <Unlock className="h-3 w-3" />
+                          Tout déverrouiller
+                        </button>
+                      ) : (
+                        <button
+                          onClick={lockAllDetected}
+                          className="flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 transition-colors"
+                        >
+                          <Lock className="h-3 w-3" />
+                          Tout verrouiller
+                        </button>
+                      )
                     )}
                   </div>
 
-                  {detectedBlocks.length === 0 ? (
+                  {/* P2 — warning si le contenu a changé depuis la dernière détection */}
+                  {detectedAtContent !== "" && groupedPanels.length > 0 && content !== detectedAtContent && (
+                    <div className="flex items-start gap-2.5 px-3.5 py-2.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-400 text-xs">
+                      <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                      <span>Le chapitre a été modifié depuis la dernière détection. Cliquez sur «&nbsp;Diviser en panels&nbsp;» pour mettre à jour le découpage.</span>
+                    </div>
+                  )}
+
+                  {groupedPanels.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-20 gap-3 text-center">
                       <Layers className="h-8 w-8 text-muted-foreground/20" />
                       <p className="text-sm text-muted-foreground">
@@ -943,51 +944,78 @@ export default function ScenarioChapterEditor() {
                       </p>
                     </div>
                   ) : (
-                    <div className="flex flex-col gap-4">
-                      {detectedBlocks.map((block) => {
-                        const isLocked = lockedBlocks.some(
-                          (b) => b.panel_number === block.panel_number
-                        );
+                    <div className="flex flex-col gap-5">
+                      {groupedPanels.map(({ panelNumber, blocks }) => {
+                        const panelLockedCount = blocks.filter((b) => lockedKeySet.has(`${b.panel_number}-${b.block_number}`)).length;
                         return (
                           <div
-                            key={block.panel_number}
-                            className={`w-full rounded-xl border flex flex-col transition-colors ${
-                              isLocked
-                                ? "border-emerald-500/40 bg-emerald-500/5"
-                                : "border-border bg-card/60 hover:border-primary/30"
-                            }`}
+                            key={panelNumber}
+                            className="w-full rounded-xl border border-border bg-card/60 flex flex-col overflow-hidden"
                           >
-                            {/* En-tête */}
-                            <div className="flex items-center justify-between gap-2 px-5 py-3 border-b border-border/50 shrink-0">
-                              <span
-                                className={`text-xs font-bold font-mono px-2 py-0.5 rounded ${
-                                  isLocked
-                                    ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400"
-                                    : "bg-primary/15 text-primary"
-                                }`}
-                              >
-                                Panel {block.panel_number}
+                            {/* En-tête panel */}
+                            <div className="flex items-center justify-between gap-2 px-4 py-2.5 bg-[hsl(var(--lavender)/0.08)] border-b border-[hsl(var(--lavender)/0.15)]">
+                              <span className="text-xs font-bold font-mono px-2 py-0.5 rounded bg-[hsl(var(--lavender)/0.15)] text-[hsl(275,45%,55%)]">
+                                Panel {panelNumber}
                               </span>
-                              <button
-                                onClick={() => toggleBlock(block)}
-                                className={`text-xs font-medium px-2 py-0.5 rounded border transition-colors ${
-                                  isLocked
-                                    ? "border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30"
-                                    : "border-primary/30 text-primary hover:bg-primary/10"
-                                }`}
-                              >
-                                {isLocked ? "Déverrouiller" : "Verrouiller"}
-                              </button>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-muted-foreground">
+                                  {blocks.length} bloc{blocks.length > 1 ? "s" : ""}
+                                </span>
+                                {panelLockedCount > 0 && (
+                                  <span className="flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400">
+                                    · {panelLockedCount} <Lock className="h-3 w-3" />
+                                  </span>
+                                )}
+                              </div>
                             </div>
 
-                            {/* Corps */}
-                            <div className="flex flex-col px-6 py-5 gap-4">
-                              <p className="text-base leading-relaxed text-foreground">
-                                {block.description}
-                              </p>
-                              <p className="text-xs text-muted-foreground italic line-clamp-5 border-l-2 border-border pl-3">
-                                {block.text_excerpt}
-                              </p>
+                            {/* Liste des blocs */}
+                            <div className="divide-y divide-border/40">
+                              {blocks.map((block) => {
+                                const locked = lockedKeySet.has(`${block.panel_number}-${block.block_number}`);
+                                return (
+                                  <div
+                                    key={`${panelNumber}-${block.block_number}`}
+                                    className={`flex gap-3 px-4 py-3 transition-colors ${
+                                      locked ? "bg-emerald-500/5" : "hover:bg-muted/30"
+                                    }`}
+                                  >
+                                    {/* Numéro de bloc */}
+                                    <span className={`shrink-0 mt-0.5 text-[10px] font-bold font-mono w-5 h-5 rounded flex items-center justify-center ${
+                                      locked
+                                        ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400"
+                                        : "bg-muted text-muted-foreground"
+                                    }`}>
+                                      {block.block_number}
+                                    </span>
+
+                                    {/* Contenu */}
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-sm leading-relaxed text-foreground">
+                                        {block.description}
+                                      </p>
+                                      {block.text_excerpt && (
+                                        <p className="text-xs text-muted-foreground italic mt-1 line-clamp-2 border-l-2 border-border pl-2">
+                                          {block.text_excerpt}
+                                        </p>
+                                      )}
+                                    </div>
+
+                                    {/* Bouton lock */}
+                                    <button
+                                      onClick={() => toggleBlock(block)}
+                                      title={locked ? "Déverrouiller" : "Verrouiller"}
+                                      className={`shrink-0 mt-0.5 h-6 w-6 flex items-center justify-center rounded border transition-colors ${
+                                        locked
+                                          ? "border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30"
+                                          : "border-border text-muted-foreground hover:border-primary/40 hover:text-primary"
+                                      }`}
+                                    >
+                                      {locked ? <Lock className="h-3 w-3" /> : <Unlock className="h-3 w-3" />}
+                                    </button>
+                                  </div>
+                                );
+                              })}
                             </div>
                           </div>
                         );
@@ -1000,7 +1028,9 @@ export default function ScenarioChapterEditor() {
                   <ScenarioTextHighlighter
                     text={content}
                     assets={assets}
-                    onCreateAsset={undefined}
+                    onCreateAsset={handleCreateAssetFromText}
+                    onDismissMissing={handleDismissMissing}
+                    dismissedMissingNames={dismissedMissingNames}
                     className="text-base leading-[1.8]"
                     hideIndicator
                   />
@@ -1008,13 +1038,11 @@ export default function ScenarioChapterEditor() {
                 </>
               ) : (
                 <>
-                  <textarea
-                    ref={textareaRef}
+                  <FormatCEditor
                     value={content}
-                    onChange={(e) => setContent(e.target.value)}
+                    onChange={setContent}
+                    textareaRef={textareaRef}
                     placeholder="Commencez à écrire votre chapitre..."
-                    className="w-full resize-none bg-transparent border-0 focus:ring-0 focus:outline-none text-base leading-[1.8] placeholder:text-muted-foreground/40 min-h-[300px]"
-                    style={{ height: "auto" }}
                   />
                   <div style={{ height: "40vh" }} />
                 </>
@@ -1111,7 +1139,7 @@ export default function ScenarioChapterEditor() {
         <div className="fixed bottom-6 right-6 flex flex-col items-end gap-2.5 z-40">
           <button
             onClick={() => setShowIABar(true)}
-            className="flex items-center gap-2 pl-3.5 pr-4 h-10 rounded-full bg-background/95 backdrop-blur-xl border border-border hover:border-primary/50 shadow-md text-sm font-medium text-primary transition-all duration-200 hover:shadow-glow hover:scale-[1.03]"
+            className="flex items-center gap-2 pl-3.5 pr-4 h-10 rounded-full bg-background/95 backdrop-blur-xl border border-border hover:border-primary/50 shadow-md text-sm font-medium text-primary transition-[box-shadow,border-color,transform] duration-200 hover:shadow-glow hover:scale-[1.03]"
           >
             <Sparkles className="h-4 w-4 shrink-0" />
             <span>IA Chapitre</span>
@@ -1119,9 +1147,9 @@ export default function ScenarioChapterEditor() {
 
           <button
             onClick={isPro ? handleDetectBlocks : () => navigate("/dashboard/plans")}
-            disabled={isDetecting || (isPro && !content.trim())}
+            disabled={isDetecting || (isPro && !content.trim()) || (isPro && groupedPanels.length > 0 && detectedAtContent !== "" && content === detectedAtContent)}
             title={!isPro ? "Fonctionnalité Pro — Cliquez pour mettre à niveau" : undefined}
-            className={`flex items-center gap-2 pl-4 pr-5 h-12 rounded-full text-sm font-semibold transition-all duration-200 disabled:opacity-50 disabled:pointer-events-none ${
+            className={`flex items-center gap-2 pl-4 pr-5 h-12 rounded-full text-sm font-semibold transition-[box-shadow,transform,opacity] duration-200 disabled:opacity-50 disabled:pointer-events-none ${
               isPro
                 ? "gradient-primary text-primary-foreground shadow-dream hover:scale-[1.03]"
                 : "bg-white/10 text-white/60 border border-white/15 cursor-pointer hover:bg-white/15"

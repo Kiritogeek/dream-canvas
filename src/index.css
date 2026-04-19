@@ -1,5 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@300;400;500;600;700&family=Nunito:wght@300;400;500;600;700;800&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -159,6 +157,7 @@
     box-shadow: var(--glass-shadow, none);
     transition: border-color 0.3s ease, box-shadow 0.3s ease;
   }
+
   .gradient-dream {
     background: linear-gradient(
       135deg,
@@ -225,15 +224,21 @@
 
 /* ===== Light mode: aligné sur le rendu dark ===== */
 
-/* Fond avec dégradé doux (comme dark, mais version claire) */
+/* Fond avec dégradé doux — via ::before position:fixed pour éviter le repaint à chaque frame de scroll */
 :root:not(.dark) body {
+  background: transparent;
+}
+:root:not(.dark) body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
   background: linear-gradient(
     165deg,
     hsl(var(--background)) 0%,
     hsl(275 45% 95%) 45%,
     hsl(28 62% 94%) 100%
   );
-  background-attachment: fixed;
 }
 
 /* Glass en light: même logique que dark (bordure + glow subtil) */
@@ -271,15 +276,21 @@
 
 /* ===== Dark mode: contrasté, chaleureux, petites touches de folie ===== */
 
-/* Fond avec dégradé très doux (lavande → touche pêche) pour éviter le plat */
+/* Fond avec dégradé très doux — via ::before position:fixed (même raison perf que light mode) */
 .dark body {
+  background: transparent;
+}
+.dark body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
   background: linear-gradient(
     165deg,
     hsl(var(--background)) 0%,
     hsl(275 18% 8%) 45%,
     hsl(28 18% 8%) 100%
   );
-  background-attachment: fixed;
 }
 
 /* Glass en dark: bordure lavande douce + léger glow */
@@ -309,11 +320,69 @@
   box-shadow: 0 0 24px hsl(var(--glow) / 0.25), 0 0 48px hsl(var(--lavender) / 0.12);
 }
 
+/* ===== Scrollbar personnalisée — charte DreamWeave ===== */
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--primary)) hsl(var(--muted));
+}
+
+/* WebKit — Chrome, Safari, Edge Chromium */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(var(--muted));
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(160deg, hsl(var(--primary)), hsl(var(--peach-deep)));
+  border-radius: 999px;
+  /* border = couleur du track → crée l'effet pill flottant */
+  border: 2px solid hsl(var(--muted));
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(160deg, hsl(275 52% 55%), hsl(20 72% 60%));
+  border: 2px solid hsl(var(--muted));
+}
+
+::-webkit-scrollbar-corner {
+  background: hsl(var(--muted));
+}
+
+/* .scrollbar-none reste prioritaire */
+.scrollbar-none {
+  scrollbar-width: none !important;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none !important;
+}
+
 /* Responsive touch device improvements */
 @media (hover: none) and (pointer: coarse) {
   /* Increase tap targets on touch devices */
   button, [role="button"], a {
     min-height: 36px;
+  }
+}
+
+/* ===== Firefox : backdrop-filter optimisé ===== */
+/* blur(24px) est trop coûteux sur Gecko — blur(6px) + fond plus opaque = rendu visuellement identique */
+@supports (-moz-appearance: none) {
+  .glass {
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+  }
+  :root:not(.dark) .glass {
+    background: hsl(var(--card) / 0.93);
+  }
+  .dark .glass {
+    background: hsl(var(--card) / 0.88);
   }
 }
 

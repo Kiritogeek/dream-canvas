@@ -214,6 +214,7 @@ export function StyleManager({
     if (styleInitialized) return;
     applyTemplateFromString(styleTemplate ?? "");
     setStyleInitialized(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [styleInitialized, styleTemplate]);
 
   const selectStyleByIndex = (index: number) => {
@@ -349,11 +350,15 @@ export function StyleManager({
                     alt=""
                     aria-hidden="true"
                     className="absolute inset-0 h-full w-full scale-105 object-cover opacity-30 blur-sm"
+                    loading="lazy"
+                    decoding="async"
                   />
                   <img
                     src={style.images.scene}
                     alt={style.label}
                     className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                    loading="lazy"
+                    decoding="async"
                   />
                   {isLocked && (
                     <div className="absolute top-2 right-2 z-10 w-7 h-7 rounded-full gradient-primary flex items-center justify-center shadow-md">
@@ -367,7 +372,7 @@ export function StyleManager({
                   )}
                 </div>
                 <div className={cn(
-                  "px-3 py-2 text-sm transition-all duration-200",
+                  "px-3 py-2 text-sm transition-colors duration-200",
                   isLocked   ? "font-bold text-primary bg-primary/15" :
                   isPending  ? "font-bold text-foreground bg-mint/40" :
                                "font-semibold text-foreground"
@@ -375,7 +380,7 @@ export function StyleManager({
                   {style.label}
                 </div>
                 <div className={cn(
-                  "absolute bottom-0 left-0 right-0 h-0.5 transition-all duration-200",
+                  "absolute bottom-0 left-0 right-0 h-0.5 transition-colors duration-200",
                   isLocked  ? "bg-primary" :
                   isPending ? "bg-mint" :
                               "opacity-0"
@@ -401,6 +406,8 @@ export function StyleManager({
                     alt=""
                     aria-hidden="true"
                     className="absolute inset-0 h-full w-full scale-110 object-cover opacity-30 blur-sm"
+                    loading="lazy"
+                    decoding="async"
                   />
                   <ImageWithFallback
                     src={src}
@@ -443,27 +450,27 @@ export function StyleManager({
           <div className="grid grid-cols-2 gap-3">
             <Link
               to={`/dashboard/projects/${project.id}?tab=scenario`}
-              className="glass rounded-xl p-4 hover:shadow-dream transition-all group block"
+              className="glass rounded-xl p-4 hover:shadow-dream transition-shadow group block"
             >
               <BookOpen className="h-4 w-4 text-primary mb-2.5" />
               <p className="font-display font-semibold text-sm">Scénario</p>
               <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
                 Écrivez votre histoire, chapitres et dialogues
               </p>
-              <span className="text-xs text-primary mt-2.5 inline-flex items-center gap-1 group-hover:gap-1.5 transition-all">
+              <span className="text-xs text-primary mt-2.5 inline-flex items-center gap-1 group-hover:gap-1.5 transition-[gap] duration-150">
                 Commencer <ArrowRight className="h-3 w-3" />
               </span>
             </Link>
             <Link
               to={`/dashboard/projects/${project.id}?tab=assets`}
-              className="glass rounded-xl p-4 hover:shadow-dream transition-all group block"
+              className="glass rounded-xl p-4 hover:shadow-dream transition-shadow group block"
             >
               <ImageIcon className="h-4 w-4 text-primary mb-2.5" />
               <p className="font-display font-semibold text-sm">Assets visuels</p>
               <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
                 Créez personnages, décors et objets avec l'IA
               </p>
-              <span className="text-xs text-primary mt-2.5 inline-flex items-center gap-1 group-hover:gap-1.5 transition-all">
+              <span className="text-xs text-primary mt-2.5 inline-flex items-center gap-1 group-hover:gap-1.5 transition-[gap] duration-150">
                 Créer <ArrowRight className="h-3 w-3" />
               </span>
             </Link>
@@ -589,10 +596,12 @@ export function StyleManager({
                 src={selectedStyleImage}
                 alt="Image de référence de style - vue complète"
                 className="w-full h-auto max-h-[85vh] object-contain"
+                loading="lazy"
+                decoding="async"
               />
               <button
                 onClick={() => setSelectedStyleImage(null)}
-                className="absolute top-4 right-4 p-2.5 rounded-full bg-background/95 backdrop-blur-sm text-foreground hover:bg-background shadow-lg transition-all hover:scale-110 z-10"
+                className="absolute top-4 right-4 p-2.5 rounded-full bg-background/95 backdrop-blur-sm text-foreground hover:bg-background shadow-lg transition-colors hover:scale-110 z-10"
                 title="Fermer"
               >
                 <X className="h-5 w-5" />

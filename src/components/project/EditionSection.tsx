@@ -1,14 +1,13 @@
-// Section « Édition de l'œuvre » — liste des chapitres visuels (webtoon)
 import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  BookOpen,
   Plus,
   ChevronUp,
   ChevronDown,
   Trash2,
   Pencil,
   LayoutPanelTop,
+  ArrowRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -71,7 +70,6 @@ export function EditionSection({ projectId }: EditionSectionProps) {
   const [editTitle, setEditTitle] = useState("");
   const [editSynopsis, setEditSynopsis] = useState("");
 
-  // Premier numéro libre (permet de « recréer » un chapitre 1 après suppression)
   const usedNumbers = new Set(chapters.map((c) => c.chapter_number));
   let nextChapterNumber = 1;
   while (usedNumbers.has(nextChapterNumber)) nextChapterNumber++;
@@ -205,29 +203,63 @@ export function EditionSection({ projectId }: EditionSectionProps) {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-6 min-h-[calc(100vh-12rem)]">
 
+      {/* En-tête section */}
+      <div className="rounded-2xl p-6 border border-[hsl(var(--lavender)/0.2)] bg-gradient-to-br from-[hsl(var(--lavender)/0.08)] via-[hsl(var(--peach)/0.05)] to-[hsl(var(--mint)/0.04)]">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-xl gradient-primary">
+              <LayoutPanelTop className="h-5 w-5 text-primary-foreground" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold font-display text-foreground">
+                Édition de l'œuvre
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Composez panels, bulles et mise en page par chapitre
+              </p>
+            </div>
+            {chapters.length > 0 && (
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[hsl(var(--lavender)/0.15)] text-[hsl(var(--lavender))] border border-[hsl(var(--lavender)/0.25)]">
+                {chapters.length} chapitre{chapters.length > 1 ? "s" : ""}
+              </span>
+            )}
+          </div>
+          <Button
+            size="sm"
+            onClick={handleOpenCreateDialog}
+            disabled={createChapter.isPending}
+            className="gap-1.5 gradient-primary text-primary-foreground shrink-0"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Créer un chapitre
+          </Button>
+        </div>
+      </div>
+
+      {/* Skeleton */}
       {isLoading && (
-        <div className="space-y-2">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {[1, 2].map((i) => (
             <div
               key={i}
-              className="rounded-xl border border-border bg-muted/20 h-16 animate-pulse"
+              className="rounded-2xl border border-border bg-muted/20 h-32 animate-pulse"
             />
           ))}
         </div>
       )}
 
+      {/* État vide */}
       {!isLoading && chapters.length === 0 && (
-        <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border bg-muted/40 py-10 px-4 text-center">
-          <LayoutPanelTop className="h-8 w-8 text-muted-foreground/50" />
-          <div className="space-y-1">
-            <p className="text-base font-medium text-muted-foreground">
-              Aucun chapitre visuel
+        <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-[hsl(var(--lavender)/0.3)] bg-[hsl(var(--lavender)/0.03)] py-16 px-4 text-center flex-1">
+          <LayoutPanelTop className="h-12 w-12 text-gradient" style={{ color: "hsl(var(--lavender))" }} />
+          <div className="space-y-1.5">
+            <p className="text-lg font-semibold font-display text-foreground">
+              Votre œuvre commence ici
             </p>
             <p className="text-sm text-muted-foreground max-w-sm">
-              Créez votre premier chapitre pour commencer à construire l'œuvre
-              (panels 800×5000, blocs, bulles et effets à venir).
+              Créez votre premier chapitre visuel pour composer panels, bulles et mise en page.
             </p>
           </div>
           <Button
@@ -242,99 +274,99 @@ export function EditionSection({ projectId }: EditionSectionProps) {
         </div>
       )}
 
+      {/* Grille des chapitres */}
       {!isLoading && chapters.length > 0 && (
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">
-              {chapters.length} chapitre{chapters.length > 1 ? "s" : ""}
-            </span>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleOpenCreateDialog}
-              disabled={createChapter.isPending}
-              className="gap-1.5"
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {chapters.map((chapter, idx) => (
+            <div
+              key={chapter.id}
+              className="relative flex flex-col gap-3 p-4 rounded-2xl border border-[hsl(var(--peach)/0.4)] hover:border-[hsl(var(--lavender)/0.5)] bg-white/50 dark:bg-card/30 shadow-sm hover:shadow-md transition-shadow transition-colors duration-200 group"
             >
-              <Plus className="h-3.5 w-3.5" />
-              Créer un chapitre
-            </Button>
-          </div>
-          <div className="space-y-2">
-            {chapters.map((chapter, idx) => (
-              <div
-                key={chapter.id}
-                className="glass rounded-xl p-4 flex items-center gap-3 group"
-              >
-                <div className="flex flex-col gap-0.5 shrink-0">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
-                    disabled={idx === 0 || reorderChapters.isPending}
-                    onClick={() => handleMoveChapter(chapter.id, "up")}
-                    title="Monter"
-                  >
-                    <ChevronUp className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
-                    disabled={
-                      idx === chapters.length - 1 || reorderChapters.isPending
-                    }
-                    onClick={() => handleMoveChapter(chapter.id, "down")}
-                    title="Descendre"
-                  >
-                    <ChevronDown className="h-4 w-4" />
-                  </Button>
+              {/* Actions hover — haut droite */}
+              <div className="absolute top-3 right-3 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  disabled={idx === 0 || reorderChapters.isPending}
+                  onClick={() => handleMoveChapter(chapter.id, "up")}
+                  title="Monter"
+                >
+                  <ChevronUp className="h-3.5 w-3.5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  disabled={idx === chapters.length - 1 || reorderChapters.isPending}
+                  onClick={() => handleMoveChapter(chapter.id, "down")}
+                  title="Descendre"
+                >
+                  <ChevronDown className="h-3.5 w-3.5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openEditDialog(chapter);
+                  }}
+                  title="Modifier"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-destructive hover:text-destructive"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setDeleteTarget(chapter);
+                  }}
+                  title="Supprimer"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+
+              {/* Badge numéro + titre */}
+              <div className="flex items-start gap-2 pr-24">
+                <span className="shrink-0 px-2.5 py-0.5 rounded-full gradient-primary text-primary-foreground text-lg font-bold font-display leading-none flex items-center justify-center min-w-[2rem] h-7">
+                  {chapter.chapter_number}
+                </span>
+                <span className="font-semibold font-display text-foreground leading-snug pt-0.5">
+                  {chapter.title}
+                </span>
+              </div>
+
+              {/* Synopsis */}
+              {chapter.synopsis && (
+                <p className="text-xs text-muted-foreground italic line-clamp-2">
+                  {chapter.synopsis}
+                </p>
+              )}
+
+              {/* Bas de carte : chips + bouton Ouvrir */}
+              <div className="flex items-center justify-between gap-2 mt-auto pt-1">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {chapter.linked_scenario_chapter_id && (
+                    <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-[hsl(var(--mint)/0.2)] text-[hsl(170_40%_38%)] border border-[hsl(var(--mint)/0.3)]">
+                      Scénario lié
+                    </span>
+                  )}
                 </div>
                 <button
                   type="button"
                   onClick={() => openChapter(chapter.id)}
-                  className="flex-1 min-w-0 text-left rounded-lg hover:bg-muted/50 p-2 -m-2 transition-colors"
+                  className="shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-[hsl(var(--lavender))] hover:bg-[hsl(var(--lavender)/0.1)] border border-[hsl(var(--lavender)/0.25)] hover:border-[hsl(var(--lavender)/0.5)] transition-colors"
                 >
-                  <div className="flex items-center gap-2">
-                    <BookOpen className="h-4 w-4 text-muted-foreground shrink-0" />
-                    <span className="font-medium truncate">
-                      Chapitre {chapter.chapter_number} : {chapter.title}
-                    </span>
-                  </div>
-                  {chapter.synopsis && (
-                    <p className="text-sm text-muted-foreground line-clamp-1 mt-0.5">
-                      {chapter.synopsis}
-                    </p>
-                  )}
+                  Ouvrir
+                  <ArrowRight className="h-3 w-3" />
                 </button>
-                <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      openEditDialog(chapter);
-                    }}
-                    title="Modifier"
-                  >
-                    <Pencil className="h-3.5 w-3.5" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 text-destructive hover:text-destructive"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setDeleteTarget(chapter);
-                    }}
-                    title="Supprimer"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
               </div>
-            ))}
-          </div>
+            </div>
+          ))}
         </div>
       )}
 

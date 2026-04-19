@@ -3,7 +3,6 @@ import { motion } from "framer-motion";
 import { Sparkles, Wand2, Palette, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import heroBg from "@/assets/hero-bg.jpg";
 
 const features = [
   {
@@ -35,7 +34,7 @@ export default function Landing() {
       <div
         className="fixed inset-0 pointer-events-none"
         style={{
-          backgroundImage: `url(${heroBg})`,
+          backgroundImage: `url(/hero-bg.jpg)`,
           backgroundSize: "cover",
           backgroundPosition: "center top",
         }}
@@ -79,9 +78,9 @@ export default function Landing() {
         <div className="container px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="max-w-5xl mx-auto text-center">
             <motion.div
-              initial={{ opacity: 0, y: 30 }}
+              initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7 }}
+              transition={{ duration: 0.45, ease: "easeOut" }}
               className="space-y-4 sm:space-y-6"
             >
               <div className="inline-flex items-center gap-2 rounded-full gradient-primary text-primary-foreground px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium shadow-dream">
@@ -129,9 +128,10 @@ export default function Landing() {
       <section className="relative z-20 py-12 sm:py-20 bg-gradient-to-b from-[hsl(275_30%_92%/0.6)] to-background/90 dark:from-background/80 dark:to-background/95 backdrop-blur-[1px]">
         <div className="container px-4 sm:px-6 lg:px-8">
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 16 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
+            transition={{ duration: 0.4, ease: "easeOut" }}
             className="text-center mb-10 sm:mb-16"
           >
             <h2 className="text-2xl sm:text-3xl md:text-4xl font-display font-bold mb-3 sm:mb-4">
@@ -145,11 +145,11 @@ export default function Landing() {
             {features.map((f, i) => (
               <motion.div
                 key={f.title}
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 16 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ delay: i * 0.1 }}
-                className="glass rounded-2xl p-5 sm:p-6 hover:shadow-dream hover:border-primary/40 transition-all duration-300"
+                transition={{ duration: 0.35, ease: "easeOut", delay: i * 0.07 }}
+                className="glass rounded-2xl p-5 sm:p-6 hover:shadow-dream hover:border-primary/40 transition-shadow transition-colors duration-300"
               >
                 <div className="mb-3 sm:mb-4 inline-flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-xl bg-primary/20">
                   <f.icon className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />

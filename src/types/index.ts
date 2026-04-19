@@ -242,13 +242,15 @@ export function getSpeechBubbleFillStroke(bubble: SpeechBubble): { fill: string;
 export interface LockedBlock {
   id: string;
   panel_number: number;
+  block_number: number;
   description: string;
-  text_excerpt: string; // première partie du texte correspondant (~80 chars)
+  text_excerpt: string;
 }
 
 /** Réponse de l'IA pour detect_blocks. */
 export interface DetectedBlock {
   panel_number: number;
+  block_number: number;
   description: string;
   text_excerpt: string;
 }

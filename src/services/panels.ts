@@ -79,10 +79,12 @@ export function getPanelSpeechBubbles(panel: Panel | null | undefined): SpeechBu
 export function estimatePanelCount(content: string | null | undefined): number {
   if (!content?.trim()) return 0;
   const words = content.trim().split(/\s+/).filter(Boolean).length;
-  const minPanels = 5;
-  const maxPanels = 20;
-  const estimated = Math.round(words / 50) || minPanels;
-  return Math.max(minPanels, Math.min(maxPanels, estimated));
+  if (words < 100) return PANELS_REFERENCE_MIN;
+  // Scale: 100 words → 8 panels, 1000+ words → 14 panels
+  const scale = Math.min(1, (words - 100) / 900);
+  return Math.round(
+    PANELS_REFERENCE_MIN + scale * (PANELS_REFERENCE_MAX - PANELS_REFERENCE_MIN)
+  );
 }
 
 // ── API Panels ────────────────────────────────────────────────────

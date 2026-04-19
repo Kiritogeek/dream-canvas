@@ -66,6 +66,7 @@ import {
   useUpdatePanel,
   useDeletePanel,
   useGeneratePanelImage,
+  useCreatePanelsFromOutline,
 } from "@/hooks/usePanels";
 import {
   getPanelBlocks,
@@ -84,10 +85,9 @@ import {
 } from "@/services/panels";
 import { callSuggestBlockPrompt } from "@/services/scenarioAI";
 import { PanelCountBadge } from "@/components/project/PanelCountBadge";
-import { updateScenarioChapter } from "@/services/scenarioChapters";
 import { renderPanelToCanvas, renderChapterToCanvas, downloadCanvas } from "@/services/exportPanel";
 import type { Json } from "@/integrations/supabase/types";
-import type { Chapter, Panel, PanelBlock, PanelLayout, ColorBlock, ColorBlockFill, SpeechBubble, SpeechBubbleType } from "@/types";
+import type { Panel, PanelBlock, PanelLayout, ColorBlock, ColorBlockFill, SpeechBubble, SpeechBubbleType, PanelOutlineItem } from "@/types";
 import {
   DEFAULT_SPEECH_BUBBLE_WIDTH,
   DEFAULT_SPEECH_BUBBLE_HEIGHT,
@@ -238,6 +238,7 @@ export default function ChapterDetail() {
   const queryClient = useQueryClient();
   const { data: panels = [], isLoading: loadingPanels } = usePanels(chapterId);
   const createPanelMutation = useCreatePanel(chapterId ?? "");
+  const createFromOutlineMutation = useCreatePanelsFromOutline(chapterId ?? "");
   const updatePanelMutation = useUpdatePanel(chapterId ?? "");
   const deletePanelMutation = useDeletePanel(chapterId ?? "");
   /** Panel dont la suppression est en attente de confirmation */
@@ -253,9 +254,9 @@ export default function ChapterDetail() {
   /** Brouillon hauteur du panel (modale édition), chaîne pour autoriser le champ vide ; null = afficher la valeur réelle */
   const [panelHeightDraft, setPanelHeightDraft] = useState<string | null>(null);
   /** Bloc en cours d'édition de prompt : clé = `${panelId}-${blockId}` */
-  const [editingBlockKey, setEditingBlockKey] = useState<string | null>(null);
+  const [_editingBlockKey, _setEditingBlockKey] = useState<string | null>(null);
   /** Brouillon dimensions par bloc : clé = `${panelId}-${blockId}` → { width, height } */
-  const [blockDimensionDrafts, setBlockDimensionDrafts] = useState<Record<string, { width: number; height: number }>>({});
+  const [_blockDimensionDrafts, _setBlockDimensionDrafts] = useState<Record<string, { width: number; height: number }>>({});
   /** Mode d'édition par panel : chaque panel a son propre mode (Architecture ou Édition) */
   const [panelEditModeByPanelId, setPanelEditModeByPanelId] = useState<Record<string, "architecture" | "edition" | "couleurs">>({});
   /** Refs du canvas par panel (pour calcul position de dépôt quand on drop sur un bloc) */
@@ -317,7 +318,7 @@ export default function ChapterDetail() {
     blockHeight: number;
   } | null>(null);
   /** Position en temps réel du bloc pendant le drag (affichage) */
-  const [dragPreview, setDragPreview] = useState<{ panelId: string; blockId: string; x: number; y: number } | null>(null);
+  const [_dragPreview, _setDragPreview] = useState<{ panelId: string; blockId: string; x: number; y: number } | null>(null);
   /** Panel ouvert en modale « Edition » (id ou null) */
   const [expandedPanelId, setExpandedPanelId] = useState<string | null>(null);
   /** Onglet du panneau gauche en modale : Architecture | Personalisation | Couleurs */
@@ -395,7 +396,7 @@ export default function ChapterDetail() {
   const resizeSpeechBubbleCaptureTargetRef = useRef<HTMLElement | null>(null);
   const lastResizeSpeechBubbleMouseRef = useRef<{ x: number; y: number } | null>(null);
   const saveResizeSpeechBubbleRef = useRef<((draft: { x: number; y: number; width: number; height: number }) => void) | null>(null);
-  const [pendingOutline, setPendingOutline] = useState<Array<{ description: string; context?: { lieu?: string; scene?: string; personnages?: string } }> | null>(null);
+  const [_pendingOutline, _setPendingOutline] = useState<Array<{ description: string; context?: { lieu?: string; scene?: string; personnages?: string } }> | null>(null);
   /** Valeur sentinelle pour "Aucun" (Radix Select n'accepte pas value="") */
   const SCENARIO_NONE_VALUE = "__none__";
   /** undefined = pas encore choisi (afficher la suggestion par numéro), null = "Aucun", string = id choisi */
@@ -1022,7 +1023,7 @@ export default function ChapterDetail() {
       } catch { /* ignore */ }
     };
 
-    const handleSaveBlockDimensions = (block: PanelBlock, width: number, height: number) => {
+    const _handleSaveBlockDimensions = (block: PanelBlock, width: number, height: number) => {
       const { x, y, width: w, height: h } = clampBlockToPanel(block.x, block.y, width, height, panelHeight);
       const nextBlocks = layout.blocks.map((b) => (b.id === block.id ? { ...b, x, y, width: w, height: h } : b));
       updatePanelMutation.mutate(
@@ -1186,7 +1187,7 @@ export default function ChapterDetail() {
       );
     };
 
-    const handleSaveBlockAssetRefs = (block: PanelBlock, assetIds: string[]) => {
+    const _handleSaveBlockAssetRefs = (block: PanelBlock, assetIds: string[]) => {
       const nextBlocks = layout.blocks.map((b) => (b.id === block.id ? { ...b, asset_refs: assetIds.length ? assetIds : undefined } : b));
       updatePanelMutation.mutate(
         { id: panel.id, updates: { layout: { ...layout, blocks: nextBlocks } as unknown as Json } },
@@ -1269,7 +1270,7 @@ export default function ChapterDetail() {
       }
       const contextChapter = panel.prompt?.trim() || null;
       const refAssets = getDetectedAssets(promptToUse, assets);
-      const refIds = refAssets.map((a) => a.id);
+      const _refIds = refAssets.map((a) => a.id);
       const blockAssetImageUrls = refAssets
         .map((a) => a.image_url_sheet ?? a.image_url)
         .filter((u): u is string => !!u);
@@ -1328,14 +1329,14 @@ export default function ChapterDetail() {
                   key={step.value}
                   type="button"
                   onClick={() => handlePanelEditorTabChange(step.value)}
-                  className={`w-full h-12 rounded-xl border flex items-center justify-center transition-all ${
+                  className={`w-full h-12 rounded-xl border flex items-center justify-center transition-colors duration-150 ${
                     active
                       ? "border-primary/70 bg-primary/15 text-primary shadow-sm"
                       : "border-border/70 bg-background text-muted-foreground hover:text-foreground hover:bg-muted/50"
                   }`}
                   title={`${step.label} — ${step.hint}`}
                 >
-                  <Icon className={`transition-all ${active ? "h-5 w-5" : "h-[18px] w-[18px]"}`} />
+                  <Icon className={`${active ? "h-5 w-5" : "h-[18px] w-[18px]"}`} />
                 </button>
               );
             })}
@@ -1519,7 +1520,7 @@ export default function ChapterDetail() {
                       e.dataTransfer.setData("application/json", JSON.stringify({ type: "new-color-block", width: 300, height: 300, fill: { type: "solid", color: "#ffffff" } }));
                       e.dataTransfer.effectAllowed = "copy";
                     }}
-                    className="cursor-grab active:cursor-grabbing rounded-lg border border-border/80 bg-white shadow-sm px-4 py-3 text-sm text-muted-foreground hover:text-foreground hover:shadow-md transition-all flex items-center justify-center gap-2 min-h-[56px]"
+                    className="cursor-grab active:cursor-grabbing rounded-lg border border-border/80 bg-white shadow-sm px-4 py-3 text-sm text-muted-foreground hover:text-foreground hover:shadow-md transition-shadow transition-colors duration-150 flex items-center justify-center gap-2 min-h-[56px]"
                   >
                     <span className="font-medium">Bloc blanc</span>
                     <span className="text-xs opacity-80">(glisser-déposer)</span>
@@ -1770,7 +1771,7 @@ export default function ChapterDetail() {
                   <div
                     key={cb.id}
                     ref={isResizingThis ? (el) => { if (el) resizingColorBlockElRef.current = el; } : undefined}
-                    className={`group absolute overflow-visible border border-border/80 transition-all duration-150 ${mode === "couleurs" ? "cursor-grab active:cursor-grabbing ring-2 ring-primary/60" : ""} ${isSelected ? "ring-2 ring-primary ring-offset-2 ring-offset-background" : ""}`}
+                    className={`group absolute overflow-visible border border-border/80 transition-[box-shadow,ring] duration-150 ${mode === "couleurs" ? "cursor-grab active:cursor-grabbing ring-2 ring-primary/60" : ""} ${isSelected ? "ring-2 ring-primary ring-offset-2 ring-offset-background" : ""}`}
                     style={{
                       left: geom.x,
                       top: geom.y,
@@ -2031,7 +2032,7 @@ export default function ChapterDetail() {
                         document.addEventListener("pointerup", onPointerUp, true);
                       } : undefined}
                       onClick={mode === "edition" ? (e) => { e.stopPropagation(); setSelectedBlockIdInModal({ panelId: panel.id, blockId: block.id }); } : undefined}
-                      className={`group absolute overflow-visible bg-background border border-border shadow-md transition-all duration-150 ${mode === "couleurs" || panelEditorLeftTab === "dialogue" ? "pointer-events-none" : mode === "architecture" ? "cursor-grab active:cursor-grabbing ring-2 ring-primary/60" : `cursor-pointer ${isSelected ? "ring-2 ring-primary shadow-lg ring-offset-2 ring-offset-background" : "ring-1 ring-border/80 hover:ring-2 hover:ring-primary/50 hover:shadow-md"}`}`}
+                      className={`group absolute overflow-visible bg-background border border-border shadow-md transition-[box-shadow,ring] duration-150 ${mode === "couleurs" || panelEditorLeftTab === "dialogue" ? "pointer-events-none" : mode === "architecture" ? "cursor-grab active:cursor-grabbing ring-2 ring-primary/60" : `cursor-pointer ${isSelected ? "ring-2 ring-primary shadow-lg ring-offset-2 ring-offset-background" : "ring-1 ring-border/80 hover:ring-2 hover:ring-primary/50 hover:shadow-md"}`}`}
                       style={{ left: geom.x, top: geom.y, width: geom.width, height: geom.height, zIndex: 10, pointerEvents: mode === "couleurs" || panelEditorLeftTab === "dialogue" ? "none" : "auto" }}
                       title={mode === "edition" ? `Clique — ${block.name ?? `Bloc ${blockIndex + 1}`}` : mode === "architecture" ? `Déplacer — ${block.name ?? `Bloc ${blockIndex + 1}`}` : `Bloc ${blockIndex + 1}`}
                     >
@@ -2135,7 +2136,7 @@ export default function ChapterDetail() {
                     key={bubble.id}
                     ref={isResizingThis ? (el) => { if (el) resizingSpeechBubbleElRef.current = el; } : undefined}
                     role={panelEditorLeftTab === "dialogue" && !isResizingThis ? "button" : undefined}
-                    className={`group absolute z-20 overflow-visible transition-all duration-150 ${panelEditorLeftTab === "dialogue" ? "cursor-grab active:cursor-grabbing ring-2 ring-primary/60" : ""} ${isSelected ? "ring-2 ring-primary ring-offset-2 ring-offset-background" : ""}`}
+                    className={`group absolute z-20 overflow-visible transition-[box-shadow,ring] duration-150 ${panelEditorLeftTab === "dialogue" ? "cursor-grab active:cursor-grabbing ring-2 ring-primary/60" : ""} ${isSelected ? "ring-2 ring-primary ring-offset-2 ring-offset-background" : ""}`}
                     style={{ left: geom.x, top: geom.y, width: geom.width, height: totalH, pointerEvents: panelEditorLeftTab === "dialogue" ? "auto" : "none" }}
                     onPointerDown={panelEditorLeftTab === "dialogue" && !isResizingThis && !isResizingSpeechBubbleRef.current ? (e) => {
                       if (e.button !== 0) return;
@@ -2325,10 +2326,10 @@ export default function ChapterDetail() {
           <button
             type="button"
             onClick={() => setPanelEditorRightTool("chapter-text")}
-            className="w-full h-12 rounded-xl border border-primary/70 bg-primary/15 text-primary shadow-sm flex items-center justify-center transition-all"
+            className="w-full h-12 rounded-xl border border-primary/70 bg-primary/15 text-primary shadow-sm flex items-center justify-center"
             title="Chapitre textuel"
           >
-            <BookOpen className="h-5 w-5 transition-all" />
+            <BookOpen className="h-5 w-5" />
           </button>
         </aside>
       </div>
@@ -2567,6 +2568,39 @@ export default function ChapterDetail() {
                       Créez votre premier panel pour commencer à composer la planche.
                     </p>
                   </div>
+                  {(() => {
+                    const outline = scenarioChapter?.panels_outline;
+                    if (!Array.isArray(outline) || outline.length === 0) return null;
+                    type StoredBlock = { panel_number: number; block_number?: number; description: string };
+                    const stored = outline as StoredBlock[];
+                    const panelMap = new Map<number, string[]>();
+                    stored.forEach((b) => {
+                      const arr = panelMap.get(b.panel_number) ?? [];
+                      arr.push(b.description);
+                      panelMap.set(b.panel_number, arr);
+                    });
+                    const panelCount = panelMap.size;
+                    const outlineItems: PanelOutlineItem[] = Array.from(panelMap.entries())
+                      .sort(([a], [b]) => a - b)
+                      .map(([, descs]) => ({ description: descs.join("\n\n") }));
+                    return (
+                      <Button
+                        onClick={() => createFromOutlineMutation.mutate(outlineItems, {
+                          onSuccess: () => toast({ title: `${panelCount} panels importés depuis le découpage IA` }),
+                          onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }),
+                        })}
+                        disabled={!chapterId || createFromOutlineMutation.isPending}
+                        className="w-full max-w-sm gap-2 h-11 rounded-xl gradient-primary text-primary-foreground font-semibold shadow-dream"
+                      >
+                        {createFromOutlineMutation.isPending ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Sparkles className="h-4 w-4" />
+                        )}
+                        Importer {panelCount} panel{panelCount > 1 ? "s" : ""} du découpage IA
+                      </Button>
+                    );
+                  })()}
                   <Button
                     onClick={() => createPanelMutation.mutate(undefined, {
                       onSuccess: () => toast({ title: "Panel ajouté" }),

@@ -160,13 +160,14 @@ function getAssetNameParts(assets: Asset[]): Set<string> {
     if (name.includes(" ")) {
       for (const part of name.split(/\s+/)) {
         const p = part.trim().toLowerCase();
-        if (p.length >= 2) parts.add(p);
+        if (p.length >= 2 && !STOP_WORDS.has(p) && !STRUCTURAL.has(p)) parts.add(p);
       }
     }
   }
   return parts;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function detectMissingNames(text: string, assets: Asset[]): string[] {
   const assetNames = new Set(assets.map((a) => a.name.trim().toLowerCase()));
   const assetNameParts = getAssetNameParts(assets);
@@ -283,7 +284,9 @@ function buildAllFragments(
     if (name.includes(" ")) {
       for (const part of name.split(/\s+/)) {
         const p = part.trim();
-        if (p) assetNamePartsForMatch.push(p);
+        if (p && !STOP_WORDS.has(p.toLowerCase()) && !STRUCTURAL.has(p.toLowerCase()) && p.length >= 2) {
+          assetNamePartsForMatch.push(p);
+        }
       }
     }
   }
@@ -330,6 +333,7 @@ function buildAllFragments(
 }
 
 /** Retourne la liste unique des assets détectés dans le texte (ordre de première occurrence). Seul le nom complet de l'asset compte (pas une partie du nom). */
+// eslint-disable-next-line react-refresh/only-export-components
 export function getDetectedAssets(text: string, assets: Asset[]): Asset[] {
   if (!text.trim()) return [];
   const withIndex: { asset: Asset; index: number }[] = [];
@@ -678,7 +682,7 @@ export function ScenarioTextHighlighter({
                 onDismiss={onDismissMissing}
               >
                 <span
-                  className="cursor-pointer rounded-[4px] font-medium transition-all"
+                  className="cursor-pointer rounded-[4px] font-medium"
                   style={{
                     backgroundColor: MISSING_COLOR.bg,
                     borderBottom: `2.5px solid ${MISSING_COLOR.border}`,
@@ -700,7 +704,7 @@ export function ScenarioTextHighlighter({
                 <span
                   role="button"
                   tabIndex={0}
-                  className="cursor-pointer rounded-[4px] font-medium transition-all"
+                  className="cursor-pointer rounded-[4px] font-medium"
                   style={{
                     backgroundColor: colors.bg,
                     borderBottom: `2.5px solid ${colors.border}`,
@@ -733,6 +737,8 @@ export function ScenarioTextHighlighter({
                         src={frag.asset.image_url}
                         alt={frag.asset.name}
                         className="max-w-full max-h-[220px] w-auto h-auto object-contain"
+                        loading="lazy"
+                        decoding="async"
                       />
                     </div>
                   )}
@@ -742,6 +748,8 @@ export function ScenarioTextHighlighter({
                         src={frag.asset.image_url_sheet}
                         alt={`${frag.asset.name} - Sheet`}
                         className="max-w-full max-h-[140px] w-auto h-auto object-contain"
+                        loading="lazy"
+                        decoding="async"
                       />
                     </div>
                   )}
@@ -787,6 +795,8 @@ export function ScenarioTextHighlighter({
                     src={selectedAsset.image_url}
                     alt={selectedAsset.name}
                     className="max-w-full max-h-[60vh] w-auto h-auto object-contain"
+                    loading="lazy"
+                    decoding="async"
                   />
                 </div>
               )}
@@ -798,6 +808,8 @@ export function ScenarioTextHighlighter({
                       src={selectedAsset.image_url_sheet}
                       alt={`${selectedAsset.name} - Sheet`}
                       className="max-w-full max-h-[60vh] w-auto h-auto object-contain"
+                      loading="lazy"
+                      decoding="async"
                     />
                   </div>
                 </div>

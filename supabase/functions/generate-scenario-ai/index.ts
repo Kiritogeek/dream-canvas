@@ -206,7 +206,7 @@ async function callAIOnce(
       return {
         error: `Gemini erreur ${res.status}: ${raw.slice(0, 200)}`,
         status: res.status,
-        rateLimited: res.status === 429,
+        rateLimited: res.status === 429 || res.status === 503,
       };
     }
     let json: { choices?: Array<{ message?: { content?: string } }> };
@@ -243,12 +243,11 @@ async function callAI(
   );
   if ("text" in primary) return primary;
 
-  // WHY : sur 429 (quota épuisé) on bascule automatiquement sur le modèle
-  // lite pour ne pas bloquer l'utilisateur. Qualité légèrement moindre mais
-  // suffisante pour les modes structurés (detect_blocks, ai_summary).
+  // WHY : sur 429 (quota épuisé) ou 503 (surcharge temporaire), on bascule
+  // automatiquement sur le modèle lite — quota plus généreux, moins sollicité.
   if (primary.rateLimited) {
     console.warn(
-      `[generate-scenario-ai] ${AI_MODEL} rate-limited (429), fallback → ${AI_FALLBACK_MODEL}`
+      `[generate-scenario-ai] ${AI_MODEL} indisponible (${primary.status}), fallback → ${AI_FALLBACK_MODEL}`
     );
     const fallback = await callAIOnce(
       AI_FALLBACK_MODEL,
@@ -259,10 +258,13 @@ async function callAI(
     );
     if ("text" in fallback) return fallback;
     if (fallback.rateLimited) {
+      const msg =
+        primary.status === 503
+          ? "Serveur IA surchargé (forte demande), même en mode lite. Réessayez dans quelques minutes."
+          : "Limite quotidienne Gemini atteinte sur les deux modèles. Réessayez dans quelques heures.";
       return {
-        error:
-          "Limite quotidienne Gemini atteinte sur les deux modèles. Réessayez dans quelques heures.",
-        status: 429,
+        error: msg,
+        status: primary.status ?? 429,
         rateLimited: true,
       };
     }
@@ -518,14 +520,16 @@ Deno.serve(async (req) => {
       // Propager le 429 tel quel (rate limit / quota Gemini épuisé) pour
       // que le client affiche un message dédié.
       if (result.rateLimited) {
+        const is503 = result.status === 503;
         return jsonResponse(
           {
-            error:
-              "Limite quotidienne IA atteinte. Le quota Gemini se réinitialise toutes les 24h. Réessayez plus tard.",
+            error: is503
+              ? "Serveur IA momentanément surchargé (forte demande). Réessayez dans quelques minutes."
+              : "Limite quotidienne IA atteinte. Le quota Gemini se réinitialise toutes les 24h. Réessayez plus tard.",
             details: result.error,
             rateLimited: true,
           },
-          429
+          is503 ? 503 : 429
         );
       }
       return jsonResponse(

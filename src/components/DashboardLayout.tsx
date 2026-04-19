@@ -104,7 +104,7 @@ function ProjectStepsSection({ projectId, onLinkClick }: { projectId: string; on
               key={step.key}
               to={`/dashboard/projects/${projectId}?tab=${step.key}`}
               onClick={onLinkClick}
-              className={`flex items-center gap-3 pl-4 pr-3 py-2.5 text-sm font-medium transition-all duration-150 border-l-2 -ml-px ${
+              className={`flex items-center gap-3 pl-4 pr-3 py-2.5 text-sm font-medium transition-colors duration-150 border-l-2 -ml-px ${
                 isActive
                   ? "border-primary text-foreground bg-primary/8"
                   : "border-transparent text-muted-foreground hover:text-foreground hover:border-border hover:bg-muted/20"
@@ -189,7 +189,7 @@ function ProjectsListSection({ onLinkClick }: { onLinkClick?: () => void }) {
                 key={p.id}
                 to={`/dashboard/projects/${p.id}`}
                 onClick={onLinkClick}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors duration-150 ${
                   isActive
                     ? "bg-primary/10 text-foreground font-medium"
                     : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
@@ -354,7 +354,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                   <Link
                     key={item.to}
                     to={item.to}
-                    className={`flex items-center gap-3 pl-4 pr-3 py-2.5 text-sm font-medium transition-all duration-150 border-l-2 -ml-px ${
+                    className={`flex items-center gap-3 pl-4 pr-3 py-2.5 text-sm font-medium transition-colors duration-150 border-l-2 -ml-px ${
                       isActive
                         ? "border-primary text-foreground bg-primary/8"
                         : "border-transparent text-muted-foreground hover:text-foreground hover:border-border hover:bg-muted/20"

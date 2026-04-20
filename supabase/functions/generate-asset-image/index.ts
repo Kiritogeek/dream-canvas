@@ -955,12 +955,11 @@ Deno.serve(async (req) => {
     //     Free : Schnell ne supporte pas le mode edit → prompt texte renforcé,
     //           cohérence un peu moins stricte mais sheet produite quand même.
     //
-    // Sheet = strip horizontal 2048×768 → 4 panneaux verticaux ~512×768 chacun.
-    //   Ce format "planche manga 1 rangée × 4 cases" est beaucoup plus fiable
-    //   que le 2×2 pour Flux (évite le biais "character sheet" avec bande
-    //   d'expressions). Chaque case est assez haute pour afficher un corps
-    //   entier en cadre portrait.
-    const SHEET_WIDTH = 2048;
+    // Sheet = strip horizontal 2560×768 → 4 panneaux verticaux 640×768 chacun.
+    //   Ratio 3.33:1 : rend 4 panneaux portrait (0.83) beaucoup plus naturels
+    //   que 3 panneaux qui seraient trop larges (1.11). Anti-biais Flux qui
+    //   produisait souvent 3 panneaux au ratio 2.67:1 précédent.
+    const SHEET_WIDTH = 2560;
     const SHEET_HEIGHT = 768;
 
     let sheetPublicUrl: string | null = null;

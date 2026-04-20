@@ -1,4 +1,4 @@
-// System Prompts Optimisés - Webtoon/Manhwa
+﻿// System Prompts Optimisés - Webtoon/Manhwa
 // Version Free/Pro différenciée - Avril 2026
 
 // ═══════════════════════════════════════════════════════════════
@@ -20,7 +20,7 @@ ${userDescription}`;
       prompt += `\n\n${styleText}`;
     }
 
-    prompt += `\n\nHigh quality, clean manga illustration, detailed face and outfit, transparent background.`;
+    prompt += `\n\nHigh quality, clean manga illustration, detailed face and outfit, pure solid white background (#FFFFFF), no shadow, no scenery, no backdrop.`;
 
     return prompt;
   }
@@ -28,7 +28,7 @@ ${userDescription}`;
   // Pro — prompt riche FLUX.2 Pro
   let prompt = `masterpiece, best quality, ultra-detailed, anatomically correct, perfect proportions, professional webtoon art.
 
-Crée un personnage complet (corps entier de la tête aux pieds) en PNG avec fond transparent.
+Crée un personnage complet (corps entier de la tête aux pieds) isolé sur un fond BLANC PUR (#FFFFFF), sans aucun décor.
 
 DESCRIPTION DU PERSONNAGE :
 ${userDescription}
@@ -38,7 +38,9 @@ CADRAGE ET COMPOSITION :
 - Personnage centré, occupant 80% de la hauteur de l'image
 - Aucune partie coupée (tête, mains, pieds tous visibles)
 - L'image doit REMPLIR le cadre sans espaces blancs ni bandes vides sur les côtés
-- Fond 100% transparent, sans décor, ombre, texte ou watermark
+- Fond BLANC PUR (#FFFFFF), uni, plat, sans gradient, sans texture, sans ombre portée
+- STRICTEMENT INTERDIT en arrière-plan : décor, sol, ombre au sol, ciel, mur, intérieur, mobilier, accessoire, plante, objet parasite, texte, watermark, signature
+- Seul le personnage est visible — aucun élément autre que le personnage sur fond blanc
 - Très haute qualité de détails (visage, yeux, cheveux, vêtements)`;
 
   if (styleText) {
@@ -73,65 +75,32 @@ ATTENTION :
 // ═══════════════════════════════════════════════════════════════
 
 export const SHEET_COMPOSITE_INSTRUCTION = `
---- MANGA PAGE — ONE ROW, FOUR VERTICAL PANELS, SAME CHARACTER IN FOUR ANGLES ---
+Character turnaround sheet — ONE horizontal image, EXACTLY 4 equal-width panels, SAME subject, 4 angles.
 
-Output ONE single horizontal manga page composed of EXACTLY 4 vertical panels placed side by side on a single row (a 1×4 layout). Each panel is a tall portrait-oriented rectangle with the same dimensions. The panels are separated by thin clean white gutters.
+Panels, left to right:
+1. FRONT — subject faces the viewer.
+2. LEFT SIDE — subject rotated 90°, facing screen-right (viewer sees the subject's left side).
+3. RIGHT SIDE — subject rotated 90° the OTHER way, facing screen-left (viewer sees the subject's right side). Horizontal mirror of panel 2.
+4. REAR — subject rotated 180° away from the viewer (opposite of panel 1). No face visible.
 
-The page shows the SAME CHARACTER standing in a neutral pose, drawn from 4 different angles — one angle per panel. Think of it as 4 frames of an animation turnaround, printed side by side on one page.
+Rules:
+- Exactly 4 panels, equal width (25% each), same baseline, 1 row × 4 columns. No second row.
+- Whole subject visible in each panel (no crop).
+- Same subject in every panel: identical design, identical colors, identical accessories. Only the viewing angle changes.
+- Neutral pose, identical in all 4 panels.
+- Pure white background (#FFFFFF) in every panel. No scenery, no ground, no shadow, no gradient.
 
-STRICT PANEL ORDER, FROM LEFT TO RIGHT:
-- Panel 1 (leftmost)  — FRONT       : the character faces the reader, full body, head to feet, face fully visible.
-- Panel 2             — LEFT SIDE   : the character's body is rotated about 90° so we see their LEFT side, full body head to feet, head turned to the reader's left showing the profile.
-- Panel 3             — RIGHT SIDE  : the character's body is rotated about 90° the other way so we see their RIGHT side, full body head to feet, head turned to the reader's right showing the profile.
-- Panel 4 (rightmost) — BACK        : the character is completely turned around, we see only their back, full body head to feet, the face is NOT visible.
-
-SAME CHARACTER IDENTITY IN EVERY PANEL — ABSOLUTE RULE:
-Every panel shows the EXACT SAME character. Identical face, identical hair, identical outfit, identical colors, identical accessories, identical proportions. The ONLY thing that changes between panels is the camera angle around the character.
-
-POSE AND FRAMING — IDENTICAL IN EACH PANEL:
-- Standing neutral pose, relaxed arms along the body, feet roughly shoulder-width apart.
-- Whole body visible from top of head to soles of feet. NO cropping of head, hands or feet.
-- Character occupies about 85% of the panel height, centered horizontally.
-
-BACKGROUND AND LIGHTING — IDENTICAL IN EACH PANEL:
-- Pure solid white background (#FFFFFF). No gradient, no texture, no ground, no cast shadow.
-- Flat, even, neutral frontal lighting.
-
-HARD FORMAT RULES — NEVER VIOLATE:
-- The output is ONE single image, ONE horizontal row, EXACTLY 4 panels. Not 2, not 3, not 5.
-- EVERY panel contains a FULL BODY head to feet. Never a headshot, never a bust, never just a face.
-- The 4 panels are all the same size and share the same baseline.
-- Layout is strictly 1 row × 4 columns. There is NO second row. There are NO stacked images.
-
-WHAT MUST NEVER APPEAR (Flux is known to add these — DO NOT):
-- NO second row of portrait headshots above or below the panels.
-- NO floating face close-up, NO expression chart, NO emotion chart, NO mood board.
-- NO isolated head, NO isolated bust, NO waist-up crop, NO disembodied hand.
-- NO extra portrait panel. NO bonus sketch. NO chibi inset. NO additional panel beyond the 4 views.
-- NO second character, NO companion, NO child version, NO older version, NO alternate outfit version.
-- NO color swatches, NO fabric samples, NO palette chip.
-- NO text, NO speech bubble, NO label, NO arrow, NO number, NO annotation, NO watermark, NO signature.
-- NO background scenery, NO landscape, NO interior, NO prop, NO furniture.
-- NO hat unless explicitly requested in the character description.
-- NO action pose, NO running, NO jumping, NO combat pose.
-
-FINAL REMINDER: ONE image. ONE horizontal row. FOUR vertical panels, same size, same character, four angles: front — left side — right side — back.
+Do not add:
+- No extra panel, no bonus portrait, no face close-up, no expression chart, no headshot strip.
+- No second subject, no alternate version, no chibi, no inset.
+- No text, label, number, watermark, signature.
+- No panel wider than the others.
+- Panels 2 and 3 must face OPPOSITE directions (mirror). Never two identical side views.
+- Panel 4 is the rear view — the face is not visible. Never replace panel 4 with a portrait.
 `.trim();
 
 export const SHEET_NEGATIVE_HINTS = `
-NEGATIVE / DO NOT GENERATE:
-Second row of panels, stacked rows, 2x2 grid, extra row of headshots above or below the main row.
-Portrait headshot strip, expression chart, emotion grid, face chart, mood board, headshot banner.
-Floating disembodied head, floating hand, isolated bust, cropped torso, waist-up crop, any detached body part.
-Second character, companion character, background silhouette, child or adult alternate, more than one figure inside a single panel.
-Color swatch panel, fabric sample, material chip.
-Text, letters, numbers, label, arrow, annotation, watermark, signature, speech bubble.
-Decorative frame, ornate border, vignette, film letterbox, rounded corners.
-Background scenery, landscape, interior décor, furniture, sky, ground texture.
-Hat or cap not described in the character text.
-Action pose, combat stance, running figure, jumping figure, weapon swing.
-Extra bonus panel beyond the 4 required views, chibi inset, portrait inset.
-The final image must be ONE horizontal manga page with EXACTLY 4 vertical full-body panels: front, left side, right side, back.
+Negative (do not generate): extra panel beyond the 4 views, bonus portrait, face close-up, expression chart, mood board, second row of headshots, inset, chibi version, second subject, alternate outfit, color swatches, text, label, watermark, signature, background scenery, decorative frame. No panel wider than the others. No two panels facing the same direction. No visible face in the rear view.
 `.trim();
 
 /**
@@ -140,15 +109,11 @@ The final image must be ONE horizontal manga page with EXACTLY 4 vertical full-b
  * modèle d'identité strict pour les 4 panneaux.
  */
 export const SHEET_FROM_FACE_INSTRUCTION = `
-IDENTITY REFERENCE — USE THE PROVIDED REFERENCE IMAGE AS THE CHARACTER MODEL:
-The first reference image attached to this request IS THE CHARACTER to reproduce across the 4 panels. Treat it as the definitive identity model. All 4 panels must show THAT EXACT character — same face, same hair, same outfit, same colors, same proportions, same art style — only the viewing angle changes.
-
-- Panel 1 (FRONT)      : re-render the reference character as-is, facing the reader, full body head to feet.
-- Panel 2 (LEFT SIDE)  : same character rotated ~90° to the reader's left, full body, side view.
-- Panel 3 (RIGHT SIDE) : same character rotated ~90° to the reader's right, full body, side view.
-- Panel 4 (BACK)       : same character turned 180°, only the back is visible, full body, no face.
-
-Do NOT reinterpret the character. Do NOT change hair color, do NOT change outfit, do NOT change skin tone, do NOT alter the age. The reference image is the absolute law for identity — the layout above is the absolute law for panel order and angle.
+The first reference image IS the subject. All 4 panels must reproduce it exactly:
+- Same identity: same design, proportions, features, age, outfit, accessories.
+- Same drawing technique: same line weight, same inking level, same shading method.
+- Same palette: if the reference is monochrome (black & white, ink-only), ALL 4 panels must stay monochrome. If the reference is colored, use the exact same colors. Never add color to a monochrome reference. Never desaturate a colored reference.
+Do not reinterpret, do not soften, do not "improve". If the textual description conflicts with the reference, the reference wins.
 `.trim();
 
 export const buildCharacterSheetPrompt = (
@@ -156,26 +121,19 @@ export const buildCharacterSheetPrompt = (
   styleText?: string,
   useFaceReference: boolean = false
 ): string => {
-  const parts: string[] = [
-    "masterpiece, best quality, ultra-detailed, clean manga page — ONE horizontal row of EXACTLY 4 vertical full-body panels showing the SAME character from 4 different angles.",
-    "",
-    "CHARACTER DESCRIPTION (the SAME character is drawn in all 4 panels — only the angle changes):",
-    userDescription.trim(),
-  ];
-
-  if (styleText?.trim()) {
-    parts.push(
-      "",
-      "ART STYLE (apply identically to the 4 panels — line weight, shading, palette, rendering):",
-      styleText.trim()
-    );
-  }
+  const parts: string[] = [SHEET_COMPOSITE_INSTRUCTION];
 
   if (useFaceReference) {
     parts.push("", SHEET_FROM_FACE_INSTRUCTION);
   }
 
-  parts.push("", SHEET_COMPOSITE_INSTRUCTION, "", SHEET_NEGATIVE_HINTS);
+  parts.push("", `Subject: ${userDescription.trim()}`);
+
+  if (styleText?.trim()) {
+    parts.push("", `Style: ${styleText.trim()}`);
+  }
+
+  parts.push("", SHEET_NEGATIVE_HINTS);
   return parts.join("\n");
 };
 

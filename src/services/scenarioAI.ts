@@ -1,5 +1,6 @@
 // Service layer — Appels IA Scénario & IA Chapitre
 import { supabase } from "@/integrations/supabase/client";
+import { logGenerationFailure, logGenerationInfo } from "@/lib/generationLogger";
 
 // ── Types ─────────────────────────────────────────────────────
 
@@ -95,6 +96,15 @@ const MSG_401 =
 // ── Helper interne : appel Edge Function ────────────────────────
 
 async function callEdgeFunction<T>(payload: AIRequest): Promise<T> {
+  logGenerationInfo("scenario-ai:start", {
+    mode: payload.mode,
+    prompt_chars: "prompt" in payload && payload.prompt ? payload.prompt.length : 0,
+    chapter_content_chars:
+      "chapter_content" in payload && payload.chapter_content
+        ? payload.chapter_content.length
+        : 0,
+  });
+
   // Forcer le rafraîchissement du token puis relire la session (évite 401)
   await supabase.auth.refreshSession();
   const { data: sessionData } = await supabase.auth.getSession();
@@ -119,6 +129,14 @@ async function callEdgeFunction<T>(payload: AIRequest): Promise<T> {
   const resBody = await res.json().catch(() => ({}));
 
   if (!res.ok) {
+    logGenerationFailure(
+      "scenario-ai:http-error",
+      {
+        mode: payload.mode,
+        status: res.status,
+      },
+      resBody
+    );
     if (res.status === 401) {
       throw new Error(MSG_401);
     }
@@ -132,8 +150,13 @@ async function callEdgeFunction<T>(payload: AIRequest): Promise<T> {
     }
     const errorField = typeof resBody?.error === "string" ? resBody.error : res.statusText;
     const detailsField = typeof resBody?.details === "string" ? resBody.details : null;
+    const requestId =
+      typeof resBody?.request_id === "string" && resBody.request_id.trim()
+        ? resBody.request_id.trim()
+        : null;
     const msg = detailsField ? `${errorField} — ${detailsField}` : errorField;
-    throw new Error(msg || `Erreur serveur (${res.status})`);
+    const withRequestId = requestId ? `${msg} (request_id: ${requestId})` : msg;
+    throw new Error(withRequestId || `Erreur serveur (${res.status})`);
   }
 
   return resBody as T;

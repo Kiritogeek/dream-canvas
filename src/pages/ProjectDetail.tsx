@@ -34,8 +34,10 @@ export default function ProjectDetail() {
 
   const styleTemplate = styleDraft ?? project?.style_template ?? "";
 
-  const { generatingAssetId, generatingView, canGenerate, generate } =
-    useAssetGeneration({ project: project ?? null, userPlan });
+  const { generatingAssetId, canGenerate, generate } = useAssetGeneration({
+    project: project ?? null,
+    userPlan,
+  });
 
   const [pendingAssetName, setPendingAssetName] = useState("");
   const [pendingAssetType, setPendingAssetType] = useState<"character" | "background" | "object">("character");
@@ -115,9 +117,8 @@ export default function ProjectDetail() {
             project={project}
             assets={assets}
             generatingAssetId={generatingAssetId}
-            generatingView={generatingView}
             onCanGenerate={canGenerate}
-            onGenerate={(asset, opts) => generate(asset, opts)}
+            onGenerate={generate}
             pendingAssetName={pendingAssetName}
             pendingAssetType={pendingAssetType}
             onPendingAssetConsumed={() => setPendingAssetName("")}

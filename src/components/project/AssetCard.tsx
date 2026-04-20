@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Sparkles, RefreshCw, Trash2, Pencil, Eye } from "lucide-react";
 import { ImageWithFallback } from "@/components/ui/ImageWithFallback";
@@ -27,6 +28,19 @@ export function AssetCard({
   onImageClick,
 }: AssetCardProps) {
   const isCharacter = asset.asset_type === "character";
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+
+  useEffect(() => {
+    if (!isGenerating) {
+      setElapsedSeconds(0);
+      return;
+    }
+    const startedAt = Date.now();
+    const timer = setInterval(() => {
+      setElapsedSeconds(Math.max(0, Math.floor((Date.now() - startedAt) / 1000)));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [isGenerating]);
 
   return (
     <motion.div
@@ -37,8 +51,13 @@ export function AssetCard({
       {isGenerating ? (
         <div className="w-full aspect-[2/3] rounded-lg mb-2 sm:mb-3 gradient-dream flex items-center justify-center relative">
           <Sparkles className="h-6 w-6 sm:h-8 sm:w-8 text-primary animate-pulse" />
-          <span className="absolute bottom-2 text-xs text-muted-foreground">
+          <span className="absolute bottom-6 text-xs text-muted-foreground">
             Génération…
+          </span>
+          <span className="absolute bottom-2 text-[10px] text-muted-foreground/90 text-center px-2">
+            {isCharacter
+              ? `~30-90s • ${elapsedSeconds}s`
+              : `~15-45s • ${elapsedSeconds}s`}
           </span>
         </div>
       ) : (

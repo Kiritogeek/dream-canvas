@@ -24,7 +24,7 @@ const FAL_SCHNELL = "https://fal.run/fal-ai/flux/schnell";     // Free tier
 const FAL_TEXT_TO_IMAGE = "https://fal.run/fal-ai/flux-2-pro"; // Pro tier
 const FAL_IMAGE_EDIT = "https://fal.run/fal-ai/flux-2-pro/edit"; // Pro + refs
 const BUCKET = "dreamweave";
-const FAL_TIMEOUT_MS = 120_000; // 120 secondes
+const FAL_TIMEOUT_MS = 100_000; // 100 secondes max par appel FAL
 
 // ── Limites par tier ──────────────────────────────────────────
 type UserPlan = "free" | "pro";
@@ -57,11 +57,9 @@ import {
 } from "./system-prompts/characters.ts";
 import {
   buildBackgroundPrompt,
-  buildBackgroundSheetPrompt,
 } from "./system-prompts/backgrounds.ts";
 import {
   buildObjectPrompt,
-  buildObjectSheetPrompt,
 } from "./system-prompts/objects.ts";
 
 // CORS — Restreindre en production via ALLOWED_ORIGIN
@@ -79,6 +77,57 @@ function jsonResponse(body: object, status: number) {
     status,
     headers: { ...getCorsHeaders(), "Content-Type": "application/json" },
   });
+}
+
+function clip(value: string, max = 1200): string {
+  if (value.length <= max) return value;
+  return `${value.slice(0, max)}…`;
+}
+
+function extractFalErrorDetails(rawText: string): string {
+  const text = rawText.trim();
+  if (!text) return "Réponse vide";
+  try {
+    const json = JSON.parse(text) as {
+      detail?: unknown;
+      details?: unknown;
+      error?: unknown;
+      message?: unknown;
+    };
+    const main = json.detail ?? json.details ?? json.error ?? json.message;
+    if (typeof main === "string") return clip(main);
+    if (main != null) return clip(JSON.stringify(main));
+  } catch {
+    // no-op: fallback texte brut
+  }
+  return clip(text);
+}
+
+function isFalPolicyViolation(details: string): boolean {
+  const lower = details.toLowerCase();
+  return (
+    lower.includes("content_policy_violation") ||
+    lower.includes("content policy") ||
+    lower.includes("safety checker")
+  );
+}
+
+function buildSafeFallbackPrompt(prompt: string): string {
+  const softened = prompt
+    .replace(/\b(nude|naked|nsfw|gore|blood|violent|violence|sexy|erotic)\b/gi, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+  return `${softened}\n\nSafety constraints: fully clothed, non-sexual, non-violent, family-friendly, no gore, no explicit content.`;
+}
+
+function buildUltraSafePrompt(kind: "character" | "background" | "object"): string {
+  if (kind === "character") {
+    return "Adult character design sheet, fully clothed, neutral pose, clean studio lighting, non-sexual, non-violent, family-friendly comic style, original content.";
+  }
+  if (kind === "background") {
+    return "Safe environment concept art, no people, no violence, no explicit content, family-friendly, original comic style background.";
+  }
+  return "Safe object concept art, clean product-like composition, no violence, no explicit content, family-friendly, original comic style.";
 }
 
 function isUuid(value: string): boolean {
@@ -151,7 +200,7 @@ async function fetchWithTimeout(
 async function fetchWithRetry(
   url: string,
   options: RequestInit,
-  maxRetries = 2
+  maxRetries = 1
 ): Promise<Response> {
   let lastError: Error | null = null;
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -193,28 +242,68 @@ async function generateTextToImage(
   prompt: string,
   falKey: string,
   width: number,
-  height: number
+  height: number,
+  kind: "character" | "background" | "object" = "character"
 ): Promise<{ url: string } | { error: string }> {
-  const res = await fetchWithRetry(FAL_TEXT_TO_IMAGE, {
+  const payload = {
+    prompt,
+    image_size: { width, height },
+    num_images: 1,
+    output_format: "png",
+    safety_tolerance: "3",
+    enable_safety_checker: true,
+  };
+
+  let res = await fetchWithRetry(FAL_TEXT_TO_IMAGE, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Key ${falKey}`,
     },
-    body: JSON.stringify({
-      prompt,
-      image_size: { width, height },
-      num_images: 1,
-      output_format: "png",
-      safety_tolerance: "3",
-      enable_safety_checker: true,
-    }),
+    body: JSON.stringify(payload),
   });
 
-  const text = await res.text();
+  let text = await res.text();
   if (!res.ok) {
-    console.error("[generate-asset-image] FAL.ai erreur:", res.status);
-    return { error: `FAL.ai erreur ${res.status}: ${text.slice(0, 200)}` };
+    const details = extractFalErrorDetails(text);
+    if (res.status === 422 && isFalPolicyViolation(details)) {
+      const safePrompt = buildSafeFallbackPrompt(prompt);
+      console.warn("[generate-asset-image] Policy violation, retry with safe prompt", {
+        status: res.status,
+      });
+      res = await fetchWithRetry(FAL_TEXT_TO_IMAGE, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Key ${falKey}`,
+        },
+        body: JSON.stringify({ ...payload, prompt: safePrompt }),
+      });
+      text = await res.text();
+      if (!res.ok) {
+        const retriedDetails = extractFalErrorDetails(text);
+        const ultraSafePrompt = buildUltraSafePrompt(kind);
+        console.warn("[generate-asset-image] Second retry with ultra-safe prompt (text-to-image)");
+        res = await fetchWithRetry(FAL_TEXT_TO_IMAGE, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Key ${falKey}`,
+          },
+          body: JSON.stringify({ ...payload, prompt: ultraSafePrompt }),
+        });
+        text = await res.text();
+        if (!res.ok) {
+          return { error: `Contenu bloqué par la politique FAL (422): ${retriedDetails}` };
+        }
+      }
+    } else {
+      console.error("[generate-asset-image] FAL.ai text-to-image error", {
+        status: res.status,
+        details,
+      });
+      return { error: `FAL.ai erreur ${res.status}: ${details}` };
+    }
   }
 
   let json: { images?: Array<{ url: string }> };
@@ -235,29 +324,71 @@ async function generateWithReferences(
   referenceImageUrls: string[],
   falKey: string,
   width: number,
-  height: number
+  height: number,
+  kind: "character" | "background" | "object" = "character"
 ): Promise<{ url: string } | { error: string }> {
-  const res = await fetchWithRetry(FAL_IMAGE_EDIT, {
+  const payload = {
+    prompt,
+    image_urls: referenceImageUrls,
+    image_size: { width, height },
+    num_images: 1,
+    output_format: "png",
+    safety_tolerance: "3",
+    enable_safety_checker: true,
+  };
+
+  let res = await fetchWithRetry(FAL_IMAGE_EDIT, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Key ${falKey}`,
     },
-    body: JSON.stringify({
-      prompt,
-      image_urls: referenceImageUrls,
-      image_size: { width, height },
-      num_images: 1,
-      output_format: "png",
-      safety_tolerance: "3",
-      enable_safety_checker: true,
-    }),
+    body: JSON.stringify(payload),
   });
 
-  const text = await res.text();
+  let text = await res.text();
   if (!res.ok) {
-    console.error("[generate-asset-image] FAL.ai erreur:", res.status);
-    return { error: `FAL.ai erreur ${res.status}: ${text.slice(0, 200)}` };
+    const details = extractFalErrorDetails(text);
+    if (res.status === 422 && isFalPolicyViolation(details)) {
+      const safePrompt = buildSafeFallbackPrompt(prompt);
+      console.warn("[generate-asset-image] Policy violation (edit), retry with safe prompt", {
+        status: res.status,
+        reference_images_count: referenceImageUrls.length,
+      });
+      res = await fetchWithRetry(FAL_IMAGE_EDIT, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Key ${falKey}`,
+        },
+        body: JSON.stringify({ ...payload, prompt: safePrompt }),
+      });
+      text = await res.text();
+      if (!res.ok) {
+        const retriedDetails = extractFalErrorDetails(text);
+        const ultraSafePrompt = buildUltraSafePrompt(kind);
+        console.warn("[generate-asset-image] Second retry with ultra-safe prompt (image-edit)");
+        res = await fetchWithRetry(FAL_IMAGE_EDIT, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Key ${falKey}`,
+          },
+          body: JSON.stringify({ ...payload, prompt: ultraSafePrompt }),
+        });
+        text = await res.text();
+        if (!res.ok) {
+          return { error: `Contenu bloqué par la politique FAL (422): ${retriedDetails}` };
+        }
+      }
+    } else {
+      console.error("[generate-asset-image] FAL.ai image-edit error", {
+        status: res.status,
+        details,
+        reference_images_count: referenceImageUrls.length,
+      });
+      return { error: `FAL.ai erreur ${res.status}: ${details}` };
+    }
   }
 
   let json: { images?: Array<{ url: string }> };
@@ -277,28 +408,68 @@ async function generateSchnell(
   prompt: string,
   falKey: string,
   width: number,
-  height: number
+  height: number,
+  kind: "character" | "background" | "object" = "character"
 ): Promise<{ url: string } | { error: string }> {
-  const res = await fetchWithRetry(FAL_SCHNELL, {
+  const payload = {
+    prompt,
+    image_size: { width, height },
+    num_images: 1,
+    num_inference_steps: 4,
+    output_format: "png",
+    enable_safety_checker: true,
+  };
+
+  let res = await fetchWithRetry(FAL_SCHNELL, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Key ${falKey}`,
     },
-    body: JSON.stringify({
-      prompt,
-      image_size: { width, height },
-      num_images: 1,
-      num_inference_steps: 4,
-      output_format: "png",
-      enable_safety_checker: true,
-    }),
+    body: JSON.stringify(payload),
   });
 
-  const text = await res.text();
+  let text = await res.text();
   if (!res.ok) {
-    console.error("[generate-asset-image] FAL.ai Schnell erreur:", res.status);
-    return { error: `FAL.ai erreur ${res.status}: ${text.slice(0, 200)}` };
+    const details = extractFalErrorDetails(text);
+    if (res.status === 422 && isFalPolicyViolation(details)) {
+      const safePrompt = buildSafeFallbackPrompt(prompt);
+      console.warn("[generate-asset-image] Policy violation (schnell), retry with safe prompt", {
+        status: res.status,
+      });
+      res = await fetchWithRetry(FAL_SCHNELL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Key ${falKey}`,
+        },
+        body: JSON.stringify({ ...payload, prompt: safePrompt }),
+      });
+      text = await res.text();
+      if (!res.ok) {
+        const retriedDetails = extractFalErrorDetails(text);
+        const ultraSafePrompt = buildUltraSafePrompt(kind);
+        console.warn("[generate-asset-image] Second retry with ultra-safe prompt (schnell)");
+        res = await fetchWithRetry(FAL_SCHNELL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Key ${falKey}`,
+          },
+          body: JSON.stringify({ ...payload, prompt: ultraSafePrompt }),
+        });
+        text = await res.text();
+        if (!res.ok) {
+          return { error: `Contenu bloqué par la politique FAL (422): ${retriedDetails}` };
+        }
+      }
+    } else {
+      console.error("[generate-asset-image] FAL.ai schnell error", {
+        status: res.status,
+        details,
+      });
+      return { error: `FAL.ai erreur ${res.status}: ${details}` };
+    }
   }
 
   let json: { images?: Array<{ url: string }> };
@@ -320,40 +491,74 @@ async function downloadAndUploadToStorage(
   supabaseUrl: string,
   serviceKey: string
 ): Promise<string | null> {
-  try {
-    const downloadRes = await fetchWithTimeout(imageUrl, {}, 30_000);
-    if (!downloadRes.ok) return null;
-    const imageBlob = await downloadRes.blob();
-
-    const form = new FormData();
-    form.append("file", imageBlob, "image.png");
-
-    const uploadRes = await fetch(
-      `${supabaseUrl}/storage/v1/object/${BUCKET}/${storagePath}`,
-      {
-        method: "POST",
-        headers: {
-          apikey: serviceKey,
-          Authorization: `Bearer ${serviceKey}`,
-          "x-upsert": "true",
-        },
-        body: form,
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const downloadRes = await fetchWithTimeout(imageUrl, {}, 60_000);
+      if (!downloadRes.ok) {
+        const errText = await downloadRes.text().catch(() => "");
+        console.error("[generate-asset-image] Download source image failed", {
+          attempt,
+          status: downloadRes.status,
+          details: clip(errText, 500),
+        });
+        continue;
       }
-    );
+      const imageArrayBuffer = await downloadRes.arrayBuffer();
 
-    if (!uploadRes.ok) {
-      const errText = await uploadRes.text();
-      console.error("[generate-asset-image] Upload Storage erreur:", errText.slice(0, 200));
-      return null;
+      let uploadRes = await fetch(
+        `${supabaseUrl}/storage/v1/object/${BUCKET}/${storagePath}`,
+        {
+          method: "POST",
+          headers: {
+            apikey: serviceKey,
+            Authorization: `Bearer ${serviceKey}`,
+            "x-upsert": "true",
+          },
+          body: imageArrayBuffer,
+        }
+      );
+
+      // Fallback historique: certains contextes Storage acceptent mieux le multipart/form-data.
+      if (!uploadRes.ok) {
+        const form = new FormData();
+        form.append("file", new Blob([imageArrayBuffer]), "image.png");
+        uploadRes = await fetch(
+          `${supabaseUrl}/storage/v1/object/${BUCKET}/${storagePath}`,
+          {
+            method: "POST",
+            headers: {
+              apikey: serviceKey,
+              Authorization: `Bearer ${serviceKey}`,
+              "x-upsert": "true",
+            },
+            body: form,
+          }
+        );
+      }
+
+      if (!uploadRes.ok) {
+        const errText = await uploadRes.text().catch(() => "");
+        console.error("[generate-asset-image] Upload Storage failed", {
+          attempt,
+          status: uploadRes.status,
+          details: clip(errText, 800),
+          storage_path: storagePath,
+        });
+        await new Promise((r) => setTimeout(r, 500 * attempt));
+        continue;
+      }
+
+      const ts = Date.now();
+      return `${supabaseUrl}/storage/v1/object/public/${BUCKET}/${storagePath}?v=${ts}`;
+    } catch (err) {
+      console.error("[generate-asset-image] Exception download/upload", {
+        attempt,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      await new Promise((r) => setTimeout(r, 500 * attempt));
     }
-
-    // Ajouter un cache-buster pour forcer le rechargement navigateur
-    const ts = Date.now();
-    return `${supabaseUrl}/storage/v1/object/public/${BUCKET}/${storagePath}?v=${ts}`;
-  } catch (err) {
-    console.error("[generate-asset-image] Exception download/upload:", err);
-    return null;
   }
+  return null;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -361,6 +566,7 @@ async function downloadAndUploadToStorage(
 // ═══════════════════════════════════════════════════════════════
 
 Deno.serve(async (req) => {
+  const requestId = crypto.randomUUID();
   const allowedOrigin = Deno.env.get("ALLOWED_ORIGIN")?.trim();
   if (!allowedOrigin) {
     return jsonResponse(
@@ -587,9 +793,15 @@ Deno.serve(async (req) => {
       style_image_urls_merged = undefined;
     }
 
-    console.log(
-      `[generate-asset-image] asset=${asset_id} style_key=${mergedStyleKey ?? "none"} text_chars=${dbText.length} refs=${style_image_urls_merged?.length ?? 0}`
-    );
+    console.log("[generate-asset-image] request context", {
+      request_id: requestId,
+      asset_id,
+      style_key: mergedStyleKey ?? "none",
+      style_text_chars: dbText.length,
+      style_refs_count: style_image_urls_merged?.length ?? 0,
+      plan: userPlan,
+      asset_type: asset_type ?? "character",
+    });
 
     const hasStyleText = !!dbText;
     const hasStyleImages =
@@ -658,47 +870,12 @@ Deno.serve(async (req) => {
 
     const viewPrompt = fullPrompt;
 
-    // Prompt de la fiche composite (sheet) : sert de référence identitaire
-    // pour générer la vue demandée (face / profils / dos) de façon cohérente.
-    let sheetPrompt = "";
-    if (type_ === "character") {
-      sheetPrompt = buildCharacterSheetPrompt(
-        prompt.trim(),
-        hasStyleText ? userStyleText : undefined,
-        userPlan
-      );
-    } else if (type_ === "background") {
-      sheetPrompt = buildBackgroundSheetPrompt(
-        prompt.trim(),
-        hasStyleText ? userStyleText : undefined,
-        userPlan
-      );
-    } else if (type_ === "object") {
-      sheetPrompt = buildObjectSheetPrompt(
-        prompt.trim(),
-        hasStyleText ? userStyleText : undefined,
-        userPlan
-      );
-    } else {
-      sheetPrompt = prompt.trim();
-    }
-
-    if (hasStyleImages) {
-      sheetPrompt +=
-        "\n\nIMPORTANT : Les images de référence guident surtout trait, ombrage et matière. " +
-        "Reproduis un rendu cohérent avec ces consignes. Crée un contenu 100% original.";
-    }
-
     // ═══════════════════════════════════════════════════════════
     // 6. APPEL FAL.ai (sélection modèle selon tier)
     // ═══════════════════════════════════════════════════════════
 
     const width = 1280;
     const height = 1024;
-
-    // Les vues profil/dos ne sont plus générées séparément :
-    // la sheet multi-angles est la source unique.
-    const normalizedImageView = "front";
 
     if (hasStyleImages && !limits.allowReferenceImages) {
       // Free tier: ignorer les images de référence, utiliser Schnell text-only
@@ -707,90 +884,56 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 6a. Générer la fiche composite (sheet) et la stocker
-    const sheetStoragePath = `${asset.user_id}/assets/${asset_id}_sheet.png`;
+    // 6a. Génération SÉQUENTIELLE : face d'abord, PUIS sheet en utilisant
+    //     la face comme référence d'identité (flux-2-pro/edit).
+    //     C'est la clé pour que la sheet 4 angles reproduise EXACTEMENT le
+    //     même personnage que la vue de face affichée dans la bibliothèque.
+    //     Pour background/object : pas de sheet.
+    const facePath = `${asset.user_id}/assets/${asset_id}.png`;
+    const sheetPath = `${asset.user_id}/assets/${asset_id}_sheet.png`;
 
-    let sheetResult: { url: string } | { error: string };
-    if (userPlan === "free") {
-      sheetResult = await generateSchnell(sheetPrompt, falKey, width, height);
-    } else if (
-      hasStyleImages &&
-      style_image_urls &&
-      style_image_urls.length > 0
-    ) {
-      sheetResult = await generateWithReferences(
-        sheetPrompt,
-        style_image_urls,
-        falKey,
-        width,
-        height
-      );
-    } else {
-      sheetResult = await generateTextToImage(sheetPrompt, falKey, width, height);
-    }
+    const generateFace = async (): Promise<{ url: string } | { error: string }> => {
+      if (userPlan === "free") {
+        return generateSchnell(viewPrompt, falKey, width, height, type_);
+      }
+      if (hasStyleImages && style_image_urls && style_image_urls.length > 0) {
+        return generateWithReferences(
+          viewPrompt,
+          style_image_urls,
+          falKey,
+          width,
+          height,
+          type_
+        );
+      }
+      return generateTextToImage(viewPrompt, falKey, width, height, type_);
+    };
 
-    if ("error" in sheetResult) {
-      return jsonResponse(
-        { error: "Échec génération character sheet", details: sheetResult.error },
-        502
-      );
-    }
+    const modelUsed: string =
+      userPlan === "free"
+        ? "schnell"
+        : hasStyleImages && style_image_urls && style_image_urls.length > 0
+          ? "flux-2-pro-edit"
+          : "flux-2-pro";
 
-    const sheetPublicUrl = await downloadAndUploadToStorage(
-      sheetResult.url,
-      sheetStoragePath,
-      supabaseUrl,
-      serviceKey
-    );
+    const shouldGenerateSheet = type_ === "character";
 
-    if (!sheetPublicUrl) {
+    // --- Étape 1 : génération + upload de la face (bloquant) ---
+    const faceResult = await generateFace();
+    if ("error" in faceResult) {
       return jsonResponse(
         {
-          error:
-            "Character sheet générée par FAL.ai mais échec du transfert vers Storage",
+          error: "Échec génération image",
+          details: faceResult.error,
+          request_id: requestId,
         },
         502
       );
     }
 
-    // 6b. Générer la vue demandée à partir de la sheet (cohérence identitaire)
-    const pathSuffix = "";
-    const storagePath = `${asset.user_id}/assets/${asset_id}${pathSuffix}.png`;
-
-    let viewResult: { url: string } | { error: string };
-    let modelUsed: string;
-
-    if (userPlan === "free") {
-      viewResult = await generateSchnell(viewPrompt, falKey, width, height);
-      modelUsed = "schnell";
-    } else {
-      const sheetIdentityInstruction =
-        type_ === "character"
-          ? "RÉFÉRENCE (character sheet) : utilise la fiche fournie dans image_urls pour conserver EXACTEMENT l'identité (visage, coiffure, vêtements, couleurs). Sortie : vue principale propre de l'asset, sans grille, sans autres vignettes de la sheet."
-          : "RÉFÉRENCE : utilise l'image de fiche fournie dans image_urls comme référence identitaire (forme, style, lumière). Sortie : image principale correspondant à l'asset demandé, sans artefacts de grille/fiche.";
-
-      const viewPromptWithSheet = `${viewPrompt}\n\n${sheetIdentityInstruction}`;
-
-      viewResult = await generateWithReferences(
-        viewPromptWithSheet,
-        [sheetPublicUrl],
-        falKey,
-        width,
-        height
-      );
-      modelUsed = "flux-2-pro-edit";
-    }
-
-    if ("error" in viewResult) {
-      return jsonResponse(
-        { error: "Échec génération vue à partir de la sheet", details: viewResult.error },
-        502
-      );
-    }
-
     const publicUrl = await downloadAndUploadToStorage(
-      viewResult.url,
-      storagePath,
+      faceResult.url,
+      facePath,
       supabaseUrl,
       serviceKey
     );
@@ -798,14 +941,91 @@ Deno.serve(async (req) => {
     if (!publicUrl) {
       return jsonResponse(
         {
-          error:
-            "Vue générée par FAL.ai mais échec du transfert vers Storage",
+          error: "Vue générée par FAL.ai mais échec du transfert vers Storage",
+          request_id: requestId,
         },
         502
       );
     }
 
-    // 8. Mise à jour BDD
+    // --- Étape 2 : génération de la sheet avec la face comme référence ---
+    //     Pro : flux-2-pro/edit, la face publique URL en 1ère position + style
+    //           images éventuelles derrière. useFaceReference=true ajoute dans
+    //           le prompt l'instruction "la 1ère image est le personnage".
+    //     Free : Schnell ne supporte pas le mode edit → prompt texte renforcé,
+    //           cohérence un peu moins stricte mais sheet produite quand même.
+    //
+    // Sheet = strip horizontal 2048×768 → 4 panneaux verticaux ~512×768 chacun.
+    //   Ce format "planche manga 1 rangée × 4 cases" est beaucoup plus fiable
+    //   que le 2×2 pour Flux (évite le biais "character sheet" avec bande
+    //   d'expressions). Chaque case est assez haute pour afficher un corps
+    //   entier en cadre portrait.
+    const SHEET_WIDTH = 2048;
+    const SHEET_HEIGHT = 768;
+
+    let sheetPublicUrl: string | null = null;
+
+    if (shouldGenerateSheet) {
+      const sheetResult: { url: string } | { error: string } = await (async () => {
+        if (userPlan === "free") {
+          const sheetPromptFree = buildCharacterSheetPrompt(
+            prompt.trim(),
+            hasStyleText ? userStyleText : undefined,
+            false
+          );
+          return generateSchnell(
+            sheetPromptFree,
+            falKey,
+            SHEET_WIDTH,
+            SHEET_HEIGHT,
+            type_
+          );
+        }
+
+        // Pro : face en première référence d'identité, images de style ensuite.
+        const sheetRefs: string[] = [publicUrl];
+        if (hasStyleImages && style_image_urls && style_image_urls.length > 0) {
+          sheetRefs.push(...style_image_urls);
+        }
+        const sheetPromptPro = buildCharacterSheetPrompt(
+          prompt.trim(),
+          hasStyleText ? userStyleText : undefined,
+          true
+        );
+        return generateWithReferences(
+          sheetPromptPro,
+          sheetRefs,
+          falKey,
+          SHEET_WIDTH,
+          SHEET_HEIGHT,
+          type_
+        );
+      })();
+
+      if ("error" in sheetResult) {
+        console.warn("[generate-asset-image] Sheet generation failed (face OK)", {
+          request_id: requestId,
+          asset_id,
+          details: sheetResult.error,
+        });
+      } else {
+        sheetPublicUrl = await downloadAndUploadToStorage(
+          sheetResult.url,
+          sheetPath,
+          supabaseUrl,
+          serviceKey
+        );
+        if (!sheetPublicUrl) {
+          console.warn("[generate-asset-image] Sheet upload failed (face OK)", {
+            request_id: requestId,
+            asset_id,
+          });
+        }
+      }
+    }
+
+    // 8. Mise à jour BDD — image_url (face) + image_url_sheet (composite 4 angles).
+    //    image_url_profile_* sont réinitialisées (legacy abandonné, cf. CLAUDE.md "Sheet System").
     const updateField = "image_url";
 
     const updateRes = await fetch(
@@ -820,6 +1040,9 @@ Deno.serve(async (req) => {
         },
         body: JSON.stringify({
           image_url_sheet: sheetPublicUrl,
+          image_url_profile_left: null,
+          image_url_profile_right: null,
+          image_url_back: null,
           [updateField]: publicUrl,
         }),
       }
@@ -859,16 +1082,19 @@ Deno.serve(async (req) => {
       {
         image_url: publicUrl,
         image_url_sheet: sheetPublicUrl,
-        image_view: normalizedImageView,
         update_field: updateField,
         model: modelUsed,
         plan: userPlan,
+        request_id: requestId,
       },
       200
     );
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    console.error("[generate-asset-image] Exception:", msg);
-    return jsonResponse({ error: "Erreur serveur", details: msg }, 500);
+    console.error("[generate-asset-image] Exception", {
+      request_id: requestId,
+      message: msg,
+    });
+    return jsonResponse({ error: "Erreur serveur", details: msg, request_id: requestId }, 500);
   }
 });

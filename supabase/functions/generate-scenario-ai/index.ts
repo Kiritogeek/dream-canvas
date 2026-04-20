@@ -79,6 +79,11 @@ function jsonResponse(body: object, status: number) {
   });
 }
 
+function clip(value: string, max = 1000): string {
+  if (value.length <= max) return value;
+  return `${value.slice(0, max)}…`;
+}
+
 function estimateTokens(text: string): number {
   // Approximation conservative pour FR/EN (4 chars ≈ 1 token).
   return Math.ceil(text.length / 4);
@@ -163,7 +168,8 @@ async function callAIOnce(
   systemPrompt: string,
   userPrompt: string,
   apiKey: string,
-  jsonMode = false
+  jsonMode = false,
+  requestId?: string
 ): Promise<AIResult> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), AI_TIMEOUT_MS);
@@ -198,13 +204,14 @@ async function callAIOnce(
     });
     const raw = await res.text();
     if (!res.ok) {
-      console.error(
-        `[generate-scenario-ai] Gemini erreur (${model}):`,
-        res.status,
-        raw.slice(0, 300)
-      );
+      console.error("[generate-scenario-ai] Gemini error", {
+        request_id: requestId,
+        model,
+        status: res.status,
+        raw: clip(raw, 300),
+      });
       return {
-        error: `Gemini erreur ${res.status}: ${raw.slice(0, 200)}`,
+        error: `Gemini erreur ${res.status}: ${clip(raw, 200)}`,
         status: res.status,
         rateLimited: res.status === 429 || res.status === 503,
       };
@@ -232,14 +239,16 @@ async function callAI(
   systemPrompt: string,
   userPrompt: string,
   apiKey: string,
-  jsonMode = false
+  jsonMode = false,
+  requestId?: string
 ): Promise<AIResult> {
   const primary = await callAIOnce(
     AI_MODEL,
     systemPrompt,
     userPrompt,
     apiKey,
-    jsonMode
+    jsonMode,
+    requestId
   );
   if ("text" in primary) return primary;
 
@@ -254,7 +263,8 @@ async function callAI(
       systemPrompt,
       userPrompt,
       apiKey,
-      jsonMode
+      jsonMode,
+      requestId
     );
     if ("text" in fallback) return fallback;
     if (fallback.rateLimited) {
@@ -318,6 +328,7 @@ function extractJsonObject(raw: string): string {
 // ═══════════════════════════════════════════════════════════════
 
 Deno.serve(async (req) => {
+  const requestId = crypto.randomUUID();
   const allowedOrigin = Deno.env.get("ALLOWED_ORIGIN")?.trim();
   if (!allowedOrigin) {
     return jsonResponse(
@@ -508,13 +519,17 @@ Deno.serve(async (req) => {
     }
 
     // 6. Appel IA
-    console.log(
-      `[generate-scenario-ai] mode=${mode}, user=${userId}, prompt_length=${userPrompt.length}, trimmed=${inputWasTrimmed}`
-    );
+    console.log("[generate-scenario-ai] request context", {
+      request_id: requestId,
+      mode,
+      user_id: userId,
+      user_prompt_length: userPrompt.length,
+      input_trimmed: inputWasTrimmed,
+    });
 
     // Activer le mode JSON strict pour les modes structurés
     const jsonMode = mode === "panels" || mode === "detect_blocks";
-    const result = await callAI(systemPrompt, userPrompt, geminiKey, jsonMode);
+    const result = await callAI(systemPrompt, userPrompt, geminiKey, jsonMode, requestId);
 
     if ("error" in result) {
       // Propager le 429 tel quel (rate limit / quota Gemini épuisé) pour
@@ -528,12 +543,13 @@ Deno.serve(async (req) => {
               : "Limite quotidienne IA atteinte. Le quota Gemini se réinitialise toutes les 24h. Réessayez plus tard.",
             details: result.error,
             rateLimited: true,
+            request_id: requestId,
           },
           is503 ? 503 : 429
         );
       }
       return jsonResponse(
-        { error: "Échec génération IA", details: result.error },
+        { error: "Échec génération IA", details: result.error, request_id: requestId },
         502
       );
     }
@@ -563,7 +579,7 @@ Deno.serve(async (req) => {
       }
       const panels = Array.isArray(parsed.panels) ? parsed.panels : [];
       return jsonResponse(
-        { panels, mode, model: result.modelUsed },
+        { panels, mode, model: result.modelUsed, request_id: requestId },
         200
       );
     }
@@ -601,7 +617,7 @@ Deno.serve(async (req) => {
           result.text.slice(0, 500)
         );
       }
-      return jsonResponse({ blocks, mode, model: result.modelUsed }, 200);
+      return jsonResponse({ blocks, mode, model: result.modelUsed, request_id: requestId }, 200);
     }
 
     // Modes texte : scenario, chapter, ai_summary, suggest_block_prompt
@@ -610,12 +626,16 @@ Deno.serve(async (req) => {
         text: result.text,
         mode,
         model: result.modelUsed,
+        request_id: requestId,
       },
       200
     );
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    console.error("[generate-scenario-ai] Exception:", msg);
-    return jsonResponse({ error: "Erreur serveur", details: msg }, 500);
+    console.error("[generate-scenario-ai] Exception", {
+      request_id: requestId,
+      message: msg,
+    });
+    return jsonResponse({ error: "Erreur serveur", details: msg, request_id: requestId }, 500);
   }
 });

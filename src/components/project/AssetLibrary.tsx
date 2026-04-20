@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Users, MapPin, Box, Plus, Save, RefreshCw, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -61,9 +61,8 @@ interface AssetLibraryProps {
   project: Project;
   assets: Asset[];
   generatingAssetId: string | null;
-  generatingView: "profile_left" | "profile_right" | "back" | null;
   onCanGenerate: () => boolean;
-  onGenerate: (asset: Asset, options?: { view?: "profile_left" | "profile_right" | "back" }) => void;
+  onGenerate: (asset: Asset) => void;
   /** Nom pré-rempli venant du scénario */
   pendingAssetName?: string;
   /** Type pré-rempli venant du scénario */
@@ -77,7 +76,6 @@ export function AssetLibrary({
   project: _project,
   assets,
   generatingAssetId,
-  generatingView,
   onCanGenerate,
   onGenerate,
   pendingAssetName,
@@ -303,15 +301,16 @@ export function AssetLibrary({
     }
   };
 
-  const filteredAssets = assets.filter((asset) => {
-    const typeMatch = activeFilter === "all" ? true : asset.asset_type === activeFilter;
-    const textMatch = searchQuery.trim()
-      ? `${asset.name} ${asset.prompt ?? ""}`
-          .toLowerCase()
-          .includes(searchQuery.toLowerCase())
-      : true;
-    return typeMatch && textMatch;
-  });
+  const filteredAssets = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    return assets.filter((asset) => {
+      const typeMatch = activeFilter === "all" ? true : asset.asset_type === activeFilter;
+      const textMatch = q
+        ? `${asset.name} ${asset.prompt ?? ""}`.toLowerCase().includes(q)
+        : true;
+      return typeMatch && textMatch;
+    });
+  }, [assets, activeFilter, searchQuery]);
 
   // Pill quota couleur
   const remaining = usageInfo.limit - usageInfo.count;
@@ -523,9 +522,6 @@ export function AssetLibrary({
           if (!open) setSelectedCharacter(null);
         }}
         character={selectedCharacter}
-        generatingView={generatingView}
-        onGenerateView={(asset, view) => onGenerate(asset, { view })}
-        userPlan={plan}
       />
 
       {/* Confirmation suppression */}

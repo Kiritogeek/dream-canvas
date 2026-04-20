@@ -21,13 +21,22 @@ export async function messageFromFunctionsInvokeError(
           details?: unknown;
           error?: unknown;
           message?: unknown;
+          request_id?: unknown;
         };
         const piece = json.details ?? json.error ?? json.message;
-        if (typeof piece === "string" && piece.trim()) return piece.trim();
+        const requestId =
+          typeof json.request_id === "string" && json.request_id.trim()
+            ? json.request_id.trim()
+            : null;
+        if (typeof piece === "string" && piece.trim()) {
+          return requestId ? `${piece.trim()} (request_id: ${requestId})` : piece.trim();
+        }
         if (piece !== undefined && piece !== null)
-          return typeof piece === "object"
-            ? JSON.stringify(piece)
-            : String(piece);
+          return requestId
+            ? `${typeof piece === "object" ? JSON.stringify(piece) : String(piece)} (request_id: ${requestId})`
+            : typeof piece === "object"
+              ? JSON.stringify(piece)
+              : String(piece);
       } catch {
         /* pas du JSON */
       }

@@ -48,7 +48,10 @@
       "Bash(openclaw hooks *)",
       "Bash(python3 -c ' *)",
       "Bash(setx DISCORD_BOT_TOKEN *)",
-      "Bash(xxd .husky/pre-commit)"
+      "Bash(xxd .husky/pre-commit)",
+      "Bash(gh api *)",
+      "Bash(mkdir -p \"/c/Users/PC/.claude/skills/wiki-brain/hooks\")",
+      "Bash(mkdir -p \"/c/Users/PC/.claude/commands\")"
     ]
   },
   "hooks": {

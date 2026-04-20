@@ -30,6 +30,30 @@ function jsonResponse(body: object, status: number) {
   });
 }
 
+function clip(value: string, max = 1200): string {
+  if (value.length <= max) return value;
+  return `${value.slice(0, max)}…`;
+}
+
+function extractFalErrorDetails(rawText: string): string {
+  const text = rawText.trim();
+  if (!text) return "Réponse vide";
+  try {
+    const json = JSON.parse(text) as {
+      detail?: unknown;
+      details?: unknown;
+      error?: unknown;
+      message?: unknown;
+    };
+    const main = json.detail ?? json.details ?? json.error ?? json.message;
+    if (typeof main === "string") return clip(main);
+    if (main != null) return clip(JSON.stringify(main));
+  } catch {
+    // fallback sur texte brut
+  }
+  return clip(text);
+}
+
 function isUuid(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
     value
@@ -96,7 +120,12 @@ async function generateImage(
 
   const text = await res.text();
   if (!res.ok) {
-    return { error: `FAL.ai ${res.status}: ${text.slice(0, 200)}` };
+    const details = extractFalErrorDetails(text);
+    console.error("[generate-panel-image] FAL text-to-image error", {
+      status: res.status,
+      details,
+    });
+    return { error: `FAL.ai ${res.status}: ${details}` };
   }
   let json: { images?: Array<{ url: string }> };
   try {
@@ -136,7 +165,13 @@ async function generateImageWithReferences(
 
   const text = await res.text();
   if (!res.ok) {
-    return { error: `FAL.ai ${res.status}: ${text.slice(0, 200)}` };
+    const details = extractFalErrorDetails(text);
+    console.error("[generate-panel-image] FAL image-edit error", {
+      status: res.status,
+      details,
+      reference_images_count: referenceImageUrls.length,
+    });
+    return { error: `FAL.ai ${res.status}: ${details}` };
   }
 
   let json: { images?: Array<{ url: string }> };
@@ -183,6 +218,7 @@ async function downloadAndUpload(
 }
 
 Deno.serve(async (req) => {
+  const requestId = crypto.randomUUID();
   const allowedOrigin = Deno.env.get("ALLOWED_ORIGIN")?.trim();
   if (!allowedOrigin) {
     return jsonResponse(
@@ -280,6 +316,17 @@ Deno.serve(async (req) => {
 
     const width = typeof w === "number" && w > 0 ? Math.min(w, MAX_DIMENSION) : 500;
     const height = typeof h === "number" && h > 0 ? Math.min(h, MAX_DIMENSION) : 500;
+    console.log("[generate-panel-image] request context", {
+      request_id: requestId,
+      panel_id,
+      block_id,
+      width,
+      height,
+      plan: userPlan,
+      prompt_chars: prompt.trim().length,
+      block_asset_names_count: block_asset_names?.length ?? 0,
+      block_asset_image_urls_count: block_asset_image_urls?.length ?? 0,
+    });
 
     // Vérifier que le panel appartient à l'utilisateur et récupérer chapter_id
     const panelRes = await fetch(
@@ -397,7 +444,7 @@ Deno.serve(async (req) => {
         )
       : await generateImage(fullPrompt, falKey, width, height);
     if ("error" in result) {
-      return jsonResponse({ error: result.error }, 502);
+      return jsonResponse({ error: result.error, request_id: requestId }, 502);
     }
 
     const storagePath = `${userId}/projects/${projectId}/panels/${panel_id}/blocks/${block_id}.png`;
@@ -406,10 +453,13 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "Échec transfert vers Storage" }, 502);
     }
 
-    return jsonResponse({ image_url: publicUrl }, 200);
+    return jsonResponse({ image_url: publicUrl, request_id: requestId }, 200);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    console.error("[generate-panel-image]", msg);
-    return jsonResponse({ error: "Erreur serveur", details: msg }, 500);
+    console.error("[generate-panel-image] Exception", {
+      request_id: requestId,
+      message: msg,
+    });
+    return jsonResponse({ error: "Erreur serveur", details: msg, request_id: requestId }, 500);
   }
 });

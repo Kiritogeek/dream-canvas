@@ -1,6 +1,7 @@
 // Service layer — Assets
 import { supabase } from "@/integrations/supabase/client";
 import { messageFromFunctionsInvokeError } from "@/lib/edgeFunctionInvokeError";
+import { logGenerationFailure, logGenerationInfo } from "@/lib/generationLogger";
 import type { Asset, AssetInsert, AssetUpdate, GenerateAssetPayload, GenerationResult } from "@/types";
 import { deleteAssetImages } from "./storage";
 
@@ -71,6 +72,12 @@ export async function countAssets(): Promise<number> {
 export async function generateAssetImage(
   payload: GenerateAssetPayload
 ): Promise<GenerationResult> {
+  logGenerationInfo("asset-image:start", {
+    asset_id: payload.asset_id,
+    asset_type: payload.asset_type,
+    prompt_chars: payload.prompt?.length ?? 0,
+  });
+
   const { error: refreshError } = await supabase.auth.refreshSession();
   if (refreshError) {
     console.warn("[assets] refreshSession:", refreshError.message);
@@ -91,10 +98,25 @@ export async function generateAssetImage(
 
   if (error) {
     const msg = await messageFromFunctionsInvokeError(error);
+    console.error(`[DreamWeave][asset-image:invoke][reason] ${msg}`);
+    logGenerationFailure(
+      "asset-image:invoke",
+      {
+        asset_id: payload.asset_id,
+        asset_type: payload.asset_type,
+        parsed_reason: msg,
+      },
+      error
+    );
     throw new Error(msg);
   }
 
   if (!data?.image_url) {
+    logGenerationFailure(
+      "asset-image:invalid-response",
+      { asset_id: payload.asset_id, has_data: Boolean(data) },
+      data
+    );
     throw new Error("Réponse invalide : image_url manquant");
   }
 

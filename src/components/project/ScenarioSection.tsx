@@ -4,7 +4,6 @@ import {
   BookOpen,
   Sparkles,
   Plus,
-  FileUp,
   Trash2,
   ChevronDown,
   ChevronUp,
@@ -66,26 +65,36 @@ Elle repère Marcus dans son coin habituel, le nez dans un livre qu'il ne lit pa
 
 Elle s'assied sans répondre. Long silence. La cafetière grésille derrière le comptoir.
 
-Marcus referme son livre. « Qu'est-ce qui s'est passé cette nuit-là ? »
-
-Yuki fixe sa tasse. Elle sait qu'il sait. La question n'est pas une question.
-
 ---
 
-### Scène 2 — La tension
+### Scène 2 — La confrontation
 > Lieu : Même café — lumière d'après-midi découpée en zones d'ombre et de clarté
 > Personnages : Yuki, Marcus
 
-La lumière découpe la table en deux. Yuki pose les mains à plat.
-Ses doigts ne tremblent pas — elle a répété ça.
+Marcus referme son livre lentement. Il boutonne son manteau sans la regarder.
+
+« Qu'est-ce qui s'est passé cette nuit-là ? »
+
+Yuki fixe sa tasse. Ses mains sont immobiles sur la table. Elle sait qu'il sait.
+La question n'est pas une question — c'est une dernière chance.
 
 « J'ai fait ce que tu m'as demandé. »
 
-Marcus se lève lentement, boutonne son manteau sans la regarder.
+Il se lève. « Je ne t'ai rien demandé. »
 
-« Je ne t'ai rien demandé. »
+La porte du café claque. Yuki reste seule avec sa tasse froide et une réponse qu'elle n'a pas donnée.
 
-La porte du café claque. Yuki reste seule avec sa tasse froide et une réponse qu'elle n'a pas donnée.`;
+---
+
+### Scène 3 — Le lendemain
+> Lieu : Appartement de Yuki, matin gris — lumière diffuse, fenêtre embuée
+> Personnages : Yuki
+
+Le réveil sonne. Yuki ne l'a pas attendu.
+Elle est déjà assise au bord du lit, les yeux sur ses mains.
+Sur la table de nuit, un message non lu. Le nom de Marcus sur l'écran.
+
+Elle ne l'ouvre pas.`;
 
 const CHAPITRE_TYPE_DEMO_ASSETS: Asset[] = [
   { id: "demo-yuki", name: "Yuki", asset_type: "character", project_id: "", user_id: "", created_at: "", image_url: null, image_url_back: null, image_url_profile_left: null, image_url_profile_right: null, image_url_sheet: null, metadata: null, prompt: null },
@@ -100,7 +109,6 @@ const CHAPITRE_TYPE_DEMO_ASSETS: Asset[] = [
 export function ScenarioSection({ projectId, project }: ScenarioSectionProps) {
   const { toast } = useToast();
   const navigate = useNavigate();
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const aiBlockRef = useRef<HTMLDivElement>(null);
 
   const { data: chapters = [], isLoading } = useScenarioChapters(projectId);
@@ -109,11 +117,93 @@ export function ScenarioSection({ projectId, project }: ScenarioSectionProps) {
   const reorderChapters = useReorderScenarioChapters();
   const scenarioAI = useScenarioAI();
 
+  const nextChapterNumber = useMemo(() => {
+    const used = new Set(chapters.map((c) => c.chapter_number));
+    let next = 1;
+    while (used.has(next)) next++;
+    return next;
+  }, [chapters]);
+
+  const chapterNumberChoices = useMemo(() => {
+    const usedNumbers = Array.from(new Set(chapters.map((c) => c.chapter_number))).sort(
+      (a, b) => a - b
+    );
+    if (usedNumbers.length === 0) return [1];
+    const maxNumber = usedNumbers[usedNumbers.length - 1];
+    const holes: number[] = [];
+    for (let i = 1; i <= maxNumber; i++) {
+      if (!usedNumbers.includes(i)) holes.push(i);
+    }
+    if (holes.length === 0) return [nextChapterNumber];
+    return [...holes, maxNumber + 1];
+  }, [chapters, nextChapterNumber]);
+
+  const hasChapterNumberHoles = chapterNumberChoices.some(
+    (n) => n < (Math.max(0, ...chapters.map((c) => c.chapter_number)) + 1)
+  );
+
   const [deleteTarget, setDeleteTarget] = useState<ScenarioChapter | null>(null);
   const [showChapitreType, setShowChapitreType] = useState(false);
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiResult, setAiResult] = useState<string | null>(null);
   const [isAccepting, setIsAccepting] = useState(false);
+  const [showChapterChoiceDialog, setShowChapterChoiceDialog] = useState(false);
+  const [selectedAiChapterNumber, setSelectedAiChapterNumber] = useState<number>(
+    chapterNumberChoices[0] ?? nextChapterNumber
+  );
+
+  const runScenarioGeneration = useCallback(
+    (targetChapterNumber: number) => {
+      const promptText = aiPrompt.trim();
+      if (!promptText) {
+        toast({
+          title: "Prompt requis",
+          description: "Décrivez votre histoire pour que l'IA puisse la créer.",
+          variant: "destructive",
+        });
+        return;
+      }
+      setSelectedAiChapterNumber(targetChapterNumber);
+      const recentChapters = chapters.slice(-SCENARIO_RECENT_CHAPTERS_FOR_IA);
+      const existingContent =
+        recentChapters.length > 0
+          ? recentChapters
+              .map((c, index) => {
+                const isLast = index === recentChapters.length - 1;
+                if (isLast) {
+                  const content = c.content?.trim() ?? "(vide)";
+                  return `Chapitre ${c.chapter_number} : ${c.title}\n${content}`;
+                }
+                const summary = (c as { ai_summary?: string | null }).ai_summary?.trim();
+                if (summary) {
+                  return `Chapitre ${c.chapter_number} (${c.title}) — résumé : ${summary}`;
+                }
+                const snippet = c.content?.slice(0, 400) ?? "(vide)";
+                return `Chapitre ${c.chapter_number} : ${c.title}\n${snippet}${c.content && c.content.length > 400 ? "…" : ""}`;
+              })
+              .join("\n\n")
+          : undefined;
+
+      scenarioAI.mutate(
+        {
+          mode: "scenario",
+          prompt: promptText,
+          existing_content: existingContent,
+          project_description: project.description ?? undefined,
+          next_chapter_number: targetChapterNumber,
+        },
+        {
+          onSuccess: (data) => {
+            setAiResult(data.text);
+            toast({ title: "Scénario généré par l'IA" });
+          },
+          onError: (err) =>
+            toast({ title: "Erreur IA", description: err.message, variant: "destructive" }),
+        }
+      );
+    },
+    [aiPrompt, chapters, project.description, scenarioAI, toast]
+  );
 
   const handleMoveChapter = useCallback(
     (chapterId: string, direction: "up" | "down") => {
@@ -144,16 +234,11 @@ export function ScenarioSection({ projectId, project }: ScenarioSectionProps) {
 
   const handleCreateChapter = useCallback(
     (initialContent?: string) => {
-      const nextNumber =
-        chapters.length > 0
-          ? Math.max(...chapters.map((c) => c.chapter_number)) + 1
-          : 1;
-
       createChapter.mutate(
         {
           project_id: projectId,
-          title: `Chapitre ${nextNumber}`,
-          chapter_number: nextNumber,
+          title: `Chapitre ${nextChapterNumber}`,
+          chapter_number: nextChapterNumber,
           content: initialContent ?? null,
         },
         {
@@ -163,42 +248,7 @@ export function ScenarioSection({ projectId, project }: ScenarioSectionProps) {
         }
       );
     },
-    [chapters, createChapter, projectId, toast]
-  );
-
-  const handleFileImport = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (!file) return;
-      e.target.value = "";
-
-      if (!file.name.endsWith(".txt") && file.type !== "text/plain") {
-        toast({
-          title: "Format non supporté",
-          description: "Seuls les fichiers .txt sont acceptés pour le moment.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const reader = new FileReader();
-      reader.onload = () => {
-        const text = reader.result as string;
-        if (!text.trim()) {
-          toast({
-            title: "Fichier vide",
-            description: "Le fichier importé ne contient pas de texte.",
-            variant: "destructive",
-          });
-          return;
-        }
-        handleCreateChapter(text.trim());
-      };
-      reader.onerror = () =>
-        toast({ title: "Erreur de lecture", description: "Impossible de lire le fichier.", variant: "destructive" });
-      reader.readAsText(file, "UTF-8");
-    },
-    [handleCreateChapter, toast]
+    [nextChapterNumber, createChapter, projectId, toast]
   );
 
   const confirmDelete = useCallback(() => {
@@ -244,11 +294,12 @@ export function ScenarioSection({ projectId, project }: ScenarioSectionProps) {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => fileInputRef.current?.click()}
-            className="gap-1.5 border-[hsl(var(--peach-deep)/0.4)] text-muted-foreground hover:border-[hsl(var(--lavender)/0.5)] hover:text-foreground"
+            onClick={() => setShowChapitreType(true)}
+            className="gap-1.5 border-[hsl(var(--lavender)/0.3)] text-[hsl(var(--lavender))] hover:bg-[hsl(var(--lavender)/0.08)]"
+            title="Voir le format généré par l'IA"
           >
-            <FileUp className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Importer .txt</span>
+            <LayoutTemplate className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Chapitre type</span>
           </Button>
         </div>
 
@@ -257,7 +308,7 @@ export function ScenarioSection({ projectId, project }: ScenarioSectionProps) {
           onChange={(e) => setAiPrompt(e.target.value)}
           placeholder={
             chapters.length > 0
-              ? `Décrivez ce qui se passe dans le Chapitre ${chapters.length + 1} : lieu, personnages, événements, rebondissements…`
+              ? `Décrivez ce qui se passe dans le Chapitre ${nextChapterNumber} : lieu, personnages, événements, rebondissements…`
               : "Décrivez le début de votre histoire : univers, personnages, situation de départ…"
           }
           rows={5}
@@ -266,52 +317,12 @@ export function ScenarioSection({ projectId, project }: ScenarioSectionProps) {
 
         <Button
           onClick={() => {
-            if (!aiPrompt.trim()) {
-              toast({
-                title: "Prompt requis",
-                description: "Décrivez votre histoire pour que l'IA puisse la créer.",
-                variant: "destructive",
-              });
+            if (hasChapterNumberHoles) {
+              setSelectedAiChapterNumber(chapterNumberChoices[0] ?? nextChapterNumber);
+              setShowChapterChoiceDialog(true);
               return;
             }
-            const recentChapters = chapters.slice(-SCENARIO_RECENT_CHAPTERS_FOR_IA);
-            const nextChapterNumber = chapters.length + 1;
-            const existingContent =
-              recentChapters.length > 0
-                ? recentChapters
-                    .map((c, index) => {
-                      const isLast = index === recentChapters.length - 1;
-                      if (isLast) {
-                        const content = c.content?.trim() ?? "(vide)";
-                        return `Chapitre ${c.chapter_number} : ${c.title}\n${content}`;
-                      }
-                      const summary = (c as { ai_summary?: string | null }).ai_summary?.trim();
-                      if (summary) {
-                        return `Chapitre ${c.chapter_number} (${c.title}) — résumé : ${summary}`;
-                      }
-                      const snippet = c.content?.slice(0, 400) ?? "(vide)";
-                      return `Chapitre ${c.chapter_number} : ${c.title}\n${snippet}${c.content && c.content.length > 400 ? "…" : ""}`;
-                    })
-                    .join("\n\n")
-                : undefined;
-
-            scenarioAI.mutate(
-              {
-                mode: "scenario",
-                prompt: aiPrompt.trim(),
-                existing_content: existingContent,
-                project_description: project.description ?? undefined,
-                next_chapter_number: nextChapterNumber,
-              },
-              {
-                onSuccess: (data) => {
-                  setAiResult(data.text);
-                  toast({ title: "Scénario généré par l'IA" });
-                },
-                onError: (err) =>
-                  toast({ title: "Erreur IA", description: err.message, variant: "destructive" }),
-              }
-            );
+            runScenarioGeneration(nextChapterNumber);
           }}
           disabled={scenarioAI.isPending || !aiPrompt.trim()}
           className="gap-2 gradient-primary text-primary-foreground px-6 py-2.5 rounded-xl font-semibold shadow-dream hover:shadow-glow transition-shadow"
@@ -324,9 +335,9 @@ export function ScenarioSection({ projectId, project }: ScenarioSectionProps) {
           ) : (
             <>
               <Sparkles className="h-4 w-4" />
-              {chapters.length > 0
-                ? `Générer le Chapitre ${chapters.length + 1}`
-                : "Générer le Chapitre 1"}
+              {hasChapterNumberHoles
+                ? "Générer le prochain chapitre"
+                : `Générer le Chapitre ${nextChapterNumber}`}
             </>
           )}
         </Button>
@@ -335,17 +346,16 @@ export function ScenarioSection({ projectId, project }: ScenarioSectionProps) {
           isOpen={!!aiResult}
           onClose={() => setAiResult(null)}
           content={aiResult ?? ""}
-          chapterNumber={chapters.length + 1}
+          chapterNumber={selectedAiChapterNumber}
           projectId={projectId}
           isAccepting={isAccepting}
           onAccept={(finalContent) => {
             setIsAccepting(true);
-            const nextNumber = chapters.length + 1;
             createChapter.mutate(
               {
                 project_id: projectId,
-                title: `Chapitre ${nextNumber}`,
-                chapter_number: nextNumber,
+                title: `Chapitre ${selectedAiChapterNumber}`,
+                chapter_number: selectedAiChapterNumber,
                 content: finalContent,
               },
               {
@@ -366,6 +376,45 @@ export function ScenarioSection({ projectId, project }: ScenarioSectionProps) {
         />
       </div>
 
+      <AlertDialog
+        open={showChapterChoiceDialog}
+        onOpenChange={(open) => !open && setShowChapterChoiceDialog(false)}
+      >
+        <AlertDialogContent className="glass">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Choisir le numéro du chapitre</AlertDialogTitle>
+            <AlertDialogDescription>
+              Des trous ont été détectés dans la numérotation. Choisissez le numéro
+              à générer pour continuer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="flex flex-wrap gap-2 py-2">
+            {chapterNumberChoices.map((num) => (
+              <Button
+                key={num}
+                type="button"
+                size="sm"
+                variant={selectedAiChapterNumber === num ? "default" : "outline"}
+                onClick={() => setSelectedAiChapterNumber(num)}
+              >
+                Chapitre {num}
+              </Button>
+            ))}
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setShowChapterChoiceDialog(false);
+                runScenarioGeneration(selectedAiChapterNumber);
+              }}
+            >
+              Générer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* ── Chapitres ────────────────────────────────────────── */}
       <div className="rounded-2xl p-6 sm:p-8 space-y-5 border border-[hsl(var(--peach)/0.3)] bg-white/50 dark:bg-card/30 shadow-sm">
         <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -385,36 +434,16 @@ export function ScenarioSection({ projectId, project }: ScenarioSectionProps) {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowChapitreType(true)}
-              className="gap-1.5 border-[hsl(var(--lavender)/0.3)] text-[hsl(var(--lavender))] hover:bg-[hsl(var(--lavender)/0.08)]"
-              title="Voir la structure type d'un chapitre"
-            >
-              <LayoutTemplate className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Chapitre Type</span>
-            </Button>
-            <Button
-              size="sm"
-              onClick={() => handleCreateChapter()}
-              disabled={createChapter.isPending}
-              className="gap-1.5 gradient-primary text-primary-foreground rounded-lg"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Nouveau chapitre</span>
-            </Button>
-          </div>
+          <Button
+            size="sm"
+            onClick={() => handleCreateChapter()}
+            disabled={createChapter.isPending}
+            className="gap-1.5 gradient-primary text-primary-foreground rounded-lg"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Nouveau chapitre</span>
+          </Button>
         </div>
-
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".txt,text/plain"
-          className="hidden"
-          onChange={handleFileImport}
-        />
 
         {/* Loading */}
         {isLoading && (
@@ -521,21 +550,36 @@ export function ScenarioSection({ projectId, project }: ScenarioSectionProps) {
           <AlertDialogHeader className="shrink-0">
             <AlertDialogTitle className="flex items-center gap-2">
               <LayoutTemplate className="h-5 w-5 text-primary" />
-              Format d'écriture
+              Format généré par l'IA Scénario
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Écrivez en <strong className="text-foreground">prose narrative libre</strong>, comme un roman.
-              Les marqueurs{" "}
-              <code className="text-primary bg-primary/10 px-1 rounded text-xs">=== Scène N — Titre ===</code>{" "}
-              sont <strong className="text-foreground">optionnels</strong> — ils aident à repérer les changements de lieu, mais l'important est un texte vivant et fluide.
+              L'IA structure chaque chapitre en <strong className="text-foreground">scènes numérotées</strong>.
+              Chaque scène commence par un en-tête{" "}
+              <code className="text-primary bg-primary/10 px-1 rounded text-xs">### Scène N — Titre</code>,
+              suivi du <strong className="text-foreground">lieu</strong>, des <strong className="text-foreground">personnages présents</strong>,
+              puis de la <strong className="text-foreground">prose narrative</strong>. Ces métadonnées alimentent
+              directement la génération d'images (décors, personnages dans les panels).
             </AlertDialogDescription>
           </AlertDialogHeader>
 
           <div className="flex flex-wrap items-center gap-2 px-1 py-2 shrink-0">
             <span className="px-2.5 py-1 rounded-md text-xs font-semibold bg-primary/15 text-primary border border-primary/20">
-              === Scène N — Titre ===
+              ### Scène N — Titre
             </span>
-            <span className="text-muted-foreground text-xs italic">optionnel — délimite un changement de lieu ou de moment</span>
+            <span className="px-2.5 py-1 rounded-md text-xs font-semibold bg-[hsl(var(--mint)/0.2)] text-[hsl(170_40%_35%)] dark:text-[hsl(var(--mint))] border border-[hsl(var(--mint)/0.4)]">
+              &gt; Lieu : …
+            </span>
+            <span className="px-2.5 py-1 rounded-md text-xs font-semibold bg-[hsl(var(--lavender)/0.15)] text-[hsl(var(--lavender))] border border-[hsl(var(--lavender)/0.3)]">
+              &gt; Personnages : …
+            </span>
+            <span className="text-muted-foreground text-xs">puis</span>
+            <span className="px-2.5 py-1 rounded-md text-xs font-semibold bg-muted text-muted-foreground border border-border/50">
+              prose narrative + dialogues « »
+            </span>
+            <span className="text-muted-foreground text-xs">→</span>
+            <span className="px-2.5 py-1 rounded-md text-xs font-mono text-muted-foreground border border-border/40">
+              ---
+            </span>
           </div>
 
           <div className="rounded-lg border border-border/60 bg-muted/30 p-3 space-y-3 shrink-0">

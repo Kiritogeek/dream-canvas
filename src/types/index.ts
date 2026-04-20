@@ -6,9 +6,6 @@ import type { Tables, TablesInsert, TablesUpdate, Enums } from "@/integrations/s
 // ── Enums ────────────────────────────────────────────────────────
 export type AssetType = Enums<"asset_type">; // "character" | "background" | "object"
 
-/** Vues d'un personnage pour la génération multi-angle. */
-export type CharacterView = "front" | "profile_left" | "profile_right" | "back";
-
 // ── Tiers / Plans ────────────────────────────────────────────────
 export type UserPlan = "free" | "pro";
 
@@ -64,13 +61,15 @@ export type ScenarioVersionUpdate = TablesUpdate<"scenario_versions">;
 
 // ── Types métier ─────────────────────────────────────────────────
 
-/** Résultat d'une génération d'image via l'Edge Function */
+/** Résultat d'une génération d'image via l'Edge Function. */
 export interface GenerationResult {
   image_url: string;
-  image_view: string;
+  /** URL de la sheet composite 4 angles (personnages uniquement). */
+  image_url_sheet?: string | null;
   update_field: string;
   model: "flux-2-pro-edit" | "flux-2-pro" | "schnell";
   plan: UserPlan;
+  request_id?: string;
 }
 
 /** Résultat d'un comptage d'usage mensuel */

@@ -1,5 +1,6 @@
 // Service — Panels (table panels), découpage, génération par bloc
 import { supabase } from "@/integrations/supabase/client";
+import { logGenerationFailure, logGenerationInfo } from "@/lib/generationLogger";
 import type { Panel, PanelInsert, PanelUpdate, PanelLayout, PanelBlock, PanelOutlineItem, ColorBlock, SpeechBubble } from "@/types";
 import type { Project } from "@/types";
 
@@ -208,6 +209,16 @@ export interface GenerateBlockImageParams {
 export async function generatePanelBlockImage(
   params: GenerateBlockImageParams
 ): Promise<{ image_url: string }> {
+  logGenerationInfo("panel-image:start", {
+    panel_id: params.panelId,
+    block_id: params.blockId,
+    width: params.width,
+    height: params.height,
+    prompt_chars: params.prompt?.length ?? 0,
+    block_assets_count: params.blockAssetRefs?.length ?? 0,
+    block_asset_images_count: params.blockAssetImageUrls?.length ?? 0,
+  });
+
   await supabase.auth.refreshSession();
   const { data: sessionData } = await supabase.auth.getSession();
   const session = sessionData?.session;
@@ -243,10 +254,35 @@ export async function generatePanelBlockImage(
       typeof body?.error === "string"
         ? body.error
         : body?.details ?? body?.message ?? res.statusText;
-    throw new Error(String(msg || `Erreur ${res.status}`));
+    const requestId =
+      typeof body?.request_id === "string" && body.request_id.trim()
+        ? body.request_id.trim()
+        : null;
+    logGenerationFailure(
+      "panel-image:http-error",
+      {
+        panel_id: params.panelId,
+        block_id: params.blockId,
+        status: res.status,
+      },
+      body
+    );
+    throw new Error(
+      requestId
+        ? `${String(msg || `Erreur ${res.status}`)} (request_id: ${requestId})`
+        : String(msg || `Erreur ${res.status}`)
+    );
   }
 
   if (!body?.image_url) {
+    logGenerationFailure(
+      "panel-image:invalid-response",
+      {
+        panel_id: params.panelId,
+        block_id: params.blockId,
+      },
+      body
+    );
     throw new Error("Réponse invalide : image_url manquant");
   }
 

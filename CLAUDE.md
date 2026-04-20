@@ -192,16 +192,36 @@ Ne pas poser toutes ces questions à la fois — choisir la plus pertinente selo
 
 ### Agents disponibles
 
-| Agent | Rôle | Quand l'utiliser |
-|-------|------|-----------------|
-| `Interface Architect` 🔵 | UX/UI + design system | Composants, layout, glassmorphisme, animations, éditeur panels/bulles |
-| `Prompt Engineer IA` 🟠 | Prompts FAL.ai / FLUX | Génération assets, panels, style templates, cohérence visuelle IA |
-| `Fullstack Engineer` 🟣 | React + TypeScript + Supabase | Bugs cross-couches, nouvelles features, auth, React Query, Edge Functions |
-| `Product Owner` 🔴 | Stratégie produit | Cadrage feature, user stories, critères d'acceptation, priorisation backlog |
-| `Performance Auditor` 🟢 | Perf web React/CSS | Scroll lag, re-renders, memory leaks, GPU layers, lazy loading |
-| `Explore` | Scan codebase | Exploration > 3 fichiers, recherche de patterns |
+| Agent | Couleur | Rôle | Quand l'utiliser |
+|-------|---------|------|-----------------|
+| `Interface Architect` | 🔵 #3B82F6 | UX/UI + design system | Composants, layout, glassmorphisme, animations, éditeur panels/bulles |
+| `Prompt Engineer IA` | 🟠 #F97316 | Prompts FAL.ai / FLUX | Génération assets, panels, style templates, cohérence visuelle IA |
+| `Fullstack Engineer` | 🟣 #8B5CF6 | React + TypeScript + Supabase | Bugs cross-couches, nouvelles features, auth, React Query, Edge Functions |
+| `Product Owner` | 🔴 #EF4444 | Stratégie produit | Cadrage feature, user stories, critères d'acceptation, priorisation backlog |
+| `Performance Auditor` | 🟢 #10B981 | Perf web React/CSS | Scroll lag, re-renders, memory leaks, GPU layers, lazy loading |
+| `QA Engineer` | 🟡 #EAB308 | Validation livraisons | **Obligatoire** après tout code livré — TypeScript, tests, patterns, sécurité |
+| `Explore` | ⚪ — | Scan codebase | Exploration > 3 fichiers, recherche de patterns |
+
+Chaque agent commence sa réponse par son badge coloré (ex : `🟡 QA Engineer — nom de tâche`).
 
 Pour les éditions ciblées (1-3 fichiers connus) : outils directs `Read`/`Edit`/`Grep`.
+
+### Règle QA — OBLIGATOIRE
+
+**Tout code livré par un agent doit passer par le `QA Engineer` 🟡 avant d'être présenté à Louis.**
+
+Déclencher le QA après chaque livraison de `Fullstack Engineer` ou `Interface Architect` :
+
+```
+Agent(QA Engineer) {
+  prompt: "Valide ce code livré. Fichiers modifiés : [liste]. Exécute la checklist complète."
+  run_in_background: false  ← QA est bloquant, on attend sa validation
+}
+```
+
+- Si QA → **PASS** 🟢 : présenter le code à Louis + passer à REVIEW
+- Si QA → **FAIL** 🔴 : retourner au Fullstack Engineer avec les violations exactes. Ne pas présenter à Louis.
+- **Aucune exception** — même pour un fix d'une ligne si TypeScript ou tests échouent.
 
 ### Règle Performance — OBLIGATOIRE
 
@@ -239,18 +259,18 @@ En parallèle, le hook `PostToolUse` dans `.claude/settings.local.json` exécute
 ### Phases
 
 ```
-PLAN → DESIGN → DEV → TEST → REVIEW → MERGE
+PLAN → DESIGN → DEV → QA → REVIEW → MERGE
 ```
 
-| Phase | Responsable | Actions |
-|-------|-------------|---------|
-| **PLAN** | `Product Owner` | Cadrer la feature, écrire user story + critères d'acceptation |
-| **DESIGN** | `Interface Architect` | Proposer l'approche UI/UX, valider la cohérence design system |
-| **DEV** | `Fullstack Engineer` | Implémenter (types → services → hooks → composants) |
-| **PROMPT** | `Prompt Engineer IA` | Si génération image impliquée : optimiser les prompts |
-| **TEST** | `Fullstack Engineer` | TypeScript check + Vitest + test manuel UI |
-| **REVIEW** | Claude principal | Qualité code, sécurité, RLS, cohérence globale |
-| **MERGE** | Utilisateur | PR propre, commit conventionnel |
+| Phase | Responsable | Couleur | Actions |
+|-------|-------------|---------|---------|
+| **PLAN** | `Product Owner` | 🔴 | Cadrer la feature, écrire user story + critères d'acceptation |
+| **DESIGN** | `Interface Architect` | 🔵 | Proposer l'approche UI/UX, valider la cohérence design system |
+| **DEV** | `Fullstack Engineer` | 🟣 | Implémenter (types → services → hooks → composants) |
+| **PROMPT** | `Prompt Engineer IA` | 🟠 | Si génération image impliquée : optimiser les prompts |
+| **QA** | `QA Engineer` | 🟡 | **Obligatoire** — TypeScript, Vitest, patterns, sécurité, RLS |
+| **REVIEW** | Claude principal | — | Cohérence globale, décisions d'architecture |
+| **MERGE** | Louis | — | PR propre, commit conventionnel français |
 
 ### Démarrer une nouvelle feature
 

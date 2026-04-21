@@ -26,21 +26,20 @@ ${userDescription}`;
   }
 
   // Pro — prompt riche FLUX.2 Pro
-  let prompt = `masterpiece, best quality, ultra-detailed, cinematic composition, atmospheric depth, professional background art.
+  let prompt = `Full bleed, edge-to-edge illustration, fills entire canvas 100%, no white borders, no margins, no padding, no letterbox, no empty space. masterpiece, best quality, ultra-detailed, cinematic composition, atmospheric depth, professional background art.
 
 Crée un décor illustré (manga, manhwa ou manhua selon le STYLE ARTISTIQUE ci-dessous).
 
 DESCRIPTION DU DÉCOR :
 ${userDescription}
 
-CADRAGE ET COMPOSITION :
+CADRAGE ET COMPOSITION (OBLIGATOIRE) :
 - Environnement, lieu ou paysage uniquement
 - AUCUN personnage ni créature visible
-- L'image doit REMPLIR ENTIÈREMENT le cadre, sans espace blanc, sans bande vide, sans marge : le décor doit coïncider exactement avec la taille de la card
-- Le décor couvre 100% de la surface de l'image, bord à bord, aucune zone transparente ou vide ne doit être visible autour
+- REMPLISSAGE TOTAL : chaque pixel de l'image fait partie du décor, bord à bord, aucun espace vide, aucune zone blanche, aucune marge
+- Débordement de la scène jusqu'aux quatre bords exacts de l'image — rien ne s'arrête avant le bord
 - Composition lisible avec profondeur de champ
-- Lumière claire et bien définie
-- PAS de bordures, PAS de format "carte postale", l'illustration va d'un bord à l'autre`;
+- Lumière claire et bien définie`;
 
   if (styleText) {
     prompt += `\n\nSTYLE ARTISTIQUE :

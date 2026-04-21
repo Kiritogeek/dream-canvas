@@ -42,6 +42,21 @@ export default function ProjectDetail() {
   const [pendingAssetName, setPendingAssetName] = useState("");
   const [pendingAssetType, setPendingAssetType] = useState<"character" | "background" | "object">("character");
 
+  useEffect(() => {
+    const name = searchParams.get("pendingName");
+    const type = searchParams.get("pendingType") as "character" | "background" | "object" | null;
+    if (name) {
+      setPendingAssetName(name);
+      if (type && ["character", "background", "object"].includes(type)) setPendingAssetType(type);
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("pendingName");
+        next.delete("pendingType");
+        return next;
+      }, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
+
   const handleNavigateToCreateAsset = useCallback(
     (name: string, type: "character" | "background" | "object") => {
       setPendingAssetName(name);

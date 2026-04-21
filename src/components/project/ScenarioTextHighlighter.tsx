@@ -5,7 +5,8 @@
 // ═══════════════════════════════════════════════════════════════
 
 import { useMemo, useState, useCallback, useRef, useEffect } from "react";
-import { Plus, UserRound, Image, Package, Ban } from "lucide-react";
+import { Plus, UserRound, Image, Package, Ban, Link2, X } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import {
   HoverCard,
   HoverCardTrigger,
@@ -34,6 +35,10 @@ interface ScenarioTextHighlighterProps {
   dismissedMissingNames?: Set<string>;
   /** Appelé quand l'utilisateur clique « Ne pas créer » sur un élément non créé */
   onDismissMissing?: (name: string) => void;
+  /** Liaisons manuelles mot (lowercase) → asset_id, par chapitre */
+  wordMappings?: Record<string, string>;
+  /** Appelé pour créer/modifier/supprimer une liaison. assetId=null = supprimer */
+  onAssignWord?: (word: string, assetId: string | null) => void;
 }
 
 // ── Couleurs par type d'asset (charte DreamWeave) ─────────────
@@ -91,7 +96,8 @@ const NOT_AFTER = `(?![${LETTER_CHARS}\\-])`;
 type TextFragment =
   | { type: "plain"; text: string }
   | { type: "asset"; text: string; asset: Asset }
-  | { type: "missing"; text: string; name: string };
+  | { type: "missing"; text: string; name: string }
+  | { type: "mapped"; text: string; asset: Asset; mappedKey: string };
 
 // ── Détection des personnages non créés (EXPORTÉE) ────────────
 
@@ -242,7 +248,8 @@ interface BuildResult {
 function buildAllFragments(
   text: string,
   assets: Asset[],
-  dismissedMissingNames?: Set<string>
+  dismissedMissingNames?: Set<string>,
+  wordMappings?: Record<string, string>
 ): BuildResult {
   if (!text) {
     return { fragments: [{ type: "plain", text: "" }], detectedAssetCount: 0, missingNames: [] };
@@ -272,6 +279,17 @@ function buildAllFragments(
     }
   }
 
+  const mappedTermLookup = new Map<string, Asset>();
+  if (wordMappings) {
+    const assetById = new Map(assets.map((a) => [a.id, a]));
+    for (const [word, assetId] of Object.entries(wordMappings)) {
+      const asset = assetById.get(assetId);
+      if (asset && !assetLookup.has(word)) {
+        mappedTermLookup.set(word, asset);
+      }
+    }
+  }
+
   const missingLookup = new Map<string, string>();
   for (const name of missingNames) {
     missingLookup.set(name.toLowerCase(), name);
@@ -294,6 +312,7 @@ function buildAllFragments(
   const allTerms = [
     ...assetFullNames,
     ...assetNamePartsForMatch,
+    ...[...mappedTermLookup.keys()],
     ...missingNames,
   ];
   const uniqueTerms = [...new Set(allTerms)].sort(
@@ -322,6 +341,10 @@ function buildAllFragments(
     if (asset) {
       detectedAssetIds.add(asset.id);
       fragments.push({ type: "asset", text: part, asset });
+    } else if (mappedTermLookup.has(lower)) {
+      const mappedAsset = mappedTermLookup.get(lower)!;
+      detectedAssetIds.add(mappedAsset.id);
+      fragments.push({ type: "mapped", text: part, asset: mappedAsset, mappedKey: lower });
     } else if (missingLookup.has(lower)) {
       fragments.push({ type: "missing", text: part, name: missingLookup.get(lower)! });
     } else {
@@ -363,11 +386,13 @@ function CreateAssetHover({
   name,
   onCreateAsset,
   onDismiss,
+  onAssign,
   children,
 }: {
   name: string;
   onCreateAsset?: (name: string, type: AssetType) => void;
   onDismiss?: (name: string) => void;
+  onAssign?: (name: string) => void;
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
@@ -378,7 +403,7 @@ function CreateAssetHover({
     <HoverCard open={open} onOpenChange={setOpen} openDelay={150} closeDelay={200}>
       <HoverCardTrigger asChild>{children}</HoverCardTrigger>
       <HoverCardContent
-        className="w-56 p-3 bg-background border border-border shadow-lg"
+        className="w-56 p-3 bg-background border border-border shadow-lg rounded-lg"
         side="top"
         sideOffset={8}
       >
@@ -399,7 +424,7 @@ function CreateAssetHover({
                     setOpen(false);
                   }}
                 >
-                  <UserRound className="h-3 w-3" />
+                  <UserRound className="h-3 w-3 text-[hsl(var(--lavender))]" />
                   Personnage
                 </Button>
                 <Button
@@ -411,7 +436,7 @@ function CreateAssetHover({
                     setOpen(false);
                   }}
                 >
-                  <Image className="h-3 w-3" />
+                  <Image className="h-3 w-3 text-[hsl(var(--mint))]" />
                   Décor
                 </Button>
                 <Button
@@ -423,10 +448,27 @@ function CreateAssetHover({
                     setOpen(false);
                   }}
                 >
-                  <Package className="h-3 w-3" />
+                  <Package className="h-3 w-3 text-[hsl(230_45%_35%)]" />
                   Objet
                 </Button>
               </div>
+            </>
+          )}
+          {onAssign && (
+            <>
+              <div className="border-t border-border/40 mt-1 pt-1" />
+              <Button
+                variant="ghost"
+                size="sm"
+                className="justify-start gap-2 h-7 text-xs text-[hsl(var(--lavender))] hover:text-[hsl(var(--lavender))] w-full"
+                onClick={() => {
+                  onAssign(name);
+                  setOpen(false);
+                }}
+              >
+                <Link2 className="h-3 w-3" />
+                Lier à un asset existant
+              </Button>
             </>
           )}
           {onDismiss && (
@@ -439,7 +481,7 @@ function CreateAssetHover({
                 setOpen(false);
               }}
             >
-              <Ban className="h-3 w-3" />
+              <Ban className="h-3 w-3 text-destructive" />
               Ne pas créer
             </Button>
           )}
@@ -515,15 +557,18 @@ interface SelectionMenuState {
   text: string;
   x: number;
   y: number;
+  showBelow: boolean;
 }
 
 function TextSelectionMenu({
   selection,
   onCreateAsset,
+  onAssign,
   onClose,
 }: {
   selection: SelectionMenuState;
   onCreateAsset: (name: string, type: AssetType) => void;
+  onAssign?: (word: string) => void;
   onClose: () => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -544,14 +589,14 @@ function TextSelectionMenu({
   return (
     <div
       ref={ref}
-      className="fixed z-50 animate-in fade-in-0 zoom-in-95 slide-in-from-bottom-2 duration-150"
+      className={`fixed z-50 animate-in fade-in-0 zoom-in-95 duration-150 ${selection.showBelow ? "slide-in-from-top-2" : "slide-in-from-bottom-2"}`}
       style={{
         left: `${selection.x}px`,
         top: `${selection.y}px`,
-        transform: "translate(-50%, -100%)",
+        transform: selection.showBelow ? "translate(-50%, 0)" : "translate(-50%, -100%)",
       }}
     >
-      <div className="glass shadow-dream rounded-lg border border-border/50 p-3 space-y-2 min-w-[200px]">
+      <div className="w-56 p-3 bg-background border border-border shadow-lg rounded-lg space-y-2 min-w-[200px]">
         <p className="text-sm font-semibold truncate max-w-[220px]">
           « {name} »
         </p>
@@ -588,6 +633,21 @@ function TextSelectionMenu({
             Objet
           </button>
         </div>
+        {onAssign && (
+          <>
+            <div className="border-t border-border/40 my-1" />
+            <button
+              className="flex items-center gap-2 text-xs px-2.5 py-1.5 rounded-md hover:bg-muted/60 transition-colors text-left w-full text-[hsl(var(--lavender))]"
+              onClick={() => {
+                onAssign(name);
+                onClose();
+              }}
+            >
+              <Link2 className="h-3.5 w-3.5" />
+              Lier à un asset existant
+            </button>
+          </>
+        )}
       </div>
     </div>
   );
@@ -603,15 +663,22 @@ export function ScenarioTextHighlighter({
   onCreateAsset,
   dismissedMissingNames,
   onDismissMissing,
+  wordMappings,
+  onAssignWord,
 }: ScenarioTextHighlighterProps) {
   const { fragments, detectedAssetCount, missingNames } = useMemo(
-    () => buildAllFragments(text, assets, dismissedMissingNames),
-    [text, assets, dismissedMissingNames]
+    () => buildAllFragments(text, assets, dismissedMissingNames, wordMappings),
+    [text, assets, dismissedMissingNames, wordMappings]
   );
 
   const containerRef = useRef<HTMLDivElement>(null);
   const [selectionMenu, setSelectionMenu] = useState<SelectionMenuState | null>(null);
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
+  const [assignDialog, setAssignDialog] = useState<{
+    word: string;
+    currentAssetId?: string;
+  } | null>(null);
+  const [assignSearch, setAssignSearch] = useState("");
 
   const handleMouseUp = useCallback(() => {
     if (!onCreateAsset) return;
@@ -633,10 +700,17 @@ export function ScenarioTextHighlighter({
     const range = sel.getRangeAt(0);
     const rect = range.getBoundingClientRect();
 
+    const HEADER_HEIGHT = 48;
+    const POPUP_HEIGHT = 240;
+    const POPUP_WIDTH = 224;
+    const showBelow = rect.top - HEADER_HEIGHT < POPUP_HEIGHT;
+    const clampedX = Math.max(POPUP_WIDTH / 2, Math.min(window.innerWidth - POPUP_WIDTH / 2, rect.left + rect.width / 2));
+
     setSelectionMenu({
       text: cleaned,
-      x: rect.left + rect.width / 2,
-      y: rect.top - 8,
+      x: clampedX,
+      y: showBelow ? rect.bottom + 8 : rect.top - 8,
+      showBelow,
     });
   }, [onCreateAsset]);
 
@@ -680,6 +754,10 @@ export function ScenarioTextHighlighter({
                 name={frag.name}
                 onCreateAsset={onCreateAsset}
                 onDismiss={onDismissMissing}
+                onAssign={onAssignWord ? (name) => {
+                  setAssignDialog({ word: name });
+                  setAssignSearch("");
+                } : undefined}
               >
                 <span
                   className="cursor-pointer rounded-[4px] font-medium"
@@ -692,6 +770,84 @@ export function ScenarioTextHighlighter({
                   {frag.text}
                 </span>
               </CreateAssetHover>
+            );
+          }
+
+          if (frag.type === "mapped") {
+            const colors = ASSET_COLORS[frag.asset.asset_type] ?? DEFAULT_COLOR;
+            return (
+              <HoverCard key={i} openDelay={150} closeDelay={150}>
+                <HoverCardTrigger asChild>
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    className="cursor-pointer rounded-[4px] font-medium"
+                    style={{
+                      backgroundColor: colors.bg,
+                      borderBottom: `2.5px dashed ${colors.border}`,
+                      padding: "1px 4px",
+                    }}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      if (onAssignWord) {
+                        setAssignDialog({
+                          word: frag.text,
+                          currentAssetId: wordMappings?.[frag.mappedKey],
+                        });
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        if (onAssignWord) {
+                          setAssignDialog({
+                            word: frag.text,
+                            currentAssetId: wordMappings?.[frag.mappedKey],
+                          });
+                        }
+                      }
+                    }}
+                  >
+                    {frag.text}
+                  </span>
+                </HoverCardTrigger>
+                <HoverCardContent
+                  className="w-[280px] max-w-[calc(100vw-2rem)] p-3 bg-background border border-border shadow-lg"
+                  side="top"
+                  sideOffset={10}
+                >
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <Link2 className="h-3 w-3 shrink-0" />
+                      <span>Lié à <strong className="text-foreground">{frag.asset.name}</strong></span>
+                    </div>
+                    {frag.asset.image_url && (
+                      <div className="w-full max-w-full min-h-[120px] flex items-center justify-center rounded-lg border border-border/50 bg-muted/20 overflow-hidden">
+                        <img
+                          src={frag.asset.image_url}
+                          alt={frag.asset.name}
+                          className="max-w-full max-h-[180px] w-auto h-auto object-contain"
+                          loading="lazy"
+                          decoding="async"
+                        />
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-semibold">{frag.asset.name}</p>
+                      <span
+                        className="inline-block text-xs font-semibold px-2 py-0.5 rounded-full shrink-0"
+                        style={{ backgroundColor: colors.tagBg, color: colors.tagText }}
+                      >
+                        {colors.label}
+                      </span>
+                    </div>
+                    {onAssignWord && (
+                      <p className="text-[10px] text-muted-foreground">Cliquez pour modifier le lien</p>
+                    )}
+                  </div>
+                </HoverCardContent>
+              </HoverCard>
             );
           }
 
@@ -777,9 +933,113 @@ export function ScenarioTextHighlighter({
         <TextSelectionMenu
           selection={selectionMenu}
           onCreateAsset={onCreateAsset}
+          onAssign={onAssignWord ? (word) => {
+            setAssignDialog({ word });
+            setAssignSearch("");
+          } : undefined}
           onClose={closeSelectionMenu}
         />
       )}
+
+      {/* Dialog liaison manuelle mot → asset */}
+      <Dialog
+        open={!!assignDialog}
+        onOpenChange={(open) => {
+          if (!open) {
+            setAssignDialog(null);
+            setAssignSearch("");
+          }
+        }}
+      >
+        <DialogContent className="glass max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="font-display text-base">
+              Lier « {assignDialog?.word} » à un asset
+            </DialogTitle>
+          </DialogHeader>
+
+          {assignDialog?.currentAssetId &&
+            assets.find((a) => a.id === assignDialog.currentAssetId) && (
+              <div className="flex items-center gap-2 p-2 rounded-lg bg-[hsl(var(--lavender)/0.1)] border border-[hsl(var(--lavender)/0.2)] text-sm">
+                <Link2 className="h-3.5 w-3.5 text-[hsl(var(--lavender))] shrink-0" />
+                <span className="text-muted-foreground text-xs">Actuellement lié à</span>
+                <span className="font-semibold text-xs">
+                  {assets.find((a) => a.id === assignDialog.currentAssetId)?.name}
+                </span>
+              </div>
+            )}
+
+          <Input
+            value={assignSearch}
+            onChange={(e) => setAssignSearch(e.target.value)}
+            placeholder="Rechercher un asset…"
+            autoFocus
+            className="h-8 text-sm"
+          />
+
+          <div className="max-h-[220px] overflow-y-auto space-y-0.5">
+            {assets
+              .filter((a) =>
+                a.name.toLowerCase().includes(assignSearch.toLowerCase())
+              )
+              .map((asset) => {
+                const colors = ASSET_COLORS[asset.asset_type] ?? DEFAULT_COLOR;
+                const isCurrent = asset.id === assignDialog?.currentAssetId;
+                return (
+                  <button
+                    key={asset.id}
+                    className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-left transition-colors ${
+                      isCurrent
+                        ? "bg-[hsl(var(--lavender)/0.15)] border border-[hsl(var(--lavender)/0.3)]"
+                        : "hover:bg-muted/50"
+                    }`}
+                    onClick={() => {
+                      if (assignDialog) {
+                        onAssignWord?.(assignDialog.word.toLowerCase(), asset.id);
+                        setAssignDialog(null);
+                        setAssignSearch("");
+                      }
+                    }}
+                  >
+                    <span
+                      className="h-2 w-2 rounded-full shrink-0"
+                      style={{ backgroundColor: colors.border }}
+                    />
+                    <span className="flex-1 truncate">{asset.name}</span>
+                    <span className="text-xs text-muted-foreground shrink-0">
+                      {colors.label}
+                    </span>
+                  </button>
+                );
+              })}
+            {assets.filter((a) =>
+              a.name.toLowerCase().includes(assignSearch.toLowerCase())
+            ).length === 0 && (
+              <p className="text-xs text-muted-foreground text-center py-4">
+                Aucun asset trouvé
+              </p>
+            )}
+          </div>
+
+          {assignDialog?.currentAssetId && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-destructive hover:text-destructive gap-1.5 self-start"
+              onClick={() => {
+                if (assignDialog) {
+                  onAssignWord?.(assignDialog.word.toLowerCase(), null);
+                  setAssignDialog(null);
+                  setAssignSearch("");
+                }
+              }}
+            >
+              <X className="h-3.5 w-3.5" />
+              Supprimer le lien
+            </Button>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Popup détail asset au clic */}
       <Dialog open={!!selectedAsset} onOpenChange={(open) => !open && setSelectedAsset(null)}>

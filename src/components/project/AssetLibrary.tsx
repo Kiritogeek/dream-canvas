@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Users, MapPin, Box, Plus, Save, RefreshCw, Search } from "lucide-react";
+import { Users, MapPin, Box, Plus, Save, RefreshCw, Search, HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -87,7 +87,9 @@ export function AssetLibrary({
   const deleteAssetMutation = useDeleteAsset();
   const updateAssetMutation = useUpdateAsset();
   const updateChapterMutation = useUpdateScenarioChapter();
-  const { plan, usageInfo } = useUserPlan();
+  const { usageInfo } = useUserPlan();
+
+  const [showAssetEducation, setShowAssetEducation] = useState(false);
 
   // Dialog nouvel asset
   const [assetDialogOpen, setAssetDialogOpen] = useState(false);
@@ -329,19 +331,29 @@ export function AssetLibrary({
           {usageInfo.count} / {usageInfo.limit} générations ce mois
         </span>
 
-        <Dialog open={assetDialogOpen} onOpenChange={setAssetDialogOpen}>
+        <div className="flex items-center gap-2">
           <Button
+            variant="outline"
             size="sm"
-            type="button"
-            className="gradient-primary text-primary-foreground"
-            onClick={() => {
-              if (!onCanGenerate()) return;
-              setNewAssetType(defaultNewAssetType);
-              setAssetDialogOpen(true);
-            }}
+            onClick={() => setShowAssetEducation(true)}
+            className="gap-1.5 border-[hsl(var(--lavender)/0.3)] text-[hsl(var(--lavender))] hover:bg-[hsl(var(--lavender)/0.08)]"
           >
-            <Plus className="h-4 w-4 mr-1" /> {ADD_BUTTON_LABEL[activeFilter]}
+            <HelpCircle className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Qu'est-ce qu'un asset ?</span>
           </Button>
+          <Dialog open={assetDialogOpen} onOpenChange={setAssetDialogOpen}>
+            <Button
+              size="sm"
+              type="button"
+              className="gradient-primary text-primary-foreground"
+              onClick={() => {
+                if (!onCanGenerate()) return;
+                setNewAssetType(defaultNewAssetType);
+                setAssetDialogOpen(true);
+              }}
+            >
+              <Plus className="h-4 w-4 mr-1" /> {ADD_BUTTON_LABEL[activeFilter]}
+            </Button>
           <DialogContent className="glass">
             <DialogHeader>
               <DialogTitle className="font-display">Nouvel asset</DialogTitle>
@@ -413,7 +425,8 @@ export function AssetLibrary({
               </Button>
             </form>
           </DialogContent>
-        </Dialog>
+          </Dialog>
+        </div>
       </div>
 
       <div className="glass rounded-xl p-4 space-y-4">
@@ -710,6 +723,54 @@ export function AssetLibrary({
               </>
             )}
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showAssetEducation} onOpenChange={setShowAssetEducation}>
+        <DialogContent className="glass max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 font-display">
+              <HelpCircle className="h-5 w-5 text-[hsl(var(--lavender))]" />
+              Qu'est-ce qu'un asset ?
+            </DialogTitle>
+            <DialogDescription>
+              Comprendre le rôle des assets pour créer un webtoon cohérent.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 text-sm text-foreground">
+            <div className="rounded-xl border border-[hsl(var(--lavender)/0.2)] bg-[hsl(var(--lavender)/0.06)] p-4 space-y-2">
+              <p className="font-semibold text-[hsl(var(--lavender))]">Un asset = une référence visuelle</p>
+              <p className="text-muted-foreground leading-relaxed">
+                Un asset est un élément visuel de votre histoire — personnage, décor ou objet.
+                Il sert de <strong className="text-foreground">référence exacte</strong> à l'IA lors de la génération
+                de vos panels : sans asset, l'IA invente librement. Avec un asset, elle reproduit
+                fidèlement l'élément d'une image à l'autre.
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <p className="font-semibold">Bonnes pratiques</p>
+              <ul className="space-y-2 text-muted-foreground">
+                <li className="flex items-start gap-2">
+                  <span className="shrink-0 mt-0.5 h-4 w-4 rounded-full bg-[hsl(var(--lavender)/0.2)] flex items-center justify-center text-[10px] font-bold text-[hsl(var(--lavender))]">1</span>
+                  <span>Créez un asset pour <strong className="text-foreground">chaque élément récurrent</strong> de votre histoire (héros, antagoniste, lieu principal, objet-clé).</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="shrink-0 mt-0.5 h-4 w-4 rounded-full bg-[hsl(var(--lavender)/0.2)] flex items-center justify-center text-[10px] font-bold text-[hsl(var(--lavender))]">2</span>
+                  <span>Mentionnez le <strong className="text-foreground">nom exact</strong> de chaque asset dans votre scénario. L'IA le détecte automatiquement et l'utilise comme référence lors de la génération.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="shrink-0 mt-0.5 h-4 w-4 rounded-full bg-[hsl(var(--lavender)/0.2)] flex items-center justify-center text-[10px] font-bold text-[hsl(var(--lavender))]">3</span>
+                  <span>Un asset mentionné dans le scénario est <strong className="text-foreground">surligné</strong> dans l'éditeur — c'est votre indicateur que l'IA le prendra en compte.</span>
+                </li>
+              </ul>
+            </div>
+
+            <div className="rounded-xl border border-[hsl(var(--peach)/0.3)] bg-[hsl(var(--peach)/0.06)] p-3 text-xs text-muted-foreground">
+              <strong className="text-foreground">Exemple :</strong> Si vous créez un asset « Yuki » (personnage) et écrivez « Yuki entre dans la pièce » dans votre scénario, l'IA utilisera automatiquement la référence visuelle de Yuki lors de la génération du panel correspondant.
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
 

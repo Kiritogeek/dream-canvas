@@ -242,6 +242,7 @@ export type Database = {
           panels_outline: Json | null
           ai_summary: string | null
           locked_blocks: Json | null
+          word_mappings: Json | null
           created_at: string
           updated_at: string
         }
@@ -255,6 +256,7 @@ export type Database = {
           panels_outline?: Json | null
           ai_summary?: string | null
           locked_blocks?: Json | null
+          word_mappings?: Json | null
           created_at?: string
           updated_at?: string
         }
@@ -268,6 +270,7 @@ export type Database = {
           panels_outline?: Json | null
           ai_summary?: string | null
           locked_blocks?: Json | null
+          word_mappings?: Json | null
           created_at?: string
           updated_at?: string
         }

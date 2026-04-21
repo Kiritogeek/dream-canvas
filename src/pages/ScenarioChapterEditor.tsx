@@ -20,9 +20,11 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   useScenarioChapter,
   useUpdateScenarioChapter,
+  useScenarioChapters,
 } from "@/hooks/useScenarioChapters";
 import { useProject, useUpdateProject } from "@/hooks/useProjects";
 import { useAssets } from "@/hooks/useAssets";
@@ -175,6 +177,11 @@ export default function ScenarioChapterEditor() {
     useScenarioChapter(chapterId);
   const { data: project } = useProject(projectId);
   const { data: assets = [] } = useAssets(projectId);
+  const { data: allChapters = [] } = useScenarioChapters(projectId);
+  const contextChapters = useMemo(
+    () => allChapters.filter((c) => c.id !== chapterId).slice(-5),
+    [allChapters, chapterId]
+  );
   const updateChapter = useUpdateScenarioChapter();
   const updateProject = useUpdateProject();
   const chapterAI = useScenarioAI();
@@ -185,6 +192,7 @@ export default function ScenarioChapterEditor() {
   const [content, setContent] = useState("");
   const [titleDraft, setTitleDraft] = useState("");
   const [editingTitle, setEditingTitle] = useState(false);
+  const [wordMappings, setWordMappings] = useState<Record<string, string>>({});
 
   // Local state — UI
   const [viewMode, setViewMode] = useState<"edit" | "visuels">("edit");
@@ -228,6 +236,10 @@ export default function ScenarioChapterEditor() {
   const [panelsTargetDraft, setPanelsTargetDraft] = useState<string>("");
   const [editingTarget, setEditingTarget] = useState(false);
 
+  const [isWritingManually, setIsWritingManually] = useState(false);
+  const [showInlineAI, setShowInlineAI] = useState(false);
+  const [inlineAIPrompt, setInlineAIPrompt] = useState("");
+
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const lastScrollTopRef = useRef<number>(0);
@@ -246,8 +258,16 @@ export default function ScenarioChapterEditor() {
     if (chapter) {
       setContent(chapter.content ?? "");
       setTitleDraft(chapter.title);
+      setIsWritingManually(false);
+      setShowInlineAI(false);
+      setInlineAIPrompt("");
       initialSyncDoneRef.current = true;
       setSaveState("clean");
+      setWordMappings({});
+      const wm = chapter.word_mappings;
+      if (wm && typeof wm === "object" && !Array.isArray(wm)) {
+        setWordMappings(wm as Record<string, string>);
+      }
 
       // Restaurer les blocs depuis panels_outline
       type StoredBlock = {
@@ -645,9 +665,67 @@ export default function ScenarioChapterEditor() {
     });
   }, [projectId]);
 
-  const handleCreateAssetFromText = useCallback((_name: string, _type: AssetType) => {
-    navigate(`/dashboard/projects/${projectId}?tab=assets`);
+  const handleCreateAssetFromText = useCallback((name: string, type: AssetType) => {
+    navigate(`/dashboard/projects/${projectId}?tab=assets&pendingName=${encodeURIComponent(name)}&pendingType=${type}`);
   }, [navigate, projectId]);
+
+  const handleAssignWord = useCallback(
+    (word: string, assetId: string | null) => {
+      if (!chapter) return;
+      const newMappings = { ...wordMappings };
+      if (assetId === null) {
+        delete newMappings[word.toLowerCase()];
+      } else {
+        newMappings[word.toLowerCase()] = assetId;
+      }
+      setWordMappings(newMappings);
+      updateChapter.mutate({
+        id: chapter.id,
+        projectId: projectId!,
+        updates: { word_mappings: newMappings },
+      });
+    },
+    [chapter, wordMappings, projectId, updateChapter]
+  );
+
+  const handleInlineGeneration = useCallback(() => {
+    if (!chapter || !inlineAIPrompt.trim()) return;
+    const existingContent =
+      contextChapters.length > 0
+        ? contextChapters
+            .map((c, i) => {
+              const isLast = i === contextChapters.length - 1;
+              if (isLast) {
+                return `Chapitre ${c.chapter_number} : ${c.title}\n${c.content?.trim() ?? "(vide)"}`;
+              }
+              const summary = (c as { ai_summary?: string | null }).ai_summary?.trim();
+              if (summary) return `Chapitre ${c.chapter_number} (${c.title}) — résumé : ${summary}`;
+              const snippet = c.content?.slice(0, 400) ?? "(vide)";
+              return `Chapitre ${c.chapter_number} : ${c.title}\n${snippet}${c.content && c.content.length > 400 ? "…" : ""}`;
+            })
+            .join("\n\n")
+        : undefined;
+
+    chapterAI.mutate(
+      {
+        mode: "scenario",
+        prompt: inlineAIPrompt.trim(),
+        existing_content: existingContent,
+        project_description: project?.description ?? undefined,
+        next_chapter_number: chapter.chapter_number,
+      },
+      {
+        onSuccess: (data) => {
+          setContent(data.text);
+          setShowInlineAI(false);
+          setInlineAIPrompt("");
+          toast({ title: "Chapitre généré par l'IA" });
+        },
+        onError: (err) =>
+          toast({ title: "Erreur IA", description: err.message, variant: "destructive" }),
+      }
+    );
+  }, [chapter, inlineAIPrompt, contextChapters, project, chapterAI, toast]);
 
   // ── Loading / error states ───────────────────────────────────
 
@@ -1028,6 +1106,8 @@ export default function ScenarioChapterEditor() {
                   <ScenarioTextHighlighter
                     text={content}
                     assets={assets}
+                    wordMappings={wordMappings}
+                    onAssignWord={handleAssignWord}
                     onCreateAsset={handleCreateAssetFromText}
                     onDismissMissing={handleDismissMissing}
                     dismissedMissingNames={dismissedMissingNames}
@@ -1036,6 +1116,89 @@ export default function ScenarioChapterEditor() {
                   />
                   <div style={{ height: "40vh" }} />
                 </>
+              ) : !content.trim() && !isWritingManually ? (
+                showInlineAI ? (
+                  <div className="flex flex-col gap-5 py-16">
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-2 rounded-xl bg-[hsl(var(--lavender)/0.15)]">
+                        <Sparkles className="h-5 w-5 text-[hsl(var(--lavender))]" />
+                      </div>
+                      <div>
+                        <h3 className="font-display font-semibold text-lg leading-tight">
+                          Générer le Chapitre {chapter.chapter_number}
+                        </h3>
+                        <span className="text-xs text-muted-foreground">Scénariste IA</span>
+                      </div>
+                    </div>
+                    <Textarea
+                      value={inlineAIPrompt}
+                      onChange={(e) => setInlineAIPrompt(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+                          e.preventDefault();
+                          handleInlineGeneration();
+                        }
+                      }}
+                      placeholder={`Décrivez ce qui se passe dans le Chapitre ${chapter.chapter_number} : lieu, personnages, événements, rebondissements…`}
+                      rows={5}
+                      autoFocus
+                      className="text-base bg-white/70 dark:bg-card/60 border-[hsl(var(--lavender)/0.25)] rounded-xl focus-visible:border-[hsl(var(--lavender)/0.6)] focus-visible:ring-[hsl(var(--lavender)/0.15)] resize-none"
+                    />
+                    <div className="flex items-center gap-3">
+                      <Button
+                        onClick={handleInlineGeneration}
+                        disabled={chapterAI.isPending || !inlineAIPrompt.trim()}
+                        className="gap-2 gradient-primary text-primary-foreground px-6 rounded-xl font-semibold shadow-dream hover:shadow-glow transition-shadow"
+                      >
+                        {chapterAI.isPending ? (
+                          <><Loader2 className="h-4 w-4 animate-spin" /> Génération en cours…</>
+                        ) : (
+                          <><Sparkles className="h-4 w-4" /> Générer</>
+                        )}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        onClick={() => { setShowInlineAI(false); setInlineAIPrompt(""); }}
+                        disabled={chapterAI.isPending}
+                      >
+                        Annuler
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">Ctrl+Entrée pour générer</p>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center gap-5 py-24 text-center">
+                    <div className="p-4 rounded-2xl bg-[hsl(var(--lavender)/0.1)]">
+                      <PenLine className="h-10 w-10 text-[hsl(var(--lavender))]" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <p className="text-xl font-display font-semibold">Ce chapitre est vide</p>
+                      <p className="text-sm text-muted-foreground max-w-xs">
+                        Générez votre chapitre avec l'IA ou commencez à écrire vous-même.
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-3 justify-center">
+                      <Button
+                        onClick={() => setShowInlineAI(true)}
+                        className="gap-2 gradient-primary text-primary-foreground rounded-xl px-5 shadow-dream"
+                      >
+                        <Sparkles className="h-4 w-4" />
+                        Générer avec l'IA
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setIsWritingManually(true);
+                          setTimeout(() => textareaRef.current?.focus(), 50);
+                        }}
+                        className="gap-2 rounded-xl px-5 border-[hsl(var(--lavender)/0.35)] text-[hsl(var(--lavender))] hover:bg-[hsl(var(--lavender)/0.08)]"
+                      >
+                        <PenLine className="h-4 w-4" />
+                        Écrire moi-même
+                      </Button>
+                    </div>
+                  </div>
+                )
               ) : (
                 <>
                   <FormatCEditor

@@ -10,71 +10,7 @@ interface ImageWithFallbackProps {
   onError?: () => void;
 }
 
-// Queue globale pour limiter les chargements simultanés (max 3 images en même temps)
-const MAX_CONCURRENT_LOADS = 3;
-const activeLoads = new Set<string>();
-const loadQueue: Array<{ src: string; resolve: () => void; reject: (err: Error) => void }> = [];
-
-function processLoadQueue() {
-  // Si on a atteint la limite, ne rien faire
-  if (activeLoads.size >= MAX_CONCURRENT_LOADS) {
-    return;
-  }
-
-  // Prendre le prochain élément de la queue
-  const next = loadQueue.shift();
-  if (!next) return;
-
-  const { src, resolve, reject } = next;
-
-  // Si déjà en cours, ignorer
-  if (activeLoads.has(src)) {
-    processLoadQueue();
-    return;
-  }
-
-  // Marquer comme en cours
-  activeLoads.add(src);
-
-  const img = new Image();
-  
-  img.onload = () => {
-    activeLoads.delete(src);
-    resolve();
-    // Traiter la queue suivante après un petit délai
-    setTimeout(() => processLoadQueue(), 100);
-  };
-
-  img.onerror = () => {
-    activeLoads.delete(src);
-    reject(new Error(`Failed to load image: ${src}`));
-    // Traiter la queue suivante après un petit délai
-    setTimeout(() => processLoadQueue(), 100);
-  };
-
-  // Charger l'image
-  img.src = src;
-}
-
-function queueImageLoad(src: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    // Si déjà en cours de chargement, mettre en attente sans dupliquer
-    if (activeLoads.has(src)) {
-      const checkInterval = setInterval(() => {
-        if (!activeLoads.has(src)) {
-          clearInterval(checkInterval);
-          resolve();
-        }
-      }, 100);
-      // L'interval se nettoie lui-même via clearInterval dans le callback
-      return;
-    }
-
-    // Ajouter à la queue
-    loadQueue.push({ src, resolve, reject });
-    processLoadQueue();
-  });
-}
+const loadedImages = new Set<string>();
 
 export function ImageWithFallback({
   src,
@@ -88,42 +24,16 @@ export function ImageWithFallback({
   const [isLoading, setIsLoading] = useState(true);
   const [imageSrc, setImageSrc] = useState<string | null>(null);
   const mountedRef = useRef(true);
-  const retryCountRef = useRef(0);
 
   const handleError = () => {
     setIsLoading(false);
-    // Retry once after a short delay if first attempt fails
-    if (retryCountRef.current === 0 && src) {
-      retryCountRef.current = 1;
-      setTimeout(() => {
-        if (mountedRef.current && src) {
-          setHasError(false);
-          setIsLoading(true);
-          queueImageLoad(src)
-            .then(() => {
-              if (mountedRef.current) {
-                setImageSrc(src);
-                setIsLoading(false);
-              }
-            })
-            .catch(() => {
-              if (mountedRef.current) {
-                setHasError(true);
-                onError?.();
-              }
-            });
-        }
-      }, 1000);
-    } else {
-      setHasError(true);
-      onError?.();
-    }
+    setHasError(true);
+    onError?.();
   };
 
   // Reset error state when src changes
   useEffect(() => {
     mountedRef.current = true;
-    retryCountRef.current = 0;
     
     if (!src) {
       setIsLoading(false);
@@ -131,28 +41,21 @@ export function ImageWithFallback({
       return;
     }
 
+    // URL déjà connue comme chargée : affichage immédiat sans skeleton.
+    if (loadedImages.has(src)) {
+      setHasError(false);
+      setIsLoading(false);
+      setImageSrc(src);
+      return;
+    }
+
     setHasError(false);
     setIsLoading(true);
-    setImageSrc(null);
-
-    // Utiliser la queue pour charger l'image
-    queueImageLoad(src)
-      .then(() => {
-        if (mountedRef.current) {
-          setImageSrc(src);
-          setIsLoading(false);
-        }
-      })
-      .catch(() => {
-        if (mountedRef.current) {
-          handleError();
-        }
-      });
+    setImageSrc(src);
 
     return () => {
       mountedRef.current = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [src]);
 
   if (!src || hasError) {
@@ -184,6 +87,7 @@ export function ImageWithFallback({
           decoding="async"
           onLoad={() => {
             if (mountedRef.current) {
+              if (src) loadedImages.add(src);
               setIsLoading(false);
             }
           }}

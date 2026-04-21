@@ -61,6 +61,7 @@ import { useChapter, useUpdateChapter } from "@/hooks/useChapters";
 import { useScenarioChapters, useScenarioChapter } from "@/hooks/useScenarioChapters";
 import { useAssets } from "@/hooks/useAssets";
 import { useProject } from "@/hooks/useProjects";
+import { useUserPlan } from "@/hooks/useUserPlan";
 import {
   usePanels,
   useCreatePanel,
@@ -88,7 +89,7 @@ import { callSuggestBlockPrompt } from "@/services/scenarioAI";
 import { PanelCountBadge } from "@/components/project/PanelCountBadge";
 import { renderPanelToCanvas, renderChapterToCanvas, downloadCanvas, exportChapterAsZip } from "@/services/exportPanel";
 import type { Json } from "@/integrations/supabase/types";
-import type { Panel, PanelBlock, PanelLayout, ColorBlock, ColorBlockFill, SpeechBubble, SpeechBubbleType } from "@/types";
+import type { Panel, PanelBlock, PanelLayout, ColorBlock, ColorBlockFill, SpeechBubble, SpeechBubbleType, Asset } from "@/types";
 import {
   DEFAULT_SPEECH_BUBBLE_WIDTH,
   DEFAULT_SPEECH_BUBBLE_HEIGHT,
@@ -99,6 +100,31 @@ import {
 
 const PANEL_WIDTH = 800;
 const SPEECH_BUBBLE_TAIL_H = 14;
+
+function getAssetReferenceImageUrl(asset: Asset): string | null {
+  if (asset.asset_type === "character") {
+    return (
+      asset.image_url_sheet ??
+      asset.image_url ??
+      asset.image_url_profile_left ??
+      asset.image_url_profile_right ??
+      asset.image_url_back ??
+      null
+    );
+  }
+  return asset.image_url ?? asset.image_url_sheet ?? null;
+}
+
+function getAssetReferencePromptLabel(asset: Asset): string {
+  const name = asset.name?.trim() || asset.id.slice(0, 8);
+  if (asset.asset_type === "character") {
+    return `Personnage : ${name} (utiliser la sheet 4 vues comme référence visuelle)`;
+  }
+  if (asset.asset_type === "background") {
+    return `Décor : ${name} (utiliser l'image du décor comme référence)`;
+  }
+  return `Objet : ${name} (utiliser l'image de l'objet comme référence)`;
+}
 const PANEL_EDITOR_STEPS = [
   {
     value: "architecture",
@@ -233,6 +259,7 @@ export default function ChapterDetail() {
 
   const { data: chapter, isLoading: loadingChapter } = useChapter(chapterId);
   const { data: project } = useProject(projectId);
+  const { plan, usageInfo } = useUserPlan();
   const { data: scenarioChapters = [] } = useScenarioChapters(projectId);
   const updateChapter = useUpdateChapter(projectId ?? "");
   const { data: assets = [] } = useAssets(projectId);
@@ -279,9 +306,9 @@ export default function ChapterDetail() {
   /** Brouillon hauteur du panel (modale édition), chaîne pour autoriser le champ vide ; null = afficher la valeur réelle */
   const [panelHeightDraft, setPanelHeightDraft] = useState<string | null>(null);
   /** Bloc en cours d'édition de prompt : clé = `${panelId}-${blockId}` */
-  const [_editingBlockKey, _setEditingBlockKey] = useState<string | null>(null);
+  const [_editingBlockKey, setEditingBlockKey] = useState<string | null>(null);
   /** Brouillon dimensions par bloc : clé = `${panelId}-${blockId}` → { width, height } */
-  const [_blockDimensionDrafts, _setBlockDimensionDrafts] = useState<Record<string, { width: number; height: number }>>({});
+  const [_blockDimensionDrafts, setBlockDimensionDrafts] = useState<Record<string, { width: number; height: number }>>({});
   /** Mode d'édition par panel : chaque panel a son propre mode (Architecture ou Édition) */
   const [panelEditModeByPanelId, setPanelEditModeByPanelId] = useState<Record<string, "architecture" | "edition" | "couleurs">>({});
   /** Refs du canvas par panel (pour calcul position de dépôt quand on drop sur un bloc) */
@@ -1321,11 +1348,10 @@ export default function ChapterDetail() {
       }
       const contextChapter = panel.prompt?.trim() || null;
       const refAssets = getDetectedAssets(promptToUse, assets);
-      const _refIds = refAssets.map((a) => a.id);
       const blockAssetImageUrls = refAssets
-        .map((a) => a.image_url_sheet ?? a.image_url)
+        .map(getAssetReferenceImageUrl)
         .filter((u): u is string => !!u);
-      const blockAssetNames = refAssets.map((a) => a.name ?? a.id.slice(0, 8));
+      const blockAssetNames = refAssets.map(getAssetReferencePromptLabel);
       generatePanelImage.mutate(
         { panel: { id: panel.id, prompt: promptToUse }, block: { id: block.id, width: block.width, height: block.height }, project, contextChapter: contextChapter ?? undefined, blockAssetImageUrls: blockAssetImageUrls.length ? blockAssetImageUrls : undefined, blockAssetNames: blockAssetNames.length ? blockAssetNames : undefined },
         {
@@ -1391,6 +1417,16 @@ export default function ChapterDetail() {
                 </button>
               );
             })}
+          </div>
+          <div className="w-full mt-auto pt-3 border-t border-border/60">
+            <button
+              type="button"
+              onClick={() => setSliceModalOpen(true)}
+              className="w-full h-12 rounded-xl border border-border/70 bg-background text-muted-foreground hover:text-foreground hover:bg-muted/50 flex items-center justify-center transition-colors duration-150"
+              title="Découper & télécharger"
+            >
+              <Download className="h-[18px] w-[18px]" />
+            </button>
           </div>
         </aside>
         {/* Gauche : contenu selon l’onglet (Chapitre | Architecture | Personalisation) */}
@@ -1531,8 +1567,8 @@ export default function ChapterDetail() {
                               {detected.map((asset) => (
                                 <div key={asset.id} className="flex items-center gap-2 rounded px-2 py-1.5">
                                   <div className="w-10 h-10 shrink-0 rounded overflow-hidden border border-border/60 bg-muted">
-                                    {asset.image_url ? (
-                                      <ImageWithFallback src={asset.image_url} alt="" className="w-full h-full object-cover" />
+                                    {getAssetReferenceImageUrl(asset) ? (
+                                      <ImageWithFallback src={getAssetReferenceImageUrl(asset) ?? ""} alt="" className="w-full h-full object-cover" />
                                     ) : (
                                       <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">—</div>
                                     )}
@@ -2694,7 +2730,23 @@ export default function ChapterDetail() {
               <DialogTitle className="text-base font-medium truncate">
                 Éditeur de canvas
               </DialogTitle>
-              <div className="flex items-center gap-1 shrink-0">
+              <div className="flex items-center gap-2 shrink-0">
+                <div className="hidden md:flex items-center gap-1.5">
+                  <span
+                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold border ${
+                      plan === "pro"
+                        ? "bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-600 dark:text-amber-400 border-amber-500/30"
+                        : "bg-muted text-muted-foreground border-border"
+                    }`}
+                    title="Plan actuel"
+                  >
+                    {plan === "pro" ? "Pro" : "Free"}
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/50 px-2.5 py-1 rounded-full border border-border/50">
+                    <Sparkles className="h-3 w-3" />
+                    {usageInfo.count}/{usageInfo.limit}
+                  </span>
+                </div>
                 <Button
                   size="sm"
                   variant="ghost"
@@ -2715,15 +2767,6 @@ export default function ChapterDetail() {
                   <Plus className="h-3.5 w-3.5" />
                 </Button>
               </div>
-              <Button
-                size="sm"
-                variant="outline"
-                className="gap-1.5 shrink-0"
-                onClick={() => setSliceModalOpen(true)}
-              >
-                <Download className="h-3.5 w-3.5" />
-                Découper & télécharger
-              </Button>
             </div>
           </DialogHeader>
           {expandedPanelId && (() => {

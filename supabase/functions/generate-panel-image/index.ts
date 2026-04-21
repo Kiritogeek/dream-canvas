@@ -14,6 +14,8 @@ const FAL_IMAGE_EDIT = "https://fal.run/fal-ai/flux-2-pro/edit";
 const BUCKET = "dreamweave";
 const FAL_TIMEOUT_MS = 120_000;
 const MAX_DIMENSION = 1024; // FAL limite souvent à 1024
+const NO_BORDER_NEGATIVE_PROMPT =
+  "white border, blank margin, white margin, frame, border, passe-partout, letterbox, pillarbox, postcard, poster frame, image inside image, empty area, white bars, top border, bottom border";
 
 function getCorsHeaders(): Record<string, string> {
   const origin = Deno.env.get("ALLOWED_ORIGIN")?.trim();
@@ -108,6 +110,7 @@ async function generateImage(
       headers: { "Content-Type": "application/json", Authorization: `Key ${falKey}` },
       body: JSON.stringify({
         prompt,
+        negative_prompt: NO_BORDER_NEGATIVE_PROMPT,
         image_size: { width, height },
         num_images: 1,
         output_format: "png",
@@ -152,6 +155,7 @@ async function generateImageWithReferences(
       headers: { "Content-Type": "application/json", Authorization: `Key ${falKey}` },
       body: JSON.stringify({
         prompt,
+        negative_prompt: NO_BORDER_NEGATIVE_PROMPT,
         image_urls: referenceImageUrls,
         image_size: { width, height },
         num_images: 1,
@@ -185,6 +189,7 @@ async function generateImageWithReferences(
   if (!url) return { error: "FAL n'a pas retourné d'image" };
   return { url };
 }
+
 
 async function downloadAndUpload(
   imageUrl: string,
@@ -414,12 +419,10 @@ Deno.serve(async (req) => {
     if (Array.isArray(block_asset_names) && block_asset_names.length > 0) {
       fullPrompt = `Éléments à inclure (références) : ${block_asset_names.join(", ")}.\n\n${fullPrompt}`;
     }
-    fullPrompt += `\n\nIMPORTANT FORMAT (OBLIGATOIRE) :
-- L'image doit être générée EXACTEMENT au format ${width}×${height} pixels.
-- L'illustration doit occuper 100% de la surface, bord à bord (full bleed).
-- INTERDIT : cadre, bordure, marge blanche, liseré, passe-partout, effet "carte/poster", contour de case BD.
-- INTERDIT : image dans une image (pas de rectangle interne contenant la scène).
-- Si une composition avec marge apparaît, zoom/cadre la scène pour supprimer toute bordure et remplir tout le cadre final.`;
+    fullPrompt += `\n\nFORMAT OBLIGATOIRE (${width}x${height}) :
+- Full bleed strict: 100% de la surface occupée, bord à bord.
+- Interdit: marges blanches/colorées, cadre, bordure, letterbox, pillarbox, image-dans-image.
+- Si nécessaire, recadrer/zoomer pour supprimer tout espace vide (haut, bas, gauche, droite).`;
 
     const referenceImageUrls = Array.isArray(block_asset_image_urls)
       ? block_asset_image_urls.filter((u) => typeof u === "string" && u.trim().length > 0)

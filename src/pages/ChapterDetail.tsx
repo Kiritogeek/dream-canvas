@@ -21,12 +21,13 @@ import {
   Trash2,
   Type,
   Download,
+  Layers,
+  CheckCircle2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import DashboardLayout from "@/components/DashboardLayout";
 import {
   Collapsible,
   CollapsibleContent,
@@ -83,10 +84,8 @@ import {
   PANEL_HEIGHT_DEFAULT,
   PANEL_HEIGHT_MIN,
   PANEL_HEIGHT_MAX,
-  estimatePanelCount,
 } from "@/services/panels";
 import { callSuggestBlockPrompt } from "@/services/scenarioAI";
-import { PanelCountBadge } from "@/components/project/PanelCountBadge";
 import { renderPanelToCanvas, renderChapterToCanvas, downloadCanvas, exportChapterAsZip } from "@/services/exportPanel";
 import type { Json } from "@/integrations/supabase/types";
 import type { Panel, PanelBlock, PanelLayout, ColorBlock, ColorBlockFill, SpeechBubble, SpeechBubbleType, Asset } from "@/types";
@@ -145,12 +144,6 @@ const PANEL_EDITOR_STEPS = [
     label: "Dialogue",
     hint: "Bulles et texte",
     icon: MessageCircle,
-  },
-  {
-    value: "cases",
-    label: "Cases",
-    hint: "Cases du scénario",
-    icon: BookOpen,
   },
 ] as const;
 
@@ -390,7 +383,7 @@ export default function ChapterDetail() {
   /** Panel ouvert en modale « Edition » (id ou null) */
   const [expandedPanelId, setExpandedPanelId] = useState<string | null>(null);
   /** Onglet du panneau gauche en modale : Architecture | Personalisation | Couleurs */
-  const [panelEditorLeftTab, setPanelEditorLeftTab] = useState<"architecture" | "personalisation" | "couleurs" | "dialogue" | "cases">("architecture");
+  const [panelEditorLeftTab, setPanelEditorLeftTab] = useState<"architecture" | "personalisation" | "couleurs" | "dialogue">("architecture");
   /** Outil à droite dans la modale d'édition (suivi chapitre textuel). */
   const [panelEditorRightTool, setPanelEditorRightTool] = useState<"chapter-text">("chapter-text");
   /** Bloc sélectionné dans la modale (mode Personalisation) pour afficher le panneau droit ou gauche */
@@ -962,19 +955,19 @@ export default function ChapterDetail() {
 
   if (loading && !chapter) {
     return (
-      <DashboardLayout>
-        <div className="space-y-4">
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="space-y-4 w-full max-w-md px-6">
           {[1, 2, 3].map((i) => (
             <div key={i} className="glass rounded-xl h-48 animate-pulse" />
           ))}
         </div>
-      </DashboardLayout>
+      </div>
     );
   }
 
   if (!chapter) {
     return (
-      <DashboardLayout>
+      <div className="min-h-screen flex items-center justify-center">
         <div className="glass rounded-2xl p-16 text-center">
           <p className="text-muted-foreground">Chapitre introuvable.</p>
           <Button asChild variant="ghost" className="mt-4">
@@ -983,9 +976,25 @@ export default function ChapterDetail() {
             </Link>
           </Button>
         </div>
-      </DashboardLayout>
+      </div>
     );
   }
+
+  const linkedScenarioChapter = scenarioChapters.find(
+    (sc) => sc.id === chapter.linked_scenario_chapter_id
+  );
+  const detectedCasesCount = Array.isArray(linkedScenarioChapter?.panels_outline)
+    ? (linkedScenarioChapter.panels_outline as { panel_number: number }[]).length
+    : null;
+
+  const generatedCasesCount = panels
+    .flatMap((p) => getPanelBlocks(p))
+    .filter((b) => !!b.image_url).length;
+
+  const pct =
+    detectedCasesCount && detectedCasesCount > 0
+      ? Math.round((generatedCasesCount / detectedCasesCount) * 100)
+      : null;
 
   const renderPanelEditor = (panel: Panel) => {
     const layout = getPanelLayout(panel);
@@ -1417,7 +1426,7 @@ export default function ChapterDetail() {
       );
     };
 
-    const handlePanelEditorTabChange = (nextTab: "architecture" | "personalisation" | "couleurs" | "dialogue" | "cases") => {
+    const handlePanelEditorTabChange = (nextTab: "architecture" | "personalisation" | "couleurs" | "dialogue") => {
       setPanelEditorLeftTab(nextTab);
       if (nextTab === "personalisation") {
         setPanelEditModeByPanelId((prev) => ({ ...prev, [panel.id]: "edition" }));
@@ -1876,81 +1885,6 @@ export default function ChapterDetail() {
             </div>
           )}
 
-          {panelEditorLeftTab === "cases" && (
-            <div className="p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Cases du scénario</span>
-                {validatedCases.length > 0 && (
-                  <span className="text-[10px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25 px-2 py-0.5 rounded-full font-semibold">
-                    {validatedCases.length} validée{validatedCases.length > 1 ? "s" : ""}
-                  </span>
-                )}
-              </div>
-
-              {!scenarioChapter && !loadingScenario && (
-                <div className="rounded-xl border border-dashed border-border/70 bg-muted/30 px-4 py-8 text-center">
-                  <BookOpen className="h-6 w-6 text-muted-foreground/30 mx-auto mb-2" />
-                  <p className="text-xs text-muted-foreground">Aucun chapitre scénario lié à ce chapitre.</p>
-                </div>
-              )}
-
-              {loadingScenario && (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground/40" />
-                </div>
-              )}
-
-              {scenarioChapter && !loadingScenario && validatedCases.length === 0 && (
-                <div className="rounded-xl border border-dashed border-border/70 bg-muted/30 px-4 py-8 text-center">
-                  <BookOpen className="h-6 w-6 text-muted-foreground/30 mx-auto mb-2" />
-                  <p className="text-xs text-muted-foreground">Aucune case validée dans le scénario. Validez des cases dans l'onglet Scénario.</p>
-                </div>
-              )}
-
-              {validatedCases.length > 0 && (
-                <div className="flex flex-col gap-2">
-                  {validatedCases.map((c) => {
-                    const alreadyAdded = layout.blocks.some((b) => b.prompt?.trim() === c.description?.trim());
-                    return (
-                      <div
-                        key={`case-${c.panel_number}-${c.block_number}`}
-                        className="rounded-xl border border-border/60 bg-card/60 p-3 flex flex-col gap-2"
-                      >
-                        <div className="flex items-start gap-2">
-                          <span className="shrink-0 text-[10px] font-bold font-mono w-5 h-5 rounded bg-[hsl(var(--lavender)/0.15)] text-[hsl(275,45%,55%)] flex items-center justify-center mt-0.5">
-                            {c.caseNumber}
-                          </span>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs leading-relaxed text-foreground line-clamp-3">
-                              {c.description ?? "—"}
-                            </p>
-                            {c.text_excerpt && (
-                              <p className="text-[10px] text-muted-foreground italic mt-1 line-clamp-2 border-l-2 border-border pl-2">
-                                {c.text_excerpt}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                        <Button
-                          size="sm"
-                          variant={alreadyAdded ? "outline" : "default"}
-                          className={`w-full h-7 text-xs gap-1.5 ${alreadyAdded ? "opacity-60" : "gradient-primary text-primary-foreground"}`}
-                          disabled={!c.description || updatePanelMutation.isPending}
-                          onClick={() => !alreadyAdded && handleAddBlockFromCase(c.description!)}
-                        >
-                          {alreadyAdded ? (
-                            <>✓ Déjà ajouté</>
-                          ) : (
-                            <><Plus className="h-3 w-3" /> Créer un bloc</>
-                          )}
-                        </Button>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
         </aside>
         {/* Centre : panel 800px de large exactement, zoomable via contrôles header ou Ctrl+Scroll */}
         <div className="flex-1 min-w-0 flex items-start justify-center overflow-auto p-6 bg-background">
@@ -2518,23 +2452,130 @@ export default function ChapterDetail() {
             </div>
           </div>
         </div>
-        {/* Droite : chapitre textuel (largeur fixe pour ne pas décaler le canvas) */}
+        {/* Droite : chapitre textuel + cases (largeur fixe pour ne pas décaler le canvas) */}
         <aside className="w-[340px] shrink-0 flex flex-col border-l border-border bg-background overflow-y-auto">
           {panelEditorRightTool === "chapter-text" ? (
-            <div className="p-4 space-y-2 flex-1 min-h-0 flex flex-col">
-              <span className="text-xs font-medium text-muted-foreground">Scénario</span>
-              {loadingScenario ? (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Chargement...
-                </div>
-              ) : scenarioChapter?.content ? (
-                <div className="rounded-md border border-border bg-muted/30 p-3 min-h-[80px] flex-1 overflow-y-auto">
-                  <ScenarioTextHighlighter text={scenarioChapter.content} assets={assets} className="text-sm" />
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground italic py-2">Aucun chapitre scénario lié.</p>
-              )}
+            <div className="flex flex-col min-h-0">
+              {/* Menu Scénario */}
+              <Collapsible defaultOpen>
+                <CollapsibleTrigger asChild>
+                  <button
+                    type="button"
+                    className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-muted/50 transition-colors border-b border-border/60"
+                  >
+                    <span className="flex items-center gap-2 text-sm font-semibold font-display">
+                      <BookOpen className="h-4 w-4 text-primary" />
+                      Scénario
+                    </span>
+                    <ChevronDown className="h-4 w-4 shrink-0 data-[state=open]:rotate-180 transition-transform text-muted-foreground" />
+                  </button>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="p-4 space-y-2 border-b border-border/60">
+                    {loadingScenario ? (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Chargement...
+                      </div>
+                    ) : scenarioChapter?.content ? (
+                      <div className="rounded-md border border-border bg-muted/30 p-3 min-h-[80px] max-h-[35vh] overflow-y-auto">
+                        <ScenarioTextHighlighter text={scenarioChapter.content} assets={assets} className="text-sm" />
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground italic py-2">Aucun chapitre scénario lié.</p>
+                    )}
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+
+              {/* Menu Cases */}
+              <Collapsible defaultOpen>
+                <CollapsibleTrigger asChild>
+                  <button
+                    type="button"
+                    className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-muted/50 transition-colors border-b border-border/60"
+                  >
+                    <span className="flex items-center gap-2 text-sm font-semibold font-display">
+                      <Layers className="h-4 w-4 text-primary" />
+                      Cases
+                    </span>
+                    <div className="flex items-center gap-2">
+                      {validatedCases.length > 0 && (
+                        <span className="text-[10px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25 px-2 py-0.5 rounded-full font-semibold">
+                          {validatedCases.length}
+                        </span>
+                      )}
+                      <ChevronDown className="h-4 w-4 shrink-0 data-[state=open]:rotate-180 transition-transform text-muted-foreground" />
+                    </div>
+                  </button>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="p-4 space-y-3">
+                    {!scenarioChapter && !loadingScenario && (
+                      <div className="rounded-xl border border-dashed border-border/70 bg-muted/30 px-4 py-6 text-center">
+                        <BookOpen className="h-5 w-5 text-muted-foreground/30 mx-auto mb-2" />
+                        <p className="text-xs text-muted-foreground">Aucun chapitre scénario lié à ce chapitre.</p>
+                      </div>
+                    )}
+
+                    {loadingScenario && (
+                      <div className="flex items-center justify-center py-6">
+                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground/40" />
+                      </div>
+                    )}
+
+                    {scenarioChapter && !loadingScenario && validatedCases.length === 0 && (
+                      <div className="rounded-xl border border-dashed border-border/70 bg-muted/30 px-4 py-6 text-center">
+                        <BookOpen className="h-5 w-5 text-muted-foreground/30 mx-auto mb-2" />
+                        <p className="text-xs text-muted-foreground">Aucune case validée. Validez des cases dans l'onglet Scénario.</p>
+                      </div>
+                    )}
+
+                    {validatedCases.length > 0 && (
+                      <div className="flex flex-col gap-2">
+                        {validatedCases.map((c) => {
+                          const alreadyAdded = layout.blocks.some((b) => b.prompt?.trim() === c.description?.trim());
+                          return (
+                            <div
+                              key={`case-${c.panel_number}-${c.block_number}`}
+                              className="rounded-xl border border-border/60 bg-card/60 p-3 flex flex-col gap-2"
+                            >
+                              <div className="flex items-start gap-2">
+                                <span className="shrink-0 text-[10px] font-bold font-mono w-5 h-5 rounded bg-[hsl(var(--lavender)/0.15)] text-[hsl(275,45%,55%)] flex items-center justify-center mt-0.5">
+                                  {c.caseNumber}
+                                </span>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-xs leading-relaxed text-foreground line-clamp-3">
+                                    {c.description ?? "—"}
+                                  </p>
+                                  {c.text_excerpt && (
+                                    <p className="text-[10px] text-muted-foreground italic mt-1 line-clamp-2 border-l-2 border-border pl-2">
+                                      {c.text_excerpt}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                              <Button
+                                size="sm"
+                                variant={alreadyAdded ? "outline" : "default"}
+                                className={`w-full h-7 text-xs gap-1.5 ${alreadyAdded ? "opacity-60" : "gradient-primary text-primary-foreground"}`}
+                                disabled={!c.description || updatePanelMutation.isPending}
+                                onClick={() => !alreadyAdded && handleAddBlockFromCase(c.description!)}
+                              >
+                                {alreadyAdded ? (
+                                  <>✓ Déjà ajouté</>
+                                ) : (
+                                  <><Plus className="h-3 w-3" /> Créer un bloc</>
+                                )}
+                              </Button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
             </div>
           ) : (
             <div className="p-4 flex-1 min-h-0 flex items-center justify-center">
@@ -2559,206 +2600,237 @@ export default function ChapterDetail() {
   };
 
   return (
-    <DashboardLayout>
-      <div className="space-y-4">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" asChild>
-            <Link to={`/dashboard/projects/${projectId}?tab=edition`}>
-              <ArrowLeft className="h-4 w-4" />
-            </Link>
-          </Button>
-          <div className="min-w-0 flex-1">
-            <h1 className="text-xl font-display font-bold truncate">
-              Chapitre {chapter.chapter_number} : {chapter.title}
-            </h1>
-            {chapter.synopsis && (
-              <p className="text-sm text-muted-foreground line-clamp-1">
-                {chapter.synopsis}
-              </p>
-            )}
-            <div className="mt-1 flex flex-wrap items-center gap-2">
-              <PanelCountBadge
-                content={scenarioChapter?.content}
-                panelsTarget={project?.panels_target_per_chapter}
-                actualCount={panels.length}
-                variant="editor"
-              />
-              {(() => {
-                const scContent = scenarioChapter?.content;
-                if (!scContent) return null;
-                const words = scContent.trim().split(/\s+/).filter(Boolean).length;
-                if (words < 30) return null;
-                const mins = Math.max(1, Math.round((words / 200) * 60 / 60));
-                const estimated = estimatePanelCount(scContent);
-                return (
-                  <span className="text-xs text-muted-foreground">
-                    ~{estimated} panels · ~{mins} min de lecture
-                  </span>
-                );
-              })()}
-            </div>
-          </div>
+    <div className="h-screen flex flex-col bg-background overflow-hidden">
+      {/* Header fin 48px */}
+      <header className="h-12 border-b border-border bg-background/95 backdrop-blur-xl sticky top-0 z-30 flex items-center gap-3 px-4 sm:px-6 shrink-0">
+        <Link
+          to={`/dashboard/projects/${projectId}?tab=edition`}
+          className="flex items-center gap-1.5 shrink-0 px-2.5 py-1.5 rounded-lg border border-border bg-muted/50 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors group"
+        >
+          <ArrowLeft className="h-3.5 w-3.5 group-hover:-translate-x-0.5 transition-transform" />
+          <span>Édition</span>
+        </Link>
+        <span className="text-muted-foreground/40 text-sm">/</span>
+        <span className="text-sm font-medium truncate flex-1">
+          Chapitre {chapter.chapter_number} : {chapter.title}
+        </span>
+        {/* KPI chips */}
+        <div className="hidden sm:flex items-center gap-2 shrink-0">
+          <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
+            {generatedCasesCount} case{generatedCasesCount !== 1 ? "s" : ""} générée{generatedCasesCount !== 1 ? "s" : ""}
+          </span>
+          {plan === "pro" && detectedCasesCount !== null && (
+            <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-muted text-muted-foreground border border-border">
+              {detectedCasesCount} détectée{detectedCasesCount !== 1 ? "s" : ""}
+            </span>
+          )}
+          {pct !== null && (
+            <span className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${
+              pct === 100
+                ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20"
+                : "bg-[hsl(var(--lavender)/0.08)] text-[hsl(275,45%,55%)] border-[hsl(var(--lavender)/0.2)]"
+            }`}>
+              {pct}% complété
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={() => setSliceModalOpen(true)}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border bg-muted/50 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            title="Découper & télécharger ZIP"
+          >
+            <Download className="h-3.5 w-3.5" />
+          </button>
         </div>
+      </header>
 
-        {/* Layout : Chapitre texte à gauche (sticky au scroll), Panels à droite */}
-        <div className="flex flex-col lg:flex-row gap-4 lg:gap-6">
-          {/* Gauche : Panneau Scénario — reste visible au scroll des panels */}
-          <div className="lg:w-[min(420px,45%)] lg:shrink-0 lg:sticky lg:top-4 lg:self-start">
-            <Collapsible defaultOpen className="glass rounded-xl border border-border">
-              <CollapsibleTrigger asChild>
-                <button
-                  type="button"
-                  className="flex w-full items-center justify-between p-4 text-left font-display font-semibold hover:bg-muted/50 rounded-t-xl transition-colors"
-                >
-                  <span className="flex items-center gap-2">
-                    <BookOpen className="h-4 w-4 text-primary" />
-                    Chapitre texte
-                  </span>
-                  <ChevronDown className="h-4 w-4 shrink-0 data-[state=open]:rotate-180 transition-transform" />
-                </button>
-              </CollapsibleTrigger>
-              <CollapsibleContent>
-                <div className="p-4 pt-0 space-y-3">
-                  {scenarioChapters.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">
-                      Aucun chapitre de scénario. Créez-en dans l'onglet{" "}
-                      <strong>Scénario</strong> du projet.
-                    </p>
-                  ) : (
-                    <>
-                      <div className="space-y-1">
-                        <label className="text-xs font-medium text-muted-foreground">
-                          Chapitre de scénario à afficher
-                        </label>
-                        <Select
-                          value={displayedScenarioChapterId ?? SCENARIO_NONE_VALUE}
-                          onValueChange={(v) => {
-                            const next = v === SCENARIO_NONE_VALUE ? null : v;
-                            if (next !== (displayedScenarioChapterId ?? null)) {
-                              setPendingScenarioChapterId(next);
-                              setConfirmScenarioChangeOpen(true);
-                            }
-                          }}
-                        >
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Choisir un chapitre...">
-                              {scenarioChapterLabel ?? "Aucun (ne pas associer)"}
-                            </SelectValue>
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value={SCENARIO_NONE_VALUE}>
-                              Aucun (ne pas associer)
+      {/* Corps : left panel (scénario + cases) + right (canvas) */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Left panel ~380px, scrollable */}
+        <div className="w-[380px] shrink-0 border-r border-border overflow-y-auto flex flex-col">
+          {/* Chapitre texte (Collapsible) */}
+          <Collapsible defaultOpen className="border-b border-border">
+            <CollapsibleTrigger asChild>
+              <button
+                type="button"
+                className="flex w-full items-center justify-between px-4 py-3 text-left font-display font-semibold hover:bg-muted/50 transition-colors"
+              >
+                <span className="flex items-center gap-2 text-sm">
+                  <BookOpen className="h-4 w-4 text-primary" />
+                  Chapitre texte
+                </span>
+                <ChevronDown className="h-4 w-4 shrink-0 data-[state=open]:rotate-180 transition-transform" />
+              </button>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <div className="px-4 pb-4 space-y-3">
+                {scenarioChapters.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    Aucun chapitre de scénario. Créez-en dans l'onglet{" "}
+                    <strong>Scénario</strong> du projet.
+                  </p>
+                ) : (
+                  <>
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-muted-foreground">
+                        Chapitre de scénario à afficher
+                      </label>
+                      <Select
+                        value={displayedScenarioChapterId ?? SCENARIO_NONE_VALUE}
+                        onValueChange={(v) => {
+                          const next = v === SCENARIO_NONE_VALUE ? null : v;
+                          if (next !== (displayedScenarioChapterId ?? null)) {
+                            setPendingScenarioChapterId(next);
+                            setConfirmScenarioChangeOpen(true);
+                          }
+                        }}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Choisir un chapitre...">
+                            {scenarioChapterLabel ?? "Aucun (ne pas associer)"}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={SCENARIO_NONE_VALUE}>
+                            Aucun (ne pas associer)
+                          </SelectItem>
+                          {scenarioChapters.map((sc) => (
+                            <SelectItem key={sc.id} value={sc.id}>
+                              <span className="flex items-center gap-2">
+                                Chapitre {sc.chapter_number} : {sc.title}
+                                {sc.id === suggestedScenarioChapterId && (
+                                  <span className="text-xs text-muted-foreground">✓ suggéré</span>
+                                )}
+                              </span>
                             </SelectItem>
-                            {scenarioChapters.map((sc) => (
-                              <SelectItem key={sc.id} value={sc.id}>
-                                <span className="flex items-center gap-2">
-                                  Chapitre {sc.chapter_number} : {sc.title}
-                                  {sc.id === suggestedScenarioChapterId && (
-                                    <span className="text-xs text-muted-foreground">✓ suggéré</span>
-                                  )}
-                                </span>
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <AlertDialog
-                          open={confirmScenarioChangeOpen}
-                          onOpenChange={setConfirmScenarioChangeOpen}
-                        >
-                          <AlertDialogContent className="glass">
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Changer de chapitre texte ?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Le chapitre de scénario affiché à gauche sera remplacé et le lien
-                                sera enregistré pour ce chapitre visuel.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel
-                                onClick={() => setPendingScenarioChapterId(undefined)}
-                              >
-                                Annuler
-                              </AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={() => {
-                                  if (!chapterId) return;
-                                  const idToSave = pendingScenarioChapterId ?? null;
-                                  setSelectedScenarioChapterId(pendingScenarioChapterId);
-                                  setConfirmScenarioChangeOpen(false);
-                                  setPendingScenarioChapterId(undefined);
-                                  updateChapter.mutate(
-                                    {
-                                      id: chapterId,
-                                      updates: { linked_scenario_chapter_id: idToSave },
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <AlertDialog
+                        open={confirmScenarioChangeOpen}
+                        onOpenChange={setConfirmScenarioChangeOpen}
+                      >
+                        <AlertDialogContent className="glass">
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Changer de chapitre texte ?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Le chapitre de scénario affiché à gauche sera remplacé et le lien
+                              sera enregistré pour ce chapitre visuel.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel
+                              onClick={() => setPendingScenarioChapterId(undefined)}
+                            >
+                              Annuler
+                            </AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => {
+                                if (!chapterId) return;
+                                const idToSave = pendingScenarioChapterId ?? null;
+                                setSelectedScenarioChapterId(pendingScenarioChapterId);
+                                setConfirmScenarioChangeOpen(false);
+                                setPendingScenarioChapterId(undefined);
+                                updateChapter.mutate(
+                                  {
+                                    id: chapterId,
+                                    updates: { linked_scenario_chapter_id: idToSave },
+                                  },
+                                  {
+                                    onSuccess: () => {
+                                      toast({ title: "Lien enregistré" });
+                                      setSelectedScenarioChapterId(undefined);
                                     },
-                                    {
-                                      onSuccess: () => {
-                                        toast({ title: "Lien enregistré" });
-                                        setSelectedScenarioChapterId(undefined);
-                                      },
-                                      onError: (err) =>
-                                        toast({
-                                          title: "Erreur",
-                                          description: err.message,
-                                          variant: "destructive",
-                                        }),
-                                    }
-                                  );
-                                }}
-                                disabled={updateChapter.isPending}
-                              >
-                                {updateChapter.isPending ? "Enregistrement..." : "Changer"}
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </div>
-                      {displayedScenarioChapterId && (
-                        <>
-                          {loadingScenario ? (
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground py-6">
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                              Chargement...
-                            </div>
-                          ) : scenarioChapter?.content ? (
-                            <div className="rounded-lg border border-border bg-background/80 p-4 min-h-[200px] max-h-[60vh] overflow-y-auto">
-                              <ScenarioTextHighlighter
-                                text={scenarioChapter.content}
-                                assets={assets}
-                              />
-                            </div>
-                          ) : (
-                            <p className="text-sm text-muted-foreground italic py-4">
-                              Ce chapitre n'a pas encore de contenu.
-                            </p>
-                          )}
-                          {canSaveLink && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="w-full gap-2"
-                              onClick={handleSaveScenarioLink}
+                                    onError: (err) =>
+                                      toast({
+                                        title: "Erreur",
+                                        description: err.message,
+                                        variant: "destructive",
+                                      }),
+                                  }
+                                );
+                              }}
                               disabled={updateChapter.isPending}
                             >
-                              {updateChapter.isPending ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                              ) : (
-                                <Save className="h-3.5 w-3.5" />
-                              )}
-                              Enregistrer ce lien
-                            </Button>
-                          )}
-                        </>
-                      )}
-                    </>
-                  )}
-                </div>
-              </CollapsibleContent>
-            </Collapsible>
-          </div>
+                              {updateChapter.isPending ? "Enregistrement..." : "Changer"}
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                    {displayedScenarioChapterId && (
+                      <>
+                        {loadingScenario ? (
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground py-6">
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Chargement...
+                          </div>
+                        ) : scenarioChapter?.content ? (
+                          <div className="rounded-lg border border-border bg-background/80 p-4 min-h-[120px] max-h-[40vh] overflow-y-auto">
+                            <ScenarioTextHighlighter
+                              text={scenarioChapter.content}
+                              assets={assets}
+                            />
+                          </div>
+                        ) : (
+                          <p className="text-sm text-muted-foreground italic py-4">
+                            Ce chapitre n'a pas encore de contenu.
+                          </p>
+                        )}
+                        {canSaveLink && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="w-full gap-2"
+                            onClick={handleSaveScenarioLink}
+                            disabled={updateChapter.isPending}
+                          >
+                            {updateChapter.isPending ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <Save className="h-3.5 w-3.5" />
+                            )}
+                            Enregistrer ce lien
+                          </Button>
+                        )}
+                      </>
+                    )}
+                  </>
+                )}
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
 
-          {/* Droite : Canvas (chargement automatique) */}
-          <div className="flex-1 min-w-0 flex items-center justify-center py-20">
+          {/* Cases section — Pro uniquement */}
+          {plan === "pro" && linkedScenarioChapter && detectedCasesCount !== null && detectedCasesCount > 0 && (
+            <div className="border-b border-border">
+              <div className="flex items-center gap-2 px-4 py-3">
+                <Layers className="h-4 w-4 text-primary" />
+                <span className="text-sm font-semibold font-display">Cases</span>
+                <span className="ml-auto text-xs text-muted-foreground">{detectedCasesCount}</span>
+              </div>
+              <div className="px-3 pb-3 space-y-2 overflow-y-auto max-h-[40vh]">
+                {(linkedScenarioChapter.panels_outline as Array<{ panel_number: number; block_number: number; description: string; locked?: boolean }>).map((c, idx) => (
+                  <div
+                    key={`${c.panel_number}-${c.block_number}`}
+                    className={`flex gap-2.5 p-2.5 rounded-lg border text-xs ${c.locked ? "bg-emerald-500/5 border-emerald-500/20" : "bg-muted/30 border-border"}`}
+                  >
+                    <span className={`shrink-0 w-5 h-5 rounded font-bold font-mono flex items-center justify-center text-[10px] text-white ${c.locked ? "bg-emerald-500" : "bg-[hsl(275,45%,55%)]"}`}>
+                      {idx + 1}
+                    </span>
+                    <p className="leading-relaxed text-muted-foreground line-clamp-3">{c.description}</p>
+                    {c.locked && <CheckCircle2 className="shrink-0 h-3.5 w-3.5 text-emerald-500 mt-0.5" />}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Right : canvas zone, scrollable */}
+        <div className="flex-1 overflow-auto p-4">
+          {/* Canvas (chargement automatique) */}
+          <div className="flex items-center justify-center py-20">
             <div className="flex flex-col items-center gap-3 text-muted-foreground">
               <Loader2 className="h-8 w-8 animate-spin" style={{ color: "hsl(var(--lavender))" }} />
               <p className="text-sm">Chargement du canvas...</p>
@@ -2983,6 +3055,6 @@ export default function ChapterDetail() {
           </div>
         </DialogContent>
       </Dialog>
-    </DashboardLayout>
+    </div>
   );
 }

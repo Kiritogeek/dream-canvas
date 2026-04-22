@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo, memo } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import {
   Plus,
   ChevronUp,
@@ -10,6 +11,9 @@ import {
   ArrowRight,
   BookOpen,
   Link2,
+  Layers,
+  Crown,
+  ImageIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,7 +43,9 @@ import {
   useReorderChapters,
 } from "@/hooks/useChapters";
 import { useScenarioChapters } from "@/hooks/useScenarioChapters";
-import type { Chapter } from "@/types";
+import { useUserPlan } from "@/hooks/useUserPlan";
+import { supabase } from "@/integrations/supabase/client";
+import type { Chapter, ScenarioChapter } from "@/types";
 
 // ── ChapterEditionCard ────────────────────────────────────────────────────────
 
@@ -52,6 +58,9 @@ interface ChapterCardProps {
   onMove: (chapterId: string, direction: "up" | "down") => void;
   onEdit: (chapter: Chapter) => void;
   onDelete: (chapter: Chapter) => void;
+  panelBlocksForChapter: Array<{ chapter_id: string; layout: unknown }>;
+  scenarioChaptersData: ScenarioChapter[];
+  plan: string | null;
 }
 
 const ChapterEditionCard = memo(function ChapterEditionCard({
@@ -63,8 +72,28 @@ const ChapterEditionCard = memo(function ChapterEditionCard({
   onMove,
   onEdit,
   onDelete,
+  panelBlocksForChapter,
+  scenarioChaptersData,
+  plan,
 }: ChapterCardProps) {
   const navigate = useNavigate();
+
+  const sc = scenarioChaptersData.find((s) => s.id === chapter.linked_scenario_chapter_id);
+  const detectedCases = Array.isArray(sc?.panels_outline)
+    ? (sc.panels_outline as unknown[]).length
+    : null;
+
+  const generatedImages = panelBlocksForChapter
+    .flatMap((p) => {
+      const layout = p.layout as { blocks?: Array<{ image_url?: string | null }> } | null;
+      return Array.isArray(layout?.blocks) ? layout.blocks : [];
+    })
+    .filter((b) => !!b.image_url).length;
+
+  const pct =
+    detectedCases && detectedCases > 0
+      ? Math.round((generatedImages / detectedCases) * 100)
+      : null;
 
   const handleOpenChapter = useCallback(
     () => navigate(`/dashboard/projects/${projectId}/chapter/${chapter.id}`),
@@ -146,17 +175,42 @@ const ChapterEditionCard = memo(function ChapterEditionCard({
         </div>
       </div>
 
-      {/* Bas de carte : badge scénario + CTA */}
+      {/* Bas de carte : KPIs + CTA */}
       <div className="flex items-center justify-between gap-2">
-        <div>
-          {chapter.linked_scenario_chapter_id && (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-[hsl(var(--mint)/0.2)] text-[hsl(170_40%_38%)] border border-[hsl(var(--mint)/0.3)]">
-              <Link2 className="h-3 w-3" />
-              Scénario associé
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Cases générées — toujours visible */}
+          <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
+            <ImageIcon className="h-3 w-3" />
+            {generatedImages} générée{generatedImages !== 1 ? "s" : ""}
+          </span>
+
+          {/* Cases détectées — Pro seulement */}
+          {plan === "pro" ? (
+            detectedCases !== null && (
+              <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-[hsl(var(--lavender)/0.12)] text-[hsl(275,45%,55%)] border border-[hsl(var(--lavender)/0.2)]">
+                <Layers className="h-3 w-3" />
+                {detectedCases} détectée{detectedCases !== 1 ? "s" : ""}
+              </span>
+            )
+          ) : (
+            <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-400/10 text-amber-600 border border-amber-400/20 cursor-default" title="Fonctionnalité Pro">
+              <Crown className="h-3 w-3 text-amber-500" />
+              Cases — Pro
+            </span>
+          )}
+
+          {/* % complété — Pro seulement */}
+          {plan === "pro" && pct !== null && (
+            <span className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${
+              pct === 100
+                ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20"
+                : "bg-[hsl(var(--lavender)/0.08)] text-[hsl(275,45%,55%)] border-[hsl(var(--lavender)/0.2)]"
+            }`}>
+              {pct}%
             </span>
           )}
         </div>
-        <span className="flex items-center gap-1 text-xs font-semibold text-[hsl(var(--lavender))]">
+        <span className="flex items-center gap-1 text-xs font-semibold text-[hsl(var(--lavender))] shrink-0">
           Illustrer
           <ArrowRight className="h-3 w-3" />
         </span>
@@ -174,8 +228,23 @@ interface EditionSectionProps {
 export function EditionSection({ projectId }: EditionSectionProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { plan } = useUserPlan();
   const { data: chapters = [], isLoading } = useChapters(projectId);
   const { data: scenarioChapters = [] } = useScenarioChapters(projectId);
+
+  const { data: allPanelBlocks = [] } = useQuery({
+    queryKey: ["all-panel-blocks", projectId],
+    queryFn: async () => {
+      const chapterIds = chapters.map((c) => c.id);
+      if (chapterIds.length === 0) return [];
+      const { data } = await supabase
+        .from("panels")
+        .select("chapter_id, layout")
+        .in("chapter_id", chapterIds);
+      return data ?? [];
+    },
+    enabled: chapters.length > 0,
+  });
 
   const createChapter = useCreateChapter(projectId);
   const updateChapter = useUpdateChapter(projectId);
@@ -416,6 +485,9 @@ export function EditionSection({ projectId }: EditionSectionProps) {
               onMove={handleMoveChapter}
               onEdit={openEditDialog}
               onDelete={handleDeleteTarget}
+              panelBlocksForChapter={allPanelBlocks.filter((p) => p.chapter_id === chapter.id)}
+              scenarioChaptersData={scenarioChapters}
+              plan={plan}
             />
           ))}
         </div>

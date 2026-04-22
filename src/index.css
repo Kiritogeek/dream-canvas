@@ -117,14 +117,13 @@
       0 0 0 1px hsl(var(--lavender) / 0.12),
       0 4px 24px -4px hsl(var(--lavender) / 0.08),
       0 8px 32px -8px hsl(var(--peach) / 0.06);
-    font-size: 116%;
   }
 }
 
 @layer base {
-  /* Base agrandie pour une meilleure lisibilité (tout le site scale via rem) */
+  /* Base fluide : 14px mobile → 18px desktop large. Tout rem scale automatiquement. */
   html {
-    font-size: 110%; /* 18px si base 16px */
+    font-size: clamp(14px, 0.5vw + 12px, 18px);
     scrollbar-gutter: stable;
   }
   * {

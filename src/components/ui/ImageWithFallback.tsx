@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Sparkles } from "lucide-react";
 
 interface ImageWithFallbackProps {
@@ -8,6 +8,7 @@ interface ImageWithFallbackProps {
   fallbackClassName?: string;
   style?: React.CSSProperties;
   onError?: () => void;
+  lazy?: boolean;
 }
 
 const loadedImages = new Set<string>();
@@ -19,44 +20,45 @@ export function ImageWithFallback({
   fallbackClassName = "",
   style,
   onError,
+  lazy = false,
 }: ImageWithFallbackProps) {
+  const alreadyKnown = !!src && loadedImages.has(src);
   const [hasError, setHasError] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [imageSrc, setImageSrc] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(!alreadyKnown && !!src);
   const mountedRef = useRef(true);
 
-  const handleError = () => {
-    setIsLoading(false);
-    setHasError(true);
-    onError?.();
-  };
-
-  // Reset error state when src changes
   useEffect(() => {
     mountedRef.current = true;
-    
-    if (!src) {
-      setIsLoading(false);
-      setImageSrc(null);
-      return;
-    }
-
-    // URL déjà connue comme chargée : affichage immédiat sans skeleton.
-    if (loadedImages.has(src)) {
-      setHasError(false);
-      setIsLoading(false);
-      setImageSrc(src);
-      return;
-    }
-
-    setHasError(false);
-    setIsLoading(true);
-    setImageSrc(src);
-
     return () => {
       mountedRef.current = false;
     };
+  }, []);
+
+  useEffect(() => {
+    if (!src) {
+      setHasError(false);
+      setIsLoading(false);
+      return;
+    }
+    if (loadedImages.has(src)) {
+      setHasError(false);
+      setIsLoading(false);
+      return;
+    }
+    setHasError(false);
+    setIsLoading(true);
   }, [src]);
+
+  // Détecte les images déjà en mémoire navigateur (cache RAM) dès la création du nœud DOM.
+  const imgRef = useCallback(
+    (el: HTMLImageElement | null) => {
+      if (el && src && el.complete && el.naturalWidth > 0) {
+        loadedImages.add(src);
+        setIsLoading(false);
+      }
+    },
+    [src],
+  );
 
   if (!src || hasError) {
     return (
@@ -78,22 +80,27 @@ export function ImageWithFallback({
           <Sparkles className="h-8 w-8 text-primary opacity-40" />
         </div>
       )}
-      {imageSrc && (
-        <img
-          src={imageSrc}
-          alt={alt}
-          className={`${className} ${isLoading ? "opacity-0" : "opacity-100 transition-opacity duration-300"}`}
-          loading="lazy"
-          decoding="async"
-          onLoad={() => {
-            if (mountedRef.current) {
-              if (src) loadedImages.add(src);
-              setIsLoading(false);
-            }
-          }}
-          onError={handleError}
-        />
-      )}
+      <img
+        ref={imgRef}
+        src={src}
+        alt={alt}
+        className={`${className} ${isLoading ? "opacity-0 absolute inset-0" : "opacity-100 transition-opacity duration-300"}`}
+        loading={lazy ? "lazy" : "eager"}
+        decoding="async"
+        onLoad={() => {
+          if (mountedRef.current) {
+            loadedImages.add(src);
+            setIsLoading(false);
+          }
+        }}
+        onError={() => {
+          if (mountedRef.current) {
+            setIsLoading(false);
+            setHasError(true);
+            onError?.();
+          }
+        }}
+      />
     </div>
   );
 }

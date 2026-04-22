@@ -16,6 +16,8 @@ export function usePanels(chapterId: string | undefined) {
     queryKey: keys.list(chapterId!),
     queryFn: () => panelsService.fetchPanels(chapterId!),
     enabled: !!chapterId,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
   });
 }
 

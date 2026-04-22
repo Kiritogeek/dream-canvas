@@ -117,13 +117,9 @@ function getAssetReferenceImageUrl(asset: Asset): string | null {
 
 function getAssetReferencePromptLabel(asset: Asset): string {
   const name = asset.name?.trim() || asset.id.slice(0, 8);
-  if (asset.asset_type === "character") {
-    return `Personnage : ${name} (utiliser la sheet 4 vues comme référence visuelle)`;
-  }
-  if (asset.asset_type === "background") {
-    return `Décor : ${name} (utiliser l'image du décor comme référence)`;
-  }
-  return `Objet : ${name} (utiliser l'image de l'objet comme référence)`;
+  if (asset.asset_type === "character") return `character named "${name}"`;
+  if (asset.asset_type === "background") return `background: "${name}"`;
+  return `object: "${name}"`;
 }
 const PANEL_EDITOR_STEPS = [
   {
@@ -149,6 +145,12 @@ const PANEL_EDITOR_STEPS = [
     label: "Dialogue",
     hint: "Bulles et texte",
     icon: MessageCircle,
+  },
+  {
+    value: "cases",
+    label: "Cases",
+    hint: "Cases du scénario",
+    icon: BookOpen,
   },
 ] as const;
 
@@ -273,6 +275,20 @@ export default function ChapterDetail() {
   const [panelToDeleteId, setPanelToDeleteId] = useState<string | null>(null);
   const generatePanelImage = useGeneratePanelImage(chapterId ?? "");
   const panelsQueryKey = ["panels", chapterId] as const;
+  const preloadedImagesRef = useRef<HTMLImageElement[]>([]);
+
+  useEffect(() => {
+    const urls = panels.flatMap((p) =>
+      getPanelBlocks(p)
+        .map((b) => b.image_url)
+        .filter((u): u is string => !!u)
+    );
+    preloadedImagesRef.current = urls.map((src) => {
+      const img = new Image();
+      img.src = src;
+      return img;
+    });
+  }, [panels]);
 
   const CANVAS_HEIGHT = 50_000;
 
@@ -374,7 +390,7 @@ export default function ChapterDetail() {
   /** Panel ouvert en modale « Edition » (id ou null) */
   const [expandedPanelId, setExpandedPanelId] = useState<string | null>(null);
   /** Onglet du panneau gauche en modale : Architecture | Personalisation | Couleurs */
-  const [panelEditorLeftTab, setPanelEditorLeftTab] = useState<"architecture" | "personalisation" | "couleurs" | "dialogue">("architecture");
+  const [panelEditorLeftTab, setPanelEditorLeftTab] = useState<"architecture" | "personalisation" | "couleurs" | "dialogue" | "cases">("architecture");
   /** Outil à droite dans la modale d'édition (suivi chapitre textuel). */
   const [panelEditorRightTool, setPanelEditorRightTool] = useState<"chapter-text">("chapter-text");
   /** Bloc sélectionné dans la modale (mode Personalisation) pour afficher le panneau droit ou gauche */
@@ -1346,7 +1362,7 @@ export default function ChapterDetail() {
         toast({ title: "Prompt requis", description: "Saisissez un prompt pour ce bloc (ou une description au panel).", variant: "destructive" });
         return;
       }
-      const contextChapter = panel.prompt?.trim() || null;
+      const contextChapter = scenarioChapter?.content?.slice(0, 500).trim() || null;
       const refAssets = getDetectedAssets(promptToUse, assets);
       const blockAssetImageUrls = refAssets
         .map(getAssetReferenceImageUrl)
@@ -1368,7 +1384,40 @@ export default function ChapterDetail() {
       );
     };
 
-    const handlePanelEditorTabChange = (nextTab: "architecture" | "personalisation" | "couleurs" | "dialogue") => {
+    type StoredCase = { panel_number: number; block_number?: number; description?: string; text_excerpt?: string; locked?: boolean };
+    const validatedCases: (StoredCase & { caseNumber: number })[] = (() => {
+      const outline = scenarioChapter?.panels_outline;
+      if (!Array.isArray(outline)) return [];
+      return (outline as StoredCase[])
+        .filter((b) => b.locked)
+        .map((b, idx) => ({ ...b, caseNumber: idx + 1 }));
+    })();
+
+    const handleAddBlockFromCase = (caseDescription: string) => {
+      const newBlock: PanelBlock = {
+        id: crypto.randomUUID(),
+        x: 0, y: 0,
+        width: DEFAULT_BLOCK_WIDTH,
+        height: DEFAULT_BLOCK_HEIGHT,
+        name: `Case`,
+        prompt: caseDescription,
+        image_url: null,
+      };
+      const newLayout: PanelLayout = { ...layout, blocks: [...layout.blocks, newBlock] };
+      updatePanelMutation.mutate(
+        { id: panel.id, updates: { layout: newLayout as unknown as Json } },
+        {
+          onSuccess: () => {
+            toast({ title: "Bloc créé", description: "Le prompt de la case a été pré-rempli." });
+            setPanelEditorLeftTab("personalisation");
+            setPanelEditModeByPanelId((prev) => ({ ...prev, [panel.id]: "edition" }));
+          },
+          onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }),
+        }
+      );
+    };
+
+    const handlePanelEditorTabChange = (nextTab: "architecture" | "personalisation" | "couleurs" | "dialogue" | "cases") => {
       setPanelEditorLeftTab(nextTab);
       if (nextTab === "personalisation") {
         setPanelEditModeByPanelId((prev) => ({ ...prev, [panel.id]: "edition" }));
@@ -1826,6 +1875,82 @@ export default function ChapterDetail() {
               )}
             </div>
           )}
+
+          {panelEditorLeftTab === "cases" && (
+            <div className="p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Cases du scénario</span>
+                {validatedCases.length > 0 && (
+                  <span className="text-[10px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25 px-2 py-0.5 rounded-full font-semibold">
+                    {validatedCases.length} validée{validatedCases.length > 1 ? "s" : ""}
+                  </span>
+                )}
+              </div>
+
+              {!scenarioChapter && !loadingScenario && (
+                <div className="rounded-xl border border-dashed border-border/70 bg-muted/30 px-4 py-8 text-center">
+                  <BookOpen className="h-6 w-6 text-muted-foreground/30 mx-auto mb-2" />
+                  <p className="text-xs text-muted-foreground">Aucun chapitre scénario lié à ce chapitre.</p>
+                </div>
+              )}
+
+              {loadingScenario && (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground/40" />
+                </div>
+              )}
+
+              {scenarioChapter && !loadingScenario && validatedCases.length === 0 && (
+                <div className="rounded-xl border border-dashed border-border/70 bg-muted/30 px-4 py-8 text-center">
+                  <BookOpen className="h-6 w-6 text-muted-foreground/30 mx-auto mb-2" />
+                  <p className="text-xs text-muted-foreground">Aucune case validée dans le scénario. Validez des cases dans l'onglet Scénario.</p>
+                </div>
+              )}
+
+              {validatedCases.length > 0 && (
+                <div className="flex flex-col gap-2">
+                  {validatedCases.map((c) => {
+                    const alreadyAdded = layout.blocks.some((b) => b.prompt?.trim() === c.description?.trim());
+                    return (
+                      <div
+                        key={`case-${c.panel_number}-${c.block_number}`}
+                        className="rounded-xl border border-border/60 bg-card/60 p-3 flex flex-col gap-2"
+                      >
+                        <div className="flex items-start gap-2">
+                          <span className="shrink-0 text-[10px] font-bold font-mono w-5 h-5 rounded bg-[hsl(var(--lavender)/0.15)] text-[hsl(275,45%,55%)] flex items-center justify-center mt-0.5">
+                            {c.caseNumber}
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs leading-relaxed text-foreground line-clamp-3">
+                              {c.description ?? "—"}
+                            </p>
+                            {c.text_excerpt && (
+                              <p className="text-[10px] text-muted-foreground italic mt-1 line-clamp-2 border-l-2 border-border pl-2">
+                                {c.text_excerpt}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant={alreadyAdded ? "outline" : "default"}
+                          className={`w-full h-7 text-xs gap-1.5 ${alreadyAdded ? "opacity-60" : "gradient-primary text-primary-foreground"}`}
+                          disabled={!c.description || updatePanelMutation.isPending}
+                          onClick={() => !alreadyAdded && handleAddBlockFromCase(c.description!)}
+                        >
+                          {alreadyAdded ? (
+                            <>✓ Déjà ajouté</>
+                          ) : (
+                            <><Plus className="h-3 w-3" /> Créer un bloc</>
+                          )}
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
         </aside>
         {/* Centre : panel 800px de large exactement, zoomable via contrôles header ou Ctrl+Scroll */}
         <div className="flex-1 min-w-0 flex items-start justify-center overflow-auto p-6 bg-background">
@@ -2125,7 +2250,7 @@ export default function ChapterDetail() {
                         document.addEventListener("pointerup", onPointerUp, true);
                       } : undefined}
                       onClick={mode === "edition" ? (e) => { e.stopPropagation(); setSelectedBlockIdInModal({ panelId: panel.id, blockId: block.id }); } : undefined}
-                      className={`group absolute overflow-visible bg-background border border-border shadow-md transition-[box-shadow,ring] duration-150 ${mode === "couleurs" || panelEditorLeftTab === "dialogue" ? "pointer-events-none" : mode === "architecture" ? "cursor-grab active:cursor-grabbing ring-2 ring-primary/60" : `cursor-pointer ${isSelected ? "ring-2 ring-primary shadow-lg ring-offset-2 ring-offset-background" : "ring-1 ring-border/80 hover:ring-2 hover:ring-primary/50 hover:shadow-md"}`}`}
+                      className={`group absolute overflow-visible bg-black border border-border shadow-md transition-[box-shadow,ring] duration-150 ${mode === "couleurs" || panelEditorLeftTab === "dialogue" ? "pointer-events-none" : mode === "architecture" ? "cursor-grab active:cursor-grabbing ring-2 ring-primary/60" : `cursor-pointer ${isSelected ? "ring-2 ring-primary shadow-lg ring-offset-2 ring-offset-background" : "ring-1 ring-border/80 hover:ring-2 hover:ring-primary/50 hover:shadow-md"}`}`}
                       style={{ left: geom.x, top: geom.y, width: geom.width, height: geom.height, zIndex: 10, pointerEvents: mode === "couleurs" || panelEditorLeftTab === "dialogue" ? "none" : "auto" }}
                       title={mode === "edition" ? `Clique — ${block.name ?? `Bloc ${blockIndex + 1}`}` : mode === "architecture" ? `Déplacer — ${block.name ?? `Bloc ${blockIndex + 1}`}` : `Bloc ${blockIndex + 1}`}
                     >

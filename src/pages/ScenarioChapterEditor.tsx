@@ -876,18 +876,26 @@ export default function ScenarioChapterEditor() {
                   Écriture
                 </button>
                 <button
-                  onClick={() => setViewMode("visuels")}
+                  onClick={isPro ? () => setViewMode("visuels") : () => navigate("/dashboard/plans")}
+                  title={!isPro ? "Fonctionnalité Pro — Cliquez pour mettre à niveau" : undefined}
                   className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
-                    viewMode === "visuels"
-                      ? "bg-background shadow-sm text-foreground"
-                      : "text-muted-foreground hover:text-foreground"
+                    isPro
+                      ? viewMode === "visuels"
+                        ? "bg-background shadow-sm text-foreground"
+                        : "text-muted-foreground hover:text-foreground"
+                      : "text-muted-foreground/60 hover:text-muted-foreground"
                   }`}
                 >
                   <Layers className="h-3 w-3" />
                   Cases
-                  {cases.length > 0 && (
+                  {isPro && cases.length > 0 && (
                     <span className="ml-0.5 bg-primary/20 text-primary text-[10px] font-bold rounded px-1">
                       {cases.length}
+                    </span>
+                  )}
+                  {!isPro && (
+                    <span className="ml-0.5 bg-amber-400/20 text-amber-600 dark:text-amber-400 border border-amber-400/30 text-[9px] font-bold rounded px-1 tracking-wide">
+                      PRO
                     </span>
                   )}
                 </button>

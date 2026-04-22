@@ -1,7 +1,7 @@
 ﻿// Écran d'édition d'un chapitre visuel — double visualisation + panels (liberté de création)
 // Gauche : chapitre texte (scénario) avec Aperçu = surbrillance assets + hover. Droite : panels (l'utilisateur crée le nombre qu'il souhaite).
 import { useState, useMemo, useRef, useEffect, useCallback } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
@@ -255,6 +255,8 @@ export default function ChapterDetail() {
   const { data: chapter, isLoading: loadingChapter } = useChapter(chapterId);
   const { data: project } = useProject(projectId);
   const { plan, usageInfo } = useUserPlan();
+  const navigate = useNavigate();
+  const isPro = plan === "pro";
   const { data: scenarioChapters = [] } = useScenarioChapters(projectId);
   const updateChapter = useUpdateChapter(projectId ?? "");
   const { data: assets = [] } = useAssets(projectId);
@@ -2563,15 +2565,22 @@ export default function ChapterDetail() {
           </button>
           <button
             type="button"
-            onClick={() => setPanelEditorRightTool("cases")}
-            className={`w-full h-12 rounded-xl border flex items-center justify-center transition-colors duration-150 ${
-              panelEditorRightTool === "cases"
-                ? "border-primary/70 bg-primary/15 text-primary shadow-sm"
-                : "border-border/70 bg-background text-muted-foreground hover:text-foreground hover:bg-muted/50"
+            onClick={isPro ? () => setPanelEditorRightTool("cases") : () => navigate("/dashboard/plans")}
+            className={`w-full h-12 rounded-xl border flex items-center justify-center transition-colors duration-150 relative ${
+              isPro
+                ? panelEditorRightTool === "cases"
+                  ? "border-primary/70 bg-primary/15 text-primary shadow-sm"
+                  : "border-border/70 bg-background text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                : "border-border/70 bg-background text-muted-foreground/60 hover:text-muted-foreground hover:bg-muted/30"
             }`}
-            title="Cases"
+            title={isPro ? "Cases" : "Fonctionnalité Pro — Cliquez pour mettre à niveau"}
           >
             <Layers className="h-5 w-5" />
+            {!isPro && (
+              <span className="absolute -top-1 -right-1 bg-amber-400/30 text-amber-600 dark:text-amber-400 border border-amber-400/40 text-[8px] font-bold rounded px-1 tracking-wide">
+                PRO
+              </span>
+            )}
           </button>
         </aside>
       </div>

@@ -9,11 +9,10 @@ import {
   X,
   Sparkles,
   Scissors,
-  Lock,
-  Unlock,
+  CheckCircle2,
+  Circle,
   PenLine,
   Layers,
-  LayoutPanelTop,
   Package,
   Type,
   AlertTriangle,
@@ -474,7 +473,7 @@ export default function ScenarioChapterEditor() {
       setDetectedBlocks(result.blocks);
       if (result.blocks.length === 0) {
         toast({
-          title: "Aucun panel détecté",
+          title: "Aucune case détectée",
           description: "Le chapitre est peut-être trop court.",
         });
       } else {
@@ -582,22 +581,17 @@ export default function ScenarioChapterEditor() {
     [lockedBlocks]
   );
 
-  // ── Grouper les blocs détectés par panel ──────────────────────
+  // ── Liste plate des cases (un bloc = une case) ───────────────
 
-  const groupedPanels = useMemo(() => {
-    const map = new Map<number, DetectedBlock[]>();
-    for (const block of detectedBlocks) {
-      const arr = map.get(block.panel_number) ?? [];
-      arr.push(block);
-      map.set(block.panel_number, arr);
-    }
-    return Array.from(map.entries())
-      .sort(([a], [b]) => a - b)
-      .map(([panelNumber, blocks]) => ({
-        panelNumber,
-        blocks: [...blocks].sort((a, b) => a.block_number - b.block_number),
-      }));
-  }, [detectedBlocks]);
+  const cases = useMemo(
+    () =>
+      [...detectedBlocks].sort((a, b) =>
+        a.panel_number !== b.panel_number
+          ? a.panel_number - b.panel_number
+          : a.block_number - b.block_number
+      ),
+    [detectedBlocks]
+  );
 
   // ── IA chapitre complet ──────────────────────────────────────
 
@@ -817,15 +811,15 @@ export default function ScenarioChapterEditor() {
                 {readingInfo.words.toLocaleString("fr-FR")} mots
               </span>
               <span className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400 bg-amber-500/10 rounded-full px-2.5 py-1">
-                <LayoutPanelTop className="h-3 w-3" />
-                {groupedPanels.length > 0
-                  ? `${groupedPanels.length} panel${groupedPanels.length > 1 ? "s" : ""}`
-                  : `~${readingInfo.panels} panels`}
+                <Layers className="h-3 w-3" />
+                {cases.length > 0
+                  ? `${cases.length} case${cases.length > 1 ? "s" : ""}`
+                  : `~${readingInfo.panels} cases`}
               </span>
               {lockedBlocks.length > 0 && (
                 <span className="flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 rounded-full px-2.5 py-1">
-                  <Lock className="h-3 w-3" />
-                  {lockedBlocks.length} verrouillé{lockedBlocks.length > 1 ? "s" : ""}
+                  <CheckCircle2 className="h-3 w-3" />
+                  {lockedBlocks.length} validée{lockedBlocks.length > 1 ? "s" : ""}
                 </span>
               )}
             </>
@@ -866,7 +860,7 @@ export default function ScenarioChapterEditor() {
         style={{ height: "calc(100vh - 48px)" }}
       >
         <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
-          {/* Toolbar fine — toggle Écriture/Panels + toggle Assets */}
+          {/* Toolbar fine — toggle Écriture/Cases + toggle Assets */}
           <div className="flex items-center gap-2 px-4 sm:px-8 py-1.5 border-b border-border/50 shrink-0 bg-background/95 backdrop-blur-xl">
             {!chapterAIResult && (
               <div className="flex items-center gap-1 bg-muted/50 rounded-lg p-1">
@@ -890,10 +884,10 @@ export default function ScenarioChapterEditor() {
                   }`}
                 >
                   <Layers className="h-3 w-3" />
-                  Panels
-                  {groupedPanels.length > 0 && (
+                  Cases
+                  {cases.length > 0 && (
                     <span className="ml-0.5 bg-primary/20 text-primary text-[10px] font-bold rounded px-1">
-                      {groupedPanels.length}
+                      {cases.length}
                     </span>
                   )}
                 </button>
@@ -967,23 +961,20 @@ export default function ScenarioChapterEditor() {
             {!chapterAIResult && (
             <div className="max-w-3xl mx-auto px-8 py-8">
               {viewMode === "visuels" ? (
-                /* Vue Panels groupés : N panels, chacun contenant ses blocs */
+                /* Vue Cases plate : un bloc = une case numérotée globalement */
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <p className="text-sm font-semibold text-foreground">
-                      {groupedPanels.length > 0 ? (
+                      {cases.length > 0 ? (
                         <>
-                          {groupedPanels.length} panel{groupedPanels.length > 1 ? "s" : ""}
-                          <span className="text-muted-foreground ml-1.5 font-normal text-xs">
-                            · {detectedBlocks.length} blocs
-                          </span>
+                          {cases.length} case{cases.length > 1 ? "s" : ""}
+                          {lockedBlocks.length > 0 && (
+                            <span className="text-emerald-500 ml-1.5 font-normal text-xs">
+                              · {lockedBlocks.length} validée{lockedBlocks.length > 1 ? "s" : ""}
+                            </span>
+                          )}
                         </>
-                      ) : "Aucun panel"}
-                      {lockedBlocks.length > 0 && (
-                        <span className="text-emerald-500 ml-1.5 font-normal text-xs">
-                          · {lockedBlocks.length} verrouillé{lockedBlocks.length > 1 ? "s" : ""}
-                        </span>
-                      )}
+                      ) : "Aucune case"}
                     </p>
                     {detectedBlocks.length > 0 && (
                       detectedBlocks.every((d) => lockedKeySet.has(`${d.panel_number}-${d.block_number}`)) ? (
@@ -991,110 +982,85 @@ export default function ScenarioChapterEditor() {
                           onClick={unlockAllBlocks}
                           className="flex items-center gap-1 text-xs text-muted-foreground hover:text-destructive transition-colors"
                         >
-                          <Unlock className="h-3 w-3" />
-                          Tout déverrouiller
+                          <Circle className="h-3 w-3" />
+                          Tout dévalider
                         </button>
                       ) : (
                         <button
                           onClick={lockAllDetected}
                           className="flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 transition-colors"
                         >
-                          <Lock className="h-3 w-3" />
-                          Tout verrouiller
+                          <CheckCircle2 className="h-3 w-3" />
+                          Tout valider
                         </button>
                       )
                     )}
                   </div>
 
-                  {/* P2 — warning si le contenu a changé depuis la dernière détection */}
-                  {detectedAtContent !== "" && groupedPanels.length > 0 && content !== detectedAtContent && (
+                  {/* Warning si le contenu a changé depuis la dernière détection */}
+                  {detectedAtContent !== "" && cases.length > 0 && content !== detectedAtContent && (
                     <div className="flex items-start gap-2.5 px-3.5 py-2.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-400 text-xs">
                       <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-                      <span>Le chapitre a été modifié depuis la dernière détection. Cliquez sur «&nbsp;Diviser en panels&nbsp;» pour mettre à jour le découpage.</span>
+                      <span>Le chapitre a été modifié depuis la dernière détection. Cliquez sur «&nbsp;Diviser en cases&nbsp;» pour mettre à jour le découpage.</span>
                     </div>
                   )}
 
-                  {groupedPanels.length === 0 ? (
+                  {cases.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-20 gap-3 text-center">
                       <Layers className="h-8 w-8 text-muted-foreground/20" />
                       <p className="text-sm text-muted-foreground">
-                        Aucun panel détecté. Cliquez sur «&nbsp;Diviser en panels&nbsp;» pour identifier les images à générer.
+                        Aucune case détectée. Cliquez sur «&nbsp;Diviser en cases&nbsp;» pour identifier les images à générer.
                       </p>
                     </div>
                   ) : (
-                    <div className="flex flex-col gap-5">
-                      {groupedPanels.map(({ panelNumber, blocks }) => {
-                        const panelLockedCount = blocks.filter((b) => lockedKeySet.has(`${b.panel_number}-${b.block_number}`)).length;
+                    <div className="flex flex-col gap-3">
+                      {cases.map((c, idx) => {
+                        const validated = lockedKeySet.has(`${c.panel_number}-${c.block_number}`);
                         return (
                           <div
-                            key={panelNumber}
-                            className="w-full rounded-xl border border-border bg-card/60 flex flex-col overflow-hidden"
+                            key={`${c.panel_number}-${c.block_number}`}
+                            className={`flex gap-3 p-4 rounded-xl border transition-colors ${
+                              validated
+                                ? "bg-emerald-500/5 border-emerald-500/20"
+                                : "bg-card/60 border-border hover:border-[hsl(var(--lavender)/0.35)]"
+                            }`}
                           >
-                            {/* En-tête panel */}
-                            <div className="flex items-center justify-between gap-2 px-4 py-2.5 bg-[hsl(var(--lavender)/0.08)] border-b border-[hsl(var(--lavender)/0.15)]">
-                              <span className="text-xs font-bold font-mono px-2 py-0.5 rounded bg-[hsl(var(--lavender)/0.15)] text-[hsl(275,45%,55%)]">
-                                Panel {panelNumber}
-                              </span>
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs text-muted-foreground">
-                                  {blocks.length} bloc{blocks.length > 1 ? "s" : ""}
-                                </span>
-                                {panelLockedCount > 0 && (
-                                  <span className="flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400">
-                                    · {panelLockedCount} <Lock className="h-3 w-3" />
-                                  </span>
-                                )}
-                              </div>
+                            {/* Numéro de case */}
+                            <span className={`shrink-0 text-xs font-bold font-mono w-7 h-7 rounded-lg flex items-center justify-center ${
+                              validated
+                                ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                                : "bg-[hsl(var(--lavender)/0.12)] text-[hsl(275,45%,55%)]"
+                            }`}>
+                              {idx + 1}
+                            </span>
+
+                            {/* Contenu */}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm leading-relaxed text-foreground">
+                                {c.description}
+                              </p>
+                              {c.text_excerpt && (
+                                <p className="text-xs text-muted-foreground italic mt-1.5 line-clamp-2 border-l-2 border-border pl-2">
+                                  {c.text_excerpt}
+                                </p>
+                              )}
                             </div>
 
-                            {/* Liste des blocs */}
-                            <div className="divide-y divide-border/40">
-                              {blocks.map((block) => {
-                                const locked = lockedKeySet.has(`${block.panel_number}-${block.block_number}`);
-                                return (
-                                  <div
-                                    key={`${panelNumber}-${block.block_number}`}
-                                    className={`flex gap-3 px-4 py-3 transition-colors ${
-                                      locked ? "bg-emerald-500/5" : "hover:bg-muted/30"
-                                    }`}
-                                  >
-                                    {/* Numéro de bloc */}
-                                    <span className={`shrink-0 mt-0.5 text-[10px] font-bold font-mono w-5 h-5 rounded flex items-center justify-center ${
-                                      locked
-                                        ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400"
-                                        : "bg-muted text-muted-foreground"
-                                    }`}>
-                                      {block.block_number}
-                                    </span>
-
-                                    {/* Contenu */}
-                                    <div className="flex-1 min-w-0">
-                                      <p className="text-sm leading-relaxed text-foreground">
-                                        {block.description}
-                                      </p>
-                                      {block.text_excerpt && (
-                                        <p className="text-xs text-muted-foreground italic mt-1 line-clamp-2 border-l-2 border-border pl-2">
-                                          {block.text_excerpt}
-                                        </p>
-                                      )}
-                                    </div>
-
-                                    {/* Bouton lock */}
-                                    <button
-                                      onClick={() => toggleBlock(block)}
-                                      title={locked ? "Déverrouiller" : "Verrouiller"}
-                                      className={`shrink-0 mt-0.5 h-6 w-6 flex items-center justify-center rounded border transition-colors ${
-                                        locked
-                                          ? "border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30"
-                                          : "border-border text-muted-foreground hover:border-primary/40 hover:text-primary"
-                                      }`}
-                                    >
-                                      {locked ? <Lock className="h-3 w-3" /> : <Unlock className="h-3 w-3" />}
-                                    </button>
-                                  </div>
-                                );
-                              })}
-                            </div>
+                            {/* Bouton validation */}
+                            <button
+                              onClick={() => toggleBlock(c)}
+                              title={validated ? "Retirer la validation" : "Valider cette case"}
+                              className={`shrink-0 flex items-center justify-center transition-colors ${
+                                validated
+                                  ? "text-emerald-500 hover:text-destructive"
+                                  : "text-muted-foreground/30 hover:text-[hsl(var(--lavender))]"
+                              }`}
+                            >
+                              {validated
+                                ? <CheckCircle2 className="h-5 w-5" />
+                                : <Circle className="h-5 w-5" />
+                              }
+                            </button>
                           </div>
                         );
                       })}
@@ -1310,7 +1276,7 @@ export default function ScenarioChapterEditor() {
 
           <button
             onClick={isPro ? handleDetectBlocks : () => navigate("/dashboard/plans")}
-            disabled={isDetecting || (isPro && !content.trim()) || (isPro && groupedPanels.length > 0 && detectedAtContent !== "" && content === detectedAtContent)}
+            disabled={isDetecting || (isPro && !content.trim()) || (isPro && cases.length > 0 && detectedAtContent !== "" && content === detectedAtContent)}
             title={!isPro ? "Fonctionnalité Pro — Cliquez pour mettre à niveau" : undefined}
             className={`flex items-center gap-2 pl-4 pr-5 h-12 rounded-full text-sm font-semibold transition-[box-shadow,transform,opacity] duration-200 disabled:opacity-50 disabled:pointer-events-none ${
               isPro
@@ -1321,17 +1287,17 @@ export default function ScenarioChapterEditor() {
             {isDetecting ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin shrink-0" />
-                <span>Division en cours…</span>
+                <span>Découpage en cours…</span>
               </>
             ) : isPro ? (
               <>
                 <Scissors className="h-4 w-4 shrink-0" />
-                <span>Diviser en panels</span>
+                <span>Diviser en cases</span>
               </>
             ) : (
               <>
-                <Lock className="h-4 w-4 shrink-0" />
-                <span>Diviser en panels</span>
+                <Scissors className="h-4 w-4 shrink-0" />
+                <span>Diviser en cases</span>
                 <span className="ml-1 text-[11px] bg-amber-400/30 text-amber-300 border border-amber-400/40 px-2 py-0.5 rounded-full font-bold tracking-wide">
                   PRO
                 </span>
@@ -1342,11 +1308,11 @@ export default function ScenarioChapterEditor() {
       )}
 
       {/* PANNEAU STATS cible — rendu hors flux, accessible via le panneau Stats supprimé */}
-      {/* La cible panels est désormais accessible via le chip "~N panels" dans le header */}
+      {/* La cible cases est accessible via le chip "~N cases" dans le header */}
       {editingTarget && (
         <div className="fixed bottom-4 right-4 z-50 glass rounded-xl p-4 shadow-dream flex flex-col gap-3 w-64">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            Cible panels/chapitre
+            Cible cases/chapitre
           </p>
           <div className="flex gap-2">
             <Input

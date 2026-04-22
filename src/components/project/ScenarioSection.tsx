@@ -14,7 +14,7 @@ import {
   Package,
   MousePointer2,
   ArrowRight,
-  Lock,
+  CheckCircle2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -558,7 +558,7 @@ export function ScenarioSection({ projectId, project }: ScenarioSectionProps) {
               <code className="text-primary bg-primary/10 px-1 rounded text-xs">### Scène N — Titre</code>,
               suivi du <strong className="text-foreground">lieu</strong>, des <strong className="text-foreground">personnages présents</strong>,
               puis de la <strong className="text-foreground">prose narrative</strong>. Ces métadonnées alimentent
-              directement la génération d'images (décors, personnages dans les panels).
+              directement la génération d'images (décors, personnages dans les cases).
             </AlertDialogDescription>
           </AlertDialogHeader>
 
@@ -598,7 +598,7 @@ export function ScenarioSection({ projectId, project }: ScenarioSectionProps) {
               s'affiche (image + infos). Ils servent de référence et alimentent
               le{" "}
               <strong className="text-foreground">prompt de génération</strong>{" "}
-              des images (panels / blocs).
+              des images (cases / blocs).
             </p>
             <div className="space-y-2">
               <p className="text-xs font-medium text-foreground">
@@ -771,12 +771,12 @@ function ChapterCard({
                 {wordCount.toLocaleString()} mots
               </span>
               <span className="px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400 text-xs font-semibold border border-amber-500/25">
-                {detectedPanelCount !== null ? `${detectedPanelCount} panels` : `~${panelEstimate} panels`}
+                {detectedPanelCount !== null ? `${detectedPanelCount} case${detectedPanelCount > 1 ? "s" : ""}` : `~${panelEstimate} cases`}
               </span>
               {lockedCount > 0 && (
                 <span className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-xs font-semibold border border-emerald-500/25">
-                  <Lock className="h-3 w-3" />
-                  {lockedCount} verrouillé{lockedCount > 1 ? "s" : ""}
+                  <CheckCircle2 className="h-3 w-3" />
+                  {lockedCount} validée{lockedCount > 1 ? "s" : ""}
                 </span>
               )}
             </>

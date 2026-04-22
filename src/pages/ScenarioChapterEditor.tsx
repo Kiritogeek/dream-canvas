@@ -755,17 +755,17 @@ export default function ScenarioChapterEditor() {
     <div className="h-screen flex flex-col bg-background overflow-hidden">
       {/* HEADER */}
       <header className="h-12 border-b border-border bg-background/95 backdrop-blur-xl sticky top-0 z-30 flex items-center gap-2 px-4 sm:px-6 shrink-0">
-        {/* Breadcrumb gauche */}
+        {/* Retour scénario — bouton explicite */}
         <Link
           to={`/dashboard/projects/${projectId}?tab=scenario`}
-          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors shrink-0 group"
+          className="flex items-center gap-1.5 shrink-0 px-2.5 py-1.5 rounded-lg border border-border bg-muted/50 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted hover:border-border/80 transition-colors group"
         >
           <ArrowLeft className="h-3.5 w-3.5 group-hover:-translate-x-0.5 transition-transform" />
-          <span className="font-medium">{project?.title ?? "Scénario"}</span>
+          <span>Scénario</span>
         </Link>
 
         <span className="text-muted-foreground/40 text-sm shrink-0">/</span>
-        <span className="text-sm text-muted-foreground shrink-0">Scénario</span>
+        <span className="text-sm text-muted-foreground truncate max-w-[160px] shrink-0">{project?.title ?? "—"}</span>
         <span className="text-muted-foreground/40 text-sm shrink-0">/</span>
 
         <div className="flex-1 min-w-0 group">
@@ -1028,8 +1028,8 @@ export default function ScenarioChapterEditor() {
                             {/* Numéro de case */}
                             <span className={`shrink-0 text-xs font-bold font-mono w-7 h-7 rounded-lg flex items-center justify-center ${
                               validated
-                                ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
-                                : "bg-[hsl(var(--lavender)/0.12)] text-[hsl(275,45%,55%)]"
+                                ? "bg-emerald-500 text-white"
+                                : "bg-[hsl(275,45%,55%)] text-white"
                             }`}>
                               {idx + 1}
                             </span>

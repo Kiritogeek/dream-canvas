@@ -32,6 +32,10 @@ export default function ProjectDetail() {
     setStyleDraft(undefined);
   }, [project?.id]);
 
+  useEffect(() => {
+    if (activeTab !== "style") setStyleDraft(undefined);
+  }, [activeTab]);
+
   const styleTemplate = styleDraft ?? project?.style_template ?? "";
 
   const { generatingAssetId, canGenerate, generate } = useAssetGeneration({

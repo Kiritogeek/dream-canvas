@@ -333,17 +333,17 @@ Obligatoire avant tout merge :
 3. **Stripe** — code prêt, déploiement après finalisation des plans
 4. **Vue Admin** — `/admin`, accès `kiritogeek@gmail.com`, override plan, analytics
 
-Roadmap complète : `wiki/Roadmap-2026.md` (source de vérité) · `Produit/07_Roadmap_Produit.md`
+Roadmap complète : `../DreamWeave-wiki/wiki/Roadmap-2026.md` (source de vérité) · `Produit/07_Roadmap_Produit.md`
 
 ---
 
 ## Règle .md — Mettre à jour après chaque décision
 
 **Après chaque session où des décisions produit/technique sont prises :**
-- Mettre à jour les pages wiki concernées (`wiki/Roadmap-2026.md`, `wiki/Audits-Techniques.md`, etc.)
+- Mettre à jour les pages wiki concernées (vault : `../DreamWeave-wiki/wiki/`)
 - Créer une page wiki si la décision crée une nouvelle spec (ex : `[[Scenario-IA]]`)
-- Mettre à jour `wiki/index.md` si nouvelle page créée
-- Ajouter une entrée dans `log.md`
+- Mettre à jour `../DreamWeave-wiki/wiki/index.md` si nouvelle page créée
+- Ajouter une entrée dans `../DreamWeave-wiki/log.md`
 - Mettre à jour `CLAUDE.md` si les tiers, la stack ou les règles changent
 
 ---

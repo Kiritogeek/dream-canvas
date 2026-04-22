@@ -2660,7 +2660,13 @@ export default function ChapterDetail() {
                   {blocks.map((block) => (
                     <div key={block.id} style={{ position: "absolute", left: block.x, top: block.y, width: block.width, height: block.height, zIndex: 10, overflow: "hidden" }}>
                       {block.image_url ? (
-                        <ImageWithFallback src={block.image_url} alt="" className="w-full h-full object-fill" />
+                        <img
+                          src={block.image_url}
+                          alt=""
+                          crossOrigin="anonymous"
+                          loading="eager"
+                          style={{ width: "100%", height: "100%", objectFit: "fill", display: "block" }}
+                        />
                       ) : null}
                     </div>
                   ))}

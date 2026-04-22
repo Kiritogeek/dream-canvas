@@ -1,7 +1,22 @@
 import html2canvas from "html2canvas";
 import JSZip from "jszip";
 
+async function waitForImages(el: HTMLElement): Promise<void> {
+  const imgs = Array.from(el.querySelectorAll("img"));
+  await Promise.all(
+    imgs.map((img) =>
+      img.complete
+        ? Promise.resolve()
+        : new Promise<void>((resolve) => {
+            img.onload = () => resolve();
+            img.onerror = () => resolve();
+          })
+    )
+  );
+}
+
 export async function renderPanelToCanvas(panelEl: HTMLDivElement): Promise<HTMLCanvasElement> {
+  await waitForImages(panelEl);
   return html2canvas(panelEl, {
     useCORS: true,
     allowTaint: false,

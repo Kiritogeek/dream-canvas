@@ -125,6 +125,7 @@
   /* Base agrandie pour une meilleure lisibilité (tout le site scale via rem) */
   html {
     font-size: 110%; /* 18px si base 16px */
+    scrollbar-gutter: stable;
   }
   * {
     @apply border-border;

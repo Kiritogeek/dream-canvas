@@ -25,8 +25,8 @@ const navLinks = [
 
 const projectSteps = [
   { key: "style",    label: "Style",    icon: Palette   },
-  { key: "assets",   label: "Assets",   icon: ImageIcon },
   { key: "scenario", label: "Scénario", icon: BookOpen  },
+  { key: "assets",   label: "Assets",   icon: ImageIcon },
   { key: "edition",  label: "Édition",  icon: Layers    },
 ];
 

@@ -51,7 +51,22 @@
       "Bash(xxd .husky/pre-commit)",
       "Bash(gh api *)",
       "Bash(mkdir -p \"/c/Users/PC/.claude/skills/wiki-brain/hooks\")",
-      "Bash(mkdir -p \"/c/Users/PC/.claude/commands\")"
+      "Bash(mkdir -p \"/c/Users/PC/.claude/commands\")",
+      "WebFetch(domain:api.github.com)",
+      "Read(//c/Users/marin/.claude//**)",
+      "Read(//c/Users/marin/.claude/**)",
+      "Bash(mkdir -p \"/c/Users/marin/.claude/skills/wiki-brain/hooks\")",
+      "Bash(mkdir -p \"/c/Users/marin/.claude/skills/wiki-brain/templates\")",
+      "Bash(mkdir -p \"/c/Users/marin/.claude/commands\")",
+      "Bash(mkdir -p \"C:/Users/marin/OneDrive/Bureau/DreamWeave-wiki/raw\" \"C:/Users/marin/OneDrive/Bureau/DreamWeave-wiki/wiki\" \"C:/Users/marin/OneDrive/Bureau/DreamWeave-wiki/graphify-out\")",
+      "Bash(cp \"C:/Users/marin/OneDrive/Bureau/DreamWeave/wiki/index.md\" \"C:/Users/marin/OneDrive/Bureau/DreamWeave-wiki/wiki/index.md\")",
+      "Bash(cp -r \"C:/Users/marin/OneDrive/Bureau/DreamWeave/wiki/raw/.\" \"C:/Users/marin/OneDrive/Bureau/DreamWeave-wiki/raw/\")",
+      "Bash(cp -r \"C:/Users/marin/OneDrive/Bureau/DreamWeave/wiki/graphify-out/.\" \"C:/Users/marin/OneDrive/Bureau/DreamWeave-wiki/graphify-out/\")",
+      "Read(//c/Users/marin/OneDrive/Bureau/DreamWeave-wiki/**)",
+      "Bash(cp \"C:/Users/marin/OneDrive/Bureau/DreamWeave/log.md\" \"C:/Users/marin/OneDrive/Bureau/DreamWeave-wiki/log.md\")",
+      "Bash(rm -rf \"C:/Users/marin/OneDrive/Bureau/DreamWeave/wiki\")",
+      "Bash(rm \"C:/Users/marin/OneDrive/Bureau/DreamWeave/log.md\")",
+      "Bash(xargs grep *)"
     ]
   },
   "hooks": {
@@ -62,6 +77,16 @@
           {
             "type": "command",
             "command": "bash \".claude/scripts/perf-audit.sh\""
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"/c/Users/marin/.claude/skills/wiki-brain/hooks/session-end.sh\""
           }
         ]
       }

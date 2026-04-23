@@ -43,7 +43,7 @@ export function useCreateProject() {
   const { user } = useAuth();
 
   return useMutation({
-    mutationFn: (data: { title: string; description: string | null }) =>
+    mutationFn: (data: { title: string; description: string | null; panels_target_per_chapter?: number | null }) =>
       projectService.createProject({
         ...data,
         user_id: user!.id,

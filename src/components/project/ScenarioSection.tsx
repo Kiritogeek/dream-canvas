@@ -15,7 +15,6 @@ import {
   MousePointer2,
   ArrowRight,
   CheckCircle2,
-  Brain,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -37,7 +36,7 @@ import {
   useReorderScenarioChapters,
 } from "@/hooks/useScenarioChapters";
 import { useScenarioAI } from "@/hooks/useScenarioAI";
-import { callBaselineAI, triggerNarraMindUpdate } from "@/services/scenarioAI";
+import { callBaselineAI } from "@/services/scenarioAI";
 import { ScenarioTextHighlighter } from "@/components/project/ScenarioTextHighlighter";
 import { AIChapterPreviewModal } from "@/components/project/AIChapterPreviewModal";
 import { estimatePanelCount } from "@/services/panels";
@@ -727,29 +726,6 @@ function ChapterCard({
   onMoveDown,
   isReordering,
 }: ChapterCardProps) {
-  const { toast } = useToast();
-  const [narraMindPending, setNarraMindPending] = useState(false);
-
-  const handleNarraMind = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    e.preventDefault();
-    setNarraMindPending(true);
-    try {
-      const result = await triggerNarraMindUpdate(projectId, chapter.id);
-      toast({
-        title: "NarraMind mis à jour",
-        description: `${result.entities_updated} entité${result.entities_updated !== 1 ? "s" : ""} mise${result.entities_updated !== 1 ? "s" : ""} à jour.${result.anomalies.length > 0 ? ` ${result.anomalies.length} anomalie(s) détectée(s).` : ""}`,
-      });
-    } catch (err) {
-      toast({
-        title: "Erreur NarraMind",
-        description: (err as Error).message,
-        variant: "destructive",
-      });
-    } finally {
-      setNarraMindPending(false);
-    }
-  };
   const wordCount =
     chapter.content?.trim().split(/\s+/).filter(Boolean).length ?? 0;
   const preview = chapter.content?.trim().slice(0, 80) ?? null;
@@ -779,20 +755,8 @@ function ChapterCard({
         hover:shadow-dream hover:border-[hsl(var(--lavender)/0.6)] hover:-translate-y-0.5
         transition-[box-shadow,border-color,transform] duration-200"
     >
-      {/* Actions en haut-droite — visibles au hover */}
+      {/* Actions en haut-droite */}
       <div className="absolute top-3 right-3 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button
-          type="button"
-          disabled={narraMindPending}
-          onClick={handleNarraMind}
-          className="p-1.5 rounded-lg text-muted-foreground hover:text-emerald-600 hover:bg-emerald-500/10 disabled:opacity-40 disabled:pointer-events-none transition-colors"
-          title="NarraMind — mettre à jour la mémoire narrative"
-        >
-          {narraMindPending
-            ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            : <Brain className="h-3.5 w-3.5" />
-          }
-        </button>
         <button
           type="button"
           disabled={!onMoveUp || isReordering}

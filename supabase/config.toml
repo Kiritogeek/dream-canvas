@@ -36,3 +36,7 @@ verify_jwt = false
 # Admin : override plan (kiritogeek@gmail.com uniquement, vérification email dans le handler).
 [functions.admin-set-plan]
 verify_jwt = false
+
+# NarraMind : même remarque ES256 — vérification utilisateur dans le handler.
+[functions.narramind-update]
+verify_jwt = false

@@ -1,17 +1,73 @@
-import { Link } from "react-router-dom";
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Plus, FolderOpen, Sparkles, Image, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useRecentProjects, useProjectCount } from "@/hooks/useProjects";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useToast } from "@/hooks/use-toast";
+import { useRecentProjects, useProjectCount, useCreateProject } from "@/hooks/useProjects";
 import { useAssetCount } from "@/hooks/useAssets";
 import { useUserPlan } from "@/hooks/useUserPlan";
 import DashboardLayout from "@/components/DashboardLayout";
 
+const genreTags = [
+  { label: "Fantasy",    emoji: "🧙" },
+  { label: "Médiéval",   emoji: "⚔️" },
+  { label: "SF",         emoji: "🚀" },
+  { label: "Romance",    emoji: "💕" },
+  { label: "Action",     emoji: "⚡" },
+  { label: "Mystère",    emoji: "🔍" },
+  { label: "Webtoon",    emoji: "📱" },
+  { label: "Manga",      emoji: "🎌" },
+  { label: "Européen",   emoji: "🎨" },
+  { label: "Horreur",    emoji: "👻" },
+  { label: "Historique", emoji: "🏛️" },
+  { label: "Comédie",    emoji: "😄" },
+];
+
 export default function Dashboard() {
+  const navigate = useNavigate();
+  const { toast } = useToast();
   const { data: projects = [], isLoading } = useRecentProjects(6);
   const { data: projectCount = 0 } = useProjectCount();
   const { data: assetCount = 0 } = useAssetCount();
   const { plan, usageInfo, limits: _limits } = useUserPlan();
+  const createProject = useCreateProject();
+
+  const [createOpen, setCreateOpen] = useState(false);
+  const [newTitle, setNewTitle] = useState("");
+  const [newPanelsTarget, setNewPanelsTarget] = useState("");
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+
+  const toggleTag = (tag: string) =>
+    setSelectedTags((prev) => prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]);
+
+  const handleCreate = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTitle.trim()) return;
+    const panelsNum = newPanelsTarget.trim()
+      ? Math.max(1, Math.min(99, parseInt(newPanelsTarget, 10) || 10))
+      : null;
+    createProject.mutate(
+      {
+        title: newTitle.trim(),
+        description: selectedTags.length ? `[Tags: ${selectedTags.join(", ")}]` : null,
+        panels_target_per_chapter: panelsNum,
+      },
+      {
+        onSuccess: (data) => {
+          setCreateOpen(false);
+          setNewTitle("");
+          setNewPanelsTarget("");
+          setSelectedTags([]);
+          navigate(`/dashboard/projects/${data.id}`);
+        },
+        onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }),
+      }
+    );
+  };
 
   const usagePercent = Math.min(
     100,
@@ -41,14 +97,12 @@ export default function Dashboard() {
             à générer vos webtoons.
           </p>
           <Button
-            asChild
             size="sm"
+            onClick={() => setCreateOpen(true)}
             className="gradient-primary text-primary-foreground shadow-dream sm:text-sm"
           >
-            <Link to="/dashboard/projects/new">
-              <Plus className="h-4 w-4 mr-2" />
-              Nouveau projet
-            </Link>
+            <Plus className="h-4 w-4 mr-2" />
+            Nouveau projet
           </Button>
         </motion.div>
 
@@ -159,6 +213,68 @@ export default function Dashboard() {
           )}
         </div>
       </div>
+
+      {/* Dialog création projet */}
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent className="glass">
+          <DialogHeader>
+            <DialogTitle className="font-display">Nouveau projet</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleCreate} className="space-y-5">
+            <div className="space-y-2">
+              <Label>Titre</Label>
+              <Input
+                value={newTitle}
+                onChange={(e) => setNewTitle(e.target.value)}
+                placeholder="Mon super webtoon"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Genre</Label>
+              <div className="flex flex-wrap gap-2">
+                {genreTags.map(({ label, emoji }) => {
+                  const active = selectedTags.includes(label);
+                  return (
+                    <button
+                      key={label}
+                      type="button"
+                      onClick={() => toggleTag(label)}
+                      className={[
+                        "flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-sm font-medium transition-all duration-150",
+                        active
+                          ? "border-primary/60 bg-primary/15 text-foreground shadow-sm scale-105"
+                          : "border-border/60 bg-background/40 text-muted-foreground hover:text-foreground hover:border-primary/30 hover:bg-primary/5",
+                      ].join(" ")}
+                    >
+                      <span className="text-base leading-none">{emoji}</span>
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Cases cible par chapitre <span className="text-muted-foreground font-normal">(optionnel)</span></Label>
+              <Input
+                type="number"
+                min={1}
+                max={99}
+                value={newPanelsTarget}
+                onChange={(e) => setNewPanelsTarget(e.target.value)}
+                placeholder="ex. 10"
+              />
+            </div>
+            <Button
+              type="submit"
+              disabled={createProject.isPending}
+              className="w-full gradient-primary text-primary-foreground"
+            >
+              {createProject.isPending ? "Création..." : "Créer le projet"}
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }

@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Link, useLocation, useNavigate, useMatch } from "react-router-dom";
 import {
   Sparkles, LayoutDashboard, LogOut, User, Zap, Crown, Menu, X,
-  Palette, Image as ImageIcon, BookOpen, Layers, Plus, Pencil,
+  Palette, Image as ImageIcon, BookOpen, Layers, Plus, Pencil, Globe,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,14 +27,14 @@ const projectSteps = [
   { key: "style",    label: "Style",    icon: Palette   },
   { key: "scenario", label: "Scénario", icon: BookOpen  },
   { key: "assets",   label: "Assets",   icon: ImageIcon },
-  { key: "edition",  label: "Édition",  icon: Layers, path: "edition" },
+  { key: "universe", label: "Univers",  icon: Globe     },
+  { key: "edition",  label: "Édition",  icon: Layers    },
 ] as const;
 
 function ProjectStepsSection({ projectId, onLinkClick }: { projectId: string; onLinkClick?: () => void }) {
   const location = useLocation();
   const isInChapter = location.pathname.includes("/chapter/");
-  const isInEdition = location.pathname.endsWith("/edition");
-  const activeTab = (isInChapter || isInEdition)
+  const activeTab = isInChapter
     ? "edition"
     : new URLSearchParams(location.search).get("tab") || "style";
   const { data: project } = useProject(projectId);

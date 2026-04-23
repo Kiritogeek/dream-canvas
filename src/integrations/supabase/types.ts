@@ -24,6 +24,7 @@ export type Database = {
           image_url_profile_left: string | null
           image_url_profile_right: string | null
           image_url_sheet: string | null
+          lore: string | null
           metadata: Json | null
           name: string
           project_id: string
@@ -39,6 +40,7 @@ export type Database = {
           image_url_profile_left?: string | null
           image_url_profile_right?: string | null
           image_url_sheet?: string | null
+          lore?: string | null
           metadata?: Json | null
           name: string
           project_id: string
@@ -54,6 +56,7 @@ export type Database = {
           image_url_profile_left?: string | null
           image_url_profile_right?: string | null
           image_url_sheet?: string | null
+          lore?: string | null
           metadata?: Json | null
           name?: string
           project_id?: string
@@ -342,6 +345,7 @@ export type Database = {
           style_image_urls: string[]
           style_template: string | null
           title: string
+          universe_lore: string | null
           updated_at: string
           user_id: string
         }
@@ -354,6 +358,7 @@ export type Database = {
           style_image_urls?: string[]
           style_template?: string | null
           title: string
+          universe_lore?: string | null
           updated_at?: string
           user_id: string
         }
@@ -366,6 +371,7 @@ export type Database = {
           style_image_urls?: string[]
           style_template?: string | null
           title?: string
+          universe_lore?: string | null
           updated_at?: string
           user_id?: string
         }

@@ -29,7 +29,7 @@ import { useProject, useUpdateProject } from "@/hooks/useProjects";
 import { useAssets } from "@/hooks/useAssets";
 import { useScenarioAI } from "@/hooks/useScenarioAI";
 import { useUserPlan } from "@/hooks/useUserPlan";
-import { callDetectBlocks, callGenerateAiSummary } from "@/services/scenarioAI";
+import { callDetectBlocks, callGenerateAiSummary, triggerNarraMindUpdate } from "@/services/scenarioAI";
 import { estimatePanelCount } from "@/services/panels";
 import { ScenarioTextHighlighter } from "@/components/project/ScenarioTextHighlighter";
 import { useToast } from "@/hooks/use-toast";
@@ -250,6 +250,7 @@ export default function ScenarioChapterEditor() {
   const initialSyncDoneRef = useRef(false);
   // Throttle ai_summary : max 1 appel Groq toutes les 2 min pour économiser le budget TPM
   const lastAiSummaryCallRef = useRef<number>(0);
+  const lastNarraMindCallRef = useRef<number>(0);
 
   // ── Sync content depuis la BDD (chargement initial) ──────────
 
@@ -380,6 +381,10 @@ export default function ScenarioChapterEditor() {
                 chapter_title: chapter.title,
                 chapter_number: chapter.chapter_number,
               }).catch(() => {});
+            }
+            if (words >= 50 && now - lastNarraMindCallRef.current > 300_000) {
+              lastNarraMindCallRef.current = now;
+              triggerNarraMindUpdate(projectId!, chapter.id).catch(() => {});
             }
           },
           onError: () => setSaveState("dirty"),

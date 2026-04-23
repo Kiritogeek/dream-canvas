@@ -253,7 +253,7 @@ export async function triggerNarraMindUpdate(
       Authorization: `Bearer ${session.access_token}`,
       apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? "",
     },
-    body: JSON.stringify({ project_id: projectId, chapter_id: chapterId, user_id: session.user.id }),
+    body: JSON.stringify({ project_id: projectId, chapter_id: chapterId }),
   });
   const body = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error((body as { error?: string })?.error ?? `Erreur ${res.status}`);

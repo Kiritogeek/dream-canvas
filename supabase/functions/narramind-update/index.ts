@@ -7,8 +7,8 @@ declare const Deno: {
 
 const AI_API_URL =
   "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
-const AI_MODEL = "gemini-2.5-flash";
-const AI_FALLBACK_MODEL = "gemini-2.0-flash";
+const AI_MODEL = "gemini-2.0-flash";
+const AI_FALLBACK_MODEL = "gemini-2.5-flash";
 const AI_TIMEOUT_MS = 60_000;
 
 function getCorsHeaders(): Record<string, string> {
@@ -111,11 +111,17 @@ Deno.serve(async (req) => {
       "Content-Type": "application/json",
     };
 
-    // 1. Récupérer le chapitre
-    const chapterRes = await fetch(
-      `${supabaseUrl}/rest/v1/scenario_chapters?id=eq.${chapter_id}&select=*`,
-      { headers: dbHeaders }
-    );
+    // 1. Récupérer le chapitre + universe_lore du projet
+    const [chapterRes, projectRes] = await Promise.all([
+      fetch(
+        `${supabaseUrl}/rest/v1/scenario_chapters?id=eq.${chapter_id}&select=*`,
+        { headers: dbHeaders }
+      ),
+      fetch(
+        `${supabaseUrl}/rest/v1/projects?id=eq.${project_id}&select=universe_lore`,
+        { headers: dbHeaders }
+      ),
+    ]);
     if (!chapterRes.ok) {
       return jsonResponse({ error: "Impossible de récupérer le chapitre." }, 502);
     }
@@ -129,6 +135,10 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "Chapitre introuvable." }, 404);
     }
     const chapter = chapters[0];
+    const projects = projectRes.ok
+      ? (await projectRes.json() as Array<{ universe_lore: string | null }>)
+      : [];
+    const universeLore = projects[0]?.universe_lore ?? null;
 
     // 2. Récupérer les assets du projet
     const assetsRes = await fetch(
@@ -161,7 +171,7 @@ Deno.serve(async (req) => {
       .join("\n") || "(aucun asset)";
 
     const systemPrompt = `Tu es NarraMind, un système de mémoire narrative.
-
+${universeLore ? `\nLORE DU MONDE :\n${universeLore}\n` : ""}
 ASSETS DU PROJET (avec leur LORE) :
 ${assetsContext}
 
@@ -193,7 +203,7 @@ Format JSON STRICT :
   "anomalies": ["string"]
 }`;
 
-    // 5. Appel Gemini
+    // 5. Appel LLM (Gemini primaire → Gemini fallback → Groq urgence)
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), AI_TIMEOUT_MS);
 
@@ -220,12 +230,16 @@ Format JSON STRICT :
         response_format: { type: "json_object" },
       });
 
-    const parseGeminiResponse = async (res: Response): Promise<string | null> => {
-      const aiJson = await res.json() as {
-        choices?: Array<{ message?: { content?: string } }>;
-      };
-      return aiJson.choices?.[0]?.message?.content?.trim() ?? null;
-    };
+    const buildGroqBody = () =>
+      JSON.stringify({
+        model: "llama-3.3-70b-versatile",
+        messages: [{ role: "user", content: systemPrompt }],
+        temperature: 0.1,
+        max_tokens: 1500,
+        response_format: { type: "json_object" },
+      });
+
+    let rawText: string | null = null;
 
     try {
       let aiRes = await fetch(AI_API_URL, {
@@ -238,9 +252,8 @@ Format JSON STRICT :
         signal: controller.signal,
       });
 
-      // Fallback sur gemini-2.0-flash uniquement si le modèle est surchargé (503)
-      // Ne pas retenter sur 429 : quota partagé, retenter immédiatement ne sert à rien
-      if (aiRes.status === 503) {
+      // Fallback Gemini alternatif sur 429/503
+      if (aiRes.status === 503 || aiRes.status === 429) {
         aiRes = await fetch(AI_API_URL, {
           method: "POST",
           headers: {
@@ -252,41 +265,76 @@ Format JSON STRICT :
         });
       }
 
+      // Fallback Groq si les deux Gemini sont indisponibles
+      if (!aiRes.ok) {
+        const groqKey = Deno.env.get("GROQ_API_KEY");
+        if (groqKey) {
+          aiRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${groqKey}`,
+            },
+            body: buildGroqBody(),
+            signal: controller.signal,
+          });
+        }
+      }
+
       clearTimeout(timeout);
 
       if (!aiRes.ok) {
-        if (aiRes.status === 429) {
-          return jsonResponse(
-            { error: "Limite Gemini atteinte. Réessayez dans 1-2 minutes." },
-            429
-          );
-        }
         const rawErr = await aiRes.text();
         return jsonResponse(
-          { error: `Gemini erreur ${aiRes.status}`, details: rawErr.slice(0, 200) },
+          { error: `Modèles IA indisponibles (${aiRes.status})`, details: rawErr.slice(0, 200) },
           502
         );
       }
 
-      const rawText = await parseGeminiResponse(aiRes);
+      const aiJson = await aiRes.json() as {
+        choices?: Array<{ message?: { content?: string } }>;
+      };
+      rawText = aiJson.choices?.[0]?.message?.content?.trim() ?? null;
+
       if (!rawText) {
-        return jsonResponse({ error: "Gemini n'a pas retourné de texte." }, 502);
+        return jsonResponse({ error: "L'IA n'a pas retourné de texte." }, 502);
       }
 
-      // Extraction robuste du JSON
-      let jsonStr = rawText;
-      jsonStr = jsonStr.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
-      const start = jsonStr.indexOf("{");
-      if (start >= 0) jsonStr = jsonStr.slice(start);
+      // Extraction JSON — 3 stratégies en cascade
+      type AiResult = typeof aiResult;
+      let parsed: AiResult | null = null;
 
-      aiResult = JSON.parse(jsonStr) as typeof aiResult;
+      // 1. Parse direct
+      try { parsed = JSON.parse(rawText) as AiResult; } catch { /* next */ }
+
+      // 2. Strip blocs markdown ```json ... ```
+      if (!parsed) {
+        const stripped = rawText.replace(/```(?:json)?\s*([\s\S]*?)```/gi, "$1").trim();
+        try { parsed = JSON.parse(stripped) as AiResult; } catch { /* next */ }
+      }
+
+      // 3. Extraire entre premier { et dernier }
+      if (!parsed) {
+        const s = rawText.indexOf("{");
+        const e = rawText.lastIndexOf("}");
+        if (s >= 0 && e > s) {
+          try { parsed = JSON.parse(rawText.slice(s, e + 1)) as AiResult; } catch { /* next */ }
+        }
+      }
+
+      if (!parsed) throw new Error(`JSON invalide. Début : ${rawText.slice(0, 300)}`);
+      aiResult = parsed;
     } catch (err) {
       clearTimeout(timeout);
       if (err instanceof Error && err.name === "AbortError") {
         return jsonResponse({ error: "Timeout appel Gemini." }, 504);
       }
       return jsonResponse(
-        { error: "Impossible de parser la réponse Gemini.", details: String(err) },
+        {
+          error: "Impossible de parser la réponse Gemini.",
+          details: String(err),
+          raw: rawText?.slice(0, 800) ?? "null",
+        },
         502
       );
     }
@@ -337,7 +385,13 @@ Format JSON STRICT :
       }),
     });
 
-    // 8. Calculer le total tokens pour détecter la compression nécessaire
+    // 8. Calculer le total tokens depuis les données déjà connues (évite double requête)
+    const totalSummaryTokensNew = summaryTokens;
+    const totalEntityTokensNew = entitiesToUpdate.reduce(
+      (acc, e) => acc + estimateTokens(JSON.stringify(e)), 0
+    );
+
+    // Requêtes pour le total cumulatif réel (toutes sessions confondues)
     const allSummariesRes = await fetch(
       `${supabaseUrl}/rest/v1/memory_summaries?project_id=eq.${project_id}&select=token_estimate`,
       { headers: dbHeaders }
@@ -357,6 +411,10 @@ Format JSON STRICT :
     const totalEntityTokens = allEntities.reduce((acc, e) => acc + (e.token_estimate ?? 0), 0);
 
     const totalContextTokens = totalSummaryTokens + totalEntityTokens;
+    // Fallback sur les tokens de cette session si les requêtes retournent 0
+    const contextTokensToLog = totalContextTokens > 0
+      ? totalContextTokens
+      : totalSummaryTokensNew + totalEntityTokensNew;
     const needsCompression = totalSummaryTokens > 800;
 
     // 9. Log métriques (fire-and-forget)
@@ -367,7 +425,7 @@ Format JSON STRICT :
         project_id,
         chapter_number: chapter.chapter_number,
         mode: "narramind_v1",
-        context_tokens: totalContextTokens,
+        context_tokens: contextTokensToLog,
         response_tokens: estimateTokens(JSON.stringify(aiResult)),
         chapters_in_context: allSummaries.length,
         duration_ms: 0,

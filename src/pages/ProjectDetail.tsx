@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import { useParams, useSearchParams, Link } from "react-router-dom";
-import { Palette, Image as ImageIcon, BookOpen } from "lucide-react";
+import { Palette, Image as ImageIcon, BookOpen, Globe, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { useProject } from "@/hooks/useProjects";
@@ -11,6 +11,8 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { AssetLibrary } from "@/components/project/AssetLibrary";
 import { StyleManager } from "@/components/project/StyleManager";
 import { ScenarioSection } from "@/components/project/ScenarioSection";
+import { UniverseSection } from "@/components/project/UniverseSection";
+import { EditionSection } from "@/components/project/EditionSection";
 
 export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
@@ -21,7 +23,7 @@ export default function ProjectDetail() {
   const [searchParams, setSearchParams] = useSearchParams();
   const rawTab = searchParams.get("tab");
   const activeTab =
-    rawTab === "assets" || rawTab === "scenario"
+    rawTab === "assets" || rawTab === "scenario" || rawTab === "universe" || rawTab === "edition"
       ? rawTab
       : "style";
 
@@ -100,6 +102,8 @@ export default function ProjectDetail() {
     style:    { icon: Palette,   title: "Sélection de style"    },
     assets:   { icon: ImageIcon, title: "Bibliothèque d'assets" },
     scenario: { icon: BookOpen,  title: "Scénario"              },
+    universe: { icon: Globe,     title: "Univers"               },
+    edition:  { icon: Layers,    title: "Édition"               },
   } as const;
   const currentHeader = tabHeaders[activeTab as keyof typeof tabHeaders];
   const HeaderIcon = currentHeader.icon;
@@ -148,6 +152,14 @@ export default function ProjectDetail() {
             project={project}
             onNavigateToCreateAsset={handleNavigateToCreateAsset}
           />
+        </TabsContent>
+
+        <TabsContent value="universe">
+          <UniverseSection project={project} assets={assets} />
+        </TabsContent>
+
+        <TabsContent value="edition">
+          <EditionSection projectId={project.id} />
         </TabsContent>
 
       </Tabs>

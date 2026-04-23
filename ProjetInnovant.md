@@ -467,19 +467,23 @@ const triggerNarraMind = async (projectId: string, chapterId: string, userId: st
 };
 ```
 
-### Mesures à relever (Itération 2)
+### Mesures relevées (Itération 2) — 23 avril 2026
 
 | Métrique | Itération 1 (baseline) | Itération 2 (NarraMind V1) |
 |---|---|---|
-| Tokens contexte au chap. 5 | ? | ? |
-| Tokens contexte au chap. 10 | ? (estimé) | ? |
-| Temps de réponse moyen | ? ms | ? ms |
-| Incohérences détectées | ? (manuel) | ? (auto via anomalies[]) |
-| Anomalies LORE détectées | 0 (pas de LORE) | ? |
+| Tokens contexte au chap. 1 | ~140 | **247** |
+| Tokens contexte au chap. 3 | ~2 520 | **441** |
+| Tokens contexte au chap. 5 | ~3 930 | **518** |
+| Tokens contexte au chap. 6 | 3 930 | **557** |
+| Croissance par chapitre | ~850 tokens | **~50 tokens** |
+| Ratio d'efficacité au chap. 6 | — | **7x plus compact** |
+| Temps de réponse moyen | 7 412 ms (chap. 6) | non mesuré (duration_ms=0) |
+| Incohérences détectées | 0 (pas de système) | 0 (LORE non renseigné) |
+| Anomalies LORE détectées | 0 (pas de LORE) | 0 (LORE à renseigner sur les assets) |
 
-### Résultat attendu
+### Résultat obtenu ✅
 
-Contexte stable autour de 1 000–1 400 tokens vs croissance linéaire de l'itération 1. Premières anomalies LORE détectées automatiquement.
+**Confirmé et dépassé.** La cible était 1 000–1 400 tokens stables. NarraMind V1 atteint **557 tokens au chapitre 6** (vs 3 930 en baseline), soit **7x plus compact**. La croissance est quasi-plate (~50 tokens/chapitre vs ~850) grâce au mécanisme d'upsert des entités : les personnages/décors sont mis à jour, pas dupliqués à chaque chapitre. La détection d'anomalies LORE nécessite de renseigner le champ LORE sur les assets — c'est l'étape suivante avant l'Itération 3.
 
 ---
 

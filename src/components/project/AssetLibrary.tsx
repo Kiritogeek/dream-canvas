@@ -31,6 +31,8 @@ import { AssetCard } from "./AssetCard";
 import { CharacterViewDialog } from "./CharacterViewDialog";
 import type { Asset, AssetType, AssetTabConfig, Project, ScenarioChapter } from "@/types";
 
+type AssetWithLore = Asset & { lore?: string | null };
+
 const assetTabs: AssetTabConfig[] = [
   { type: "character", icon: Users, label: "Personnages" },
   { type: "background", icon: MapPin, label: "Décors" },
@@ -96,6 +98,7 @@ export function AssetLibrary({
   const [newAssetType, setNewAssetType] = useState<AssetType>("character");
   const [newAssetName, setNewAssetName] = useState("");
   const [newAssetPrompt, setNewAssetPrompt] = useState("");
+  const [newAssetLore, setNewAssetLore] = useState("");
   const [activeFilter, setActiveFilter] = useState<(typeof assetFilters)[number]["value"]>("all");
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -124,9 +127,10 @@ export function AssetLibrary({
   const [previewAsset, setPreviewAsset] = useState<Asset | null>(null);
 
   // Dialog édition asset
-  const [editTarget, setEditTarget] = useState<Asset | null>(null);
+  const [editTarget, setEditTarget] = useState<AssetWithLore | null>(null);
   const [editName, setEditName] = useState("");
   const [editPrompt, setEditPrompt] = useState("");
+  const [editLore, setEditLore] = useState("");
 
   // Après renommage d'asset : proposer de mettre à jour le texte des chapitres
   const [renameChaptersState, setRenameChaptersState] = useState<{
@@ -141,13 +145,15 @@ export function AssetLibrary({
     if (editTarget) {
       setEditName(editTarget.name);
       setEditPrompt(editTarget.prompt ?? "");
+      setEditLore(editTarget.lore ?? "");
     }
   }, [editTarget]);
 
   // Détecter ce qui a changé
   const nameChanged = editTarget ? editName.trim() !== editTarget.name : false;
   const promptChanged = editTarget ? editPrompt.trim() !== (editTarget.prompt ?? "") : false;
-  const hasChanges = nameChanged || promptChanged;
+  const loreChanged = editTarget ? editLore.trim() !== (editTarget.lore ?? "") : false;
+  const hasChanges = nameChanged || promptChanged || loreChanged;
 
   const canCreateAsset =
     newAssetName.trim().length > 0 && newAssetPrompt.trim().length > 0;
@@ -172,16 +178,19 @@ export function AssetLibrary({
     }
 
     try {
+      const loreText = newAssetLore.trim() || null;
       const newAsset = await createAssetMutation.mutateAsync({
         project_id: projectId,
         name: nameTrim,
         asset_type: newAssetType,
         prompt: promptText,
-      });
+        ...(loreText ? { lore: loreText } as Record<string, unknown> : {}),
+      } as Parameters<typeof createAssetMutation.mutateAsync>[0]);
 
       setAssetDialogOpen(false);
       setNewAssetName("");
       setNewAssetPrompt("");
+      setNewAssetLore("");
 
       // Lancer la génération automatiquement si prompt défini
       if (promptText) {
@@ -229,6 +238,7 @@ export function AssetLibrary({
         updates: {
           name: newName,
           ...(promptChanged ? { prompt: editPrompt.trim() || null } : {}),
+          ...(loreChanged ? { lore: editLore.trim() || null } as Record<string, unknown> : {}),
         },
       });
       toast({ title: "Asset mis à jour", description: "Les modifications ont été sauvegardées." });
@@ -272,6 +282,7 @@ export function AssetLibrary({
         updates: {
           name: newName,
           prompt: editPrompt.trim() || null,
+          ...(loreChanged ? { lore: editLore.trim() || null } as Record<string, unknown> : {}),
         },
       });
 
@@ -406,6 +417,20 @@ export function AssetLibrary({
                   </p>
                 )}
               </div>
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  LORE
+                  <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/25">
+                    NarraMind
+                  </span>
+                </Label>
+                <Textarea
+                  value={newAssetLore}
+                  onChange={(e) => setNewAssetLore(e.target.value)}
+                  placeholder="Histoire, règles, pouvoirs ou limites de cet élément…"
+                  rows={2}
+                />
+              </div>
               <Button
                 type="submit"
                 disabled={createAssetMutation.isPending || !canCreateAsset}
@@ -485,27 +510,39 @@ export function AssetLibrary({
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mt-3 sm:mt-4">
-          {filteredAssets.map((asset) => (
-            <AssetCard
-              key={asset.id}
-              asset={asset}
-              isGenerating={generatingAssetId === asset.id}
-              typeBadge={TYPE_BADGE[asset.asset_type]}
-              canGenerate={remaining > 0}
-              onRegenerate={() => setRegenerateTarget(asset)}
-              onDelete={() => setDeleteTarget(asset)}
-              onEdit={() => setEditTarget(asset)}
-              onImageClick={() => setPreviewAsset(asset)}
-              onClick={
-                asset.asset_type === "character"
-                  ? () => {
-                      setSelectedCharacter(asset);
-                      setCharacterViewDialogOpen(true);
-                    }
-                  : undefined
-              }
-            />
-          ))}
+          {filteredAssets.map((asset) => {
+            const assetWithLore = asset as AssetWithLore;
+            return (
+              <div key={asset.id} className="relative">
+                <AssetCard
+                  asset={asset}
+                  isGenerating={generatingAssetId === asset.id}
+                  typeBadge={TYPE_BADGE[asset.asset_type]}
+                  canGenerate={remaining > 0}
+                  onRegenerate={() => setRegenerateTarget(asset)}
+                  onDelete={() => setDeleteTarget(asset)}
+                  onEdit={() => setEditTarget(assetWithLore)}
+                  onImageClick={() => setPreviewAsset(asset)}
+                  onClick={
+                    asset.asset_type === "character"
+                      ? () => {
+                          setSelectedCharacter(asset);
+                          setCharacterViewDialogOpen(true);
+                        }
+                      : undefined
+                  }
+                />
+                {assetWithLore.lore && (
+                  <span
+                    className="absolute top-2 left-2 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/25 pointer-events-none"
+                    title="Cet asset a un LORE NarraMind"
+                  >
+                    LORE
+                  </span>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -685,6 +722,23 @@ export function AssetLibrary({
                 </div>
               </>
             )}
+
+            {/* Champ LORE — commun aux deux layouts */}
+            <div className="space-y-2">
+              <Label htmlFor="edit-lore" className="flex items-center gap-2">
+                LORE
+                <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/25">
+                  NarraMind
+                </span>
+              </Label>
+              <Textarea
+                id="edit-lore"
+                value={editLore}
+                onChange={(e) => setEditLore(e.target.value)}
+                placeholder="Histoire, règles, pouvoirs ou limites de cet élément…"
+                rows={2}
+              />
+            </div>
           </div>
 
           <DialogFooter className="flex flex-col gap-2 sm:flex-row">

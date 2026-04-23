@@ -68,7 +68,9 @@
       "Bash(rm \"C:/Users/marin/OneDrive/Bureau/DreamWeave/log.md\")",
       "Bash(xargs grep *)",
       "Bash(git pull *)",
-      "Bash(git -C \".claude/worktrees/agent-a0f30b10\" diff HEAD --stat)"
+      "Bash(git -C \".claude/worktrees/agent-a0f30b10\" diff HEAD --stat)",
+      "Bash(git stash *)",
+      "Bash(git *)"
     ]
   },
   "hooks": {

@@ -381,7 +381,7 @@ Deno.serve(async (req) => {
 
     // 4. Parse body
     let body: {
-      mode?: "scenario" | "chapter" | "panels" | "detect_blocks" | "ai_summary" | "suggest_block_prompt";
+      mode?: "scenario" | "chapter" | "panels" | "detect_blocks" | "ai_summary" | "suggest_block_prompt" | "baseline" | "narramind";
       prompt?: string;
       num_chapters?: number;
       existing_content?: string;
@@ -390,6 +390,7 @@ Deno.serve(async (req) => {
       chapter_title?: string;
       chapter_content?: string;
       chapter_number?: number;
+      project_id?: string;
       target_panel_count?: number;
       previous_summaries?: string;
       previous_prompts?: string[];
@@ -403,12 +404,12 @@ Deno.serve(async (req) => {
     const { mode, prompt } = body;
     if (
       !mode ||
-      !["scenario", "chapter", "panels", "detect_blocks", "ai_summary", "suggest_block_prompt"].includes(mode)
+      !["scenario", "chapter", "panels", "detect_blocks", "ai_summary", "suggest_block_prompt", "baseline", "narramind"].includes(mode)
     ) {
       return jsonResponse({ error: 'Le champ "mode" est requis.' }, 400);
     }
     if (
-      !["panels", "detect_blocks", "ai_summary", "suggest_block_prompt"].includes(mode) &&
+      !["panels", "detect_blocks", "ai_summary", "suggest_block_prompt", "baseline", "narramind"].includes(mode) &&
       !prompt?.trim()
     ) {
       return jsonResponse(
@@ -500,8 +501,7 @@ Deno.serve(async (req) => {
         chapterContent: safeContent,
         chapterNumber: body.chapter_number,
       });
-    } else {
-      // mode === "suggest_block_prompt"
+    } else if (mode === "suggest_block_prompt") {
       if (!body.chapter_content?.trim()) {
         return jsonResponse({ error: '"chapter_content" requis pour suggest_block_prompt.' }, 400);
       }
@@ -516,15 +516,80 @@ Deno.serve(async (req) => {
         previousSummaries: safeSummaries,
         previousPrompts: body.previous_prompts,
       });
+    } else if (mode === "narramind") {
+      if (!body.project_id) {
+        return jsonResponse({ error: '"project_id" requis pour le mode narramind.' }, 400);
+      }
+
+      const entitiesRes = await fetch(
+        `${supabaseUrl}/rest/v1/memory_entities?project_id=eq.${body.project_id}&select=name,entity_type,traits,relations,lore_summary,last_seen_chapter&order=last_seen_chapter.desc`,
+        { headers: { apikey: serviceKey!, Authorization: `Bearer ${serviceKey}` } }
+      );
+      const entities = entitiesRes.ok ? await entitiesRes.json() : [];
+
+      const summariesRes = await fetch(
+        `${supabaseUrl}/rest/v1/memory_summaries?project_id=eq.${body.project_id}&select=chapter_number,summary&order=chapter_number.asc`,
+        { headers: { apikey: serviceKey!, Authorization: `Bearer ${serviceKey}` } }
+      );
+      const summaries = summariesRes.ok ? await summariesRes.json() : [];
+
+      const entitiesContext = (entities as Array<{ name: string; entity_type: string; traits: string[]; lore_summary?: string; last_seen_chapter?: number }>)
+        .map(e => `${e.name} (${e.entity_type}) — Traits: ${e.traits?.join(', ')}${e.lore_summary ? ` — LORE: ${e.lore_summary}` : ''} — Dernière app: chap.${e.last_seen_chapter ?? '?'}`)
+        .join('\n') || '(aucune entité)';
+
+      const summariesContext = (summaries as Array<{ chapter_number: number; summary: string }>)
+        .map(s => `Chap.${s.chapter_number}: ${s.summary}`)
+        .join('\n') || '(aucun résumé)';
+
+      systemPrompt = `Tu es un scénariste de webtoon expert en cohérence narrative.
+
+ENTITÉS DE L'UNIVERS :
+${entitiesContext}
+
+RÉSUMÉ DES CHAPITRES PRÉCÉDENTS :
+${summariesContext}
+
+RÈGLES ABSOLUES :
+- Respecte le LORE de chaque entité (pouvoirs, limites, personnalité)
+- Ne contredis jamais les événements déjà établis dans les résumés
+- Si un personnage a un LORE précis, fais-le respecter
+
+Écris le chapitre demandé.`;
+      userPrompt = prompt?.trim() ?? 'Écris le prochain chapitre.';
+    } else {
+      // mode === "baseline"
+      if (!body.project_id) {
+        return jsonResponse({ error: '"project_id" requis pour le mode baseline.' }, 400);
+      }
+      const { data: allChapters } = await fetch(
+        `${supabaseUrl}/rest/v1/scenario_chapters?project_id=eq.${body.project_id}&select=chapter_number,title,content&order=chapter_number.asc`,
+        { headers: { apikey: serviceKey!, Authorization: `Bearer ${serviceKey}` } }
+      ).then((r) => r.json()).then((data) => ({ data })).catch(() => ({ data: [] }));
+
+      const rawContext = (allChapters as Array<{ chapter_number: number; title: string; content: string | null }> ?? [])
+        .map((c) => `CHAPITRE ${c.chapter_number} — ${c.title}\n${c.content ?? ""}`)
+        .join("\n\n---\n\n");
+
+      systemPrompt = `Tu es un scénariste de webtoon.
+Voici l'intégralité du scénario écrit jusqu'ici :
+
+${rawContext || "(aucun chapitre existant)"}
+
+Maintenant, écris le chapitre suivant en respectant les personnages, décors et événements déjà établis.`;
+      userPrompt = prompt?.trim() ?? "Écris le prochain chapitre.";
     }
 
     // 6. Appel IA
+    const startTime = Date.now();
+    const contextTokenEstimate = estimateTokens(systemPrompt + userPrompt);
+
     console.log("[generate-scenario-ai] request context", {
       request_id: requestId,
       mode,
       user_id: userId,
       user_prompt_length: userPrompt.length,
       input_trimmed: inputWasTrimmed,
+      context_tokens_estimate: contextTokenEstimate,
     });
 
     // Activer le mode JSON strict pour les modes structurés
@@ -552,6 +617,35 @@ Deno.serve(async (req) => {
         { error: "Échec génération IA", details: result.error, request_id: requestId },
         502
       );
+    }
+
+    // Logging métriques NarraMind (modes baseline + scenario + narramind — pas les modes JSON)
+    if ((mode === "baseline" || mode === "scenario" || mode === "narramind") && body.project_id) {
+      const responseTokenEstimate = estimateTokens(result.text);
+      const durationMs = Date.now() - startTime;
+      const summariesContextForCount = mode === "narramind" ? systemPrompt : null;
+      fetch(`${supabaseUrl}/rest/v1/narramind_metrics`, {
+        method: "POST",
+        headers: {
+          apikey: serviceKey!,
+          Authorization: `Bearer ${serviceKey}`,
+          "Content-Type": "application/json",
+          Prefer: "return=minimal",
+        },
+        body: JSON.stringify({
+          project_id: body.project_id,
+          chapter_number: body.chapter_number ?? null,
+          mode: mode === "baseline" ? "baseline_raw" : mode,
+          context_tokens: contextTokenEstimate,
+          response_tokens: responseTokenEstimate,
+          chapters_in_context: mode === "baseline"
+            ? (systemPrompt.match(/\nCHAPITRE \d+/g)?.length ?? 0)
+            : mode === "narramind"
+              ? (summariesContextForCount?.match(/\nChap\.\d+/g)?.length ?? 0)
+              : null,
+          duration_ms: durationMs,
+        }),
+      }).catch(() => {}); // fire-and-forget — ne doit pas bloquer la réponse
     }
 
     // Mode panels : parser le JSON et retourner { panels }

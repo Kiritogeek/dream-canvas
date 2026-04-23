@@ -15,6 +15,7 @@ import {
   MousePointer2,
   ArrowRight,
   CheckCircle2,
+  Brain,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -36,6 +37,7 @@ import {
   useReorderScenarioChapters,
 } from "@/hooks/useScenarioChapters";
 import { useScenarioAI } from "@/hooks/useScenarioAI";
+import { callBaselineAI, triggerNarraMindUpdate } from "@/services/scenarioAI";
 import { ScenarioTextHighlighter } from "@/components/project/ScenarioTextHighlighter";
 import { AIChapterPreviewModal } from "@/components/project/AIChapterPreviewModal";
 import { estimatePanelCount } from "@/services/panels";
@@ -147,6 +149,7 @@ export function ScenarioSection({ projectId, project }: ScenarioSectionProps) {
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiResult, setAiResult] = useState<string | null>(null);
   const [isAccepting, setIsAccepting] = useState(false);
+  const [isBaselinePending, setIsBaselinePending] = useState(false);
   const [showChapterChoiceDialog, setShowChapterChoiceDialog] = useState(false);
   const [selectedAiChapterNumber, setSelectedAiChapterNumber] = useState<number>(
     chapterNumberChoices[0] ?? nextChapterNumber
@@ -315,32 +318,73 @@ export function ScenarioSection({ projectId, project }: ScenarioSectionProps) {
           className="text-base bg-white/70 dark:bg-card/60 border-[hsl(var(--lavender)/0.25)] rounded-xl focus-visible:border-[hsl(var(--lavender)/0.6)] focus-visible:ring-[hsl(var(--lavender)/0.15)] resize-none"
         />
 
-        <Button
-          onClick={() => {
-            if (hasChapterNumberHoles) {
-              setSelectedAiChapterNumber(chapterNumberChoices[0] ?? nextChapterNumber);
-              setShowChapterChoiceDialog(true);
-              return;
-            }
-            runScenarioGeneration(nextChapterNumber);
-          }}
-          disabled={scenarioAI.isPending || !aiPrompt.trim()}
-          className="gap-2 gradient-primary text-primary-foreground px-6 py-2.5 rounded-xl font-semibold shadow-dream hover:shadow-glow transition-shadow"
-        >
-          {scenarioAI.isPending ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Génération en cours…
-            </>
-          ) : (
-            <>
-              <Sparkles className="h-4 w-4" />
-              {hasChapterNumberHoles
-                ? "Générer le prochain chapitre"
-                : `Générer le Chapitre ${nextChapterNumber}`}
-            </>
-          )}
-        </Button>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button
+            onClick={() => {
+              if (hasChapterNumberHoles) {
+                setSelectedAiChapterNumber(chapterNumberChoices[0] ?? nextChapterNumber);
+                setShowChapterChoiceDialog(true);
+                return;
+              }
+              runScenarioGeneration(nextChapterNumber);
+            }}
+            disabled={scenarioAI.isPending || isBaselinePending || !aiPrompt.trim()}
+            className="gap-2 gradient-primary text-primary-foreground px-6 py-2.5 rounded-xl font-semibold shadow-dream hover:shadow-glow transition-shadow"
+          >
+            {scenarioAI.isPending ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Génération en cours…
+              </>
+            ) : (
+              <>
+                <Sparkles className="h-4 w-4" />
+                {hasChapterNumberHoles
+                  ? "Générer le prochain chapitre"
+                  : `Générer le Chapitre ${nextChapterNumber}`}
+              </>
+            )}
+          </Button>
+
+          <Button
+            variant="outline"
+            onClick={async () => {
+              if (!aiPrompt.trim()) {
+                toast({ title: "Prompt requis", description: "Décrivez votre histoire pour le mode Baseline.", variant: "destructive" });
+                return;
+              }
+              setIsBaselinePending(true);
+              setSelectedAiChapterNumber(nextChapterNumber);
+              try {
+                const data = await callBaselineAI({
+                  mode: "baseline",
+                  prompt: aiPrompt.trim(),
+                  project_id: projectId,
+                  chapter_number: nextChapterNumber,
+                });
+                setAiResult(data.text);
+                toast({ title: "Baseline généré" });
+              } catch (err) {
+                toast({ title: "Erreur Baseline", description: (err as Error).message, variant: "destructive" });
+              } finally {
+                setIsBaselinePending(false);
+              }
+            }}
+            disabled={scenarioAI.isPending || isBaselinePending || !aiPrompt.trim()}
+            className="gap-2 border-dashed border-[hsl(var(--lavender)/0.4)] text-[hsl(var(--lavender))] hover:bg-[hsl(var(--lavender)/0.08)] px-4 py-2.5 rounded-xl font-medium text-sm"
+          >
+            {isBaselinePending ? (
+              <>
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                Baseline en cours…
+              </>
+            ) : (
+              <>
+                🔬 Tester Baseline
+              </>
+            )}
+          </Button>
+        </div>
 
         <AIChapterPreviewModal
           isOpen={!!aiResult}
@@ -683,6 +727,29 @@ function ChapterCard({
   onMoveDown,
   isReordering,
 }: ChapterCardProps) {
+  const { toast } = useToast();
+  const [narraMindPending, setNarraMindPending] = useState(false);
+
+  const handleNarraMind = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setNarraMindPending(true);
+    try {
+      const result = await triggerNarraMindUpdate(projectId, chapter.id);
+      toast({
+        title: "NarraMind mis à jour",
+        description: `${result.entities_updated} entité${result.entities_updated !== 1 ? "s" : ""} mise${result.entities_updated !== 1 ? "s" : ""} à jour.${result.anomalies.length > 0 ? ` ${result.anomalies.length} anomalie(s) détectée(s).` : ""}`,
+      });
+    } catch (err) {
+      toast({
+        title: "Erreur NarraMind",
+        description: (err as Error).message,
+        variant: "destructive",
+      });
+    } finally {
+      setNarraMindPending(false);
+    }
+  };
   const wordCount =
     chapter.content?.trim().split(/\s+/).filter(Boolean).length ?? 0;
   const preview = chapter.content?.trim().slice(0, 80) ?? null;
@@ -696,10 +763,7 @@ function ChapterCard({
     [chapter.panels_outline]
   );
   const detectedPanelCount = useMemo(
-    () =>
-      outline && outline.length > 0
-        ? new Set(outline.map((b) => b.panel_number)).size
-        : null,
+    () => (outline && outline.length > 0 ? outline.length : null),
     [outline]
   );
   const lockedCount = useMemo(
@@ -717,6 +781,18 @@ function ChapterCard({
     >
       {/* Actions en haut-droite — visibles au hover */}
       <div className="absolute top-3 right-3 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button
+          type="button"
+          disabled={narraMindPending}
+          onClick={handleNarraMind}
+          className="p-1.5 rounded-lg text-muted-foreground hover:text-emerald-600 hover:bg-emerald-500/10 disabled:opacity-40 disabled:pointer-events-none transition-colors"
+          title="NarraMind — mettre à jour la mémoire narrative"
+        >
+          {narraMindPending
+            ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            : <Brain className="h-3.5 w-3.5" />
+          }
+        </button>
         <button
           type="button"
           disabled={!onMoveUp || isReordering}

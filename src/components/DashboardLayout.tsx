@@ -27,13 +27,14 @@ const projectSteps = [
   { key: "style",    label: "Style",    icon: Palette   },
   { key: "scenario", label: "Scénario", icon: BookOpen  },
   { key: "assets",   label: "Assets",   icon: ImageIcon },
-  { key: "edition",  label: "Édition",  icon: Layers    },
-];
+  { key: "edition",  label: "Édition",  icon: Layers, path: "edition" },
+] as const;
 
 function ProjectStepsSection({ projectId, onLinkClick }: { projectId: string; onLinkClick?: () => void }) {
   const location = useLocation();
   const isInChapter = location.pathname.includes("/chapter/");
-  const activeTab = isInChapter
+  const isInEdition = location.pathname.endsWith("/edition");
+  const activeTab = (isInChapter || isInEdition)
     ? "edition"
     : new URLSearchParams(location.search).get("tab") || "style";
   const { data: project } = useProject(projectId);
@@ -99,10 +100,13 @@ function ProjectStepsSection({ projectId, onLinkClick }: { projectId: string; on
         {projectSteps.map((step) => {
           const Icon = step.icon;
           const isActive = activeTab === step.key;
+          const to = "path" in step
+            ? `/dashboard/projects/${projectId}/${step.path}`
+            : `/dashboard/projects/${projectId}?tab=${step.key}`;
           return (
             <Link
               key={step.key}
-              to={`/dashboard/projects/${projectId}?tab=${step.key}`}
+              to={to}
               onClick={onLinkClick}
               className={`flex items-center gap-3 pl-4 pr-3 py-2.5 text-sm font-medium transition-colors duration-150 border-l-2 -ml-px ${
                 isActive
@@ -209,7 +213,8 @@ function ProjectsListSection({ onLinkClick }: { onLinkClick?: () => void }) {
 function SidebarContextSection({ onLinkClick }: { onLinkClick?: () => void }) {
   const projectMatch = useMatch("/dashboard/projects/:id");
   const chapterMatch = useMatch("/dashboard/projects/:id/chapter/:chapterId");
-  const projectId = projectMatch?.params?.id ?? chapterMatch?.params?.id;
+  const editionMatch = useMatch("/dashboard/projects/:id/edition");
+  const projectId = projectMatch?.params?.id ?? chapterMatch?.params?.id ?? editionMatch?.params?.id;
   const animKey = projectId ?? "list";
 
   return (

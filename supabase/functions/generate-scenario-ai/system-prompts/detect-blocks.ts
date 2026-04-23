@@ -24,7 +24,6 @@ export const DETECT_BLOCKS_SYSTEM_PROMPT =
   "3. Décor et environnement\n" +
   "4. Ambiance lumineuse, heure du jour, météo si pertinent\n" +
   "5. Émotion / tension de la scène\n" +
-  "Terminer par : 'Style manhwa, traits nets, couleurs expressives.'\n" +
   "Pour un DIALOGUE : ajouter la réplique exacte entre guillemets en fin de prompt.\n\n" +
 
   "NUMÉROTATION :\n" +
@@ -33,9 +32,9 @@ export const DETECT_BLOCKS_SYSTEM_PROMPT =
 
   "EXEMPLE DE SORTIE :\n" +
   '{"blocks":[\n' +
-  '{"panel_number":1,"block_number":1,"description":"Plan moyen de dos. Jeune femme aux cheveux noirs mi-longs poussant une porte vitrée. Manteau rouge, sac en bandoulière. Café bondé visible en transparence. Lumière chaude dorée de fin d\'après-midi. Atmosphère urbaine et vivante. Style manhwa, traits nets, couleurs expressives.","text_excerpt":"Yuki pousse la porte du café."},\n' +
-  '{"panel_number":1,"block_number":2,"description":"Gros plan sur le visage d\'un homme d\'une trentaine d\'années. Cheveux bruns, regard calme et impénétrable, livre posé sur la table. Lumière tamisée, zone d\'ombre sur la moitié du visage. Tension émotionnelle retenue. Style manhwa, traits nets, couleurs expressives. Dialogue : \\"Tu es venue.\\"","text_excerpt":"« Tu es venue. »"},\n' +
-  '{"panel_number":2,"block_number":1,"description":"Plan demi-ensemble. Jeune femme assise face à l\'homme, table en bois entre eux. Expression neutre, regard baissé sur une tasse vide. Ambiance tendue, lumière découpée en zones d\'ombre et de clarté. Silence lourd. Style manhwa, traits nets, couleurs expressives.","text_excerpt":"Elle s\'assied sans répondre."}\n' +
+  '{"panel_number":1,"block_number":1,"description":"Plan moyen de dos. Jeune femme aux cheveux noirs mi-longs poussant une porte vitrée. Manteau rouge, sac en bandoulière. Café bondé visible en transparence. Lumière chaude dorée de fin d\'après-midi. Atmosphère urbaine et vivante.","text_excerpt":"Yuki pousse la porte du café."},\n' +
+  '{"panel_number":1,"block_number":2,"description":"Gros plan sur le visage d\'un homme d\'une trentaine d\'années. Cheveux bruns, regard calme et impénétrable, livre posé sur la table. Lumière tamisée, zone d\'ombre sur la moitié du visage. Tension émotionnelle retenue. Dialogue : \\"Tu es venue.\\"","text_excerpt":"« Tu es venue. »"},\n' +
+  '{"panel_number":2,"block_number":1,"description":"Plan demi-ensemble. Jeune femme assise face à l\'homme, table en bois entre eux. Expression neutre, regard baissé sur une tasse vide. Ambiance tendue, lumière découpée en zones d\'ombre et de clarté. Silence lourd.","text_excerpt":"Elle s\'assied sans répondre."}\n' +
   ']}\n\n' +
   "IMPORTANT : répondre UNIQUEMENT avec le JSON. Pas d'introduction, pas de commentaire, pas de markdown.";
 

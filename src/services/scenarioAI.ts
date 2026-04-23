@@ -12,6 +12,13 @@ export interface ScenarioAIRequest {
   next_chapter_number?: number;
 }
 
+export interface BaselineAIRequest {
+  mode: "baseline";
+  prompt: string;
+  project_id: string;
+  chapter_number?: number;
+}
+
 export interface ChapterAIRequest {
   mode: "chapter";
   prompt: string;
@@ -50,13 +57,22 @@ export interface SuggestBlockPromptRequest {
   previous_prompts?: string[];
 }
 
+export interface NarraMindAIRequest {
+  mode: "narramind";
+  prompt?: string;
+  project_id: string;
+  chapter_number?: number;
+}
+
 export type AIRequest =
   | ScenarioAIRequest
   | ChapterAIRequest
   | PanelsAIRequest
   | DetectBlocksRequest
   | AiSummaryRequest
-  | SuggestBlockPromptRequest;
+  | SuggestBlockPromptRequest
+  | BaselineAIRequest
+  | NarraMindAIRequest;
 
 export interface AIResponse {
   text: string;
@@ -170,6 +186,12 @@ export async function callScenarioAI(
   return callEdgeFunction<AIResponse>(payload);
 }
 
+export async function callBaselineAI(
+  payload: BaselineAIRequest
+): Promise<AIResponse> {
+  return callEdgeFunction<AIResponse>(payload);
+}
+
 /** Découpage chapitre textuel en panels (IA). Retourne la liste des panels avec description et contexte. */
 export async function callSplitChapterIntoPanels(
   payload: PanelsAIRequest
@@ -196,4 +218,51 @@ export async function callSuggestBlockPrompt(
   payload: SuggestBlockPromptRequest
 ): Promise<SuggestBlockPromptResponse> {
   return callEdgeFunction<SuggestBlockPromptResponse>(payload);
+}
+
+// ── NarraMind Update ──────────────────────────────────────────
+
+export interface NarraMindUpdateRequest {
+  project_id: string;
+  chapter_id: string;
+}
+
+export interface NarraMindUpdateResponse {
+  success: boolean;
+  summary: string;
+  entities_updated: number;
+  anomalies: string[];
+  total_context_tokens: number;
+  needs_compression: boolean;
+}
+
+export async function triggerNarraMindUpdate(
+  projectId: string,
+  chapterId: string
+): Promise<NarraMindUpdateResponse> {
+  await supabase.auth.refreshSession();
+  const { data: sessionData } = await supabase.auth.getSession();
+  const session = sessionData?.session;
+  if (!session?.access_token) throw new Error("Session expirée.");
+
+  const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/narramind-update`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${session.access_token}`,
+      apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? "",
+    },
+    body: JSON.stringify({ project_id: projectId, chapter_id: chapterId, user_id: session.user.id }),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error((body as { error?: string })?.error ?? `Erreur ${res.status}`);
+  return body as NarraMindUpdateResponse;
+}
+
+/** @deprecated Utilisez triggerNarraMindUpdate directement. */
+export async function callNarraMindUpdate(
+  payload: NarraMindUpdateRequest
+): Promise<NarraMindUpdateResponse> {
+  return triggerNarraMindUpdate(payload.project_id, payload.chapter_id);
 }

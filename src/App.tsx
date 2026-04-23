@@ -19,6 +19,7 @@ const Profile = lazy(() => import("./pages/Profile"));
 const Plans = lazy(() => import("./pages/Plans"));
 const ChapterDetail = lazy(() => import("./pages/ChapterDetail"));
 const ScenarioChapterEditor = lazy(() => import("./pages/ScenarioChapterEditor"));
+const ProjectEdition = lazy(() => import("./pages/ProjectEdition"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient({
@@ -93,6 +94,16 @@ const App = () => (
                 element={
                   <ProtectedRoute>
                     <ChapterDetail />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/dashboard/projects/:id/edition"
+                element={
+                  <ProtectedRoute>
+                    <Suspense fallback={<PageLoader />}>
+                      <ProjectEdition />
+                    </Suspense>
                   </ProtectedRoute>
                 }
               />

@@ -13,9 +13,22 @@ const FAL_TEXT_TO_IMAGE = "https://fal.run/fal-ai/flux-2-pro";
 const FAL_IMAGE_EDIT = "https://fal.run/fal-ai/flux-2-pro/edit";
 const BUCKET = "dreamweave";
 const FAL_TIMEOUT_MS = 120_000;
-const MAX_DIMENSION = 1024; // FAL limite souvent à 1024
+const MAX_DIMENSION = 1440;
 const NO_BORDER_NEGATIVE_PROMPT =
-  "white border, blank margin, white margin, frame, border, passe-partout, letterbox, pillarbox, postcard, poster frame, image inside image, empty area, white bars, top border, bottom border";
+  "white border, white bars, white margin, white edge, white padding, white corners, white frame, " +
+  "blank area, blank margin, empty space, empty area, empty corners, " +
+  "border, frame, inner border, outer border, thin border, thick border, " +
+  "letterbox, pillarbox, passe-partout, vignette, white vignette, " +
+  "postcard, poster frame, image frame, canvas frame, image inside image, " +
+  "collage, grid, reference sheet, contact sheet, color chart";
+
+// FLUX génère proprement uniquement sur des multiples de 32.
+// Si les dimensions ne sont pas des multiples de 32, le modèle snap en interne
+// et compense le ratio avec des barres blanches.
+function snapToFluxDim(v: number): number {
+  const snapped = Math.round(v / 32) * 32;
+  return Math.max(256, Math.min(MAX_DIMENSION, snapped));
+}
 
 function getCorsHeaders(): Record<string, string> {
   const origin = Deno.env.get("ALLOWED_ORIGIN")?.trim();
@@ -54,6 +67,161 @@ function extractFalErrorDetails(rawText: string): string {
     // fallback sur texte brut
   }
   return clip(text);
+}
+
+function isFalPolicyViolation(details: string): boolean {
+  const lower = details.toLowerCase();
+  return (
+    lower.includes("content_policy_violation") ||
+    lower.includes("content policy") ||
+    lower.includes("safety checker")
+  );
+}
+
+function buildSafeFallbackPrompt(prompt: string): string {
+  // Retire uniquement les termes explicitement sexuels ou graphiquement violents.
+  // "sang", "meurtre", "blessure", "combat", "mort" sont légitimes en manga/webtoon.
+  const softened = prompt
+    .replace(
+      /\b(nude|naked|nsfw|porn|pornographie|erotic|erotique|sexe explicite|explicit sex|nudite|nudity)\b/gi,
+      ""
+    )
+    .replace(/\s{2,}/g, " ")
+    .trim();
+  return `${softened}\n\nFamily-friendly visual adaptation: no nudity, no explicit sexual content. Stylized manga/comic depiction.`;
+}
+
+function buildUltraSafePrompt(styleTemplate: string, scenePrompt: string): string {
+  const styleKey = styleTemplate.match(/style_key:\s*(.+)/i)?.[1]?.trim();
+  const stylePrincipal = styleTemplate.match(/style_principal:\s*(.+)/i)?.[1]?.trim();
+  const styleDesc = styleTemplate.match(/description_style:\s*(.+)/i)?.[1]?.trim();
+
+  const styleHint = [styleKey, stylePrincipal, styleDesc].filter(Boolean).join(", ");
+  const stylePrefix = styleHint
+    ? `Visual style: ${styleHint}. `
+    : "Polished modern manga/comic visual style. ";
+
+  // Extrait l'essence de la scène (sujet + lieu si possible), sans les termes potentiellement bloquants.
+  const sceneWords = scenePrompt
+    .replace(/\b(nude|naked|nsfw|porn|erotic|erotique|explicit)\b/gi, "")
+    .split(/[,.\n]/)
+    .slice(0, 2)
+    .join(", ")
+    .trim();
+
+  return (
+    stylePrefix +
+    (sceneWords ? `Scene: ${sceneWords}. ` : "") +
+    "Full-bleed edge-to-edge illustration, zero white borders, zero margins, zero frames. " +
+    "Single high-quality comic panel, professional finish, detailed linework, clean composition, cinematic lighting, original content, family-friendly, no explicit content, no sexual content. " +
+    "Every pixel of all four edges must contain scene content — never white, never blank. " +
+    "Extend background/scenery to fill entire canvas if needed. " +
+    "No frame, border, margin, letterbox, pillarbox, collage, grid, reference sheet, white corners."
+  );
+}
+
+function summarizeStyleTemplateForPrompt(styleTemplate: string): string {
+  const text = styleTemplate.trim();
+  if (!text) return "";
+
+  const hasStyleSystem = text.includes("STYLE_SYSTEM_V1");
+  if (!hasStyleSystem) return clip(text, 900);
+
+  const styleKey = text.match(/style_key:\s*(.+)/i)?.[1]?.trim() ?? "inconnu";
+  const stylePrincipal =
+    text.match(/style_principal:\s*(.+)/i)?.[1]?.trim() ?? "inconnu";
+  const description =
+    text.match(/description_style:\s*(.+)/i)?.[1]?.trim() ?? "non fournie";
+  const extraNotes =
+    text.match(/Contraintes additionnelles du projet:\s*([\s\S]*)$/i)?.[1]?.trim() ?? "";
+
+  let summary =
+    `STYLE_SYSTEM_V1 (résumé): style_key=${styleKey}; style_principal=${stylePrincipal}; ` +
+    `description_style=${description}. ` +
+    "Appliquer ce style visuel de façon cohérente sans copier d'oeuvre existante.";
+  if (extraNotes) {
+    summary += ` Contraintes additionnelles: ${extraNotes}`;
+  }
+  return clip(summary, 900);
+}
+
+function sanitizePolicySensitiveText(input: string, max = 320): string {
+  const trimmed = input.trim();
+  if (!trimmed) return "";
+
+  const softened = trimmed
+    // Protection minimale : uniquement termes sexuellement explicites.
+    .replace(/\b(sexe explicite|explicit sex|porn|pornographie|erotique explicite|sexual content explicite)\b/gi, "safe content")
+    .replace(/\b(nsfw|nude|naked|nudite|nudity)\b/gi, "fully clothed")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+
+  return clip(softened, max);
+}
+
+function sanitizeAssetLabels(assetNames: string[]): string[] {
+  return assetNames
+    .map((name) => sanitizePolicySensitiveText(name, 120))
+    .filter((name) => name.length > 0)
+    .slice(0, 8);
+}
+
+function buildPolicySafePanelPrompt(params: {
+  styleSummary: string;
+  scenePrompt: string;
+  contextChapter?: string;
+  assetNames?: string[];
+  width: number;
+  height: number;
+  withReferences: boolean;
+}): string {
+  // Les styles et prompts ne contiennent pas de contenu explicite — on ne sanitize pas agressivement.
+  const safeStyle = clip(params.styleSummary.trim(), 520);
+  const safeScene = sanitizePolicySensitiveText(params.scenePrompt, 1200);
+  const safeContext = sanitizePolicySensitiveText(params.contextChapter ?? "", 320);
+  const safeAssets = params.assetNames ? sanitizeAssetLabels(params.assetNames) : [];
+
+  const FULLBLEED_OPEN =
+    `Full-bleed cinematic scene, no borders, no margins, no frames, no gutters, no white space. ` +
+    `Scene content bleeds to every pixel of all four edges. `;
+
+  const FULLBLEED_CLOSE =
+    `\n\nSTRICT FORMAT (${params.width}x${params.height}px): absolute full-bleed — ` +
+    `every pixel on all 4 edges is scene content, zero margin, zero border, zero letterbox, zero pillarbox. ` +
+    `If the subject does not fill the entire frame, extend the background environment or zoom in to eliminate any white or empty space. ` +
+    `No canvas padding, no image frame, no passe-partout, no white corners.`;
+
+  const parts: string[] = [];
+
+  parts.push(FULLBLEED_OPEN + (safeStyle ? `Style visuel : ${safeStyle}` : ""));
+
+  parts.push(safeScene);
+
+  if (safeAssets.length > 0) {
+    if (params.withReferences) {
+      parts.push(
+        `Éléments visuels (utiliser les images de référence fournies pour conserver leur apparence exacte) : ${safeAssets.join(", ")}.`
+      );
+    } else {
+      parts.push(
+        `Inclure dans la scène : ${safeAssets.join(", ")}.`
+      );
+    }
+  }
+
+  if (safeContext) {
+    parts.push(`Contexte narratif : ${safeContext}`);
+  }
+
+  let fullPrompt = parts.join("\n\n") + FULLBLEED_CLOSE;
+
+  if (params.withReferences) {
+    fullPrompt +=
+      "\n\nRÉFÉRENCES VISUELLES : Reproduire fidèlement l'apparence (visage, coiffure, costume, couleurs, style graphique) des personnages et éléments à partir des images fournies. " +
+      "Ne pas rendre de fiche, grille, collage ou cadre de présentation — une seule scène composite.";
+  }
+
+  return clip(fullPrompt, 2800);
 }
 
 function isUuid(value: string): boolean {
@@ -101,7 +269,9 @@ async function generateImage(
   prompt: string,
   falKey: string,
   width: number,
-  height: number
+  height: number,
+  styleTemplate = "",
+  scenePrompt = ""
 ): Promise<{ url: string } | { error: string }> {
   const res = await fetchWithTimeout(
     FAL_TEXT_TO_IMAGE,
@@ -124,6 +294,79 @@ async function generateImage(
   const text = await res.text();
   if (!res.ok) {
     const details = extractFalErrorDetails(text);
+    if (res.status === 422 && isFalPolicyViolation(details)) {
+      const safePrompt = buildSafeFallbackPrompt(prompt);
+      console.warn("[generate-panel-image] Policy violation, retry text-to-image with safe prompt", {
+        status: res.status,
+        details,
+      });
+      const retryRes = await fetchWithTimeout(
+        FAL_TEXT_TO_IMAGE,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Key ${falKey}` },
+          body: JSON.stringify({
+            prompt: safePrompt,
+            negative_prompt: NO_BORDER_NEGATIVE_PROMPT,
+            image_size: { width, height },
+            num_images: 1,
+            output_format: "png",
+            safety_tolerance: "3",
+            enable_safety_checker: true,
+          }),
+        },
+        FAL_TIMEOUT_MS
+      );
+      const retryText = await retryRes.text();
+      if (retryRes.ok) {
+        let retryJson: { images?: Array<{ url: string }> };
+        try {
+          retryJson = JSON.parse(retryText);
+        } catch {
+          return { error: "Réponse FAL invalide (retry)" };
+        }
+        const retryUrl = retryJson.images?.[0]?.url;
+        if (!retryUrl) return { error: "FAL n'a pas retourné d'image (retry)" };
+        return { url: retryUrl };
+      }
+      const retryDetails = extractFalErrorDetails(retryText);
+      if (retryRes.status === 422 && isFalPolicyViolation(retryDetails)) {
+        const ultraSafePrompt = buildUltraSafePrompt(styleTemplate, scenePrompt);
+        console.warn("[generate-panel-image] Second retry text-to-image with ultra-safe prompt", {
+          status: retryRes.status,
+          details: retryDetails,
+        });
+        const retry2Res = await fetchWithTimeout(
+          FAL_TEXT_TO_IMAGE,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Key ${falKey}` },
+            body: JSON.stringify({
+              prompt: ultraSafePrompt,
+              negative_prompt: NO_BORDER_NEGATIVE_PROMPT,
+              image_size: { width, height },
+              num_images: 1,
+              output_format: "png",
+              safety_tolerance: "3",
+              enable_safety_checker: true,
+            }),
+          },
+          FAL_TIMEOUT_MS
+        );
+        const retry2Text = await retry2Res.text();
+        if (retry2Res.ok) {
+          let retry2Json: { images?: Array<{ url: string }> };
+          try {
+            retry2Json = JSON.parse(retry2Text);
+          } catch {
+            return { error: "Réponse FAL invalide (retry-2)" };
+          }
+          const retry2Url = retry2Json.images?.[0]?.url;
+          if (!retry2Url) return { error: "FAL n'a pas retourné d'image (retry-2)" };
+          return { url: retry2Url };
+        }
+      }
+    }
     console.error("[generate-panel-image] FAL text-to-image error", {
       status: res.status,
       details,
@@ -146,7 +389,9 @@ async function generateImageWithReferences(
   referenceImageUrls: string[],
   falKey: string,
   width: number,
-  height: number
+  height: number,
+  styleTemplate = "",
+  scenePrompt = ""
 ): Promise<{ url: string } | { error: string }> {
   const res = await fetchWithTimeout(
     FAL_IMAGE_EDIT,
@@ -170,6 +415,82 @@ async function generateImageWithReferences(
   const text = await res.text();
   if (!res.ok) {
     const details = extractFalErrorDetails(text);
+    if (res.status === 422 && isFalPolicyViolation(details)) {
+      const safePrompt = buildSafeFallbackPrompt(prompt);
+      console.warn("[generate-panel-image] Policy violation, retry image-edit with safe prompt", {
+        status: res.status,
+        details,
+        reference_images_count: referenceImageUrls.length,
+      });
+      const retryRes = await fetchWithTimeout(
+        FAL_IMAGE_EDIT,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Key ${falKey}` },
+          body: JSON.stringify({
+            prompt: safePrompt,
+            negative_prompt: NO_BORDER_NEGATIVE_PROMPT,
+            image_urls: referenceImageUrls,
+            image_size: { width, height },
+            num_images: 1,
+            output_format: "png",
+            safety_tolerance: "3",
+            enable_safety_checker: true,
+          }),
+        },
+        FAL_TIMEOUT_MS
+      );
+      const retryText = await retryRes.text();
+      if (retryRes.ok) {
+        let retryJson: { images?: Array<{ url: string }> };
+        try {
+          retryJson = JSON.parse(retryText);
+        } catch {
+          return { error: "Réponse FAL invalide (retry)" };
+        }
+        const retryUrl = retryJson.images?.[0]?.url;
+        if (!retryUrl) return { error: "FAL n'a pas retourné d'image (retry)" };
+        return { url: retryUrl };
+      }
+      const retryDetails = extractFalErrorDetails(retryText);
+      if (retryRes.status === 422 && isFalPolicyViolation(retryDetails)) {
+        const ultraSafePrompt = buildUltraSafePrompt(styleTemplate, scenePrompt);
+        console.warn("[generate-panel-image] Second retry image-edit with ultra-safe prompt", {
+          status: retryRes.status,
+          details: retryDetails,
+          reference_images_count: referenceImageUrls.length,
+        });
+        const retry2Res = await fetchWithTimeout(
+          FAL_TEXT_TO_IMAGE,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Key ${falKey}` },
+            body: JSON.stringify({
+              prompt: ultraSafePrompt,
+              negative_prompt: NO_BORDER_NEGATIVE_PROMPT,
+              image_size: { width, height },
+              num_images: 1,
+              output_format: "png",
+              safety_tolerance: "3",
+              enable_safety_checker: true,
+            }),
+          },
+          FAL_TIMEOUT_MS
+        );
+        const retry2Text = await retry2Res.text();
+        if (retry2Res.ok) {
+          let retry2Json: { images?: Array<{ url: string }> };
+          try {
+            retry2Json = JSON.parse(retry2Text);
+          } catch {
+            return { error: "Réponse FAL invalide (retry-2)" };
+          }
+          const retry2Url = retry2Json.images?.[0]?.url;
+          if (!retry2Url) return { error: "FAL n'a pas retourné d'image (retry-2)" };
+          return { url: retry2Url };
+        }
+      }
+    }
     console.error("[generate-panel-image] FAL image-edit error", {
       status: res.status,
       details,
@@ -191,6 +512,58 @@ async function generateImageWithReferences(
 }
 
 
+async function cropWhiteBorders(buffer: ArrayBuffer): Promise<ArrayBuffer> {
+  try {
+    // @ts-expect-error -- import npm résolu par Deno Deploy au runtime
+    const { PNG } = await import("npm:pngjs@7.0.0");
+    const { Buffer } = await import("node:buffer");
+    const src = PNG.sync.read(Buffer.from(buffer)) as {
+      width: number; height: number; data: Buffer;
+    };
+    const { width, height, data } = src;
+    const WHITE = 238;
+
+    const isRowWhite = (y: number): boolean => {
+      const base = y * width * 4;
+      for (let x = 0; x < width; x++) {
+        const i = base + x * 4;
+        if (data[i] < WHITE || data[i + 1] < WHITE || data[i + 2] < WHITE) return false;
+      }
+      return true;
+    };
+    const isColWhite = (x: number, y0: number, y1: number): boolean => {
+      for (let y = y0; y <= y1; y++) {
+        const i = (y * width + x) * 4;
+        if (data[i] < WHITE || data[i + 1] < WHITE || data[i + 2] < WHITE) return false;
+      }
+      return true;
+    };
+
+    let top = 0; while (top < height && isRowWhite(top)) top++;
+    let bottom = height - 1; while (bottom > top && isRowWhite(bottom)) bottom--;
+    let left = 0; while (left < width && isColWhite(left, top, bottom)) left++;
+    let right = width - 1; while (right > left && isColWhite(right, top, bottom)) right--;
+
+    if (top <= 2 && (height - 1 - bottom) <= 2 && left <= 2 && (width - 1 - right) <= 2) {
+      return buffer;
+    }
+    const cropW = right - left + 1;
+    const cropH = bottom - top + 1;
+    if (cropW < 64 || cropH < 64) return buffer;
+
+    const dst = new PNG({ width: cropW, height: cropH, filterType: -1 });
+    for (let y = 0; y < cropH; y++) {
+      const srcOff = ((top + y) * width + left) * 4;
+      const dstOff = y * cropW * 4;
+      (data as Buffer).copy(dst.data, dstOff, srcOff, srcOff + cropW * 4);
+    }
+    const encoded: Buffer = PNG.sync.write(dst);
+    return encoded.buffer.slice(encoded.byteOffset, encoded.byteOffset + encoded.byteLength);
+  } catch {
+    return buffer;
+  }
+}
+
 async function downloadAndUpload(
   imageUrl: string,
   storagePath: string,
@@ -200,7 +573,9 @@ async function downloadAndUpload(
   try {
     const downloadRes = await fetchWithTimeout(imageUrl, {}, 30_000);
     if (!downloadRes.ok) return null;
-    const blob = await downloadRes.blob();
+    const rawBuffer = await downloadRes.arrayBuffer();
+    const croppedBuffer = await cropWhiteBorders(rawBuffer);
+    const blob = new Blob([croppedBuffer], { type: "image/png" });
     const form = new FormData();
     form.append("file", blob, "image.png");
     const uploadRes = await fetch(
@@ -319,8 +694,8 @@ Deno.serve(async (req) => {
       );
     }
 
-    const width = typeof w === "number" && w > 0 ? Math.min(w, MAX_DIMENSION) : 500;
-    const height = typeof h === "number" && h > 0 ? Math.min(h, MAX_DIMENSION) : 500;
+    const width = snapToFluxDim(typeof w === "number" && w > 0 ? w : 512);
+    const height = snapToFluxDim(typeof h === "number" && h > 0 ? h : 512);
     console.log("[generate-panel-image] request context", {
       request_id: requestId,
       panel_id,
@@ -406,23 +781,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const effectiveStyleTemplate = dbStyleText;
-
-    // Construire le prompt : style + contexte chapitre + assets du bloc (noms) + instruction cadre + prompt bloc
-    let fullPrompt = prompt.trim();
-    if (effectiveStyleTemplate) {
-      fullPrompt = `Style à appliquer : ${effectiveStyleTemplate}\n\n${fullPrompt}`;
-    }
-    if (context_chapter?.trim()) {
-      fullPrompt = `Contexte de la scène : ${context_chapter.trim()}\n\n${fullPrompt}`;
-    }
-    if (Array.isArray(block_asset_names) && block_asset_names.length > 0) {
-      fullPrompt = `Éléments à inclure (références) : ${block_asset_names.join(", ")}.\n\n${fullPrompt}`;
-    }
-    fullPrompt += `\n\nFORMAT OBLIGATOIRE (${width}x${height}) :
-- Full bleed strict: 100% de la surface occupée, bord à bord.
-- Interdit: marges blanches/colorées, cadre, bordure, letterbox, pillarbox, image-dans-image.
-- Si nécessaire, recadrer/zoomer pour supprimer tout espace vide (haut, bas, gauche, droite).`;
+    const effectiveStyleTemplate = summarizeStyleTemplateForPrompt(dbStyleText);
 
     const referenceImageUrls = Array.isArray(block_asset_image_urls)
       ? block_asset_image_urls.filter((u) => typeof u === "string" && u.trim().length > 0)
@@ -431,11 +790,15 @@ Deno.serve(async (req) => {
     const useReferences =
       userPlan === "pro" && limitedReferenceImageUrls.length > 0;
 
-    if (useReferences) {
-      fullPrompt +=
-        "\n\nIMPORTANT RÉFÉRENCES : Les images fournies sont des fiches d'assets. Utilise-les UNIQUEMENT pour conserver l'identité visuelle (style, forme, visage/coiffure si applicable, matière). " +
-        "Ne montre jamais la fiche, jamais une grille, jamais un cadre de présentation : génère une scène originale plein cadre, sans bordure.";
-    }
+    const fullPrompt = buildPolicySafePanelPrompt({
+      styleSummary: effectiveStyleTemplate,
+      scenePrompt: prompt.trim(),
+      contextChapter: context_chapter?.trim(),
+      assetNames: Array.isArray(block_asset_names) ? block_asset_names : undefined,
+      width,
+      height,
+      withReferences: useReferences,
+    });
 
     const result = useReferences
       ? await generateImageWithReferences(
@@ -443,9 +806,11 @@ Deno.serve(async (req) => {
           limitedReferenceImageUrls,
           falKey,
           width,
-          height
+          height,
+          dbStyleText,
+          prompt.trim()
         )
-      : await generateImage(fullPrompt, falKey, width, height);
+      : await generateImage(fullPrompt, falKey, width, height, dbStyleText, prompt.trim());
     if ("error" in result) {
       return jsonResponse({ error: result.error, request_id: requestId }, 502);
     }

@@ -15,7 +15,9 @@ Pour chaque action, l'utilisateur doit savoir dans quel "mode" il se trouve. Ajo
 
 ---
 
-## Option B — Court terme · 1 session · Priorité immédiate
+## Option B — Court terme · 1 session · Priorité immédiate · ✅ LIVRÉ (23/04/2026)
+
+**Statut** : livré sur `main`. Critères d'acceptation tous validés ci-dessous.
 
 ### Principe
 Conserver l'architecture existante (blocs image, couleur, bulles). Rendre l'interface **contextuelle** plutôt que modale.
@@ -74,11 +76,12 @@ Quand un objet est sélectionné → petit menu flottant au-dessus avec : Dupliq
 - TypeScript : `npx tsc --noEmit` avant et après
 
 ### Critères d'acceptation
-- [ ] Aucun onglet PANEL_EDITOR_STEPS visible
-- [ ] Panel droit accordéon avec les 3 sections
-- [ ] Raccourcis B/C/D/Esc fonctionnels
-- [ ] Drag asset depuis sidebar → bloc créé sur le canvas
-- [ ] 0 régression sur les fonctions existantes
+- [x] Aucun onglet PANEL_EDITOR_STEPS visible
+- [x] Panel accordéon (4 sections : Assets, Blocs image, Couleurs, Dialogue, Cases scénario)
+- [x] Raccourcis B/C/D/Esc fonctionnels (centre du canvas + hints `kbd` dans les headers)
+- [x] Drag asset depuis sidebar → bloc créé sur le canvas avec `asset_refs` prérempli + prompt `[Nom] — `
+- [x] Toolbar flottante contextuelle (Dupliquer / Monter / Descendre z-index / Supprimer)
+- [x] 0 régression — `tsc --noEmit` OK, lint OK
 
 ---
 

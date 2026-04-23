@@ -9,11 +9,11 @@ import {
   Plus,
   Minus,
   ChevronDown,
+  ChevronUp,
   BookOpen,
   Save,
   Loader2,
   Sparkles,
-  Pencil,
   Palette,
   MessageCircle,
   X,
@@ -25,7 +25,6 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -120,32 +119,6 @@ function getAssetReferencePromptLabel(asset: Asset): string {
   if (asset.asset_type === "background") return `background: "${name}"`;
   return `object: "${name}"`;
 }
-const PANEL_EDITOR_STEPS = [
-  {
-    value: "architecture",
-    label: "Architecture",
-    hint: "Structure du panel",
-    icon: LayoutPanelTop,
-  },
-  {
-    value: "personalisation",
-    label: "Personnalisation",
-    hint: "Blocs visuels",
-    icon: Pencil,
-  },
-  {
-    value: "couleurs",
-    label: "Couleurs",
-    hint: "Aplats et fonds",
-    icon: Palette,
-  },
-  {
-    value: "dialogue",
-    label: "Dialogue",
-    hint: "Bulles et texte",
-    icon: MessageCircle,
-  },
-] as const;
 
 /** ViewBox normalisé pour bulles avec queue (corps 0–100, queue 100–120). Redimensionnement propre. */
 const SPEECH_BUBBLE_VIEWBOX_WITH_TAIL = "0 0 100 120";
@@ -320,8 +293,6 @@ export default function ChapterDetail() {
   const [_editingBlockKey, setEditingBlockKey] = useState<string | null>(null);
   /** Brouillon dimensions par bloc : clé = `${panelId}-${blockId}` → { width, height } */
   const [_blockDimensionDrafts, setBlockDimensionDrafts] = useState<Record<string, { width: number; height: number }>>({});
-  /** Mode d'édition par panel : chaque panel a son propre mode (Architecture ou Édition) */
-  const [panelEditModeByPanelId, setPanelEditModeByPanelId] = useState<Record<string, "architecture" | "edition" | "couleurs">>({});
   /** Refs du canvas par panel (pour calcul position de dépôt quand on drop sur un bloc) */
   const canvasRefByPanel = useRef<Record<string, HTMLDivElement | null>>({});
   /** Refs du canvas de prévisualisation par panel (utilisées pour l'export PNG) */
@@ -384,8 +355,6 @@ export default function ChapterDetail() {
   const [_dragPreview, _setDragPreview] = useState<{ panelId: string; blockId: string; x: number; y: number } | null>(null);
   /** Panel ouvert en modale « Edition » (id ou null) */
   const [expandedPanelId, setExpandedPanelId] = useState<string | null>(null);
-  /** Onglet du panneau gauche en modale : Architecture | Personalisation | Couleurs */
-  const [panelEditorLeftTab, setPanelEditorLeftTab] = useState<"architecture" | "personalisation" | "couleurs" | "dialogue">("architecture");
   /** Outil à droite dans la modale d'édition (suivi chapitre textuel). */
   const [panelEditorRightTool, setPanelEditorRightTool] = useState<"chapter-text" | "cases">("chapter-text");
   /** Bloc sélectionné dans la modale (mode Personalisation) pour afficher le panneau droit ou gauche */
@@ -406,8 +375,6 @@ export default function ChapterDetail() {
     setSelectedColorBlockIdInModal(null);
     setSelectedSpeechBubbleIdInModal(null);
     setPanelHeightDraft(null);
-    setPanelEditorLeftTab("architecture");
-    setPanelEditorRightTool("chapter-text");
   }, []);
 
   const closePanelEditor = useCallback(() => {
@@ -885,16 +852,103 @@ export default function ChapterDetail() {
       const tag = (e.target as HTMLElement).tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || (e.target as HTMLElement).isContentEditable) return;
       if (!expandedPanelId) return;
-      if (e.key !== "Delete" && e.key !== "Backspace") return;
 
       const panel = panels.find((p) => p.id === expandedPanelId);
       if (!panel) return;
+      const layout = getPanelLayout(panel);
+      const panelH = getPanelHeight(panel);
+
+      if (e.key === "Escape") {
+        setSelectedBlockIdInModal(null);
+        setSelectedColorBlockIdInModal(null);
+        setSelectedSpeechBubbleIdInModal(null);
+        return;
+      }
+
+      if (e.key === "b" || e.key === "B") {
+        e.preventDefault();
+        const w = DEFAULT_BLOCK_WIDTH;
+        const h = DEFAULT_BLOCK_HEIGHT;
+        const x = Math.max(0, Math.round((PANEL_WIDTH - w) / 2));
+        const y = Math.max(0, Math.round((panelH - h) / 2));
+        const newBlock: PanelBlock = {
+          id: crypto.randomUUID(),
+          x, y, width: w, height: h,
+          name: `Bloc ${layout.blocks.length + 1}`,
+          prompt: null, image_url: null,
+        };
+        updatePanelMutation.mutate(
+          { id: panel.id, updates: { layout: { ...layout, blocks: [...layout.blocks, newBlock] } as unknown as Json } },
+          {
+            onSuccess: () => {
+              setSelectedBlockIdInModal({ panelId: panel.id, blockId: newBlock.id });
+              toast({ title: "Bloc ajouté", description: "Raccourci B" });
+            },
+            onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }),
+          }
+        );
+        return;
+      }
+
+      if (e.key === "c" || e.key === "C") {
+        e.preventDefault();
+        const w = 300, h = 300;
+        const x = Math.max(0, Math.round((PANEL_WIDTH - w) / 2));
+        const y = Math.max(0, Math.round((panelH - h) / 2));
+        const colorBlocks = getPanelColorBlocks(panel);
+        const newCb: ColorBlock = {
+          id: crypto.randomUUID(),
+          x, y, width: w, height: h,
+          fill: { ...DEFAULT_COLOR_BLOCK_FILL },
+        };
+        updatePanelMutation.mutate(
+          { id: panel.id, updates: { color_blocks: [...colorBlocks, newCb] as unknown as Json } },
+          {
+            onSuccess: () => {
+              setSelectedColorBlockIdInModal({ panelId: panel.id, colorBlockId: newCb.id });
+              toast({ title: "Bloc couleur ajouté", description: "Raccourci C" });
+            },
+            onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }),
+          }
+        );
+        return;
+      }
+
+      if (e.key === "d" || e.key === "D") {
+        e.preventDefault();
+        const w = DEFAULT_SPEECH_BUBBLE_WIDTH;
+        const h = DEFAULT_SPEECH_BUBBLE_HEIGHT;
+        const x = Math.max(0, Math.round((PANEL_WIDTH - w) / 2));
+        const y = Math.max(0, Math.round((panelH - h) / 2));
+        const bubbles = getPanelSpeechBubbles(panel);
+        const newBubble: SpeechBubble = {
+          id: crypto.randomUUID(),
+          type: "text",
+          text: "",
+          position: { x, y },
+          width: w,
+          height: h,
+          style: {},
+        };
+        updatePanelMutation.mutate(
+          { id: panel.id, updates: { speech_bubbles: [...bubbles, newBubble] as unknown as Json } },
+          {
+            onSuccess: () => {
+              setSelectedSpeechBubbleIdInModal({ panelId: panel.id, bubbleId: newBubble.id });
+              toast({ title: "Bulle ajoutée", description: "Raccourci D" });
+            },
+            onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }),
+          }
+        );
+        return;
+      }
+
+      if (e.key !== "Delete" && e.key !== "Backspace") return;
 
       if (selectedBlockIdInModal?.panelId === expandedPanelId && selectedBlockIdInModal.blockId) {
         const blocks = getPanelBlocks(panel);
         const block = blocks.find((b) => b.id === selectedBlockIdInModal.blockId);
         if (block) {
-          const layout = getPanelLayout(panel);
           const nextBlocks = blocks.filter((b) => b.id !== block.id);
           setSelectedBlockIdInModal(null);
           updatePanelMutation.mutate(
@@ -1004,7 +1058,6 @@ export default function ChapterDetail() {
     const colorBlocks = getPanelColorBlocks(panel);
     const speechBubbles = getPanelSpeechBubbles(panel);
     const panelHeight = getPanelHeight(panel);
-    const mode = panelEditModeByPanelId[panel.id] ?? "architecture";
     const selectedBlock = selectedBlockIdInModal?.panelId === panel.id && selectedBlockIdInModal?.blockId
       ? blocks.find((b) => b.id === selectedBlockIdInModal.blockId)
       : null;
@@ -1064,16 +1117,51 @@ export default function ChapterDetail() {
       if (!raw) return;
       const canvasEl = canvasRefByPanel.current[panel.id];
       try {
-        const data = JSON.parse(raw) as { type: string; blockId?: string; width?: number; height?: number; fill?: ColorBlockFill; bubbleType?: SpeechBubble["type"] };
+        const data = JSON.parse(raw) as {
+          type: string;
+          blockId?: string;
+          width?: number;
+          height?: number;
+          fill?: ColorBlockFill;
+          bubbleType?: SpeechBubble["type"];
+          assetId?: string;
+          assetName?: string;
+        };
+        if (data.type === "asset-drop" && data.assetId) {
+          const w = DEFAULT_BLOCK_WIDTH;
+          const h = DEFAULT_BLOCK_HEIGHT;
+          const { x, y } = getCanvasDropPosition(e, canvasEl, w, h);
+          const assetName = data.assetName?.trim() || "Asset";
+          const newBlock: PanelBlock = {
+            id: crypto.randomUUID(),
+            x, y, width: w, height: h,
+            name: assetName,
+            prompt: `[${assetName}] — `,
+            image_url: null,
+            asset_refs: [data.assetId],
+          };
+          const newLayout: PanelLayout = { ...layout, blocks: [...layout.blocks, newBlock] };
+          updatePanelMutation.mutate(
+            { id: panel.id, updates: { layout: newLayout as unknown as Json } },
+            {
+              onSuccess: () => {
+                setSelectedBlockIdInModal({ panelId: panel.id, blockId: newBlock.id });
+                toast({ title: "Bloc créé", description: `${assetName} référencé` });
+              },
+              onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }),
+            }
+          );
+          setDraggingBlock(null);
+          setDragPreview(null);
+          return;
+        }
         if (data.type === "speech-bubble" && data.bubbleType) {
-          if (panelEditorLeftTab !== "dialogue") return;
           const { x, y } = getCanvasDropPosition(e, canvasEl, DEFAULT_SPEECH_BUBBLE_WIDTH, DEFAULT_SPEECH_BUBBLE_HEIGHT);
           handleAddSpeechBubble(data.bubbleType, x, y);
           setDraggingBlock(null);
           setDragPreview(null);
           return;
         }
-        if (mode === "edition") return;
         if (data.type === "new-block") {
           const w = typeof data.width === "number" ? data.width : DEFAULT_BLOCK_WIDTH;
           const h = typeof data.height === "number" ? data.height : DEFAULT_BLOCK_HEIGHT;
@@ -1420,83 +1508,239 @@ export default function ChapterDetail() {
         {
           onSuccess: () => {
             toast({ title: "Bloc créé", description: "Le prompt de la case a été pré-rempli." });
-            setPanelEditorLeftTab("personalisation");
-            setPanelEditModeByPanelId((prev) => ({ ...prev, [panel.id]: "edition" }));
           },
           onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }),
         }
       );
     };
 
-    const handlePanelEditorTabChange = (nextTab: "architecture" | "personalisation" | "couleurs" | "dialogue") => {
-      setPanelEditorLeftTab(nextTab);
-      if (nextTab === "personalisation") {
-        setPanelEditModeByPanelId((prev) => ({ ...prev, [panel.id]: "edition" }));
-        setSelectedColorBlockIdInModal(null);
-        setSelectedSpeechBubbleIdInModal(null);
+    // ── Toolbar flottante : Dupliquer / Monter / Descendre ──────────────────
+
+    const clampInside = (x: number, y: number, w: number, h: number, ph: number) => ({
+      x: Math.max(0, Math.min(PANEL_WIDTH - w, x)),
+      y: Math.max(0, Math.min(ph - h, y)),
+    });
+
+    const duplicateSelected = () => {
+      if (selectedBlock) {
+        const src = selectedBlock;
+        const pos = clampInside(src.x + 20, src.y + 20, src.width, src.height, panelHeight);
+        const copy: PanelBlock = { ...src, id: crypto.randomUUID(), x: pos.x, y: pos.y, name: src.name ? `${src.name} (copie)` : "Bloc (copie)" };
+        const nextBlocks = [...layout.blocks, copy];
+        updatePanelMutation.mutate(
+          { id: panel.id, updates: { layout: { ...layout, blocks: nextBlocks } as unknown as Json } },
+          { onSuccess: () => { setSelectedBlockIdInModal({ panelId: panel.id, blockId: copy.id }); toast({ title: "Bloc dupliqué" }); }, onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }) }
+        );
+        return;
       }
-      if (nextTab === "architecture") {
-        setPanelEditModeByPanelId((prev) => ({ ...prev, [panel.id]: "architecture" }));
-        setSelectedBlockIdInModal(null);
-        setSelectedColorBlockIdInModal(null);
-        setSelectedSpeechBubbleIdInModal(null);
+      if (selectedColorBlock) {
+        const src = selectedColorBlock;
+        const pos = clampInside(src.x + 20, src.y + 20, src.width, src.height, panelHeight);
+        const copy: ColorBlock = { ...src, id: crypto.randomUUID(), x: pos.x, y: pos.y };
+        const next = [...colorBlocks, copy];
+        updatePanelMutation.mutate(
+          { id: panel.id, updates: { color_blocks: next as unknown as Json } },
+          { onSuccess: () => { setSelectedColorBlockIdInModal({ panelId: panel.id, colorBlockId: copy.id }); toast({ title: "Bloc couleur dupliqué" }); }, onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }) }
+        );
+        return;
       }
-      if (nextTab === "couleurs") {
-        setPanelEditModeByPanelId((prev) => ({ ...prev, [panel.id]: "couleurs" }));
-        setSelectedBlockIdInModal(null);
-        setSelectedSpeechBubbleIdInModal(null);
-      }
-      if (nextTab === "dialogue") {
-        setPanelEditModeByPanelId((prev) => ({ ...prev, [panel.id]: "edition" }));
-        setSelectedBlockIdInModal(null);
-        setSelectedColorBlockIdInModal(null);
+      if (selectedSpeechBubble) {
+        const src = selectedSpeechBubble;
+        const w = src.width ?? DEFAULT_SPEECH_BUBBLE_WIDTH;
+        const h = src.height ?? DEFAULT_SPEECH_BUBBLE_HEIGHT;
+        const pos = clampInside(src.position.x + 20, src.position.y + 20, w, h, panelHeight);
+        const copy: SpeechBubble = { ...src, id: crypto.randomUUID(), position: { x: pos.x, y: pos.y } };
+        const next = [...speechBubbles, copy];
+        updatePanelMutation.mutate(
+          { id: panel.id, updates: { speech_bubbles: next as unknown as Json } },
+          { onSuccess: () => { setSelectedSpeechBubbleIdInModal({ panelId: panel.id, bubbleId: copy.id }); toast({ title: "Bulle dupliquée" }); }, onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }) }
+        );
       }
     };
 
+    const moveSelected = (direction: "up" | "down") => {
+      const swap = <T,>(arr: T[], i: number, j: number): T[] => {
+        if (i < 0 || j < 0 || i >= arr.length || j >= arr.length) return arr;
+        const next = arr.slice();
+        const tmp = next[i];
+        next[i] = next[j];
+        next[j] = tmp;
+        return next;
+      };
+      const delta = direction === "up" ? 1 : -1;
+      if (selectedBlock) {
+        const idx = layout.blocks.findIndex((b) => b.id === selectedBlock.id);
+        const next = swap(layout.blocks, idx, idx + delta);
+        if (next === layout.blocks) return;
+        updatePanelMutation.mutate(
+          { id: panel.id, updates: { layout: { ...layout, blocks: next } as unknown as Json } },
+          { onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }) }
+        );
+        return;
+      }
+      if (selectedColorBlock) {
+        const idx = colorBlocks.findIndex((c) => c.id === selectedColorBlock.id);
+        const next = swap(colorBlocks, idx, idx + delta);
+        if (next === colorBlocks) return;
+        updatePanelMutation.mutate(
+          { id: panel.id, updates: { color_blocks: next as unknown as Json } },
+          { onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }) }
+        );
+        return;
+      }
+      if (selectedSpeechBubble) {
+        const idx = speechBubbles.findIndex((b) => b.id === selectedSpeechBubble.id);
+        const next = swap(speechBubbles, idx, idx + delta);
+        if (next === speechBubbles) return;
+        updatePanelMutation.mutate(
+          { id: panel.id, updates: { speech_bubbles: next as unknown as Json } },
+          { onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }) }
+        );
+      }
+    };
+
+    const hasSelection = !!(selectedBlock || selectedColorBlock || selectedSpeechBubble);
+    const selectionLabel = selectedBlock
+      ? `Bloc « ${selectedBlock.name ?? "sans nom"} »`
+      : selectedColorBlock
+        ? "Bloc couleur"
+        : selectedSpeechBubble
+          ? `Bulle ${SPEECH_BUBBLE_TYPE_LABELS[selectedSpeechBubble.type] ?? ""}`
+          : "";
+
     return (
-      <div className="flex flex-1 min-h-0 overflow-hidden bg-gradient-to-b from-background via-background to-muted/20">
-        {/* Menu d'édition : logo + sous-menu d'actions (UI type studio) */}
-        <aside className="w-[92px] shrink-0 border-r border-border/80 bg-muted/20 px-3 py-4 flex flex-col items-center gap-3">
-          <div className="w-full space-y-2">
-            {PANEL_EDITOR_STEPS.map((step) => {
-              const Icon = step.icon;
-              const active = panelEditorLeftTab === step.value;
-              return (
-                <button
-                  key={step.value}
-                  type="button"
-                  onClick={() => handlePanelEditorTabChange(step.value)}
-                  className={`w-full h-12 rounded-xl border flex items-center justify-center transition-colors duration-150 ${
-                    active
-                      ? "border-primary/70 bg-primary/15 text-primary shadow-sm"
-                      : "border-border/70 bg-background text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                  }`}
-                  title={`${step.label} — ${step.hint}`}
-                >
-                  <Icon className={`${active ? "h-5 w-5" : "h-[18px] w-[18px]"}`} />
-                </button>
-              );
-            })}
-          </div>
-          <div className="w-full mt-auto pt-3 border-t border-border/60">
-            <button
-              type="button"
-              onClick={() => setSliceModalOpen(true)}
-              className="w-full h-12 rounded-xl border border-border/70 bg-background text-muted-foreground hover:text-foreground hover:bg-muted/50 flex items-center justify-center transition-colors duration-150"
-              title="Découper & télécharger"
+      <div className="relative flex flex-1 min-h-0 overflow-hidden bg-gradient-to-b from-background via-background to-muted/20">
+        {/* Toolbar contextuelle flottante — visible uniquement quand un objet est sélectionné */}
+        {hasSelection && (
+          <div
+            role="toolbar"
+            aria-label="Actions sur la sélection"
+            className="absolute top-3 left-1/2 -translate-x-1/2 z-50 flex items-center gap-1 rounded-full border border-border/70 bg-background/95 backdrop-blur-sm shadow-lg px-2 py-1"
+          >
+            <span className="px-2 text-xs text-muted-foreground truncate max-w-[200px]">{selectionLabel}</span>
+            <div className="h-5 w-px bg-border" />
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 gap-1 text-xs rounded-full"
+              onClick={duplicateSelected}
+              disabled={updatePanelMutation.isPending}
+              title="Dupliquer"
             >
-              <Download className="h-[18px] w-[18px]" />
-            </button>
+              <Plus className="h-3.5 w-3.5" />
+              Dupliquer
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 w-7 p-0 rounded-full"
+              onClick={() => moveSelected("up")}
+              disabled={updatePanelMutation.isPending}
+              title="Mettre au-dessus"
+            >
+              <ChevronUp className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 w-7 p-0 rounded-full"
+              onClick={() => moveSelected("down")}
+              disabled={updatePanelMutation.isPending}
+              title="Mettre en dessous"
+            >
+              <ChevronDown className="h-3.5 w-3.5" />
+            </Button>
+            <div className="h-5 w-px bg-border" />
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 w-7 p-0 rounded-full text-destructive hover:text-destructive hover:bg-destructive/10"
+              onClick={() => {
+                if (selectedBlock) handleDeleteBlock(selectedBlock);
+                else if (selectedColorBlock) handleDeleteColorBlock(selectedColorBlock);
+                else if (selectedSpeechBubble) handleDeleteSpeechBubble(selectedSpeechBubble);
+              }}
+              disabled={updatePanelMutation.isPending}
+              title="Supprimer (Delete)"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
           </div>
-        </aside>
-        {/* Gauche : contenu selon l’onglet (Chapitre | Architecture | Personalisation) */}
-        <aside className="w-[360px] shrink-0 flex flex-col border-r border-border bg-background overflow-y-auto">
-          {panelEditorLeftTab === "architecture" && (
-            <div className="p-4 space-y-4">
-              <div className="min-h-10 rounded-xl border border-dashed border-border/70 bg-muted/30 px-3 py-2">
+        )}
+        {/* Panneau gauche unifié — accordéon toujours visible */}
+        <aside className="w-[290px] shrink-0 flex flex-col border-r border-border bg-background overflow-y-auto">
+
+          {/* Section Assets — glisser un asset sur le canvas crée un bloc image avec asset_refs prérempli */}
+          <Collapsible defaultOpen>
+            <CollapsibleTrigger className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/50 transition-colors border-b border-border/50 text-sm font-medium">
+              <div className="flex items-center gap-2">
+                <Layers className="h-4 w-4 text-muted-foreground" />
+                Assets
+                {assets.length > 0 && (
+                  <span className="text-[10px] bg-muted text-muted-foreground border border-border px-1.5 py-0.5 rounded-full font-semibold">{assets.length}</span>
+                )}
+              </div>
+              <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform [[data-state=open]_&]:rotate-180" />
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <div className="p-3 space-y-2 border-b border-border/30">
+                {assets.length === 0 ? (
+                  <p className="text-xs text-muted-foreground/60 italic">Aucun asset dans ce projet.</p>
+                ) : (
+                  <>
+                    <p className="text-[11px] text-muted-foreground leading-tight">Glisser un asset sur le canvas pour créer un bloc avec référence pré-remplie.</p>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {assets.map((asset) => {
+                        const imgUrl = getAssetReferenceImageUrl(asset);
+                        const assetName = asset.name?.trim() || asset.id.slice(0, 8);
+                        return (
+                          <div
+                            key={asset.id}
+                            draggable
+                            onDragStart={(e) => {
+                              e.dataTransfer.setData(
+                                "application/json",
+                                JSON.stringify({ type: "asset-drop", assetId: asset.id, assetName })
+                              );
+                              e.dataTransfer.effectAllowed = "copy";
+                            }}
+                            title={assetName}
+                            className="group cursor-grab active:cursor-grabbing rounded-lg border border-border/60 bg-background overflow-hidden hover:border-primary/40 hover:shadow-sm transition-[border-color,box-shadow]"
+                          >
+                            <div className="aspect-square bg-muted flex items-center justify-center overflow-hidden">
+                              {imgUrl ? (
+                                <ImageWithFallback src={imgUrl} alt={assetName} className="w-full h-full object-cover" />
+                              ) : (
+                                <div className="text-[10px] text-muted-foreground">—</div>
+                              )}
+                            </div>
+                            <div className="px-1.5 py-1 text-[10px] text-foreground truncate font-medium">{assetName}</div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
+
+          {/* Section Blocs image */}
+          <Collapsible defaultOpen>
+            <CollapsibleTrigger className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/50 transition-colors border-b border-border/50 text-sm font-medium">
+              <div className="flex items-center gap-2">
+                <LayoutPanelTop className="h-4 w-4 text-muted-foreground" />
+                Blocs image
+                <kbd className="ml-1 text-[9px] font-mono bg-muted text-muted-foreground border border-border px-1 py-0 rounded">B</kbd>
+              </div>
+              <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform [[data-state=open]_&]:rotate-180" />
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <div className="p-3 space-y-3 border-b border-border/30">
+                {/* Presets draggables */}
                 <div className="space-y-1.5">
-                  <span className="text-xs font-medium text-muted-foreground block">Bibliothèque de blocs — glisser sur le panel</span>
-                  <div className="flex flex-wrap gap-2">
+                  <span className="text-xs text-muted-foreground">Glisser sur le canvas</span>
+                  <div className="flex flex-wrap gap-1.5">
                     {BLOCK_PRESETS.map((preset) => (
                       <div
                         key={preset.label}
@@ -1507,72 +1751,69 @@ export default function ChapterDetail() {
                           const ghost = newBlockDragGhostRef.current;
                           if (ghost) e.dataTransfer.setDragImage(ghost, Math.min(250, preset.width / 2), Math.min(250, preset.height / 2));
                         }}
-                        className="cursor-grab active:cursor-grabbing rounded-lg border border-border/60 bg-background px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                        className="cursor-grab active:cursor-grabbing rounded-lg border border-border/60 bg-background px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
                       >
                         {preset.label}
                       </div>
                     ))}
                   </div>
                 </div>
-              </div>
-              <div className="space-y-2 rounded-xl bg-muted/20 p-3 border border-border/50">
-                <span className="text-xs font-medium text-muted-foreground">Hauteur du panel</span>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    value={panelHeightDraft !== null ? panelHeightDraft : String(layout.panelHeight ?? PANEL_HEIGHT_DEFAULT)}
-                    onChange={(e) => setPanelHeightDraft(e.target.value)}
-                    className="w-24 h-9 rounded-lg border border-border/60 bg-background px-2 text-sm"
-                  />
-                  <span className="text-xs text-muted-foreground">px</span>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="shrink-0 rounded-lg"
-                    onClick={() => {
-                      const raw = panelHeightDraft !== null ? panelHeightDraft.trim() : null;
-                      const num = raw === null
-                        ? (layout.panelHeight ?? PANEL_HEIGHT_DEFAULT)
-                        : (raw === "" ? PANEL_HEIGHT_MIN : Math.max(PANEL_HEIGHT_MIN, Math.min(PANEL_HEIGHT_MAX, Number(raw) || PANEL_HEIGHT_MIN)));
-                      handlePanelHeightChange(num);
-                      setPanelHeightDraft(null);
-                    }}
-                  >
-                    Appliquer
-                  </Button>
+
+                {/* Hauteur du panel */}
+                <div className="space-y-1.5">
+                  <span className="text-xs text-muted-foreground">Hauteur du canvas</span>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={panelHeightDraft !== null ? panelHeightDraft : String(layout.panelHeight ?? PANEL_HEIGHT_DEFAULT)}
+                      onChange={(e) => setPanelHeightDraft(e.target.value)}
+                      className="w-20 h-8 rounded-lg border border-border/60 bg-background px-2 text-sm"
+                    />
+                    <span className="text-xs text-muted-foreground">px</span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="shrink-0 rounded-lg h-8 text-xs"
+                      onClick={() => {
+                        const raw = panelHeightDraft !== null ? panelHeightDraft.trim() : null;
+                        const num = raw === null
+                          ? (layout.panelHeight ?? PANEL_HEIGHT_DEFAULT)
+                          : (raw === "" ? PANEL_HEIGHT_MIN : Math.max(PANEL_HEIGHT_MIN, Math.min(PANEL_HEIGHT_MAX, Number(raw) || PANEL_HEIGHT_MIN)));
+                        handlePanelHeightChange(num);
+                        setPanelHeightDraft(null);
+                      }}
+                    >
+                      Appliquer
+                    </Button>
+                  </div>
                 </div>
-                <p className="text-[11px] text-muted-foreground/80">Min {PANEL_HEIGHT_MIN} — max {PANEL_HEIGHT_MAX}. Vide = min par défaut.</p>
-              </div>
-            </div>
-          )}
-          {panelEditorLeftTab === "personalisation" && (
-            <div className="p-4 flex-1 min-h-0 flex flex-col overflow-y-auto">
-              {selectedBlock ? (() => {
-                const block = selectedBlock;
-                const blockKey = `${panel.id}-${block.id}`;
-                const nameDraft = blockNameDrafts[blockKey] ?? block.name ?? "";
-                const promptDraft = blockPromptDrafts[blockKey] ?? block.prompt ?? "";
-                const isGenerating = generatePanelImage.isPending && generatePanelImage.variables?.panel?.id === panel.id;
-                return (
-                  <>
-                    <div className="flex items-center justify-between gap-2 mb-2">
-                      <h4 className="text-sm font-medium text-foreground">Bloc sélectionné</h4>
-                      <Button size="sm" variant="ghost" className="h-8 w-8 p-0 rounded-lg" onClick={() => setSelectedBlockIdInModal(null)} aria-label="Fermer"><X className="h-4 w-4" /></Button>
-                    </div>
-                    <div className="space-y-4">
-                      <div className="space-y-2">
-                        <label className="text-xs font-medium text-muted-foreground">Nom du bloc</label>
+
+                {/* Propriétés du bloc sélectionné */}
+                {selectedBlock ? (() => {
+                  const block = selectedBlock;
+                  const blockKey = `${panel.id}-${block.id}`;
+                  const nameDraft = blockNameDrafts[blockKey] ?? block.name ?? "";
+                  const promptDraft = blockPromptDrafts[blockKey] ?? block.prompt ?? "";
+                  const isGenerating = generatePanelImage.isPending && generatePanelImage.variables?.panel?.id === panel.id;
+                  return (
+                    <div className="pt-2 border-t border-border/50 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-medium text-foreground">Bloc sélectionné</span>
+                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0 rounded-lg" onClick={() => setSelectedBlockIdInModal(null)} aria-label="Désélectionner"><X className="h-3.5 w-3.5" /></Button>
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-medium text-muted-foreground">Nom</label>
                         <input
                           type="text"
                           value={nameDraft}
                           onChange={(e) => setBlockNameDrafts((prev) => ({ ...prev, [blockKey]: e.target.value }))}
                           onBlur={() => { if (nameDraft.trim() !== (block.name ?? "")) handleSaveBlockName(block, nameDraft); }}
                           placeholder="Ex. Bloc 1"
-                          className="w-full h-9 rounded-lg border border-border/60 bg-background px-3 text-sm"
+                          className="w-full h-8 rounded-lg border border-border/60 bg-background px-3 text-sm"
                         />
                       </div>
-                      <div className="space-y-2">
+                      <div className="space-y-1.5">
                         <label className="text-xs font-medium text-muted-foreground">Prompt visuel</label>
                         <Textarea
                           value={promptDraft}
@@ -1582,189 +1823,180 @@ export default function ChapterDetail() {
                             handleSaveBlockPrompt(block, v, { silent: true });
                           }}
                           placeholder="Description visuelle de ce bloc…"
-                          className="min-h-[100px] text-sm resize-y"
+                          className="min-h-[80px] text-sm resize-y"
                         />
                         {!block.image_url && (
                           <Button
                             variant="outline"
                             size="sm"
-                            className="gap-1.5 h-7 text-xs"
+                            className="gap-1.5 h-7 text-xs w-full"
                             disabled={suggestingBlockKeys.has(blockKey) || !scenarioChapter?.content?.trim()}
                             onClick={() => handleSuggestBlockPrompt(block)}
-                            title={
-                              !scenarioChapter?.content?.trim()
-                                ? "Associez un chapitre de scénario avec du contenu pour utiliser l'IA"
-                                : "L'IA suggère un prompt à partir du contexte (chapitre + blocs précédents)"
-                            }
                           >
-                            {suggestingBlockKeys.has(blockKey) ? (
-                              <Loader2 className="h-3 w-3 animate-spin" />
-                            ) : (
-                              <Sparkles className="h-3 w-3" />
-                            )}
-                            Suggérer un prompt
+                            {suggestingBlockKeys.has(blockKey) ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                            Suggérer un prompt IA
                           </Button>
                         )}
                       </div>
-                      <div className="space-y-2">
-                        <span className="text-xs font-medium text-muted-foreground">Dimensions</span>
-                        <p className="text-sm text-foreground tabular-nums">{block.width} × {Math.round(block.height)}</p>
-                      </div>
-                      <div className="space-y-2">
-                        <span className="text-xs font-medium text-muted-foreground">Assets détectés</span>
-                        {(() => {
-                          const promptText = (promptDraft.trim() || (block.prompt ?? "").trim()) || "";
-                          const detected = getDetectedAssets(promptText, assets);
-                          if (detected.length === 0) {
-                            return (
-                              <p className="text-[11px] text-muted-foreground/80">
-                                Les personnages, décors et objets mentionnés dans le prompt apparaîtront ici (un par asset).
-                              </p>
-                            );
-                          }
-                          return (
-                            <div className="space-y-2 rounded-lg border border-border/60 bg-muted/20 p-2">
-                              {detected.map((asset) => (
-                                <div key={asset.id} className="flex items-center gap-2 rounded px-2 py-1.5">
-                                  <div className="w-10 h-10 shrink-0 rounded overflow-hidden border border-border/60 bg-muted">
-                                    {getAssetReferenceImageUrl(asset) ? (
-                                      <ImageWithFallback src={getAssetReferenceImageUrl(asset) ?? ""} alt="" className="w-full h-full object-cover" />
-                                    ) : (
-                                      <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">—</div>
-                                    )}
-                                  </div>
-                                  <span className="flex-1 min-w-0 truncate text-sm font-medium">{asset.name ?? asset.id.slice(0, 8)}</span>
+                      <div className="text-xs text-muted-foreground tabular-nums">{block.width} × {Math.round(block.height)} px</div>
+                      {(() => {
+                        const promptText = (promptDraft.trim() || (block.prompt ?? "").trim()) || "";
+                        const detected = getDetectedAssets(promptText, assets);
+                        if (detected.length === 0) return null;
+                        return (
+                          <div className="space-y-1.5 rounded-lg border border-border/60 bg-muted/20 p-2">
+                            {detected.map((asset) => (
+                              <div key={asset.id} className="flex items-center gap-2">
+                                <div className="w-8 h-8 shrink-0 rounded overflow-hidden border border-border/60 bg-muted">
+                                  {getAssetReferenceImageUrl(asset) ? (
+                                    <ImageWithFallback src={getAssetReferenceImageUrl(asset) ?? ""} alt="" className="w-full h-full object-cover" />
+                                  ) : (
+                                    <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">—</div>
+                                  )}
                                 </div>
-                              ))}
-                            </div>
-                          );
-                        })()}
-                      </div>
+                                <span className="flex-1 min-w-0 truncate text-xs font-medium">{asset.name ?? asset.id.slice(0, 8)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      })()}
                       {project && (
-                        <Button size="sm" variant="outline" className="w-full gap-1.5" disabled={(!(block.prompt?.trim()) && !(panel.prompt?.trim())) || !project.style_template?.trim() || isGenerating} onClick={() => handleGenerateBlock(block)}>
-                          {isGenerating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}{block.image_url ? "Régénérer l'image" : "Générer l'image"}
+                        <Button size="sm" variant="outline" className="w-full gap-1.5" disabled={(!(selectedBlock.prompt?.trim()) && !(panel.prompt?.trim())) || !project.style_template?.trim() || isGenerating} onClick={() => handleGenerateBlock(block)}>
+                          {isGenerating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                          {block.image_url ? "Régénérer" : "Générer l’image"}
                         </Button>
                       )}
                       <Button size="sm" variant="ghost" className="w-full gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10" disabled={updatePanelMutation.isPending} onClick={() => handleDeleteBlock(block)}><Trash2 className="h-3 w-3" /> Supprimer le bloc</Button>
                     </div>
-                  </>
-                );
-              })() : (
-                <div className="rounded-xl border border-dashed border-border/70 bg-muted/30 px-4 py-8 text-center">
-                  <p className="text-sm text-muted-foreground">Cliquez sur un bloc dans le panel pour l'éditer (passez en mode Personalisation dans l'onglet Architecture si besoin).</p>
-                </div>
-              )}
-            </div>
-          )}
-          {panelEditorLeftTab === "couleurs" && (
-            <div className="p-4 space-y-4">
-              <div className="min-h-10 rounded-xl border border-dashed border-border/70 bg-muted/30 px-3 py-2">
-                <div className="space-y-1.5">
-                  <span className="text-xs font-medium text-muted-foreground block">Bloc de couleur — glisser sur le panel</span>
-                  <div
-                    draggable
-                    onDragStart={(e) => {
-                      e.dataTransfer.setData("application/json", JSON.stringify({ type: "new-color-block", width: 300, height: 300, fill: { type: "solid", color: "#ffffff" } }));
-                      e.dataTransfer.effectAllowed = "copy";
-                    }}
-                    className="cursor-grab active:cursor-grabbing rounded-lg border border-border/80 bg-white shadow-sm px-4 py-3 text-sm text-muted-foreground hover:text-foreground hover:shadow-md transition-shadow transition-colors duration-150 flex items-center justify-center gap-2 min-h-[56px]"
-                  >
-                    <span className="font-medium">Bloc blanc</span>
-                    <span className="text-xs opacity-80">(glisser-déposer)</span>
-                  </div>
-                </div>
+                  );
+                })() : (
+                  <p className="text-xs text-muted-foreground/60 italic pt-1">Cliquez sur un bloc pour l’éditer</p>
+                )}
               </div>
-              {selectedColorBlock ? (
-                <>
-                  <div className="flex items-center justify-between gap-2 mb-2">
-                    <h4 className="text-sm font-medium text-foreground">Bloc sélectionné</h4>
-                    <Button size="sm" variant="ghost" className="h-8 w-8 p-0 rounded-lg" onClick={() => setSelectedColorBlockIdInModal(null)} aria-label="Fermer"><X className="h-4 w-4" /></Button>
-                  </div>
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <span className="text-xs font-medium text-muted-foreground">Dimensions</span>
-                      <p className="text-sm text-foreground tabular-nums">{selectedColorBlock.width} × {Math.round(selectedColorBlock.height)}</p>
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-xs font-medium text-muted-foreground">Couleur</label>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="color"
-                          value={selectedColorBlock.fill.type === "solid" ? selectedColorBlock.fill.color : selectedColorBlock.fill.from}
-                          onChange={(e) => handleColorBlockFillChange(selectedColorBlock, { type: "solid", color: e.target.value })}
-                          className="h-9 w-14 rounded border border-border/60 cursor-pointer bg-background"
-                        />
-                        <span className="text-xs text-muted-foreground tabular-nums">{selectedColorBlock.fill.type === "solid" ? selectedColorBlock.fill.color : selectedColorBlock.fill.from}</span>
-                      </div>
-                    </div>
-                    <Button size="sm" variant="ghost" className="w-full gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10" disabled={updatePanelMutation.isPending} onClick={() => handleDeleteColorBlock(selectedColorBlock)}><Trash2 className="h-3 w-3" /> Supprimer le bloc</Button>
-                  </div>
-                </>
-              ) : (
-                <div className="rounded-xl border border-dashed border-border/70 bg-muted/30 px-4 py-8 text-center">
-                  <p className="text-sm text-muted-foreground">Cliquez sur un bloc dans le panel pour l&apos;éditer (bloc de couleur).</p>
-                </div>
-              )}
-            </div>
-          )}
-          {panelEditorLeftTab === "dialogue" && (
-            <div className="p-4 space-y-4">
-              <div className="rounded-xl border border-dashed border-border/70 bg-muted/30 px-3 py-3 space-y-2">
-                <span className="text-xs font-medium text-muted-foreground block">Ajouter une bulle</span>
-                <button
-                  type="button"
+            </CollapsibleContent>
+          </Collapsible>
+
+          {/* Section Couleurs */}
+          <Collapsible defaultOpen>
+            <CollapsibleTrigger className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/50 transition-colors border-b border-border/50 text-sm font-medium">
+              <div className="flex items-center gap-2">
+                <Palette className="h-4 w-4 text-muted-foreground" />
+                Couleurs
+                <kbd className="ml-1 text-[9px] font-mono bg-muted text-muted-foreground border border-border px-1 py-0 rounded">C</kbd>
+              </div>
+              <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform [[data-state=open]_&]:rotate-180" />
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <div className="p-3 space-y-3 border-b border-border/30">
+                <div
                   draggable
                   onDragStart={(e) => {
-                    e.dataTransfer.setData("application/json", JSON.stringify({ type: "speech-bubble", bubbleType: "text" }));
+                    e.dataTransfer.setData("application/json", JSON.stringify({ type: "new-color-block", width: 300, height: 300, fill: { type: "solid", color: "#ffffff" } }));
                     e.dataTransfer.effectAllowed = "copy";
                   }}
                   onClick={() => {
                     const ph = getPanelHeight(panel);
-                    const cx = Math.round((PANEL_WIDTH - DEFAULT_SPEECH_BUBBLE_WIDTH) / 2);
-                    const cy = Math.round((ph - DEFAULT_SPEECH_BUBBLE_HEIGHT) / 2);
-                    handleAddSpeechBubble("text", cx, cy);
+                    const x = Math.round((PANEL_WIDTH - 300) / 2);
+                    const y = Math.round((ph - 300) / 2);
+                    handleAddColorBlock(x, y, 300, 300);
                   }}
-                  className="w-full cursor-pointer rounded-lg border border-border/60 bg-background px-2 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors flex items-center gap-1.5 justify-center"
-                  title="Ajouter un texte libre au centre (ou glisser sur le panel)"
+                  className="cursor-grab active:cursor-grabbing rounded-lg border border-border/80 bg-white shadow-sm px-4 py-3 text-sm text-muted-foreground hover:text-foreground hover:shadow-md transition-shadow transition-colors duration-150 flex items-center justify-center gap-2"
                 >
-                  <Type className="h-3 w-3 shrink-0" />
-                  <span>✏️ Texte libre</span>
-                </button>
-                <Separator className="my-1" />
-                <div className="grid grid-cols-2 gap-2">
-                  {(Object.entries(SPEECH_BUBBLE_TYPE_LABELS) as [SpeechBubbleType, string][]).filter(([type]) => type !== "text").map(([type, label]) => (
-                    <button
-                      key={type}
-                      type="button"
-                      draggable
-                      onDragStart={(e) => {
-                        e.dataTransfer.setData("application/json", JSON.stringify({ type: "speech-bubble", bubbleType: type }));
-                        e.dataTransfer.effectAllowed = "copy";
-                      }}
-                      onClick={() => {
-                        const ph = getPanelHeight(panel);
-                        const cx = Math.round((PANEL_WIDTH - DEFAULT_SPEECH_BUBBLE_WIDTH) / 2);
-                        const cy = Math.round((ph - DEFAULT_SPEECH_BUBBLE_HEIGHT) / 2);
-                        handleAddSpeechBubble(type, cx, cy);
-                      }}
-                      className="cursor-pointer rounded-lg border border-border/60 bg-background px-2 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors flex items-center gap-1.5 justify-center"
-                      title={`Ajouter ${label} au centre (ou glisser sur le panel)`}
-                    >
-                      <Plus className="h-3 w-3 shrink-0" />
-                      <span>{label}</span>
-                    </button>
-                  ))}
+                  <Square className="h-4 w-4 shrink-0" />
+                  <span>Ajouter un bloc de couleur</span>
                 </div>
-                <p className="text-[11px] text-muted-foreground/70">Clic = ajout au centre · Glisser = placement libre</p>
-              </div>
-              {selectedSpeechBubble ? (
-                <>
-                  <div className="flex items-center justify-between gap-2 mb-2">
-                    <h4 className="text-sm font-medium text-foreground">Bulle sélectionnée</h4>
-                    <Button size="sm" variant="ghost" className="h-8 w-8 p-0 rounded-lg" onClick={() => setSelectedSpeechBubbleIdInModal(null)} aria-label="Fermer la sélection"><X className="h-4 w-4" /></Button>
+
+                {selectedColorBlock ? (
+                  <div className="pt-2 border-t border-border/50 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-foreground">Bloc sélectionné</span>
+                      <Button size="sm" variant="ghost" className="h-7 w-7 p-0 rounded-lg" onClick={() => setSelectedColorBlockIdInModal(null)} aria-label="Désélectionner"><X className="h-3.5 w-3.5" /></Button>
+                    </div>
+                    <div className="text-xs text-muted-foreground tabular-nums">{selectedColorBlock.width} × {Math.round(selectedColorBlock.height)} px</div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-muted-foreground flex items-center gap-2">
+                        Couleur
+                        <input
+                          type="color"
+                          value={selectedColorBlock.fill.type === "solid" ? selectedColorBlock.fill.color : selectedColorBlock.fill.from}
+                          onChange={(e) => handleColorBlockFillChange(selectedColorBlock, { type: "solid", color: e.target.value })}
+                          className="h-7 w-12 rounded border border-border/60 cursor-pointer bg-background"
+                        />
+                        <span className="text-xs text-muted-foreground tabular-nums">{selectedColorBlock.fill.type === "solid" ? selectedColorBlock.fill.color : selectedColorBlock.fill.from}</span>
+                      </label>
+                    </div>
+                    <Button size="sm" variant="ghost" className="w-full gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10" disabled={updatePanelMutation.isPending} onClick={() => handleDeleteColorBlock(selectedColorBlock)}><Trash2 className="h-3 w-3" /> Supprimer</Button>
                   </div>
-                  <div className="space-y-4">
-                    {/* Texte en premier — c'est l'action principale */}
+                ) : (
+                  <p className="text-xs text-muted-foreground/60 italic">Cliquez sur un bloc pour l’éditer</p>
+                )}
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
+
+          {/* Section Dialogue */}
+          <Collapsible defaultOpen>
+            <CollapsibleTrigger className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/50 transition-colors border-b border-border/50 text-sm font-medium">
+              <div className="flex items-center gap-2">
+                <MessageCircle className="h-4 w-4 text-muted-foreground" />
+                Dialogue
+                <kbd className="ml-1 text-[9px] font-mono bg-muted text-muted-foreground border border-border px-1 py-0 rounded">D</kbd>
+              </div>
+              <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform [[data-state=open]_&]:rotate-180" />
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <div className="p-3 space-y-3 border-b border-border/30">
+                <div className="space-y-1.5">
+                  <span className="text-xs text-muted-foreground">Ajouter — clic ou glisser</span>
+                  <button
+                    type="button"
+                    draggable
+                    onDragStart={(e) => {
+                      e.dataTransfer.setData("application/json", JSON.stringify({ type: "speech-bubble", bubbleType: "text" }));
+                      e.dataTransfer.effectAllowed = "copy";
+                    }}
+                    onClick={() => {
+                      const ph = getPanelHeight(panel);
+                      const cx = Math.round((PANEL_WIDTH - DEFAULT_SPEECH_BUBBLE_WIDTH) / 2);
+                      const cy = Math.round((ph - DEFAULT_SPEECH_BUBBLE_HEIGHT) / 2);
+                      handleAddSpeechBubble("text", cx, cy);
+                    }}
+                    className="w-full cursor-pointer rounded-lg border border-border/60 bg-background px-2 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors flex items-center gap-1.5 justify-center"
+                  >
+                    <Type className="h-3 w-3 shrink-0" />
+                    ✏️ Texte libre
+                  </button>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {(Object.entries(SPEECH_BUBBLE_TYPE_LABELS) as [SpeechBubbleType, string][]).filter(([type]) => type !== "text").map(([type, label]) => (
+                      <button
+                        key={type}
+                        type="button"
+                        draggable
+                        onDragStart={(e) => {
+                          e.dataTransfer.setData("application/json", JSON.stringify({ type: "speech-bubble", bubbleType: type }));
+                          e.dataTransfer.effectAllowed = "copy";
+                        }}
+                        onClick={() => {
+                          const ph = getPanelHeight(panel);
+                          const cx = Math.round((PANEL_WIDTH - DEFAULT_SPEECH_BUBBLE_WIDTH) / 2);
+                          const cy = Math.round((ph - DEFAULT_SPEECH_BUBBLE_HEIGHT) / 2);
+                          handleAddSpeechBubble(type, cx, cy);
+                        }}
+                        className="cursor-pointer rounded-lg border border-border/60 bg-background px-2 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors flex items-center gap-1 justify-center"
+                      >
+                        <Plus className="h-3 w-3 shrink-0" />
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {selectedSpeechBubble ? (
+                  <div className="pt-2 border-t border-border/50 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-foreground">Bulle sélectionnée</span>
+                      <Button size="sm" variant="ghost" className="h-7 w-7 p-0 rounded-lg" onClick={() => setSelectedSpeechBubbleIdInModal(null)} aria-label="Désélectionner"><X className="h-3.5 w-3.5" /></Button>
+                    </div>
                     <div className="space-y-1.5">
                       <label className="text-xs font-medium text-muted-foreground">Texte</label>
                       <textarea
@@ -1774,14 +2006,13 @@ export default function ChapterDetail() {
                           const next = speechBubbles.map((b) => b.id === selectedSpeechBubble.id ? { ...b, text: e.target.value } : b);
                           handleUpdateSpeechBubbles(next);
                         }}
-                        className="w-full min-h-[80px] rounded-lg border border-border/60 bg-background px-3 py-2 text-sm resize-y"
+                        className="w-full min-h-[70px] rounded-lg border border-border/60 bg-background px-3 py-2 text-sm resize-y"
                         placeholder="Dialogue, pensée, narration…"
                       />
                     </div>
-                    {/* Changement de type */}
                     <div className="space-y-1.5">
                       <label className="text-xs font-medium text-muted-foreground">Type de bulle</label>
-                      <div className="grid grid-cols-2 gap-1.5">
+                      <div className="grid grid-cols-2 gap-1">
                         {(Object.entries(SPEECH_BUBBLE_TYPE_LABELS) as [SpeechBubbleType, string][]).map(([t, lbl]) => (
                           <button
                             key={t}
@@ -1790,103 +2021,141 @@ export default function ChapterDetail() {
                               const next = speechBubbles.map((b) => b.id === selectedSpeechBubble.id ? { ...b, type: t } : b);
                               handleUpdateSpeechBubbles(next);
                             }}
-                            className={`rounded-lg border px-2 py-1.5 text-xs transition-colors ${selectedSpeechBubble.type === t ? "border-primary bg-primary/10 text-foreground font-medium" : "border-border/60 bg-background text-muted-foreground hover:bg-muted/50"}`}
+                            className={`rounded-lg border px-2 py-1 text-xs transition-colors ${selectedSpeechBubble.type === t ? "border-primary bg-primary/10 text-foreground font-medium" : "border-border/60 bg-background text-muted-foreground hover:bg-muted/50"}`}
                           >
                             {lbl}
                           </button>
                         ))}
                       </div>
                     </div>
-                    <div className="space-y-1.5">
-                      <span className="text-xs font-medium text-muted-foreground">Dimensions (glisser les poignées)</span>
-                      <p className="text-sm text-foreground tabular-nums">{selectedSpeechBubble.width ?? DEFAULT_SPEECH_BUBBLE_WIDTH} × {selectedSpeechBubble.height ?? DEFAULT_SPEECH_BUBBLE_HEIGHT} px</p>
-                    </div>
                     {selectedSpeechBubble.type !== "text" && (
-                      <>
-                        <div className="space-y-2">
-                          <label className="text-xs font-medium text-muted-foreground flex items-center gap-2">
-                            Fond bulle
-                            <input
-                              type="color"
-                              value={selectedSpeechBubble.bgColor ?? selectedSpeechBubble.style?.fill ?? SPEECH_BUBBLE_DEFAULT_STYLE[selectedSpeechBubble.type].fill}
-                              onChange={(e) => {
-                                const v = e.target.value;
-                                const next = speechBubbles.map((b) => b.id === selectedSpeechBubble.id ? { ...b, style: { ...b.style, fill: v }, bgColor: v } : b);
-                                handleUpdateSpeechBubbles(next);
-                              }}
-                              className="h-6 w-8 rounded border border-border/60 cursor-pointer"
-                            />
-                          </label>
-                        </div>
-                        <div className="space-y-2">
-                          <label className="text-xs font-medium text-muted-foreground flex items-center gap-2">
-                            Contour bulle
-                            <input
-                              type="color"
-                              value={selectedSpeechBubble.borderColor ?? selectedSpeechBubble.style?.stroke ?? SPEECH_BUBBLE_DEFAULT_STYLE[selectedSpeechBubble.type].stroke}
-                              onChange={(e) => {
-                                const v = e.target.value;
-                                const next = speechBubbles.map((b) => b.id === selectedSpeechBubble.id ? { ...b, style: { ...b.style, stroke: v }, borderColor: v } : b);
-                                handleUpdateSpeechBubbles(next);
-                              }}
-                              className="h-6 w-8 rounded border border-border/60 cursor-pointer"
-                            />
-                          </label>
-                        </div>
-                      </>
-                    )}
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-medium text-muted-foreground">Police / taille / couleur</label>
-                      <div className="flex flex-wrap gap-2 items-center">
-                        <select
-                          value={selectedSpeechBubble.style?.font ?? "inherit"}
-                          onChange={(e) => {
-                            const next = speechBubbles.map((b) => b.id === selectedSpeechBubble.id ? { ...b, style: { ...b.style, font: e.target.value || undefined } } : b);
-                            handleUpdateSpeechBubbles(next);
-                          }}
-                          className="h-9 rounded-lg border border-border/60 bg-background px-2 text-sm"
-                        >
-                          <option value="inherit">Par défaut</option>
-                          <option value="sans-serif">Sans-serif</option>
-                          <option value="serif">Serif</option>
-                          <option value="monospace">Monospace</option>
-                        </select>
-                        <input
-                          type="number"
-                          min={8}
-                          max={72}
-                          value={selectedSpeechBubble.style?.size ?? 14}
-                          onChange={(e) => {
-                            const n = parseInt(e.target.value, 10);
-                            if (!Number.isNaN(n)) {
-                              const next = speechBubbles.map((b) => b.id === selectedSpeechBubble.id ? { ...b, style: { ...b.style, size: n } } : b);
+                      <div className="flex items-center gap-3">
+                        <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                          Fond
+                          <input
+                            type="color"
+                            value={selectedSpeechBubble.bgColor ?? selectedSpeechBubble.style?.fill ?? SPEECH_BUBBLE_DEFAULT_STYLE[selectedSpeechBubble.type].fill}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              const next = speechBubbles.map((b) => b.id === selectedSpeechBubble.id ? { ...b, style: { ...b.style, fill: v }, bgColor: v } : b);
                               handleUpdateSpeechBubbles(next);
-                            }
-                          }}
-                          className="w-16 h-9 rounded-lg border border-border/60 bg-background px-2 text-sm tabular-nums"
-                        />
-                        <input
-                          type="color"
-                          value={selectedSpeechBubble.style?.color ?? "#000000"}
-                          onChange={(e) => {
-                            const next = speechBubbles.map((b) => b.id === selectedSpeechBubble.id ? { ...b, style: { ...b.style, color: e.target.value } } : b);
-                            handleUpdateSpeechBubbles(next);
-                          }}
-                          className="h-9 w-10 rounded border border-border/60 cursor-pointer bg-background"
-                        />
+                            }}
+                            className="h-6 w-8 rounded border border-border/60 cursor-pointer"
+                          />
+                        </label>
+                        <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                          Contour
+                          <input
+                            type="color"
+                            value={selectedSpeechBubble.borderColor ?? selectedSpeechBubble.style?.stroke ?? SPEECH_BUBBLE_DEFAULT_STYLE[selectedSpeechBubble.type].stroke}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              const next = speechBubbles.map((b) => b.id === selectedSpeechBubble.id ? { ...b, style: { ...b.style, stroke: v }, borderColor: v } : b);
+                              handleUpdateSpeechBubbles(next);
+                            }}
+                            className="h-6 w-8 rounded border border-border/60 cursor-pointer"
+                          />
+                        </label>
                       </div>
+                    )}
+                    <div className="flex items-center gap-2">
+                      <select
+                        value={selectedSpeechBubble.style?.font ?? "inherit"}
+                        onChange={(e) => {
+                          const next = speechBubbles.map((b) => b.id === selectedSpeechBubble.id ? { ...b, style: { ...b.style, font: e.target.value || undefined } } : b);
+                          handleUpdateSpeechBubbles(next);
+                        }}
+                        className="flex-1 h-8 rounded-lg border border-border/60 bg-background px-2 text-xs"
+                      >
+                        <option value="inherit">Police par défaut</option>
+                        <option value="sans-serif">Sans-serif</option>
+                        <option value="serif">Serif</option>
+                        <option value="monospace">Monospace</option>
+                      </select>
+                      <input
+                        type="number"
+                        min={8}
+                        max={72}
+                        value={selectedSpeechBubble.style?.size ?? 14}
+                        onChange={(e) => {
+                          const n = parseInt(e.target.value, 10);
+                          if (!Number.isNaN(n)) {
+                            const next = speechBubbles.map((b) => b.id === selectedSpeechBubble.id ? { ...b, style: { ...b.style, size: n } } : b);
+                            handleUpdateSpeechBubbles(next);
+                          }
+                        }}
+                        className="w-14 h-8 rounded-lg border border-border/60 bg-background px-2 text-xs tabular-nums"
+                      />
+                      <input
+                        type="color"
+                        value={selectedSpeechBubble.style?.color ?? "#000000"}
+                        onChange={(e) => {
+                          const next = speechBubbles.map((b) => b.id === selectedSpeechBubble.id ? { ...b, style: { ...b.style, color: e.target.value } } : b);
+                          handleUpdateSpeechBubbles(next);
+                        }}
+                        className="h-8 w-10 rounded border border-border/60 cursor-pointer bg-background"
+                      />
                     </div>
                     <Button size="sm" variant="ghost" className="w-full gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10" disabled={updatePanelMutation.isPending} onClick={() => handleDeleteSpeechBubble(selectedSpeechBubble)}><Trash2 className="h-3 w-3" /> Supprimer la bulle</Button>
                   </div>
-                </>
-              ) : (
-                <div className="rounded-xl border border-dashed border-border/70 bg-muted/30 px-4 py-8 text-center">
-                  <p className="text-sm text-muted-foreground">Cliquez sur une bulle dans le panel pour éditer le texte et le style.</p>
-                </div>
-              )}
-            </div>
-          )}
+                ) : (
+                  <p className="text-xs text-muted-foreground/60 italic">Cliquez sur une bulle pour l’éditer</p>
+                )}
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
 
+          {/* Cases du scénario (section collapsible) */}
+          <Collapsible>
+            <CollapsibleTrigger className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/50 transition-colors border-b border-border/50 text-sm font-medium">
+              <div className="flex items-center gap-2">
+                <BookOpen className="h-4 w-4 text-muted-foreground" />
+                Cases du scénario
+                {validatedCases.length > 0 && (
+                  <span className="text-[10px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25 px-1.5 py-0.5 rounded-full font-semibold">{validatedCases.length}</span>
+                )}
+              </div>
+              <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform [[data-state=open]_&]:rotate-180" />
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <div className="p-3 space-y-2">
+                {validatedCases.length === 0 ? (
+                  <p className="text-xs text-muted-foreground/60 italic py-2">Aucune case validée dans le scénario.</p>
+                ) : (
+                  validatedCases.map((c) => (
+                    <div key={c.caseNumber} className="rounded-lg border border-border/60 bg-muted/20 p-2 space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-medium text-foreground">Case {c.caseNumber}</span>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-6 px-2 text-[11px] gap-1"
+                          onClick={() => handleAddBlockFromCase(c.description!)}
+                          disabled={!c.description || updatePanelMutation.isPending}
+                        >
+                          <Plus className="h-3 w-3" />
+                          Créer un bloc
+                        </Button>
+                      </div>
+                      <p className="text-xs text-muted-foreground line-clamp-2">{c.description}</p>
+                    </div>
+                  ))
+                )}
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
+
+          {/* Bouton Découper en bas */}
+          <div className="mt-auto p-3 border-t border-border/60">
+            <Button
+              variant="outline"
+              className="w-full gap-2 text-sm"
+              onClick={() => setSliceModalOpen(true)}
+            >
+              <Download className="h-4 w-4" />
+              Découper & télécharger
+            </Button>
+          </div>
         </aside>
         {/* Centre : panel 800px de large exactement, zoomable via contrôles header ou Ctrl+Scroll */}
         <div className="flex-1 min-w-0 flex items-start justify-center overflow-auto p-6 bg-background">
@@ -1913,7 +2182,7 @@ export default function ChapterDetail() {
                 const geom = isResizingThis && resizeColorBlockDraft
                   ? { x: Math.round(resizeColorBlockDraft.x), y: Math.round(resizeColorBlockDraft.y), width: Math.round(resizeColorBlockDraft.width), height: Math.round(resizeColorBlockDraft.height) }
                   : { x: cb.x, y: cb.y, width: cb.width, height: cb.height };
-                const isSelected = mode === "couleurs" && selectedColorBlockIdInModal?.panelId === panel.id && selectedColorBlockIdInModal?.colorBlockId === cb.id;
+                const isSelected = selectedColorBlockIdInModal?.panelId === panel.id && selectedColorBlockIdInModal?.colorBlockId === cb.id;
                 const bgStyle = cb.fill.type === "solid"
                   ? { backgroundColor: cb.fill.color }
                   : { background: `linear-gradient(${cb.fill.angle ?? 90}deg, ${cb.fill.from}, ${cb.fill.to})` };
@@ -1921,7 +2190,7 @@ export default function ChapterDetail() {
                   <div
                     key={cb.id}
                     ref={isResizingThis ? (el) => { if (el) resizingColorBlockElRef.current = el; } : undefined}
-                    className={`group absolute overflow-visible border border-border/80 transition-[box-shadow,ring] duration-150 ${mode === "couleurs" ? "cursor-grab active:cursor-grabbing ring-2 ring-primary/60" : ""} ${isSelected ? "ring-2 ring-primary ring-offset-2 ring-offset-background" : ""}`}
+                    className={`group absolute overflow-visible border border-border/80 transition-[box-shadow,ring] duration-150 cursor-grab active:cursor-grabbing ${isSelected ? "ring-2 ring-primary ring-offset-2 ring-offset-background" : "hover:ring-2 hover:ring-primary/40"}`}
                     style={{
                       left: geom.x,
                       top: geom.y,
@@ -1929,9 +2198,8 @@ export default function ChapterDetail() {
                       height: geom.height,
                       ...bgStyle,
                       zIndex: 0,
-                      pointerEvents: mode === "couleurs" ? "auto" : "none",
                     }}
-                    onPointerDown={mode === "couleurs" && !isResizingThis && !isResizingColorBlockRef.current ? (e) => {
+                    onPointerDown={!isResizingThis && !isResizingColorBlockRef.current ? (e) => {
                       if (e.button !== 0) return;
                       e.preventDefault();
                       const canvasEl = canvasRefByPanel.current[panel.id];
@@ -2009,20 +2277,19 @@ export default function ChapterDetail() {
                       document.addEventListener("pointermove", onPointerMove, { capture: true, passive: true });
                       document.addEventListener("pointerup", onPointerUp, true);
                     } : undefined}
-                    onClick={mode === "couleurs" ? (e) => { e.stopPropagation(); setSelectedColorBlockIdInModal({ panelId: panel.id, colorBlockId: cb.id }); } : undefined}
+                    onClick={(e) => { e.stopPropagation(); setSelectedColorBlockIdInModal({ panelId: panel.id, colorBlockId: cb.id }); }}
                   >
-                    {mode === "couleurs" && (
-                      <>
-                        <button
-                          type="button"
-                          className="absolute bottom-[25%] left-1/2 z-20 flex h-8 w-8 -translate-x-1/2 items-center justify-center rounded-md bg-destructive/90 text-destructive-foreground opacity-0 shadow-md transition-opacity hover:bg-destructive group-hover:opacity-100"
-                          title="Supprimer le bloc de couleur"
-                          onPointerDown={(ev) => ev.stopPropagation()}
-                          onClick={(ev) => { ev.preventDefault(); ev.stopPropagation(); handleDeleteColorBlock(cb); }}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                        {[
+                    <>
+                      <button
+                        type="button"
+                        className="absolute bottom-[25%] left-1/2 z-20 flex h-8 w-8 -translate-x-1/2 items-center justify-center rounded-md bg-destructive/90 text-destructive-foreground opacity-0 shadow-md transition-opacity hover:bg-destructive group-hover:opacity-100"
+                        title="Supprimer le bloc de couleur"
+                        onPointerDown={(ev) => ev.stopPropagation()}
+                        onClick={(ev) => { ev.preventDefault(); ev.stopPropagation(); handleDeleteColorBlock(cb); }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                      {[
                           { edge: "r" as const, style: { right: 0, top: 0, bottom: 0, width: 9 }, cursor: "ew-resize" },
                           { edge: "b" as const, style: { bottom: 0, left: 0, right: 0, height: 9 }, cursor: "ns-resize" },
                           { edge: "l" as const, style: { left: 0, top: 0, bottom: 0, width: 9 }, cursor: "ew-resize" },
@@ -2076,9 +2343,8 @@ export default function ChapterDetail() {
                             }}
                             aria-label="Redimensionner"
                           />
-                        ))}
-                      </>
-                    )}
+                      ))}
+                    </>
                   </div>
                 );
               })}
@@ -2103,13 +2369,13 @@ export default function ChapterDetail() {
                   const useResizeDraft = isThisResizing && resizeDraft != null && isResizingRef.current;
                   const rawGeom = useResizeDraft ? resizeDraft : { x: block.x, y: block.y, width: block.width, height: block.height };
                   const geom = { x: Math.round(rawGeom.x), y: Math.round(rawGeom.y), width: Math.round(rawGeom.width), height: Math.round(rawGeom.height) };
-                  const isSelected = mode === "edition" && selectedBlockIdInModal?.panelId === panel.id && selectedBlockIdInModal?.blockId === block.id;
+                  const isSelected = selectedBlockIdInModal?.panelId === panel.id && selectedBlockIdInModal?.blockId === block.id;
                   return (
                     <div
                       key={block.id}
                       ref={isThisResizing ? (el) => { if (el) resizingBlockElRef.current = el; } : undefined}
                       draggable={false}
-                      onPointerDown={mode === "architecture" && !isThisResizing ? (e) => {
+                      onPointerDown={!isThisResizing ? (e) => {
                         if (e.button !== 0 || isResizingRef.current) return;
                         e.preventDefault();
                         const canvasEl = canvasRefByPanel.current[panel.id];
@@ -2185,33 +2451,31 @@ export default function ChapterDetail() {
                         document.addEventListener("pointermove", onPointerMove, { capture: true, passive: true });
                         document.addEventListener("pointerup", onPointerUp, true);
                       } : undefined}
-                      onClick={mode === "edition" ? (e) => { e.stopPropagation(); setSelectedBlockIdInModal({ panelId: panel.id, blockId: block.id }); } : undefined}
-                      className={`group absolute overflow-visible bg-black border border-border shadow-md transition-[box-shadow,ring] duration-150 ${mode === "couleurs" || panelEditorLeftTab === "dialogue" ? "pointer-events-none" : mode === "architecture" ? "cursor-grab active:cursor-grabbing ring-2 ring-primary/60" : `cursor-pointer ${isSelected ? "ring-2 ring-primary shadow-lg ring-offset-2 ring-offset-background" : "ring-1 ring-border/80 hover:ring-2 hover:ring-primary/50 hover:shadow-md"}`}`}
-                      style={{ left: geom.x, top: geom.y, width: geom.width, height: geom.height, zIndex: 10, pointerEvents: mode === "couleurs" || panelEditorLeftTab === "dialogue" ? "none" : "auto" }}
-                      title={mode === "edition" ? `Clique — ${block.name ?? `Bloc ${blockIndex + 1}`}` : mode === "architecture" ? `Déplacer — ${block.name ?? `Bloc ${blockIndex + 1}`}` : `Bloc ${blockIndex + 1}`}
+                      onClick={(e) => { e.stopPropagation(); setSelectedBlockIdInModal({ panelId: panel.id, blockId: block.id }); }}
+                      className={`group absolute overflow-visible bg-black border border-border shadow-md transition-[box-shadow,ring] duration-150 cursor-grab active:cursor-grabbing ${isSelected ? "ring-2 ring-primary shadow-lg ring-offset-2 ring-offset-background" : "ring-1 ring-border/80 hover:ring-2 hover:ring-primary/50 hover:shadow-md"}`}
+                      style={{ left: geom.x, top: geom.y, width: geom.width, height: geom.height, zIndex: 10 }}
+                      title={block.name ?? `Bloc ${blockIndex + 1}`}
                     >
-                      {mode === "architecture" && (
-                        <button
-                          type="button"
-                          className="absolute bottom-[25%] left-1/2 z-20 flex h-8 w-8 -translate-x-1/2 items-center justify-center rounded-md bg-destructive/90 text-destructive-foreground opacity-0 shadow-md transition-opacity hover:bg-destructive group-hover:opacity-100"
-                          title="Supprimer le bloc"
-                          onPointerDown={(e) => e.stopPropagation()}
-                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDeleteBlock(block); }}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        className="absolute bottom-[25%] left-1/2 z-20 flex h-8 w-8 -translate-x-1/2 items-center justify-center rounded-md bg-destructive/90 text-destructive-foreground opacity-0 shadow-md transition-opacity hover:bg-destructive group-hover:opacity-100"
+                        title="Supprimer le bloc"
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDeleteBlock(block); }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
                       <div className="w-full h-full overflow-hidden pointer-events-none">
                         {block.image_url ? (
                           <ImageWithFallback src={block.image_url} alt="" className="w-full h-full object-fill" />
                         ) : (
                           <div className="w-full h-full flex flex-col items-center justify-center text-xs text-muted-foreground p-2 text-center bg-muted/50 gap-1">
-                            <div>{mode === "architecture" ? "Déplacer" : mode === "edition" ? "Clique" : block.prompt ? "Prompt défini — Générer ci-dessous" : "Saisir le prompt ci-dessous"}</div>
+                            <div>{block.prompt ? "Prompt défini" : "Saisir le prompt…"}</div>
                             <div className="text-[10px] opacity-70">{Math.round(geom.width)} × {Math.round(geom.height)}</div>
                           </div>
                         )}
                       </div>
-                      {mode === "architecture" && [
+                      {[
                         { edge: "r" as const, style: { right: 0, top: 0, bottom: 0, width: 9 }, cursor: "ew-resize" },
                         { edge: "b" as const, style: { bottom: 0, left: 0, right: 0, height: 9 }, cursor: "ns-resize" },
                         { edge: "l" as const, style: { left: 0, top: 0, bottom: 0, width: 9 }, cursor: "ew-resize" },
@@ -2271,7 +2535,7 @@ export default function ChapterDetail() {
                               )}
               {/* Bulles de dialogue (overlay) — forme ovale + queue, déplaçables et redimensionnables */}
               {speechBubbles.map((bubble) => {
-                const isSelected = panelEditorLeftTab === "dialogue" && selectedSpeechBubbleIdInModal?.panelId === panel.id && selectedSpeechBubbleIdInModal?.bubbleId === bubble.id;
+                const isSelected = selectedSpeechBubbleIdInModal?.panelId === panel.id && selectedSpeechBubbleIdInModal?.bubbleId === bubble.id;
                 const isResizingThis = resizingSpeechBubbleState?.panelId === panel.id && resizingSpeechBubbleState?.bubbleId === bubble.id;
                 const useResizeDraft = isResizingThis && resizeSpeechBubbleDraft != null;
                 const bw = bubble.width ?? DEFAULT_SPEECH_BUBBLE_WIDTH;
@@ -2289,10 +2553,10 @@ export default function ChapterDetail() {
                   <div
                     key={bubble.id}
                     ref={isResizingThis ? (el) => { if (el) resizingSpeechBubbleElRef.current = el; } : undefined}
-                    role={panelEditorLeftTab === "dialogue" && !isResizingThis ? "button" : undefined}
-                    className={`group absolute z-20 overflow-visible transition-[box-shadow,ring] duration-150 ${panelEditorLeftTab === "dialogue" ? "cursor-grab active:cursor-grabbing ring-2 ring-primary/60" : ""} ${isSelected ? "ring-2 ring-primary ring-offset-2 ring-offset-background" : ""}`}
-                    style={{ left: geom.x, top: geom.y, width: geom.width, height: totalH, pointerEvents: panelEditorLeftTab === "dialogue" ? "auto" : "none" }}
-                    onPointerDown={panelEditorLeftTab === "dialogue" && !isResizingThis && !isResizingSpeechBubbleRef.current ? (e) => {
+                    role={!isResizingThis ? "button" : undefined}
+                    className={`group absolute z-20 overflow-visible transition-[box-shadow,ring] duration-150 cursor-grab active:cursor-grabbing ${isSelected ? "ring-2 ring-primary ring-offset-2 ring-offset-background" : "hover:ring-2 hover:ring-primary/40"}`}
+                    style={{ left: geom.x, top: geom.y, width: geom.width, height: totalH }}
+                    onPointerDown={!isResizingThis && !isResizingSpeechBubbleRef.current ? (e) => {
                       if (e.button !== 0) return;
                       e.preventDefault();
                       const canvasEl = canvasRefByPanel.current[panel.id];
@@ -2363,7 +2627,7 @@ export default function ChapterDetail() {
                       document.addEventListener("pointermove", onPointerMove, { capture: true, passive: true });
                       document.addEventListener("pointerup", onPointerUp, true);
                     } : undefined}
-                    onClick={panelEditorLeftTab === "dialogue" ? (e) => { e.stopPropagation(); setSelectedSpeechBubbleIdInModal({ panelId: panel.id, bubbleId: bubble.id }); } : undefined}
+                    onClick={(e) => { e.stopPropagation(); setSelectedSpeechBubbleIdInModal({ panelId: panel.id, bubbleId: bubble.id }); }}
                   >
                     {bubble.type !== "text" && (
                       <svg width="100%" height="100%" viewBox={bubble.type === "narration" ? SPEECH_BUBBLE_VIEWBOX_NARRATION : SPEECH_BUBBLE_VIEWBOX_WITH_TAIL} className="absolute inset-0 pointer-events-none" preserveAspectRatio="none">
@@ -2376,7 +2640,7 @@ export default function ChapterDetail() {
                     >
                       <span className="line-clamp-3 break-words">{bubble.text || "…"}</span>
                     </div>
-                    {panelEditorLeftTab === "dialogue" && isSelected && !isResizingThis && [
+                    {isSelected && !isResizingThis && [
                       { edge: "r" as const, style: { right: 0, top: 0, bottom: 0, width: 8 }, cursor: "ew-resize" },
                       { edge: "b" as const, style: { bottom: 0, left: 0, right: 0, height: 8 }, cursor: "ns-resize" },
                       { edge: "l" as const, style: { left: 0, top: 0, bottom: 0, width: 8 }, cursor: "ew-resize" },

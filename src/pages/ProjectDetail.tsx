@@ -18,7 +18,7 @@ export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
   const { data: project, isLoading: loadingProject } = useProject(id);
   const { data: assets = [], isLoading: loadingAssets } = useAssets(id);
-  const { plan: userPlan } = useUserPlan();
+  const { plan: userPlan, usageInfo } = useUserPlan();
 
   const [searchParams, setSearchParams] = useSearchParams();
   const rawTab = searchParams.get("tab");
@@ -42,6 +42,7 @@ export default function ProjectDetail() {
   const { generatingAssetId, canGenerate, generate } = useAssetGeneration({
     project: project ?? null,
     userPlan,
+    usageInfo,
   });
 
   const [pendingAssetName, setPendingAssetName] = useState("");

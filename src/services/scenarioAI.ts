@@ -12,13 +12,6 @@ export interface ScenarioAIRequest {
   next_chapter_number?: number;
 }
 
-export interface BaselineAIRequest {
-  mode: "baseline";
-  prompt: string;
-  project_id: string;
-  chapter_number?: number;
-}
-
 export interface ChapterAIRequest {
   mode: "chapter";
   prompt: string;
@@ -71,7 +64,6 @@ export type AIRequest =
   | DetectBlocksRequest
   | AiSummaryRequest
   | SuggestBlockPromptRequest
-  | BaselineAIRequest
   | NarraMindAIRequest;
 
 export interface AIResponse {
@@ -186,11 +178,6 @@ export async function callScenarioAI(
   return callEdgeFunction<AIResponse>(payload);
 }
 
-export async function callBaselineAI(
-  payload: BaselineAIRequest
-): Promise<AIResponse> {
-  return callEdgeFunction<AIResponse>(payload);
-}
 
 /** Découpage chapitre textuel en panels (IA). Retourne la liste des panels avec description et contexte. */
 export async function callSplitChapterIntoPanels(

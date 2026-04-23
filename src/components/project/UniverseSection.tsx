@@ -5,6 +5,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useUpdateProject } from "@/hooks/useProjects";
 import { useUpdateAsset } from "@/hooks/useAssets";
+import { useScenarioChapters } from "@/hooks/useScenarioChapters";
+import { triggerNarraMindUpdate } from "@/services/scenarioAI";
 import type { Project, Asset } from "@/types";
 
 interface Props {
@@ -21,7 +23,7 @@ const TABS: { id: UniverseTab; label: string; icon: React.ElementType; assetType
   { id: "object",     label: "Objets",        icon: Box,      assetType: "object"     },
 ];
 
-function AssetLoreCard({ asset }: { asset: Asset }) {
+function AssetLoreCard({ asset, onLoreSaved }: { asset: Asset; onLoreSaved?: () => void }) {
   const { toast } = useToast();
   const updateAsset = useUpdateAsset();
   const [lore, setLore] = useState(asset.lore ?? "");
@@ -35,12 +37,13 @@ function AssetLoreCard({ asset }: { asset: Asset }) {
     try {
       await updateAsset.mutateAsync({ id: asset.id, projectId: asset.project_id, updates: { lore } });
       toast({ title: "LORE sauvegardé", description: asset.name });
+      onLoreSaved?.();
     } catch {
       toast({ title: "Erreur", description: "Impossible de sauvegarder.", variant: "destructive" });
     } finally {
       setSaving(false);
     }
-  }, [asset.id, asset.project_id, asset.name, lore, updateAsset, toast]);
+  }, [asset.id, asset.project_id, asset.name, lore, updateAsset, toast, onLoreSaved]);
 
   return (
     <div className="glass rounded-xl overflow-hidden">
@@ -115,23 +118,31 @@ function AssetLoreCard({ asset }: { asset: Asset }) {
 export function UniverseSection({ project, assets }: Props) {
   const { toast } = useToast();
   const updateProject = useUpdateProject();
+  const { data: scenarioChapters = [] } = useScenarioChapters(project.id);
   const [activeTab, setActiveTab] = useState<UniverseTab>("monde");
   const [universeLore, setUniverseLore] = useState(project.universe_lore ?? "");
   const [savingLore, setSavingLore] = useState(false);
 
   const isLoreDirty = universeLore !== (project.universe_lore ?? "");
 
+  const triggerNarraMindOnLatestChapter = useCallback(() => {
+    const latest = [...scenarioChapters].sort((a, b) => b.chapter_number - a.chapter_number)[0];
+    if (!latest) return;
+    triggerNarraMindUpdate(project.id, latest.id).catch(() => {});
+  }, [project.id, scenarioChapters]);
+
   const handleSaveLore = useCallback(async () => {
     setSavingLore(true);
     try {
       await updateProject.mutateAsync({ id: project.id, updates: { universe_lore: universeLore } });
       toast({ title: "Lore du monde sauvegardé" });
+      triggerNarraMindOnLatestChapter();
     } catch {
       toast({ title: "Erreur", description: "Impossible de sauvegarder.", variant: "destructive" });
     } finally {
       setSavingLore(false);
     }
-  }, [project.id, universeLore, updateProject, toast]);
+  }, [project.id, universeLore, updateProject, toast, triggerNarraMindOnLatestChapter]);
 
   const currentTab = TABS.find((t) => t.id === activeTab)!;
   const filteredAssets = currentTab.assetType
@@ -217,7 +228,7 @@ export function UniverseSection({ project, assets }: Props) {
                 {filteredAssets.length} {currentTab.label.toLowerCase()} — cliquez pour éditer le LORE
               </p>
               {filteredAssets.map((asset) => (
-                <AssetLoreCard key={asset.id} asset={asset} />
+                <AssetLoreCard key={asset.id} asset={asset} onLoreSaved={triggerNarraMindOnLatestChapter} />
               ))}
             </>
           )}

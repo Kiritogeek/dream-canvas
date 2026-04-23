@@ -20,7 +20,7 @@ export function ImageWithFallback({
   fallbackClassName = "",
   style,
   onError,
-  lazy = false,
+  lazy = true,
 }: ImageWithFallbackProps) {
   const alreadyKnown = !!src && loadedImages.has(src);
   const [hasError, setHasError] = useState(false);

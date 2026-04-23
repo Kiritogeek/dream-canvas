@@ -36,7 +36,6 @@ import {
   useReorderScenarioChapters,
 } from "@/hooks/useScenarioChapters";
 import { useScenarioAI } from "@/hooks/useScenarioAI";
-import { callBaselineAI } from "@/services/scenarioAI";
 import { ScenarioTextHighlighter } from "@/components/project/ScenarioTextHighlighter";
 import { AIChapterPreviewModal } from "@/components/project/AIChapterPreviewModal";
 import { estimatePanelCount } from "@/services/panels";
@@ -148,7 +147,6 @@ export function ScenarioSection({ projectId, project }: ScenarioSectionProps) {
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiResult, setAiResult] = useState<string | null>(null);
   const [isAccepting, setIsAccepting] = useState(false);
-  const [isBaselinePending, setIsBaselinePending] = useState(false);
   const [showChapterChoiceDialog, setShowChapterChoiceDialog] = useState(false);
   const [selectedAiChapterNumber, setSelectedAiChapterNumber] = useState<number>(
     chapterNumberChoices[0] ?? nextChapterNumber
@@ -327,7 +325,7 @@ export function ScenarioSection({ projectId, project }: ScenarioSectionProps) {
               }
               runScenarioGeneration(nextChapterNumber);
             }}
-            disabled={scenarioAI.isPending || isBaselinePending || !aiPrompt.trim()}
+            disabled={scenarioAI.isPending || !aiPrompt.trim()}
             className="gap-2 gradient-primary text-primary-foreground px-6 py-2.5 rounded-xl font-semibold shadow-dream hover:shadow-glow transition-shadow"
           >
             {scenarioAI.isPending ? (
@@ -345,44 +343,6 @@ export function ScenarioSection({ projectId, project }: ScenarioSectionProps) {
             )}
           </Button>
 
-          <Button
-            variant="outline"
-            onClick={async () => {
-              if (!aiPrompt.trim()) {
-                toast({ title: "Prompt requis", description: "Décrivez votre histoire pour le mode Baseline.", variant: "destructive" });
-                return;
-              }
-              setIsBaselinePending(true);
-              setSelectedAiChapterNumber(nextChapterNumber);
-              try {
-                const data = await callBaselineAI({
-                  mode: "baseline",
-                  prompt: aiPrompt.trim(),
-                  project_id: projectId,
-                  chapter_number: nextChapterNumber,
-                });
-                setAiResult(data.text);
-                toast({ title: "Baseline généré" });
-              } catch (err) {
-                toast({ title: "Erreur Baseline", description: (err as Error).message, variant: "destructive" });
-              } finally {
-                setIsBaselinePending(false);
-              }
-            }}
-            disabled={scenarioAI.isPending || isBaselinePending || !aiPrompt.trim()}
-            className="gap-2 border-dashed border-[hsl(var(--lavender)/0.4)] text-[hsl(var(--lavender))] hover:bg-[hsl(var(--lavender)/0.08)] px-4 py-2.5 rounded-xl font-medium text-sm"
-          >
-            {isBaselinePending ? (
-              <>
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                Baseline en cours…
-              </>
-            ) : (
-              <>
-                🔬 Tester Baseline
-              </>
-            )}
-          </Button>
         </div>
 
         <AIChapterPreviewModal

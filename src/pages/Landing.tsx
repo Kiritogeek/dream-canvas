@@ -115,7 +115,7 @@ export default function Landing() {
                   className="text-sm sm:text-base px-6 sm:px-8 backdrop-blur-sm bg-background/30 hover:bg-background/50"
                 >
                   <Link to="/auth">
-                    Voir un exemple →
+                    Se connecter →
                   </Link>
                 </Button>
               </div>

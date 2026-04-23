@@ -53,15 +53,16 @@ function jsonResponse(body: object, status: number) {
 async function verifyUserFromToken(
   authHeader: string | null,
   supabaseUrl: string,
-  serviceKey: string
+  _serviceKey: string
 ): Promise<{ userId: string; userEmail: string | null } | null> {
   if (!authHeader) return null;
   try {
     const token = authHeader.replace(/^Bearer\s+/i, "").trim();
     if (!token) return null;
 
-    const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
-    const apiKey = anonKey?.trim() || serviceKey;
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")?.trim();
+    if (!anonKey) return null;
+    const apiKey = anonKey;
 
     const res = await fetch(`${supabaseUrl}/auth/v1/user`, {
       headers: {

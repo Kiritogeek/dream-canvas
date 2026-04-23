@@ -328,24 +328,43 @@ Obligatoire avant tout merge :
 
 ## Roadmap (résumé — ordre strict)
 
-1. ✅ **Scénario IA** — refonte workspace + résumés contexte IA (code livré, migration SQL + redéploiement Edge Function en attente)
-2. ✅ **Sheet System** — génération séquentielle face + sheet 4 angles pour tous les personnages (Free ET Pro)
-3. 🟡 **Finalisation plans Free/Pro** — DÉBLOQUÉ (Scénario + Sheet livrés)
-4. **Stripe** — code prêt, déploiement après finalisation des plans
-5. **Vue Admin** — `/admin`, accès `kiritogeek@gmail.com`, override plan, analytics
+1. ✅ **Scénario IA** — refonte workspace + résumés contexte IA
+2. ✅ **Sheet System** — génération séquentielle face + sheet 4 angles (Free ET Pro)
+3. ✅ **Audit + nettoyage navigation** — pages mortes supprimées, Univers livré, NarraMind auto
+4. 🟡 **Refonte Éditeur** — Option B (simplification UX court terme) → Option A (canvas-first Figma-like) — spec : `Produit/RefontEditeurdeloeuvre.md`
+5. 🔜 **Finalisation plans Free/Pro** — après refonte éditeur
+6. 🔜 **Stripe** — code prêt, déploiement après finalisation des plans
+7. 🔜 **Vue Admin** — `/admin`, accès `kiritogeek@gmail.com`, override plan, analytics
 
-Roadmap complète : `../DreamWeave-wiki/wiki/Roadmap-2026.md` (source de vérité) · `Produit/07_Roadmap_Produit.md`
+Roadmap complète : `C:/Users/PC/Documents/WikiBrain/wiki/Roadmap-2026.md` (source de vérité)
 
 ---
 
-## Règle .md — Mettre à jour après chaque décision
+## Commande Initialisation
 
-**Après chaque session où des décisions produit/technique sont prises :**
-- Mettre à jour les pages wiki concernées (vault : `../DreamWeave-wiki/wiki/`)
-- Créer une page wiki si la décision crée une nouvelle spec (ex : `[[Scenario-IA]]`)
-- Mettre à jour `../DreamWeave-wiki/wiki/index.md` si nouvelle page créée
-- Ajouter une entrée dans `../DreamWeave-wiki/log.md`
+Quand Louis écrit **"Initialisation"**, exécuter ce protocole sans attendre :
+
+1. Lire `C:/Users/PC/Documents/WikiBrain/wiki/index.md`
+2. Identifier les 2-3 pages wiki les plus pertinentes pour le contexte actuel du projet
+3. Lire ces pages en parallèle
+4. Lire `MEMORY.md` (déjà en contexte — vérifier qu'il est à jour)
+5. Spawner les agents nécessaires selon les tâches anticipées (voir tableau agents)
+6. Répondre : "✅ Initialisé — [résumé contexte en 3 lignes : état du projet, dernière session, prochaine priorité]"
+
+**Objectif** : être opérationnel à 100% dès le premier échange, sans devoir redemander le contexte.
+
+---
+
+## Règle .md — Mise à jour automatique après chaque session
+
+**Automatique — pas besoin que Louis le demande.** Après chaque session avec des décisions durables :
+- Mettre à jour les pages wiki concernées (`C:/Users/PC/Documents/WikiBrain/wiki/`)
+- Créer une page wiki si la décision crée une nouvelle spec (ex : `[[Scenario-IA]]`, `[[RefontEditeur]]`)
+- Mettre à jour `wiki/index.md` si nouvelle page créée
+- Ajouter une entrée dans `C:/Users/PC/Documents/WikiBrain/log.md`
 - Mettre à jour `CLAUDE.md` si les tiers, la stack ou les règles changent
+
+**Sessions triviales** (fix < 5 lignes, exploration) → log.md uniquement, pas de mise à jour wiki.
 
 ---
 

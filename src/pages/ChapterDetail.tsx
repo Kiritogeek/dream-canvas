@@ -86,6 +86,8 @@ import {
 } from "@/services/panels";
 import { callSuggestBlockPrompt } from "@/services/scenarioAI";
 import { renderPanelToCanvas, renderChapterToCanvas, downloadCanvas, exportChapterAsZip } from "@/services/exportPanel";
+import { useResizeBlock } from "@/hooks/useResizeBlock";
+import { useDragBlock } from "@/hooks/useDragBlock";
 import type { Json } from "@/integrations/supabase/types";
 import type { Panel, PanelBlock, PanelLayout, ColorBlock, ColorBlockFill, SpeechBubble, SpeechBubbleType, Asset } from "@/types";
 import {
@@ -305,24 +307,8 @@ export default function ChapterDetail() {
   const newBlockDragGhostRef = useRef<HTMLDivElement | null>(null);
   /** Drop move-block traité sur le canvas : ne pas nettoyer le preview dans onDragEnd pour éviter le saut visuel */
   const moveDropHandledRef = useRef(false);
-  /** Ref vers l’élément DOM du bloc en cours de déplacement (opacity pendant le drag) */
-  const draggingBlockElRef = useRef<HTMLDivElement | null>(null);
   /** Ghost de drag : un div par panel, positionné en direct (React ne le touche jamais) = temps réel garanti */
   const dragGhostRefByPanel = useRef<Record<string, HTMLDivElement | null>>({});
-  /** Données du bloc en cours de déplacement (tout en ref pour ne jamais déclencher de re-render) */
-  const draggingBlockDataRef = useRef<{
-    panelId: string;
-    blockId: string;
-    startBlockX: number;
-    startBlockY: number;
-    startMouseX: number;
-    startMouseY: number;
-    blockWidth: number;
-    blockHeight: number;
-    /** Cache rect au start (fallback si getBoundingClientRect indisponible pendant le move) */
-    rectLeft: number;
-    rectTop: number;
-  } | null>(null);
   /** En cours de resize (annuler le drag du bloc) */
   const isResizingRef = useRef(false);
   /** Élément DOM du bloc en cours de resize (mise à jour directe = zéro re-render) */
@@ -381,23 +367,8 @@ export default function ChapterDetail() {
     setExpandedPanelId(null);
     resetPanelEditorUiState();
   }, [resetPanelEditorUiState]);
-  /** Ref vers l’élément DOM du bloc de couleur en cours de déplacement (opacity pendant le drag) */
-  const draggingColorBlockElRef = useRef<HTMLDivElement | null>(null);
   /** Ghost de drag pour blocs de couleur : un div par panel, position mis à jour en direct (comme blocs image) */
   const dragColorBlockGhostRefByPanel = useRef<Record<string, HTMLDivElement | null>>({});
-  /** Données du bloc de couleur en cours de déplacement (tout en ref = zéro re-render pendant le move) */
-  const draggingColorBlockDataRef = useRef<{
-    panelId: string;
-    colorBlockId: string;
-    startX: number;
-    startY: number;
-    startMouseX: number;
-    startMouseY: number;
-    width: number;
-    height: number;
-    rectLeft: number;
-    rectTop: number;
-  } | null>(null);
   /** Resize d'un bloc de couleur (comme pour les blocs image) */
   const [resizingColorBlockState, setResizingColorBlockState] = useState<{
     panelId: string;
@@ -415,10 +386,6 @@ export default function ChapterDetail() {
   const isResizingColorBlockRef = useRef(false);
   /** Ghost de drag pour bulles de dialogue */
   const dragSpeechBubbleGhostRefByPanel = useRef<Record<string, HTMLDivElement | null>>({});
-  const draggingSpeechBubbleDataRef = useRef<{
-    panelId: string; bubbleId: string; startX: number; startY: number; startMouseX: number; startMouseY: number; width: number; height: number; rectLeft: number; rectTop: number;
-  } | null>(null);
-  const draggingSpeechBubbleElRef = useRef<HTMLDivElement | null>(null);
   /** Resize d'une bulle de dialogue */
   const [resizingSpeechBubbleState, setResizingSpeechBubbleState] = useState<{
     panelId: string; bubbleId: string; edge: "t" | "b" | "l" | "r" | "tl" | "tr" | "bl" | "br";
@@ -488,316 +455,154 @@ export default function ChapterDetail() {
 
   /** Plus d’effet global pour le drag : tout se fait dans le pointerdown du bloc (refs + listeners) pour zéro re-render. */
 
-  /**
-   * Resize façon Canva : poignées (4 coins + 4 côtés), bord/côté opposé ancré.
-   * - Coins : largeur et hauteur changent, coin opposé fixe (nouvelle_largeur = initiale ± dX, nouvelle_hauteur = initiale ± dY).
-   * - Côtés : une seule dimension change, l’autre reste fixe.
-   */
-  useEffect(() => {
-    const target = resizeCaptureTargetRef.current;
-    if (!resizingState || !target) return;
-    const { edge, start } = resizingState;
-    const minW = 100;
-    const minH = 100;
-    const rightFixed = start.x + start.w;
-    const bottomFixed = start.y + start.h;
+  useResizeBlock({
+    resizingState,
+    captureTargetRef: resizeCaptureTargetRef,
+    elementRef: resizingBlockElRef,
+    draftRef: resizeDraftRef,
+    lastMouseRef: lastResizeMouseRef,
+    saveCallbackRef: saveResizeRef,
+    canvasRefByPanel,
+    panels,
+    onDraft: setResizeDraft,
+    onCommit: () => {},
+    onCancel: () => {
+      resizingBlockElRef.current = null;
+      setResizingState(null);
+      setResizeDraft(null);
+      resizeDraftRef.current = null;
+      lastResizeMouseRef.current = null;
+      resizeCaptureTargetRef.current = null;
+      isResizingRef.current = false;
+    },
+  });
 
-    const computeFromMouse = (clientX: number, clientY: number) => {
-      const canvasEl = canvasRefByPanel.current[resizingState.panelId];
-      if (!canvasEl) return { x: start.x, y: start.y, width: start.w, height: start.h };
+  useResizeBlock({
+    resizingState: resizingColorBlockState,
+    captureTargetRef: resizeColorBlockCaptureTargetRef,
+    elementRef: resizingColorBlockElRef,
+    draftRef: resizeColorBlockDraftRef,
+    lastMouseRef: lastResizeColorBlockMouseRef,
+    saveCallbackRef: saveResizeColorBlockRef,
+    canvasRefByPanel,
+    panels,
+    onDraft: setResizeColorBlockDraft,
+    onCommit: () => {},
+    onCancel: () => {
+      setResizingColorBlockState(null);
+      setResizeColorBlockDraft(null);
+      resizeColorBlockDraftRef.current = null;
+      lastResizeColorBlockMouseRef.current = null;
+      resizeColorBlockCaptureTargetRef.current = null;
+      resizingColorBlockElRef.current = null;
+      isResizingColorBlockRef.current = false;
+    },
+  });
 
-      const mouse = viewportToCanvas(canvasEl, clientX, clientY);
-      let x = start.x;
-      let y = start.y;
-      let w = start.w;
-      let h = start.h;
+  useResizeBlock({
+    resizingState: resizingSpeechBubbleState,
+    captureTargetRef: resizeSpeechBubbleCaptureTargetRef,
+    elementRef: resizingSpeechBubbleElRef,
+    draftRef: resizeSpeechBubbleDraftRef,
+    lastMouseRef: lastResizeSpeechBubbleMouseRef,
+    saveCallbackRef: saveResizeSpeechBubbleRef,
+    canvasRefByPanel,
+    panels,
+    minW: 60,
+    minH: 28,
+    elementExtraH: 14,
+    useDocumentCapture: true,
+    onDraft: setResizeSpeechBubbleDraft,
+    onCommit: () => {},
+    onCancel: () => {
+      setResizingSpeechBubbleState(null);
+      setResizeSpeechBubbleDraft(null);
+      resizeSpeechBubbleDraftRef.current = null;
+      lastResizeSpeechBubbleMouseRef.current = null;
+      resizeSpeechBubbleCaptureTargetRef.current = null;
+      resizingSpeechBubbleElRef.current = null;
+      isResizingSpeechBubbleRef.current = false;
+    },
+  });
 
-      switch (edge) {
-        case "r":
-          w = mouse.x - start.x;
-          break;
-        case "l":
-          x = mouse.x;
-          w = rightFixed - mouse.x;
-          break;
-        case "b":
-          h = mouse.y - start.y;
-          break;
-        case "t":
-          y = mouse.y;
-          h = bottomFixed - mouse.y;
-          break;
-        case "tr":
-          y = mouse.y;
-          w = mouse.x - start.x;
-          h = bottomFixed - mouse.y;
-          break;
-        case "br":
-          w = mouse.x - start.x;
-          h = mouse.y - start.y;
-          break;
-        case "bl":
-          x = mouse.x;
-          w = rightFixed - mouse.x;
-          h = mouse.y - start.y;
-          break;
-        case "tl":
-          x = mouse.x;
-          y = mouse.y;
-          w = rightFixed - mouse.x;
-          h = bottomFixed - mouse.y;
-          break;
-      }
-
-      const leftFixed = edge === "r" || edge === "tr" || edge === "br";
-      const topFixed = edge === "r" || edge === "b" || edge === "br" || edge === "bl";
-      const rightAnchored = edge === "l" || edge === "bl" || edge === "tl";
-      const bottomAnchored = edge === "t" || edge === "tr" || edge === "tl";
-
-      const panel = panels.find((p) => p.id === resizingState.panelId);
-      const panelH = getPanelHeight(panel);
-      w = Math.max(minW, Math.min(PANEL_WIDTH, w));
-      h = Math.max(minH, Math.min(panelH, h));
-
-      if (leftFixed) w = Math.min(w, PANEL_WIDTH - start.x);
-      if (topFixed) h = Math.min(h, panelH - start.y);
-      if (rightAnchored) {
-        w = Math.min(w, rightFixed);
-        x = rightFixed - w;
-      }
-      if (bottomAnchored) {
-        h = Math.min(h, bottomFixed);
-        y = bottomFixed - h;
-      }
-
-      if (leftFixed) x = start.x;
-      else if (rightAnchored) x = rightFixed - w;
-      else x = Math.max(0, Math.min(PANEL_WIDTH - w, x));
-
-      if (topFixed) y = start.y;
-      else if (bottomAnchored) y = bottomFixed - h;
-      else y = Math.max(0, Math.min(panelH - h, y));
-
-      return { x: Math.round(x), y: Math.round(y), width: Math.round(w), height: Math.round(h) };
-    };
-
-      const onMove = (e: PointerEvent) => {
-        if (e.buttons !== 1) return;
-        lastResizeMouseRef.current = { x: e.clientX, y: e.clientY };
-        const result = computeFromMouse(e.clientX, e.clientY);
-        const roundedResult = { x: Math.round(result.x), y: Math.round(result.y), width: Math.round(result.width), height: Math.round(result.height) };
-        resizeDraftRef.current = roundedResult;
-        setResizeDraft(roundedResult);
-        const el = resizingBlockElRef.current;
-        if (el) {
-          el.style.left = `${roundedResult.x}px`;
-          el.style.top = `${roundedResult.y}px`;
-          el.style.width = `${roundedResult.width}px`;
-          el.style.height = `${roundedResult.height}px`;
+  const dragColorBlock = useDragBlock({
+    canvasRefByPanel,
+    ghostRefByPanel: dragColorBlockGhostRefByPanel,
+    isResizingRef: isResizingColorBlockRef,
+    zoomRef,
+    onCommit: (panelId, colorBlockId, clampedX, clampedY) => {
+      const currentPanels = queryClient.getQueryData<Panel[]>(panelsQueryKey) ?? [];
+      const panelData = currentPanels.find((p) => p.id === panelId);
+      const colorBlocksList = getPanelColorBlocks(panelData ?? panels.find((p) => p.id === panelId));
+      const next = colorBlocksList.map((c) => (c.id === colorBlockId ? { ...c, x: clampedX, y: clampedY } : c));
+      queryClient.cancelQueries({ queryKey: panelsQueryKey });
+      const previousPanels = queryClient.getQueryData<Panel[]>(panelsQueryKey);
+      queryClient.setQueryData<Panel[]>(panelsQueryKey, (old) => (!old ? old : old.map((p) => (p.id === panelId ? { ...p, color_blocks: next as unknown as Json } : p))));
+      updatePanelMutation.mutate(
+        { id: panelId, updates: { color_blocks: next as unknown as Json } },
+        {
+          onError: (err) => {
+            if (previousPanels != null) queryClient.setQueryData(panelsQueryKey, previousPanels);
+            toast({ title: "Erreur", description: err.message, variant: "destructive" });
+          },
         }
-      };
-    const onUp = () => {
-      const lastClient = lastResizeMouseRef.current;
-      const rawResult = lastClient
-        ? computeFromMouse(lastClient.x, lastClient.y)
-        : resizeDraftRef.current ?? { x: start.x, y: start.y, width: start.w, height: start.h };
-      const result = { x: Math.round(rawResult.x), y: Math.round(rawResult.y), width: Math.round(rawResult.width), height: Math.round(rawResult.height) };
-      const hadSave = !!saveResizeRef.current;
-      saveResizeRef.current?.(result);
-      saveResizeRef.current = null;
-      if (!hadSave) {
-        resizingBlockElRef.current = null;
-        setResizingState(null);
-        setResizeDraft(null);
-        resizeDraftRef.current = null;
-        lastResizeMouseRef.current = null;
-        resizeCaptureTargetRef.current = null;
-        isResizingRef.current = false;
-      }
-    };
-    target.addEventListener("pointermove", onMove);
-    target.addEventListener("pointerup", onUp);
-    return () => {
-      target.removeEventListener("pointermove", onMove);
-      target.removeEventListener("pointerup", onUp);
-      // Ne pas vider les refs ici : en Strict Mode le cleanup puis re-run laisserait target=null et aucun listener. Les refs sont remises à zéro dans onMutate / onUp.
-    };
-  }, [resizingState, panels]);
+      );
+    },
+  });
 
-  /** Resize des blocs de couleur (même logique que blocs image). */
-  useEffect(() => {
-    const target = resizeColorBlockCaptureTargetRef.current;
-    if (!resizingColorBlockState || !target) return;
-    const { edge, start, panelId } = resizingColorBlockState;
-    const minW = 100;
-    const minH = 100;
-    const rightFixed = start.x + start.w;
-    const bottomFixed = start.y + start.h;
-    const panel = panels.find((p) => p.id === panelId);
-    const panelH = getPanelHeight(panel);
+  const dragImageBlock = useDragBlock({
+    canvasRefByPanel,
+    ghostRefByPanel: dragGhostRefByPanel,
+    isResizingRef,
+    zoomRef,
+    onCommit: (panelId, blockId, clampedX, clampedY) => {
+      const currentPanels = queryClient.getQueryData<Panel[]>(panelsQueryKey) ?? [];
+      const panelData = currentPanels.find((p) => p.id === panelId);
+      const layoutData = getPanelLayout(panelData ?? panels.find((p) => p.id === panelId));
+      const blockData = layoutData.blocks.find((b) => b.id === blockId);
+      if (!blockData) return;
+      const blockIdx = layoutData.blocks.findIndex((b) => b.id === blockId);
+      const nextBlocks = layoutData.blocks.map((b, i) => (i === blockIdx ? { ...b, x: clampedX, y: clampedY } : b));
+      moveDropHandledRef.current = true;
+      const movePayload = { id: panelId, updates: { layout: { ...layoutData, blocks: nextBlocks } as unknown as Json } };
+      queryClient.cancelQueries({ queryKey: panelsQueryKey });
+      const previousPanels = queryClient.getQueryData<Panel[]>(panelsQueryKey);
+      queryClient.setQueryData<Panel[]>(panelsQueryKey, (old) => (!old ? old : old.map((p) => (p.id === panelId ? { ...p, layout: movePayload.updates.layout ?? p.layout } : p))));
+      updatePanelMutation.mutate(movePayload, {
+        onSuccess: () => { moveDropHandledRef.current = false; },
+        onError: (err) => {
+          moveDropHandledRef.current = false;
+          if (previousPanels != null) queryClient.setQueryData(panelsQueryKey, previousPanels);
+          toast({ title: "Erreur", description: err.message, variant: "destructive" });
+        },
+      });
+    },
+  });
 
-    const computeFromMouse = (clientX: number, clientY: number) => {
-      const canvasEl = canvasRefByPanel.current[panelId];
-      if (!canvasEl) return { x: start.x, y: start.y, width: start.w, height: start.h };
-      const mouse = viewportToCanvas(canvasEl, clientX, clientY);
-      let x = start.x, y = start.y, w = start.w, h = start.h;
-      switch (edge) {
-        case "r": w = mouse.x - start.x; break;
-        case "l": x = mouse.x; w = rightFixed - mouse.x; break;
-        case "b": h = mouse.y - start.y; break;
-        case "t": y = mouse.y; h = bottomFixed - mouse.y; break;
-        case "tr": y = mouse.y; w = mouse.x - start.x; h = bottomFixed - mouse.y; break;
-        case "br": w = mouse.x - start.x; h = mouse.y - start.y; break;
-        case "bl": x = mouse.x; w = rightFixed - mouse.x; h = mouse.y - start.y; break;
-        case "tl": x = mouse.x; y = mouse.y; w = rightFixed - mouse.x; h = bottomFixed - mouse.y; break;
-      }
-      const leftFixed = edge === "r" || edge === "tr" || edge === "br";
-      const topFixed = edge === "r" || edge === "b" || edge === "br" || edge === "bl";
-      const rightAnchored = edge === "l" || edge === "bl" || edge === "tl";
-      const bottomAnchored = edge === "t" || edge === "tr" || edge === "tl";
-      w = Math.max(minW, Math.min(PANEL_WIDTH, w));
-      h = Math.max(minH, Math.min(panelH, h));
-      if (leftFixed) w = Math.min(w, PANEL_WIDTH - start.x);
-      if (topFixed) h = Math.min(h, panelH - start.y);
-      if (rightAnchored) { w = Math.min(w, rightFixed); x = rightFixed - w; }
-      if (bottomAnchored) { h = Math.min(h, bottomFixed); y = bottomFixed - h; }
-      if (leftFixed) x = start.x;
-      else if (rightAnchored) x = rightFixed - w;
-      else x = Math.max(0, Math.min(PANEL_WIDTH - w, x));
-      if (topFixed) y = start.y;
-      else if (bottomAnchored) y = bottomFixed - h;
-      else y = Math.max(0, Math.min(panelH - h, y));
-      return { x: Math.round(x), y: Math.round(y), width: Math.round(w), height: Math.round(h) };
-    };
-
-    const onMove = (e: PointerEvent) => {
-      if (e.buttons !== 1) return;
-      lastResizeColorBlockMouseRef.current = { x: e.clientX, y: e.clientY };
-      const result = computeFromMouse(e.clientX, e.clientY);
-      resizeColorBlockDraftRef.current = result;
-      setResizeColorBlockDraft(result);
-      const el = resizingColorBlockElRef.current;
-      if (el) {
-        el.style.left = `${result.x}px`;
-        el.style.top = `${result.y}px`;
-        el.style.width = `${result.width}px`;
-        el.style.height = `${result.height}px`;
-      }
-    };
-    const onUp = () => {
-      const lastClient = lastResizeColorBlockMouseRef.current;
-      const rawResult = lastClient
-        ? computeFromMouse(lastClient.x, lastClient.y)
-        : resizeColorBlockDraftRef.current ?? { x: start.x, y: start.y, width: start.w, height: start.h };
-      const result = { x: Math.round(rawResult.x), y: Math.round(rawResult.y), width: Math.round(rawResult.width), height: Math.round(rawResult.height) };
-      const hadSave = !!saveResizeColorBlockRef.current;
-      saveResizeColorBlockRef.current?.(result);
-      saveResizeColorBlockRef.current = null;
-      if (!hadSave) {
-        setResizingColorBlockState(null);
-        setResizeColorBlockDraft(null);
-        resizeColorBlockDraftRef.current = null;
-        lastResizeColorBlockMouseRef.current = null;
-        resizeColorBlockCaptureTargetRef.current = null;
-        resizingColorBlockElRef.current = null;
-        isResizingColorBlockRef.current = false;
-      }
-    };
-    target.addEventListener("pointermove", onMove);
-    target.addEventListener("pointerup", onUp);
-    return () => {
-      target.removeEventListener("pointermove", onMove);
-      target.removeEventListener("pointerup", onUp);
-    };
-  }, [resizingColorBlockState, panels]);
-
-  /** Resize des bulles de dialogue (même logique que blocs de couleur — listeners sur document pour recevoir tous les events). */
-  useEffect(() => {
-    if (!resizingSpeechBubbleState) return;
-    const { edge, start, panelId } = resizingSpeechBubbleState;
-    const minW = 60;
-    const minH = 28;
-    const rightFixed = start.x + start.w;
-    const bottomFixed = start.y + start.h;
-    const panel = panels.find((p) => p.id === panelId);
-    const panelH = panel ? getPanelHeight(panel) : PANEL_HEIGHT_DEFAULT;
-    const listenTarget = document.body;
-
-    const computeFromMouse = (clientX: number, clientY: number) => {
-      const canvasEl = canvasRefByPanel.current[panelId];
-      if (!canvasEl) return { x: start.x, y: start.y, width: start.w, height: start.h };
-      const mouse = viewportToCanvas(canvasEl, clientX, clientY);
-      let x = start.x, y = start.y, w = start.w, h = start.h;
-      switch (edge) {
-        case "r": w = mouse.x - start.x; break;
-        case "l": x = mouse.x; w = rightFixed - mouse.x; break;
-        case "b": h = mouse.y - start.y; break;
-        case "t": y = mouse.y; h = bottomFixed - mouse.y; break;
-        case "tr": y = mouse.y; w = mouse.x - start.x; h = bottomFixed - mouse.y; break;
-        case "br": w = mouse.x - start.x; h = mouse.y - start.y; break;
-        case "bl": x = mouse.x; w = rightFixed - mouse.x; h = mouse.y - start.y; break;
-        case "tl": x = mouse.x; y = mouse.y; w = rightFixed - mouse.x; h = bottomFixed - mouse.y; break;
-      }
-      const leftFixed = edge === "r" || edge === "tr" || edge === "br";
-      const topFixed = edge === "r" || edge === "b" || edge === "br" || edge === "bl";
-      const rightAnchored = edge === "l" || edge === "bl" || edge === "tl";
-      const bottomAnchored = edge === "t" || edge === "tr" || edge === "tl";
-      w = Math.max(minW, Math.min(PANEL_WIDTH, w));
-      h = Math.max(minH, Math.min(panelH, h));
-      if (leftFixed) w = Math.min(w, PANEL_WIDTH - start.x);
-      if (topFixed) h = Math.min(h, panelH - start.y);
-      if (rightAnchored) { w = Math.min(w, rightFixed); x = rightFixed - w; }
-      if (bottomAnchored) { h = Math.min(h, bottomFixed); y = bottomFixed - h; }
-      if (leftFixed) x = start.x;
-      else if (rightAnchored) x = rightFixed - w;
-      else x = Math.max(0, Math.min(PANEL_WIDTH - w, x));
-      if (topFixed) y = start.y;
-      else if (bottomAnchored) y = bottomFixed - h;
-      else y = Math.max(0, Math.min(panelH - h, y));
-      return { x: Math.round(x), y: Math.round(y), width: Math.round(w), height: Math.round(h) };
-    };
-
-    const tailH = 14;
-    const onMove = (e: PointerEvent) => {
-      if (e.buttons !== 1) return;
-      lastResizeSpeechBubbleMouseRef.current = { x: e.clientX, y: e.clientY };
-      const result = computeFromMouse(e.clientX, e.clientY);
-      resizeSpeechBubbleDraftRef.current = result;
-      setResizeSpeechBubbleDraft(result);
-      const el = resizingSpeechBubbleElRef.current;
-      if (el) {
-        el.style.left = `${result.x}px`;
-        el.style.top = `${result.y}px`;
-        el.style.width = `${result.width}px`;
-        el.style.height = `${result.height + tailH}px`;
-      }
-    };
-    const onUp = () => {
-      const lastClient = lastResizeSpeechBubbleMouseRef.current;
-      const rawResult = lastClient
-        ? computeFromMouse(lastClient.x, lastClient.y)
-        : resizeSpeechBubbleDraftRef.current ?? { x: start.x, y: start.y, width: start.w, height: start.h };
-      const result = { x: Math.round(rawResult.x), y: Math.round(rawResult.y), width: Math.round(rawResult.width), height: Math.round(rawResult.height) };
-      const hadSave = !!saveResizeSpeechBubbleRef.current;
-      saveResizeSpeechBubbleRef.current?.(result);
-      saveResizeSpeechBubbleRef.current = null;
-      if (!hadSave) {
-        setResizingSpeechBubbleState(null);
-        setResizeSpeechBubbleDraft(null);
-        resizeSpeechBubbleDraftRef.current = null;
-        lastResizeSpeechBubbleMouseRef.current = null;
-        resizeSpeechBubbleCaptureTargetRef.current = null;
-        resizingSpeechBubbleElRef.current = null;
-        isResizingSpeechBubbleRef.current = false;
-      }
-    };
-    listenTarget.addEventListener("pointermove", onMove, true);
-    listenTarget.addEventListener("pointerup", onUp, true);
-    return () => {
-      listenTarget.removeEventListener("pointermove", onMove, true);
-      listenTarget.removeEventListener("pointerup", onUp, true);
-    };
-  }, [resizingSpeechBubbleState, panels]);
+  const dragSpeechBubble = useDragBlock({
+    canvasRefByPanel,
+    ghostRefByPanel: dragSpeechBubbleGhostRefByPanel,
+    isResizingRef: isResizingSpeechBubbleRef,
+    zoomRef,
+    onCommit: (panelId, bubbleId, clampedX, clampedY) => {
+      const currentPanels = queryClient.getQueryData<Panel[]>(panelsQueryKey) ?? [];
+      const panelData = currentPanels.find((p) => p.id === panelId);
+      const bubblesList = getPanelSpeechBubbles(panelData ?? panels.find((p) => p.id === panelId));
+      const next = bubblesList.map((b) => b.id === bubbleId ? { ...b, position: { x: clampedX, y: clampedY } } : b);
+      queryClient.cancelQueries({ queryKey: panelsQueryKey });
+      const previousPanels = queryClient.getQueryData<Panel[]>(panelsQueryKey);
+      queryClient.setQueryData<Panel[]>(panelsQueryKey, (old) => (!old ? old : old.map((p) => (p.id === panelId ? { ...p, speech_bubbles: next as unknown as Json } : p))));
+      updatePanelMutation.mutate(
+        { id: panelId, updates: { speech_bubbles: next as unknown as Json } },
+        {
+          onError: (err) => {
+            if (previousPanels != null) queryClient.setQueryData(panelsQueryKey, previousPanels);
+            toast({ title: "Erreur", description: err.message, variant: "destructive" });
+          },
+        }
+      );
+    },
+  });
 
   const _handleExportPanel = async (panel: Panel) => {
     const el = exportCanvasRefByPanel.current[panel.id];
@@ -2200,24 +2005,8 @@ export default function ChapterDetail() {
                       zIndex: 0,
                     }}
                     onPointerDown={!isResizingThis && !isResizingColorBlockRef.current ? (e) => {
-                      if (e.button !== 0) return;
-                      e.preventDefault();
-                      const canvasEl = canvasRefByPanel.current[panel.id];
-                      if (!canvasEl) return;
-                      const rect = canvasEl.getBoundingClientRect();
-                      const _dragScale = canvasEl.offsetWidth > 0 ? canvasEl.getBoundingClientRect().width / canvasEl.offsetWidth : 1;
-                      const startMouseX = (e.clientX - rect.left) / _dragScale;
-                      const startMouseY = (e.clientY - rect.top) / _dragScale;
-                      const el = e.currentTarget as HTMLDivElement;
-                      draggingColorBlockElRef.current = el;
-                      draggingColorBlockDataRef.current = { panelId: panel.id, colorBlockId: cb.id, startX: cb.x, startY: cb.y, startMouseX, startMouseY, width: cb.width, height: cb.height, rectLeft: rect.left, rectTop: rect.top };
                       const ghost = dragColorBlockGhostRefByPanel.current[panel.id];
                       if (ghost) {
-                        ghost.style.display = "block";
-                        ghost.style.left = `${cb.x}px`;
-                        ghost.style.top = `${cb.y}px`;
-                        ghost.style.width = `${cb.width}px`;
-                        ghost.style.height = `${cb.height}px`;
                         if (cb.fill.type === "solid") {
                           ghost.style.backgroundColor = cb.fill.color;
                           ghost.style.background = "";
@@ -2226,56 +2015,7 @@ export default function ChapterDetail() {
                           ghost.style.backgroundColor = "";
                         }
                       }
-                      el.style.opacity = "0.35";
-                      const panelH = getPanelHeight(panel);
-                      const onPointerMove = (ev: PointerEvent) => {
-                        const data = draggingColorBlockDataRef.current;
-                        if (!data) return;
-                        const canvas = canvasRefByPanel.current[data.panelId];
-                        const r = canvas?.getBoundingClientRect();
-                        const _cbMs = canvas && canvas.offsetWidth > 0 ? r!.width / canvas.offsetWidth : 1;
-                        const canvasMouseX = r ? (ev.clientX - r.left) / _cbMs : (ev.clientX - data.rectLeft) / zoomRef.current;
-                        const canvasMouseY = r ? (ev.clientY - r.top) / _cbMs : (ev.clientY - data.rectTop) / zoomRef.current;
-                        const newX = Math.max(0, Math.min(PANEL_WIDTH - data.width, data.startX + (canvasMouseX - data.startMouseX)));
-                        const newY = Math.max(0, Math.min(panelH - data.height, data.startY + (canvasMouseY - data.startMouseY)));
-                        const g = dragColorBlockGhostRefByPanel.current[data.panelId];
-                        if (g) { g.style.left = `${newX}px`; g.style.top = `${newY}px`; }
-                      };
-                      const onPointerUp = (ev: PointerEvent) => {
-                        if (ev.button !== 0) return;
-                        document.removeEventListener("pointermove", onPointerMove, true);
-                        document.removeEventListener("pointerup", onPointerUp, true);
-                        const data = draggingColorBlockDataRef.current;
-                        draggingColorBlockDataRef.current = null;
-                        const dragEl = draggingColorBlockElRef.current;
-                        if (dragEl) { dragEl.style.opacity = ""; draggingColorBlockElRef.current = null; }
-                        const g = data && dragColorBlockGhostRefByPanel.current[data.panelId];
-                        if (g) g.style.display = "none";
-                        if (!data) return;
-                        const canvas = canvasRefByPanel.current[data.panelId];
-                        const currentPanels = queryClient.getQueryData<Panel[]>(panelsQueryKey) ?? [];
-                        const panelUp = currentPanels.find((p) => p.id === data.panelId);
-                        const colorBlocksUp = getPanelColorBlocks(panelUp ?? panel);
-                        if (!canvas) return;
-                        const { x: canvasMouseX, y: canvasMouseY } = viewportToCanvas(canvas, ev.clientX, ev.clientY);
-                        const clampedX = Math.max(0, Math.min(PANEL_WIDTH - data.width, Math.round(data.startX + (canvasMouseX - data.startMouseX))));
-                        const clampedY = Math.max(0, Math.min(getPanelHeight(panelUp ?? panel) - data.height, Math.round(data.startY + (canvasMouseY - data.startMouseY))));
-                        const next = colorBlocksUp.map((c) => (c.id === data.colorBlockId ? { ...c, x: clampedX, y: clampedY } : c));
-                        queryClient.cancelQueries({ queryKey: panelsQueryKey });
-                        const previousPanels = queryClient.getQueryData<Panel[]>(panelsQueryKey);
-                        queryClient.setQueryData<Panel[]>(panelsQueryKey, (old) => (!old ? old : old.map((p) => (p.id === data.panelId ? { ...p, color_blocks: next as unknown as Json } : p))));
-                        updatePanelMutation.mutate(
-                          { id: data.panelId, updates: { color_blocks: next as unknown as Json } },
-                          {
-                            onError: (err) => {
-                              if (previousPanels != null) queryClient.setQueryData(panelsQueryKey, previousPanels);
-                              toast({ title: "Erreur", description: err.message, variant: "destructive" });
-                            },
-                          }
-                        );
-                      };
-                      document.addEventListener("pointermove", onPointerMove, { capture: true, passive: true });
-                      document.addEventListener("pointerup", onPointerUp, true);
+                      dragColorBlock.onPointerDown(e, panel.id, cb.id, cb.x, cb.y, cb.width, cb.height, getPanelHeight(panel));
                     } : undefined}
                     onClick={(e) => { e.stopPropagation(); setSelectedColorBlockIdInModal({ panelId: panel.id, colorBlockId: cb.id }); }}
                   >
@@ -2375,82 +2115,7 @@ export default function ChapterDetail() {
                       key={block.id}
                       ref={isThisResizing ? (el) => { if (el) resizingBlockElRef.current = el; } : undefined}
                       draggable={false}
-                      onPointerDown={!isThisResizing ? (e) => {
-                        if (e.button !== 0 || isResizingRef.current) return;
-                        e.preventDefault();
-                        const canvasEl = canvasRefByPanel.current[panel.id];
-                        if (!canvasEl) return;
-                        const rect = canvasEl.getBoundingClientRect();
-                        const _cbScale = canvasEl.offsetWidth > 0 ? rect.width / canvasEl.offsetWidth : 1;
-                        const startMouseX = (e.clientX - rect.left) / _cbScale;
-                        const startMouseY = (e.clientY - rect.top) / _cbScale;
-                        const el = e.currentTarget as HTMLDivElement;
-                        draggingBlockElRef.current = el;
-                        draggingBlockDataRef.current = { panelId: panel.id, blockId: block.id, startBlockX: block.x, startBlockY: block.y, startMouseX, startMouseY, blockWidth: block.width, blockHeight: block.height, rectLeft: rect.left, rectTop: rect.top };
-                        const ghost = dragGhostRefByPanel.current[panel.id];
-                        if (ghost) {
-                          ghost.style.display = "block";
-                          ghost.style.left = `${block.x}px`;
-                          ghost.style.top = `${block.y}px`;
-                          ghost.style.width = `${block.width}px`;
-                          ghost.style.height = `${block.height}px`;
-                        }
-                        el.style.opacity = "0.35";
-                        const panelH = getPanelHeight(panel);
-                        const onPointerMove = (ev: PointerEvent) => {
-                          const data = draggingBlockDataRef.current;
-                          if (!data) return;
-                          const canvas = canvasRefByPanel.current[data.panelId];
-                          const rect = canvas?.getBoundingClientRect();
-                          const _ibMs = canvas && canvas.offsetWidth > 0 ? rect!.width / canvas.offsetWidth : 1;
-                          const canvasMouseX = rect ? (ev.clientX - rect.left) / _ibMs : (ev.clientX - data.rectLeft) / zoomRef.current;
-                          const canvasMouseY = rect ? (ev.clientY - rect.top) / _ibMs : (ev.clientY - data.rectTop) / zoomRef.current;
-                          const newX = Math.max(0, Math.min(PANEL_WIDTH - data.blockWidth, data.startBlockX + (canvasMouseX - data.startMouseX)));
-                          const newY = Math.max(0, Math.min(panelH - data.blockHeight, data.startBlockY + (canvasMouseY - data.startMouseY)));
-                          const g = dragGhostRefByPanel.current[data.panelId];
-                          if (g) { g.style.left = `${newX}px`; g.style.top = `${newY}px`; }
-                        };
-                        const onPointerUp = (ev: PointerEvent) => {
-                          if (ev.button !== 0) return;
-                          document.removeEventListener("pointermove", onPointerMove, true);
-                          document.removeEventListener("pointerup", onPointerUp, true);
-                          const data = draggingBlockDataRef.current;
-                          draggingBlockDataRef.current = null;
-                          const dragEl = draggingBlockElRef.current;
-                          if (dragEl) { dragEl.style.opacity = ""; draggingBlockElRef.current = null; }
-                          const g = data && dragGhostRefByPanel.current[data.panelId];
-                          if (g) g.style.display = "none";
-                          if (!data) return;
-                          const canvas = canvasRefByPanel.current[data.panelId];
-                          const currentPanels = queryClient.getQueryData<Panel[]>(panelsQueryKey) ?? [];
-                          const panelUp = currentPanels.find((p) => p.id === data.panelId);
-                          const layoutUp = getPanelLayout(panelUp ?? panel);
-                          const blockUp = layoutUp.blocks.find((b) => b.id === data.blockId);
-                          if (!blockUp || !canvas) return;
-                          const { x: canvasMouseX, y: canvasMouseY } = viewportToCanvas(canvas, ev.clientX, ev.clientY);
-                          const clampedX = Math.max(0, Math.min(PANEL_WIDTH - blockUp.width, Math.round(data.startBlockX + (canvasMouseX - data.startMouseX))));
-                          const clampedY = Math.max(0, Math.min(getPanelHeight(panelUp ?? panel) - blockUp.height, Math.round(data.startBlockY + (canvasMouseY - data.startMouseY))));
-                          const blockIndexUp = layoutUp.blocks.findIndex((b) => b.id === data.blockId);
-                          const nextBlocks = layoutUp.blocks.map((b, i) => (i === blockIndexUp ? { ...b, x: clampedX, y: clampedY } : b));
-                          moveDropHandledRef.current = true;
-                          const movePayload = { id: data.panelId, updates: { layout: { ...layoutUp, blocks: nextBlocks } as unknown as Json } };
-                          queryClient.cancelQueries({ queryKey: panelsQueryKey });
-                          const previousPanels = queryClient.getQueryData<Panel[]>(panelsQueryKey);
-                          queryClient.setQueryData<Panel[]>(panelsQueryKey, (old) => (!old ? old : old.map((p) => (p.id === movePayload.id ? { ...p, layout: movePayload.updates.layout ?? p.layout } : p))));
-                          updatePanelMutation.mutate(movePayload, {
-                            onSuccess: () => {
-                              moveDropHandledRef.current = false;
-                            },
-                            onError: (err) => {
-                              moveDropHandledRef.current = false;
-                              if (previousPanels != null) queryClient.setQueryData(panelsQueryKey, previousPanels);
-                              toast({ title: "Erreur", description: err.message, variant: "destructive" });
-                            },
-                          });
-                        };
-                        document.addEventListener("pointermove", onPointerMove, { capture: true, passive: true });
-                        document.addEventListener("pointerup", onPointerUp, true);
-                      } : undefined}
+                      onPointerDown={!isThisResizing ? (e) => dragImageBlock.onPointerDown(e, panel.id, block.id, block.x, block.y, block.width, block.height, getPanelHeight(panel)) : undefined}
                       onClick={(e) => { e.stopPropagation(); setSelectedBlockIdInModal({ panelId: panel.id, blockId: block.id }); }}
                       className={`group absolute overflow-visible bg-black border border-border shadow-md transition-[box-shadow,ring] duration-150 cursor-grab active:cursor-grabbing ${isSelected ? "ring-2 ring-primary shadow-lg ring-offset-2 ring-offset-background" : "ring-1 ring-border/80 hover:ring-2 hover:ring-primary/50 hover:shadow-md"}`}
                       style={{ left: geom.x, top: geom.y, width: geom.width, height: geom.height, zIndex: 10 }}
@@ -2556,77 +2221,7 @@ export default function ChapterDetail() {
                     role={!isResizingThis ? "button" : undefined}
                     className={`group absolute z-20 overflow-visible transition-[box-shadow,ring] duration-150 cursor-grab active:cursor-grabbing ${isSelected ? "ring-2 ring-primary ring-offset-2 ring-offset-background" : "hover:ring-2 hover:ring-primary/40"}`}
                     style={{ left: geom.x, top: geom.y, width: geom.width, height: totalH }}
-                    onPointerDown={!isResizingThis && !isResizingSpeechBubbleRef.current ? (e) => {
-                      if (e.button !== 0) return;
-                      e.preventDefault();
-                      const canvasEl = canvasRefByPanel.current[panel.id];
-                      if (!canvasEl) return;
-                      const rect = canvasEl.getBoundingClientRect();
-                      const _dragScale = canvasEl.offsetWidth > 0 ? canvasEl.getBoundingClientRect().width / canvasEl.offsetWidth : 1;
-                      const startMouseX = (e.clientX - rect.left) / _dragScale;
-                      const startMouseY = (e.clientY - rect.top) / _dragScale;
-                      const el = e.currentTarget as HTMLDivElement;
-                      draggingSpeechBubbleElRef.current = el;
-                      draggingSpeechBubbleDataRef.current = { panelId: panel.id, bubbleId: bubble.id, startX: geom.x, startY: geom.y, startMouseX, startMouseY, width: geom.width, height: totalH, rectLeft: rect.left, rectTop: rect.top };
-                      const ghost = dragSpeechBubbleGhostRefByPanel.current[panel.id];
-                      if (ghost) {
-                        ghost.style.display = "block";
-                        ghost.style.left = `${geom.x}px`;
-                        ghost.style.top = `${geom.y}px`;
-                        ghost.style.width = `${geom.width}px`;
-                        ghost.style.height = `${totalH}px`;
-                      }
-                      el.style.opacity = "0.35";
-                      const panelH = getPanelHeight(panel);
-                      const onPointerMove = (ev: PointerEvent) => {
-                        const data = draggingSpeechBubbleDataRef.current;
-                        if (!data) return;
-                        const canvas = canvasRefByPanel.current[data.panelId];
-                        const r = canvas?.getBoundingClientRect();
-                        const _cbMs = canvas && canvas.offsetWidth > 0 ? r!.width / canvas.offsetWidth : 1;
-                        const canvasMouseX = r ? (ev.clientX - r.left) / _cbMs : (ev.clientX - data.rectLeft) / zoomRef.current;
-                        const canvasMouseY = r ? (ev.clientY - r.top) / _cbMs : (ev.clientY - data.rectTop) / zoomRef.current;
-                        const newX = Math.max(0, Math.min(PANEL_WIDTH - data.width, data.startX + (canvasMouseX - data.startMouseX)));
-                        const newY = Math.max(0, Math.min(panelH - data.height, data.startY + (canvasMouseY - data.startMouseY)));
-                        const g = dragSpeechBubbleGhostRefByPanel.current[data.panelId];
-                        if (g) { g.style.left = `${newX}px`; g.style.top = `${newY}px`; }
-                      };
-                      const onPointerUp = (ev: PointerEvent) => {
-                        if (ev.button !== 0) return;
-                        document.removeEventListener("pointermove", onPointerMove, true);
-                        document.removeEventListener("pointerup", onPointerUp, true);
-                        const data = draggingSpeechBubbleDataRef.current;
-                        draggingSpeechBubbleDataRef.current = null;
-                        const dragEl = draggingSpeechBubbleElRef.current;
-                        if (dragEl) { dragEl.style.opacity = ""; draggingSpeechBubbleElRef.current = null; }
-                        const g = data && dragSpeechBubbleGhostRefByPanel.current[data.panelId];
-                        if (g) g.style.display = "none";
-                        if (!data) return;
-                        const canvas = canvasRefByPanel.current[data.panelId];
-                        const currentPanels = queryClient.getQueryData<Panel[]>(panelsQueryKey) ?? [];
-                        const panelUp = currentPanels.find((p) => p.id === data.panelId);
-                        const speechBubblesUp = getPanelSpeechBubbles(panelUp ?? panel);
-                        if (!canvas) return;
-                        const { x: canvasMouseX, y: canvasMouseY } = viewportToCanvas(canvas, ev.clientX, ev.clientY);
-                        const clampedX = Math.max(0, Math.min(PANEL_WIDTH - data.width, Math.round(data.startX + (canvasMouseX - data.startMouseX))));
-                        const clampedY = Math.max(0, Math.min(getPanelHeight(panelUp ?? panel) - data.height, Math.round(data.startY + (canvasMouseY - data.startMouseY))));
-                        const next = speechBubblesUp.map((b) => b.id === data.bubbleId ? { ...b, position: { x: clampedX, y: clampedY } } : b);
-                        queryClient.cancelQueries({ queryKey: panelsQueryKey });
-                        const previousPanels = queryClient.getQueryData<Panel[]>(panelsQueryKey);
-                        queryClient.setQueryData<Panel[]>(panelsQueryKey, (old) => (!old ? old : old.map((p) => (p.id === data.panelId ? { ...p, speech_bubbles: next as unknown as Json } : p))));
-                        updatePanelMutation.mutate(
-                          { id: data.panelId, updates: { speech_bubbles: next as unknown as Json } },
-                          {
-                            onError: (err) => {
-                              if (previousPanels != null) queryClient.setQueryData(panelsQueryKey, previousPanels);
-                              toast({ title: "Erreur", description: err.message, variant: "destructive" });
-                            },
-                          }
-                        );
-                      };
-                      document.addEventListener("pointermove", onPointerMove, { capture: true, passive: true });
-                      document.addEventListener("pointerup", onPointerUp, true);
-                    } : undefined}
+                    onPointerDown={!isResizingThis && !isResizingSpeechBubbleRef.current ? (e) => dragSpeechBubble.onPointerDown(e, panel.id, bubble.id, geom.x, geom.y, geom.width, totalH, getPanelHeight(panel)) : undefined}
                     onClick={(e) => { e.stopPropagation(); setSelectedSpeechBubbleIdInModal({ panelId: panel.id, bubbleId: bubble.id }); }}
                   >
                     {bubble.type !== "text" && (

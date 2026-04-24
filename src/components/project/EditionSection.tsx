@@ -238,7 +238,7 @@ export function EditionSection({ projectId }: EditionSectionProps) {
       const chapterIds = chapters.map((c) => c.id);
       if (chapterIds.length === 0) return [];
       const { data } = await supabase
-        .from("panels")
+        .from("chapter_canvases")
         .select("chapter_id, layout")
         .in("chapter_id", chapterIds);
       return data ?? [];

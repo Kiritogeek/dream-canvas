@@ -124,53 +124,35 @@ export type Database = {
           },
         ]
       }
-      panels: {
+      chapter_canvases: {
         Row: {
           chapter_id: string
           color_blocks: Json | null
           created_at: string
-          dialogue: string | null
           id: string
-          image_url: string | null
           layout: Json | null
-          motion_lines: Json | null
-          narration: string | null
           panel_number: number
-          prompt: string | null
           speech_bubbles: Json | null
-          transition_effects: Json | null
           user_id: string
         }
         Insert: {
           chapter_id: string
           color_blocks?: Json | null
           created_at?: string
-          dialogue?: string | null
           id?: string
-          image_url?: string | null
           layout?: Json | null
-          motion_lines?: Json | null
-          narration?: string | null
           panel_number: number
-          prompt?: string | null
           speech_bubbles?: Json | null
-          transition_effects?: Json | null
           user_id: string
         }
         Update: {
           chapter_id?: string
           color_blocks?: Json | null
           created_at?: string
-          dialogue?: string | null
           id?: string
-          image_url?: string | null
           layout?: Json | null
-          motion_lines?: Json | null
-          narration?: string | null
           panel_number?: number
-          prompt?: string | null
           speech_bubbles?: Json | null
-          transition_effects?: Json | null
           user_id?: string
         }
         Relationships: [

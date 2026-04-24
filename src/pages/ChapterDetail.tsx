@@ -1250,7 +1250,7 @@ export default function ChapterDetail() {
     };
 
     const handleGenerateBlock = (block: PanelBlock) => {
-      const promptToUse = (blockPromptDrafts[`${panel.id}-${block.id}`] ?? block.prompt ?? "").trim() || (panel.prompt ?? "").trim();
+      const promptToUse = (blockPromptDrafts[`${panel.id}-${block.id}`] ?? block.prompt ?? "").trim();
       if (!project) return;
       const hasSavedStyleText = (project.style_template?.trim()?.length ?? 0) > 0;
       if (!hasSavedStyleText) {
@@ -1666,7 +1666,7 @@ export default function ChapterDetail() {
                         );
                       })()}
                       {project && (
-                        <Button size="sm" variant="outline" className="w-full gap-1.5" disabled={(!(selectedBlock.prompt?.trim()) && !(panel.prompt?.trim())) || !project.style_template?.trim() || isGenerating} onClick={() => handleGenerateBlock(block)}>
+                        <Button size="sm" variant="outline" className="w-full gap-1.5" disabled={!selectedBlock.prompt?.trim() || !project.style_template?.trim() || isGenerating} onClick={() => handleGenerateBlock(block)}>
                           {isGenerating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
                           {block.image_url ? "Régénérer" : "Générer l’image"}
                         </Button>

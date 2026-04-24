@@ -38,7 +38,7 @@ export const TIER_CONFIG: Record<UserPlan, TierLimits> = {
 export type Project = Tables<"projects">;
 export type Asset = Tables<"assets">;
 export type Chapter = Tables<"chapters">;
-export type Panel = Tables<"panels">;
+export type Panel = Tables<"chapter_canvases">;
 export type Profile = Tables<"profiles">;
 export type ScenarioChapter = Tables<"scenario_chapters">;
 export type ScenarioVersion = Tables<"scenario_versions">;
@@ -47,7 +47,7 @@ export type ScenarioVersion = Tables<"scenario_versions">;
 export type ProjectInsert = TablesInsert<"projects">;
 export type AssetInsert = TablesInsert<"assets">;
 export type ChapterInsert = TablesInsert<"chapters">;
-export type PanelInsert = TablesInsert<"panels">;
+export type PanelInsert = TablesInsert<"chapter_canvases">;
 export type ScenarioChapterInsert = TablesInsert<"scenario_chapters">;
 export type ScenarioVersionInsert = TablesInsert<"scenario_versions">;
 
@@ -55,7 +55,7 @@ export type ScenarioVersionInsert = TablesInsert<"scenario_versions">;
 export type ProjectUpdate = TablesUpdate<"projects">;
 export type AssetUpdate = TablesUpdate<"assets">;
 export type ChapterUpdate = TablesUpdate<"chapters">;
-export type PanelUpdate = TablesUpdate<"panels">;
+export type PanelUpdate = TablesUpdate<"chapter_canvases">;
 export type ScenarioChapterUpdate = TablesUpdate<"scenario_chapters">;
 export type ScenarioVersionUpdate = TablesUpdate<"scenario_versions">;
 

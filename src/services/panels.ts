@@ -93,7 +93,7 @@ export function estimatePanelCount(content: string | null | undefined): number {
 /** Récupère tous les panels d'un chapitre, triés par panel_number. */
 export async function fetchPanels(chapterId: string): Promise<Panel[]> {
   const { data, error } = await supabase
-    .from("panels")
+    .from("chapter_canvases")
     .select("*")
     .eq("chapter_id", chapterId)
     .order("panel_number", { ascending: true });
@@ -105,7 +105,7 @@ export async function fetchPanels(chapterId: string): Promise<Panel[]> {
 /** Met à jour un panel (layout, prompt, etc.). */
 export async function updatePanel(id: string, updates: PanelUpdate): Promise<Panel> {
   const { data, error } = await supabase
-    .from("panels")
+    .from("chapter_canvases")
     .update(updates)
     .eq("id", id)
     .select()
@@ -131,10 +131,9 @@ export async function createPanel(
     chapter_id: chapterId,
     user_id: userId,
     panel_number: number,
-    prompt: null,
     layout: { blocks: [] },
   };
-  const { data, error } = await supabase.from("panels").insert(insert).select().single();
+  const { data, error } = await supabase.from("chapter_canvases").insert(insert).select().single();
   if (error) throw error;
   return data;
 }
@@ -147,16 +146,15 @@ export async function createPanelsFromOutline(
 ): Promise<Panel[]> {
   if (!outline.length) return [];
 
-  const inserts: PanelInsert[] = outline.map((item, i) => ({
+  const inserts: PanelInsert[] = outline.map((_item, i) => ({
     chapter_id: chapterId,
     user_id: userId,
     panel_number: i + 1,
-    prompt: item.description?.trim() || null,
     layout: { blocks: [] },
   }));
 
   const { data, error } = await supabase
-    .from("panels")
+    .from("chapter_canvases")
     .insert(inserts)
     .select()
     .order("panel_number", { ascending: true });
@@ -167,7 +165,7 @@ export async function createPanelsFromOutline(
 
 /** Supprime un panel par id. */
 export async function deletePanel(id: string): Promise<void> {
-  const { error } = await supabase.from("panels").delete().eq("id", id);
+  const { error } = await supabase.from("chapter_canvases").delete().eq("id", id);
   if (error) throw error;
 }
 
@@ -177,7 +175,7 @@ export async function replacePanelsFromOutline(
   outline: PanelOutlineItem[],
   userId: string
 ): Promise<Panel[]> {
-  const { error: deleteError } = await supabase.from("panels").delete().eq("chapter_id", chapterId);
+  const { error: deleteError } = await supabase.from("chapter_canvases").delete().eq("chapter_id", chapterId);
   if (deleteError) throw deleteError;
 
   return createPanelsFromOutline(chapterId, outline, userId);

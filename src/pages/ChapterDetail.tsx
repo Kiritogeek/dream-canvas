@@ -1432,10 +1432,13 @@ export default function ChapterDetail() {
               const liveH = panelHeightDragDraft ?? panelHeight;
               return (
                 <>
-                  <div style={{ width: PANEL_WIDTH * zoomLevel, height: liveH * zoomLevel }}>
+                  {/* Border hors du transform pour rester 1px à tous les niveaux de zoom */}
+                  <div
+                    className="rounded-2xl border border-border shadow-md overflow-hidden bg-muted"
+                    style={{ width: PANEL_WIDTH * zoomLevel, height: liveH * zoomLevel }}
+                  >
                     <div style={{ transform: `scale(${zoomLevel})`, transformOrigin: "top left", width: PANEL_WIDTH }}>
-                  <div className="rounded-2xl border border-border bg-muted shadow-md min-w-0">
-                    <div className="relative shrink-0 bg-muted rounded-xl overflow-hidden" style={{ width: PANEL_WIDTH, height: liveH }}>
+                    <div className="relative shrink-0 bg-muted" style={{ width: PANEL_WIDTH, height: liveH }}>
                       <div
                         ref={(el) => { if (el) canvasRefByPanel.current[panel.id] = el; }}
                         className="absolute left-0 top-0 rounded-lg overflow-hidden"
@@ -1498,7 +1501,6 @@ export default function ChapterDetail() {
                       />
                       </div>
                     </div>
-                  </div>
                     </div>
                   </div>
                   {/* Poignée de redimensionnement — verte, toujours visible */}

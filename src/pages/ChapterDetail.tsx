@@ -1254,7 +1254,7 @@ export default function ChapterDetail() {
           </div>
         )}
         {/* Panneau gauche unifié — accordéon toujours visible */}
-        <aside className="w-[290px] shrink-0 flex flex-col border-r border-border bg-background overflow-y-auto">
+        <aside className="w-[200px] shrink-0 flex flex-col border-r border-border bg-background overflow-y-auto">
 
           {/* Section Assets — glisser un asset sur le canvas crée un bloc image avec asset_refs prérempli */}
           <Collapsible defaultOpen>
@@ -1322,142 +1322,25 @@ export default function ChapterDetail() {
               <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform [[data-state=open]_&]:rotate-180" />
             </CollapsibleTrigger>
             <CollapsibleContent>
-              <div className="p-3 space-y-3 border-b border-border/30">
-                {/* Presets draggables */}
-                <div className="space-y-1.5">
-                  <span className="text-xs text-muted-foreground">Glisser sur le canvas</span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {BLOCK_PRESETS.map((preset) => (
-                      <div
-                        key={preset.label}
-                        draggable
-                        onDragStart={(e) => {
-                          e.dataTransfer.setData("application/json", JSON.stringify({ type: "new-block", width: preset.width, height: preset.height }));
-                          e.dataTransfer.effectAllowed = "copy";
-                          const ghost = newBlockDragGhostRef.current;
-                          if (ghost) e.dataTransfer.setDragImage(ghost, Math.min(250, preset.width / 2), Math.min(250, preset.height / 2));
-                        }}
-                        className="cursor-grab active:cursor-grabbing rounded-lg border border-border/60 bg-background px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-                      >
-                        {preset.label}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Hauteur du panel */}
-                <div className="space-y-1.5">
-                  <span className="text-xs text-muted-foreground">Hauteur du canvas</span>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      value={panelHeightDraft !== null ? panelHeightDraft : String(layout.panelHeight ?? PANEL_HEIGHT_DEFAULT)}
-                      onChange={(e) => setPanelHeightDraft(e.target.value)}
-                      className="w-20 h-8 rounded-lg border border-border/60 bg-background px-2 text-sm"
-                    />
-                    <span className="text-xs text-muted-foreground">px</span>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="shrink-0 rounded-lg h-8 text-xs"
-                      onClick={() => {
-                        const raw = panelHeightDraft !== null ? panelHeightDraft.trim() : null;
-                        const num = raw === null
-                          ? (layout.panelHeight ?? PANEL_HEIGHT_DEFAULT)
-                          : (raw === "" ? PANEL_HEIGHT_MIN : Math.max(PANEL_HEIGHT_MIN, Math.min(PANEL_HEIGHT_MAX, Number(raw) || PANEL_HEIGHT_MIN)));
-                        handlePanelHeightChange(num);
-                        setPanelHeightDraft(null);
+              <div className="p-3 space-y-1.5 border-b border-border/30">
+                <span className="text-xs text-muted-foreground">Glisser sur le canvas</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {BLOCK_PRESETS.map((preset) => (
+                    <div
+                      key={preset.label}
+                      draggable
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData("application/json", JSON.stringify({ type: "new-block", width: preset.width, height: preset.height }));
+                        e.dataTransfer.effectAllowed = "copy";
+                        const ghost = newBlockDragGhostRef.current;
+                        if (ghost) e.dataTransfer.setDragImage(ghost, Math.min(250, preset.width / 2), Math.min(250, preset.height / 2));
                       }}
+                      className="cursor-grab active:cursor-grabbing rounded-lg border border-border/60 bg-background px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
                     >
-                      Appliquer
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Propriétés du bloc sélectionné */}
-                {selectedBlock ? (() => {
-                  const block = selectedBlock;
-                  const blockKey = `${panel.id}-${block.id}`;
-                  const nameDraft = blockNameDrafts[blockKey] ?? block.name ?? "";
-                  const promptDraft = blockPromptDrafts[blockKey] ?? block.prompt ?? "";
-                  const isGenerating = generatePanelImage.isPending && generatePanelImage.variables?.panel?.id === panel.id;
-                  return (
-                    <div className="pt-2 border-t border-border/50 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-medium text-foreground">Bloc sélectionné</span>
-                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0 rounded-lg" onClick={() => setSelectedBlockIdInModal(null)} aria-label="Désélectionner"><X className="h-3.5 w-3.5" /></Button>
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-xs font-medium text-muted-foreground">Nom</label>
-                        <input
-                          type="text"
-                          value={nameDraft}
-                          onChange={(e) => setBlockNameDrafts((prev) => ({ ...prev, [blockKey]: e.target.value }))}
-                          onBlur={() => { if (nameDraft.trim() !== (block.name ?? "")) handleSaveBlockName(block, nameDraft); }}
-                          placeholder="Ex. Bloc 1"
-                          className="w-full h-8 rounded-lg border border-border/60 bg-background px-3 text-sm"
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-xs font-medium text-muted-foreground">Prompt visuel</label>
-                        <Textarea
-                          value={promptDraft}
-                          onChange={(e) => {
-                            const v = e.target.value;
-                            setBlockPromptDrafts((prev) => ({ ...prev, [blockKey]: v }));
-                            handleSaveBlockPrompt(block, v, { silent: true });
-                          }}
-                          placeholder="Description visuelle de ce bloc…"
-                          className="min-h-[80px] text-sm resize-y"
-                        />
-                        {!block.image_url && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="gap-1.5 h-7 text-xs w-full"
-                            disabled={suggestingBlockKeys.has(blockKey) || !scenarioChapter?.content?.trim()}
-                            onClick={() => handleSuggestBlockPrompt(block)}
-                          >
-                            {suggestingBlockKeys.has(blockKey) ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
-                            Suggérer un prompt IA
-                          </Button>
-                        )}
-                      </div>
-                      <div className="text-xs text-muted-foreground tabular-nums">{block.width} × {Math.round(block.height)} px</div>
-                      {(() => {
-                        const promptText = (promptDraft.trim() || (block.prompt ?? "").trim()) || "";
-                        const detected = getDetectedAssets(promptText, assets);
-                        if (detected.length === 0) return null;
-                        return (
-                          <div className="space-y-1.5 rounded-lg border border-border/60 bg-muted/20 p-2">
-                            {detected.map((asset) => (
-                              <div key={asset.id} className="flex items-center gap-2">
-                                <div className="w-8 h-8 shrink-0 rounded overflow-hidden border border-border/60 bg-muted">
-                                  {getAssetReferenceImageUrl(asset) ? (
-                                    <ImageWithFallback src={getAssetReferenceImageUrl(asset) ?? ""} alt="" className="w-full h-full object-cover" />
-                                  ) : (
-                                    <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">—</div>
-                                  )}
-                                </div>
-                                <span className="flex-1 min-w-0 truncate text-xs font-medium">{asset.name ?? asset.id.slice(0, 8)}</span>
-                              </div>
-                            ))}
-                          </div>
-                        );
-                      })()}
-                      {project && (
-                        <Button size="sm" variant="outline" className="w-full gap-1.5" disabled={!selectedBlock.prompt?.trim() || !project.style_template?.trim() || isGenerating} onClick={() => handleGenerateBlock(block)}>
-                          {isGenerating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
-                          {block.image_url ? "Régénérer" : "Générer l’image"}
-                        </Button>
-                      )}
-                      <Button size="sm" variant="ghost" className="w-full gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10" disabled={updatePanelMutation.isPending} onClick={() => handleDeleteBlock(block)}><Trash2 className="h-3 w-3" /> Supprimer le bloc</Button>
+                      {preset.label}
                     </div>
-                  );
-                })() : (
-                  <p className="text-xs text-muted-foreground/60 italic pt-1">Cliquez sur un bloc pour l’éditer</p>
-                )}
+                  ))}
+                </div>
               </div>
             </CollapsibleContent>
           </Collapsible>
@@ -1473,7 +1356,7 @@ export default function ChapterDetail() {
               <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform [[data-state=open]_&]:rotate-180" />
             </CollapsibleTrigger>
             <CollapsibleContent>
-              <div className="p-3 space-y-3 border-b border-border/30">
+              <div className="p-3 border-b border-border/30">
                 <div
                   draggable
                   onDragStart={(e) => {
@@ -1491,31 +1374,6 @@ export default function ChapterDetail() {
                   <Square className="h-4 w-4 shrink-0" />
                   <span>Ajouter un bloc de couleur</span>
                 </div>
-
-                {selectedColorBlock ? (
-                  <div className="pt-2 border-t border-border/50 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-medium text-foreground">Bloc sélectionné</span>
-                      <Button size="sm" variant="ghost" className="h-7 w-7 p-0 rounded-lg" onClick={() => setSelectedColorBlockIdInModal(null)} aria-label="Désélectionner"><X className="h-3.5 w-3.5" /></Button>
-                    </div>
-                    <div className="text-xs text-muted-foreground tabular-nums">{selectedColorBlock.width} × {Math.round(selectedColorBlock.height)} px</div>
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-medium text-muted-foreground flex items-center gap-2">
-                        Couleur
-                        <input
-                          type="color"
-                          value={selectedColorBlock.fill.type === "solid" ? selectedColorBlock.fill.color : selectedColorBlock.fill.from}
-                          onChange={(e) => handleColorBlockFillChange(selectedColorBlock, { type: "solid", color: e.target.value })}
-                          className="h-7 w-12 rounded border border-border/60 cursor-pointer bg-background"
-                        />
-                        <span className="text-xs text-muted-foreground tabular-nums">{selectedColorBlock.fill.type === "solid" ? selectedColorBlock.fill.color : selectedColorBlock.fill.from}</span>
-                      </label>
-                    </div>
-                    <Button size="sm" variant="ghost" className="w-full gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10" disabled={updatePanelMutation.isPending} onClick={() => handleDeleteColorBlock(selectedColorBlock)}><Trash2 className="h-3 w-3" /> Supprimer</Button>
-                  </div>
-                ) : (
-                  <p className="text-xs text-muted-foreground/60 italic">Cliquez sur un bloc pour l’éditer</p>
-                )}
               </div>
             </CollapsibleContent>
           </Collapsible>
@@ -1531,162 +1389,49 @@ export default function ChapterDetail() {
               <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform [[data-state=open]_&]:rotate-180" />
             </CollapsibleTrigger>
             <CollapsibleContent>
-              <div className="p-3 space-y-3 border-b border-border/30">
-                <div className="space-y-1.5">
-                  <span className="text-xs text-muted-foreground">Ajouter — clic ou glisser</span>
-                  <button
-                    type="button"
-                    draggable
-                    onDragStart={(e) => {
-                      e.dataTransfer.setData("application/json", JSON.stringify({ type: "speech-bubble", bubbleType: "text" }));
-                      e.dataTransfer.effectAllowed = "copy";
-                    }}
-                    onClick={() => {
-                      const ph = getPanelHeight(panel);
-                      const cx = Math.round((PANEL_WIDTH - DEFAULT_SPEECH_BUBBLE_WIDTH) / 2);
-                      const cy = Math.round((ph - DEFAULT_SPEECH_BUBBLE_HEIGHT) / 2);
-                      handleAddSpeechBubble("text", cx, cy);
-                    }}
-                    className="w-full cursor-pointer rounded-lg border border-border/60 bg-background px-2 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors flex items-center gap-1.5 justify-center"
-                  >
-                    <Type className="h-3 w-3 shrink-0" />
-                    ✏️ Texte libre
-                  </button>
-                  <div className="grid grid-cols-2 gap-1.5">
-                    {(Object.entries(SPEECH_BUBBLE_TYPE_LABELS) as [SpeechBubbleType, string][]).filter(([type]) => type !== "text").map(([type, label]) => (
-                      <button
-                        key={type}
-                        type="button"
-                        draggable
-                        onDragStart={(e) => {
-                          e.dataTransfer.setData("application/json", JSON.stringify({ type: "speech-bubble", bubbleType: type }));
-                          e.dataTransfer.effectAllowed = "copy";
-                        }}
-                        onClick={() => {
-                          const ph = getPanelHeight(panel);
-                          const cx = Math.round((PANEL_WIDTH - DEFAULT_SPEECH_BUBBLE_WIDTH) / 2);
-                          const cy = Math.round((ph - DEFAULT_SPEECH_BUBBLE_HEIGHT) / 2);
-                          handleAddSpeechBubble(type, cx, cy);
-                        }}
-                        className="cursor-pointer rounded-lg border border-border/60 bg-background px-2 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors flex items-center gap-1 justify-center"
-                      >
-                        <Plus className="h-3 w-3 shrink-0" />
-                        {label}
-                      </button>
-                    ))}
-                  </div>
+              <div className="p-3 space-y-1.5 border-b border-border/30">
+                <span className="text-xs text-muted-foreground">Ajouter — clic ou glisser</span>
+                <button
+                  type="button"
+                  draggable
+                  onDragStart={(e) => {
+                    e.dataTransfer.setData("application/json", JSON.stringify({ type: "speech-bubble", bubbleType: "text" }));
+                    e.dataTransfer.effectAllowed = "copy";
+                  }}
+                  onClick={() => {
+                    const ph = getPanelHeight(panel);
+                    const cx = Math.round((PANEL_WIDTH - DEFAULT_SPEECH_BUBBLE_WIDTH) / 2);
+                    const cy = Math.round((ph - DEFAULT_SPEECH_BUBBLE_HEIGHT) / 2);
+                    handleAddSpeechBubble("text", cx, cy);
+                  }}
+                  className="w-full cursor-pointer rounded-lg border border-border/60 bg-background px-2 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors flex items-center gap-1.5 justify-center"
+                >
+                  <Type className="h-3 w-3 shrink-0" />
+                  ✏️ Texte libre
+                </button>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {(Object.entries(SPEECH_BUBBLE_TYPE_LABELS) as [SpeechBubbleType, string][]).filter(([type]) => type !== "text").map(([type, label]) => (
+                    <button
+                      key={type}
+                      type="button"
+                      draggable
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData("application/json", JSON.stringify({ type: "speech-bubble", bubbleType: type }));
+                        e.dataTransfer.effectAllowed = "copy";
+                      }}
+                      onClick={() => {
+                        const ph = getPanelHeight(panel);
+                        const cx = Math.round((PANEL_WIDTH - DEFAULT_SPEECH_BUBBLE_WIDTH) / 2);
+                        const cy = Math.round((ph - DEFAULT_SPEECH_BUBBLE_HEIGHT) / 2);
+                        handleAddSpeechBubble(type, cx, cy);
+                      }}
+                      className="cursor-pointer rounded-lg border border-border/60 bg-background px-2 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors flex items-center gap-1 justify-center"
+                    >
+                      <Plus className="h-3 w-3 shrink-0" />
+                      {label}
+                    </button>
+                  ))}
                 </div>
-
-                {selectedSpeechBubble ? (
-                  <div className="pt-2 border-t border-border/50 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-medium text-foreground">Bulle sélectionnée</span>
-                      <Button size="sm" variant="ghost" className="h-7 w-7 p-0 rounded-lg" onClick={() => setSelectedSpeechBubbleIdInModal(null)} aria-label="Désélectionner"><X className="h-3.5 w-3.5" /></Button>
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-medium text-muted-foreground">Texte</label>
-                      <textarea
-                        autoFocus
-                        value={selectedSpeechBubble.text}
-                        onChange={(e) => {
-                          const next = speechBubbles.map((b) => b.id === selectedSpeechBubble.id ? { ...b, text: e.target.value } : b);
-                          handleUpdateSpeechBubbles(next);
-                        }}
-                        className="w-full min-h-[70px] rounded-lg border border-border/60 bg-background px-3 py-2 text-sm resize-y"
-                        placeholder="Dialogue, pensée, narration…"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-medium text-muted-foreground">Type de bulle</label>
-                      <div className="grid grid-cols-2 gap-1">
-                        {(Object.entries(SPEECH_BUBBLE_TYPE_LABELS) as [SpeechBubbleType, string][]).map(([t, lbl]) => (
-                          <button
-                            key={t}
-                            type="button"
-                            onClick={() => {
-                              const next = speechBubbles.map((b) => b.id === selectedSpeechBubble.id ? { ...b, type: t } : b);
-                              handleUpdateSpeechBubbles(next);
-                            }}
-                            className={`rounded-lg border px-2 py-1 text-xs transition-colors ${selectedSpeechBubble.type === t ? "border-primary bg-primary/10 text-foreground font-medium" : "border-border/60 bg-background text-muted-foreground hover:bg-muted/50"}`}
-                          >
-                            {lbl}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    {selectedSpeechBubble.type !== "text" && (
-                      <div className="flex items-center gap-3">
-                        <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-                          Fond
-                          <input
-                            type="color"
-                            value={selectedSpeechBubble.bgColor ?? selectedSpeechBubble.style?.fill ?? SPEECH_BUBBLE_DEFAULT_STYLE[selectedSpeechBubble.type].fill}
-                            onChange={(e) => {
-                              const v = e.target.value;
-                              const next = speechBubbles.map((b) => b.id === selectedSpeechBubble.id ? { ...b, style: { ...b.style, fill: v }, bgColor: v } : b);
-                              handleUpdateSpeechBubbles(next);
-                            }}
-                            className="h-6 w-8 rounded border border-border/60 cursor-pointer"
-                          />
-                        </label>
-                        <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-                          Contour
-                          <input
-                            type="color"
-                            value={selectedSpeechBubble.borderColor ?? selectedSpeechBubble.style?.stroke ?? SPEECH_BUBBLE_DEFAULT_STYLE[selectedSpeechBubble.type].stroke}
-                            onChange={(e) => {
-                              const v = e.target.value;
-                              const next = speechBubbles.map((b) => b.id === selectedSpeechBubble.id ? { ...b, style: { ...b.style, stroke: v }, borderColor: v } : b);
-                              handleUpdateSpeechBubbles(next);
-                            }}
-                            className="h-6 w-8 rounded border border-border/60 cursor-pointer"
-                          />
-                        </label>
-                      </div>
-                    )}
-                    <div className="flex items-center gap-2">
-                      <select
-                        value={selectedSpeechBubble.style?.font ?? "inherit"}
-                        onChange={(e) => {
-                          const next = speechBubbles.map((b) => b.id === selectedSpeechBubble.id ? { ...b, style: { ...b.style, font: e.target.value || undefined } } : b);
-                          handleUpdateSpeechBubbles(next);
-                        }}
-                        className="flex-1 h-8 rounded-lg border border-border/60 bg-background px-2 text-xs"
-                      >
-                        <option value="inherit">Police par défaut</option>
-                        <option value="sans-serif">Sans-serif</option>
-                        <option value="serif">Serif</option>
-                        <option value="monospace">Monospace</option>
-                      </select>
-                      <input
-                        type="number"
-                        min={8}
-                        max={72}
-                        value={selectedSpeechBubble.style?.size ?? 14}
-                        onChange={(e) => {
-                          const n = parseInt(e.target.value, 10);
-                          if (!Number.isNaN(n)) {
-                            const next = speechBubbles.map((b) => b.id === selectedSpeechBubble.id ? { ...b, style: { ...b.style, size: n } } : b);
-                            handleUpdateSpeechBubbles(next);
-                          }
-                        }}
-                        className="w-14 h-8 rounded-lg border border-border/60 bg-background px-2 text-xs tabular-nums"
-                      />
-                      <input
-                        type="color"
-                        value={selectedSpeechBubble.style?.color ?? "#000000"}
-                        onChange={(e) => {
-                          const next = speechBubbles.map((b) => b.id === selectedSpeechBubble.id ? { ...b, style: { ...b.style, color: e.target.value } } : b);
-                          handleUpdateSpeechBubbles(next);
-                        }}
-                        className="h-8 w-10 rounded border border-border/60 cursor-pointer bg-background"
-                      />
-                    </div>
-                    <Button size="sm" variant="ghost" className="w-full gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10" disabled={updatePanelMutation.isPending} onClick={() => handleDeleteSpeechBubble(selectedSpeechBubble)}><Trash2 className="h-3 w-3" /> Supprimer la bulle</Button>
-                  </div>
-                ) : (
-                  <p className="text-xs text-muted-foreground/60 italic">Cliquez sur une bulle pour l’éditer</p>
-                )}
               </div>
             </CollapsibleContent>
           </Collapsible>
@@ -1730,6 +1475,247 @@ export default function ChapterDetail() {
               </div>
             </CollapsibleContent>
           </Collapsible>
+
+          {/* Propriétés — panneau contextuel */}
+          <div className="border-t border-border/60 bg-background">
+            {!selectedBlock && !selectedColorBlock && !selectedSpeechBubble ? (
+              <div className="p-3 space-y-2">
+                <span className="text-xs font-medium text-muted-foreground">Hauteur du canvas</span>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={panelHeightDraft !== null ? panelHeightDraft : String(layout.panelHeight ?? PANEL_HEIGHT_DEFAULT)}
+                    onChange={(e) => setPanelHeightDraft(e.target.value)}
+                    className="w-20 h-8 rounded-lg border border-border/60 bg-background px-2 text-sm"
+                  />
+                  <span className="text-xs text-muted-foreground">px</span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="shrink-0 rounded-lg h-8 text-xs"
+                    onClick={() => {
+                      const raw = panelHeightDraft !== null ? panelHeightDraft.trim() : null;
+                      const num = raw === null
+                        ? (layout.panelHeight ?? PANEL_HEIGHT_DEFAULT)
+                        : (raw === "" ? PANEL_HEIGHT_MIN : Math.max(PANEL_HEIGHT_MIN, Math.min(PANEL_HEIGHT_MAX, Number(raw) || PANEL_HEIGHT_MIN)));
+                      handlePanelHeightChange(num);
+                      setPanelHeightDraft(null);
+                    }}
+                  >
+                    Appliquer
+                  </Button>
+                </div>
+              </div>
+            ) : selectedBlock ? (() => {
+              const block = selectedBlock;
+              const blockKey = `${panel.id}-${block.id}`;
+              const nameDraft = blockNameDrafts[blockKey] ?? block.name ?? "";
+              const promptDraft = blockPromptDrafts[blockKey] ?? block.prompt ?? "";
+              const isGenerating = generatePanelImage.isPending && generatePanelImage.variables?.panel?.id === panel.id;
+              return (
+                <div className="p-3 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-foreground">Bloc sélectionné</span>
+                    <Button size="sm" variant="ghost" className="h-7 w-7 p-0 rounded-lg" onClick={() => setSelectedBlockIdInModal(null)} aria-label="Désélectionner"><X className="h-3.5 w-3.5" /></Button>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-muted-foreground">Nom</label>
+                    <input
+                      type="text"
+                      value={nameDraft}
+                      onChange={(e) => setBlockNameDrafts((prev) => ({ ...prev, [blockKey]: e.target.value }))}
+                      onBlur={() => { if (nameDraft.trim() !== (block.name ?? "")) handleSaveBlockName(block, nameDraft); }}
+                      placeholder="Ex. Bloc 1"
+                      className="w-full h-8 rounded-lg border border-border/60 bg-background px-3 text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-muted-foreground">Prompt visuel</label>
+                    <Textarea
+                      value={promptDraft}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setBlockPromptDrafts((prev) => ({ ...prev, [blockKey]: v }));
+                        handleSaveBlockPrompt(block, v, { silent: true });
+                      }}
+                      placeholder="Description visuelle de ce bloc…"
+                      className="min-h-[80px] text-sm resize-y"
+                    />
+                    {!block.image_url && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1.5 h-7 text-xs w-full"
+                        disabled={suggestingBlockKeys.has(blockKey) || !scenarioChapter?.content?.trim()}
+                        onClick={() => handleSuggestBlockPrompt(block)}
+                      >
+                        {suggestingBlockKeys.has(blockKey) ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                        Suggérer un prompt IA
+                      </Button>
+                    )}
+                  </div>
+                  <div className="text-xs text-muted-foreground tabular-nums">{block.width} × {Math.round(block.height)} px</div>
+                  {(() => {
+                    const promptText = (promptDraft.trim() || (block.prompt ?? "").trim()) || "";
+                    const detected = getDetectedAssets(promptText, assets);
+                    if (detected.length === 0) return null;
+                    return (
+                      <div className="space-y-1.5 rounded-lg border border-border/60 bg-muted/20 p-2">
+                        {detected.map((asset) => (
+                          <div key={asset.id} className="flex items-center gap-2">
+                            <div className="w-8 h-8 shrink-0 rounded overflow-hidden border border-border/60 bg-muted">
+                              {getAssetReferenceImageUrl(asset) ? (
+                                <ImageWithFallback src={getAssetReferenceImageUrl(asset) ?? ""} alt="" className="w-full h-full object-cover" />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">—</div>
+                              )}
+                            </div>
+                            <span className="flex-1 min-w-0 truncate text-xs font-medium">{asset.name ?? asset.id.slice(0, 8)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
+                  {project && (
+                    <Button size="sm" variant="outline" className="w-full gap-1.5" disabled={!selectedBlock.prompt?.trim() || !project.style_template?.trim() || isGenerating} onClick={() => handleGenerateBlock(block)}>
+                      {isGenerating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                      {block.image_url ? "Régénérer" : "Générer l’image"}
+                    </Button>
+                  )}
+                  <Button size="sm" variant="ghost" className="w-full gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10" disabled={updatePanelMutation.isPending} onClick={() => handleDeleteBlock(block)}><Trash2 className="h-3 w-3" /> Supprimer le bloc</Button>
+                </div>
+              );
+            })() : selectedColorBlock ? (
+              <div className="p-3 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-foreground">Bloc sélectionné</span>
+                  <Button size="sm" variant="ghost" className="h-7 w-7 p-0 rounded-lg" onClick={() => setSelectedColorBlockIdInModal(null)} aria-label="Désélectionner"><X className="h-3.5 w-3.5" /></Button>
+                </div>
+                <div className="text-xs text-muted-foreground tabular-nums">{selectedColorBlock.width} × {Math.round(selectedColorBlock.height)} px</div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground flex items-center gap-2">
+                    Couleur
+                    <input
+                      type="color"
+                      value={selectedColorBlock.fill.type === "solid" ? selectedColorBlock.fill.color : selectedColorBlock.fill.from}
+                      onChange={(e) => handleColorBlockFillChange(selectedColorBlock, { type: "solid", color: e.target.value })}
+                      className="h-7 w-12 rounded border border-border/60 cursor-pointer bg-background"
+                    />
+                    <span className="text-xs text-muted-foreground tabular-nums">{selectedColorBlock.fill.type === "solid" ? selectedColorBlock.fill.color : selectedColorBlock.fill.from}</span>
+                  </label>
+                </div>
+                <Button size="sm" variant="ghost" className="w-full gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10" disabled={updatePanelMutation.isPending} onClick={() => handleDeleteColorBlock(selectedColorBlock)}><Trash2 className="h-3 w-3" /> Supprimer</Button>
+              </div>
+            ) : selectedSpeechBubble ? (
+              <div className="p-3 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-foreground">Bulle sélectionnée</span>
+                  <Button size="sm" variant="ghost" className="h-7 w-7 p-0 rounded-lg" onClick={() => setSelectedSpeechBubbleIdInModal(null)} aria-label="Désélectionner"><X className="h-3.5 w-3.5" /></Button>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Texte</label>
+                  <textarea
+                    autoFocus
+                    value={selectedSpeechBubble.text}
+                    onChange={(e) => {
+                      const next = speechBubbles.map((b) => b.id === selectedSpeechBubble.id ? { ...b, text: e.target.value } : b);
+                      handleUpdateSpeechBubbles(next);
+                    }}
+                    className="w-full min-h-[70px] rounded-lg border border-border/60 bg-background px-3 py-2 text-sm resize-y"
+                    placeholder="Dialogue, pensée, narration…"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Type de bulle</label>
+                  <div className="grid grid-cols-2 gap-1">
+                    {(Object.entries(SPEECH_BUBBLE_TYPE_LABELS) as [SpeechBubbleType, string][]).map(([t, lbl]) => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => {
+                          const next = speechBubbles.map((b) => b.id === selectedSpeechBubble.id ? { ...b, type: t } : b);
+                          handleUpdateSpeechBubbles(next);
+                        }}
+                        className={`rounded-lg border px-2 py-1 text-xs transition-colors ${selectedSpeechBubble.type === t ? "border-primary bg-primary/10 text-foreground font-medium" : "border-border/60 bg-background text-muted-foreground hover:bg-muted/50"}`}
+                      >
+                        {lbl}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {selectedSpeechBubble.type !== "text" && (
+                  <div className="flex items-center gap-3">
+                    <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                      Fond
+                      <input
+                        type="color"
+                        value={selectedSpeechBubble.bgColor ?? selectedSpeechBubble.style?.fill ?? SPEECH_BUBBLE_DEFAULT_STYLE[selectedSpeechBubble.type].fill}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          const next = speechBubbles.map((b) => b.id === selectedSpeechBubble.id ? { ...b, style: { ...b.style, fill: v }, bgColor: v } : b);
+                          handleUpdateSpeechBubbles(next);
+                        }}
+                        className="h-6 w-8 rounded border border-border/60 cursor-pointer"
+                      />
+                    </label>
+                    <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                      Contour
+                      <input
+                        type="color"
+                        value={selectedSpeechBubble.borderColor ?? selectedSpeechBubble.style?.stroke ?? SPEECH_BUBBLE_DEFAULT_STYLE[selectedSpeechBubble.type].stroke}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          const next = speechBubbles.map((b) => b.id === selectedSpeechBubble.id ? { ...b, style: { ...b.style, stroke: v }, borderColor: v } : b);
+                          handleUpdateSpeechBubbles(next);
+                        }}
+                        className="h-6 w-8 rounded border border-border/60 cursor-pointer"
+                      />
+                    </label>
+                  </div>
+                )}
+                <div className="flex items-center gap-2">
+                  <select
+                    value={selectedSpeechBubble.style?.font ?? "inherit"}
+                    onChange={(e) => {
+                      const next = speechBubbles.map((b) => b.id === selectedSpeechBubble.id ? { ...b, style: { ...b.style, font: e.target.value || undefined } } : b);
+                      handleUpdateSpeechBubbles(next);
+                    }}
+                    className="flex-1 h-8 rounded-lg border border-border/60 bg-background px-2 text-xs"
+                  >
+                    <option value="inherit">Police par défaut</option>
+                    <option value="sans-serif">Sans-serif</option>
+                    <option value="serif">Serif</option>
+                    <option value="monospace">Monospace</option>
+                  </select>
+                  <input
+                    type="number"
+                    min={8}
+                    max={72}
+                    value={selectedSpeechBubble.style?.size ?? 14}
+                    onChange={(e) => {
+                      const n = parseInt(e.target.value, 10);
+                      if (!Number.isNaN(n)) {
+                        const next = speechBubbles.map((b) => b.id === selectedSpeechBubble.id ? { ...b, style: { ...b.style, size: n } } : b);
+                        handleUpdateSpeechBubbles(next);
+                      }
+                    }}
+                    className="w-14 h-8 rounded-lg border border-border/60 bg-background px-2 text-xs tabular-nums"
+                  />
+                  <input
+                    type="color"
+                    value={selectedSpeechBubble.style?.color ?? "#000000"}
+                    onChange={(e) => {
+                      const next = speechBubbles.map((b) => b.id === selectedSpeechBubble.id ? { ...b, style: { ...b.style, color: e.target.value } } : b);
+                      handleUpdateSpeechBubbles(next);
+                    }}
+                    className="h-8 w-10 rounded border border-border/60 cursor-pointer bg-background"
+                  />
+                </div>
+                <Button size="sm" variant="ghost" className="w-full gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10" disabled={updatePanelMutation.isPending} onClick={() => handleDeleteSpeechBubble(selectedSpeechBubble)}><Trash2 className="h-3 w-3" /> Supprimer la bulle</Button>
+              </div>
+            ) : null}
+          </div>
 
           {/* Bouton Découper en bas */}
           <div className="mt-auto p-3 border-t border-border/60">

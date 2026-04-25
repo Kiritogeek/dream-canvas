@@ -188,8 +188,9 @@ export default function ChapterDetail() {
   const [blockNameDrafts, setBlockNameDrafts] = useState<Record<string, string>>({});
   /** Blocs en train de générer une suggestion IA de prompt (clé = `${panelId}-${blockId}`). */
   const [suggestingBlockKeys, setSuggestingBlockKeys] = useState<Set<string>>(() => new Set());
-  /** Brouillon hauteur du panel (modale édition), chaîne pour autoriser le champ vide ; null = afficher la valeur réelle */
-  const [panelHeightDraft, setPanelHeightDraft] = useState<string | null>(null);
+  /** Hauteur live pendant le drag de la poignée bas-du-canvas ; null = pas de drag en cours */
+  const [panelHeightDragDraft, setPanelHeightDragDraft] = useState<number | null>(null);
+  const panelHeightDragRef = useRef<{ startY: number; startH: number } | null>(null);
   /** Bloc en cours d'édition de prompt : clé = `${panelId}-${blockId}` */
   const [_editingBlockKey, setEditingBlockKey] = useState<string | null>(null);
   /** Brouillon dimensions par bloc : clé = `${panelId}-${blockId}` → { width, height } */
@@ -1285,26 +1286,6 @@ export default function ChapterDetail() {
               </button>
             ))}
             <div className="flex-1" />
-            {/* Hauteur du canvas — contrôle compact */}
-            <div className="flex flex-col items-center gap-0.5 pb-1">
-              <span className="text-[8px] text-muted-foreground">H</span>
-              <input
-                type="text"
-                inputMode="numeric"
-                value={panelHeightDraft !== null ? panelHeightDraft : String(layout.panelHeight ?? PANEL_HEIGHT_DEFAULT)}
-                onChange={(e) => setPanelHeightDraft(e.target.value)}
-                onBlur={() => {
-                  const raw = panelHeightDraft !== null ? panelHeightDraft.trim() : null;
-                  if (raw === null) return;
-                  const num = raw === "" ? PANEL_HEIGHT_MIN : Math.max(PANEL_HEIGHT_MIN, Math.min(PANEL_HEIGHT_MAX, Number(raw) || PANEL_HEIGHT_MIN));
-                  handlePanelHeightChange(num);
-                  setPanelHeightDraft(null);
-                }}
-                onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
-                className="w-11 h-7 rounded border border-border/60 bg-background text-center text-[10px] tabular-nums"
-                title="Hauteur du canvas (px)"
-              />
-            </div>
             <button
               type="button"
               title="Découper & télécharger"
@@ -1445,74 +1426,121 @@ export default function ChapterDetail() {
         {/* Centre : panel 800px de large exactement, zoomable via contrôles header ou Ctrl+Scroll */}
         {/* pl-[360px] compense l'asymétrie sidebar droite (416px) vs gauche (56px) pour centrer dans le viewport */}
         <div className="flex-1 min-w-0 flex items-start justify-center overflow-auto p-6 bg-background pl-[360px]">
-          <div style={{ width: PANEL_WIDTH * zoomLevel, height: panelHeight * zoomLevel, flexShrink: 0 }}>
-            <div style={{ transform: `scale(${zoomLevel})`, transformOrigin: "top left", width: PANEL_WIDTH }}>
-          <div className="rounded-2xl border-2 border-border bg-muted shadow-lg min-w-0 ring-2 ring-border/60 shadow-[inset_0_3px_8px_-2px_rgba(0,0,0,0.15),inset_0_-3px_8px_-2px_rgba(0,0,0,0.15)]">
-            <div className="relative shrink-0 bg-muted rounded-xl overflow-hidden" style={{ width: PANEL_WIDTH, height: panelHeight }}>
-              <div
-                ref={(el) => { if (el) canvasRefByPanel.current[panel.id] = el; }}
-                className="absolute left-0 top-0 rounded-lg overflow-hidden"
-                style={{
-                  width: PANEL_WIDTH,
-                  height: panelHeight,
-                  backgroundImage: "linear-gradient(to right, hsl(var(--border)) 1px, transparent 1px), linear-gradient(to bottom, hsl(var(--border)) 1px, transparent 1px)",
-                  backgroundSize: "24px 24px",
-                  backgroundColor: "hsl(var(--muted))",
-                }}
-                onDragOver={handleCanvasDragOver}
-                onDrop={handleCanvasDrop}
-              >
-              <ColorBlockLayer
-                panel={panel}
-                panels={panels}
-                colorBlocks={colorBlocks}
-                canvasRefByPanel={canvasRefByPanel}
-                zoomRef={zoomRef}
-                selectedColorBlockId={selectedColorBlockIdInModal?.panelId === panel.id ? selectedColorBlockIdInModal.colorBlockId : null}
-                onSelectColorBlock={(id) => id
-                  ? setSelectedColorBlockIdInModal({ panelId: panel.id, colorBlockId: id })
-                  : setSelectedColorBlockIdInModal(null)
-                }
-                onMoveCommit={handleColorBlockMoveCommit}
-                onResizeCommit={handleColorBlockResizeCommit}
-                onDelete={handleDeleteColorBlock}
-              />
-              <ImageBlockLayer
-                panel={panel}
-                panels={panels}
-                blocks={blocks}
-                canvasRefByPanel={canvasRefByPanel}
-                zoomRef={zoomRef}
-                selectedBlockId={selectedBlockIdInModal?.panelId === panel.id ? selectedBlockIdInModal.blockId : null}
-                onSelectBlock={(id) => id
-                  ? setSelectedBlockIdInModal({ panelId: panel.id, blockId: id })
-                  : setSelectedBlockIdInModal(null)
-                }
-                onMoveCommit={handleImageBlockMoveCommit}
-                onResizeCommit={handleImageBlockResizeCommit}
-                onDelete={handleDeleteBlock}
-                onAddBlock={handleAddBlock}
-                isUpdating={updatePanelMutation.isPending}
-              />
-              <BubbleLayer
-                panel={panel}
-                panels={panels}
-                speechBubbles={speechBubbles}
-                canvasRefByPanel={canvasRefByPanel}
-                zoomRef={zoomRef}
-                selectedBubbleId={selectedSpeechBubbleIdInModal?.panelId === panel.id ? selectedSpeechBubbleIdInModal.bubbleId : null}
-                onSelectBubble={(id) => id
-                  ? setSelectedSpeechBubbleIdInModal({ panelId: panel.id, bubbleId: id })
-                  : setSelectedSpeechBubbleIdInModal(null)
-                }
-                onMoveCommit={handleBubbleMoveCommit}
-                onResizeCommit={handleBubbleResizeCommit}
-                onDelete={handleDeleteSpeechBubble}
-              />
-              </div>
-            </div>
-          </div>
-            </div>
+          {/* Wrapper relatif pour positionner la poignée de redimensionnement */}
+          <div className="relative" style={{ flexShrink: 0 }}>
+            {(() => {
+              const liveH = panelHeightDragDraft ?? panelHeight;
+              return (
+                <>
+                  <div style={{ width: PANEL_WIDTH * zoomLevel, height: liveH * zoomLevel }}>
+                    <div style={{ transform: `scale(${zoomLevel})`, transformOrigin: "top left", width: PANEL_WIDTH }}>
+                  <div className="rounded-2xl border-2 border-border bg-muted shadow-lg min-w-0 ring-2 ring-border/60 shadow-[inset_0_3px_8px_-2px_rgba(0,0,0,0.15),inset_0_-3px_8px_-2px_rgba(0,0,0,0.15)]">
+                    <div className="relative shrink-0 bg-muted rounded-xl overflow-hidden" style={{ width: PANEL_WIDTH, height: liveH }}>
+                      <div
+                        ref={(el) => { if (el) canvasRefByPanel.current[panel.id] = el; }}
+                        className="absolute left-0 top-0 rounded-lg overflow-hidden"
+                        style={{
+                          width: PANEL_WIDTH,
+                          height: liveH,
+                          backgroundImage: "linear-gradient(to right, hsl(var(--border)) 1px, transparent 1px), linear-gradient(to bottom, hsl(var(--border)) 1px, transparent 1px)",
+                          backgroundSize: "24px 24px",
+                          backgroundColor: "hsl(var(--muted))",
+                        }}
+                        onDragOver={handleCanvasDragOver}
+                        onDrop={handleCanvasDrop}
+                      >
+                      <ColorBlockLayer
+                        panel={panel}
+                        panels={panels}
+                        colorBlocks={colorBlocks}
+                        canvasRefByPanel={canvasRefByPanel}
+                        zoomRef={zoomRef}
+                        selectedColorBlockId={selectedColorBlockIdInModal?.panelId === panel.id ? selectedColorBlockIdInModal.colorBlockId : null}
+                        onSelectColorBlock={(id) => id
+                          ? setSelectedColorBlockIdInModal({ panelId: panel.id, colorBlockId: id })
+                          : setSelectedColorBlockIdInModal(null)
+                        }
+                        onMoveCommit={handleColorBlockMoveCommit}
+                        onResizeCommit={handleColorBlockResizeCommit}
+                        onDelete={handleDeleteColorBlock}
+                      />
+                      <ImageBlockLayer
+                        panel={panel}
+                        panels={panels}
+                        blocks={blocks}
+                        canvasRefByPanel={canvasRefByPanel}
+                        zoomRef={zoomRef}
+                        selectedBlockId={selectedBlockIdInModal?.panelId === panel.id ? selectedBlockIdInModal.blockId : null}
+                        onSelectBlock={(id) => id
+                          ? setSelectedBlockIdInModal({ panelId: panel.id, blockId: id })
+                          : setSelectedBlockIdInModal(null)
+                        }
+                        onMoveCommit={handleImageBlockMoveCommit}
+                        onResizeCommit={handleImageBlockResizeCommit}
+                        onDelete={handleDeleteBlock}
+                        onAddBlock={handleAddBlock}
+                        isUpdating={updatePanelMutation.isPending}
+                      />
+                      <BubbleLayer
+                        panel={panel}
+                        panels={panels}
+                        speechBubbles={speechBubbles}
+                        canvasRefByPanel={canvasRefByPanel}
+                        zoomRef={zoomRef}
+                        selectedBubbleId={selectedSpeechBubbleIdInModal?.panelId === panel.id ? selectedSpeechBubbleIdInModal.bubbleId : null}
+                        onSelectBubble={(id) => id
+                          ? setSelectedSpeechBubbleIdInModal({ panelId: panel.id, bubbleId: id })
+                          : setSelectedSpeechBubbleIdInModal(null)
+                        }
+                        onMoveCommit={handleBubbleMoveCommit}
+                        onResizeCommit={handleBubbleResizeCommit}
+                        onDelete={handleDeleteSpeechBubble}
+                      />
+                      </div>
+                    </div>
+                  </div>
+                    </div>
+                  </div>
+                  {/* Poignée de redimensionnement verticale */}
+                  <div
+                    className="flex items-center justify-center select-none cursor-ns-resize group"
+                    style={{ width: PANEL_WIDTH * zoomLevel, height: 16 }}
+                    title={`Hauteur : ${Math.round(liveH)} px — glisser pour redimensionner`}
+                    onPointerDown={(e) => {
+                      if (e.button !== 0) return;
+                      e.preventDefault();
+                      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+                      panelHeightDragRef.current = { startY: e.clientY, startH: panelHeight };
+                    }}
+                    onPointerMove={(e) => {
+                      if (!panelHeightDragRef.current) return;
+                      const delta = (e.clientY - panelHeightDragRef.current.startY) / zoomLevel;
+                      const newH = Math.round(Math.max(PANEL_HEIGHT_MIN, Math.min(PANEL_HEIGHT_MAX, panelHeightDragRef.current.startH + delta)));
+                      setPanelHeightDragDraft(newH);
+                    }}
+                    onPointerUp={(e) => {
+                      if (!panelHeightDragRef.current) return;
+                      const delta = (e.clientY - panelHeightDragRef.current.startY) / zoomLevel;
+                      const newH = Math.round(Math.max(PANEL_HEIGHT_MIN, Math.min(PANEL_HEIGHT_MAX, panelHeightDragRef.current.startH + delta)));
+                      panelHeightDragRef.current = null;
+                      setPanelHeightDragDraft(null);
+                      handlePanelHeightChange(newH);
+                    }}
+                    onPointerCancel={() => {
+                      panelHeightDragRef.current = null;
+                      setPanelHeightDragDraft(null);
+                    }}
+                  >
+                    <div className="w-10 h-1 rounded-full bg-border/60 group-hover:bg-primary/60 transition-colors" />
+                    {panelHeightDragDraft !== null && (
+                      <span className="absolute text-[10px] font-mono text-muted-foreground bg-background/90 border border-border/60 rounded px-1.5 py-0.5 shadow-sm" style={{ bottom: -18 }}>
+                        {Math.round(liveH)} px
+                      </span>
+                    )}
+                  </div>
+                </>
+              );
+            })()}
           </div>
         </div>
         {/* Droite : chapitre textuel + cases (largeur fixe pour ne pas décaler le canvas) */}

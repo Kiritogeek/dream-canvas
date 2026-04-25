@@ -1299,7 +1299,7 @@ export default function ChapterDetail() {
 
           {/* Flyout bibliothèque — overlay absolu, uniquement quand aucun élément sélectionné */}
           {activeSidebarTab && !hasSelection && (
-            <div className="absolute top-0 left-full h-full w-[220px] bg-background border-r border-border shadow-xl flex flex-col overflow-hidden">
+            <div className="absolute top-0 left-full h-full w-[340px] bg-background border-r border-border shadow-xl flex flex-col overflow-hidden">
               <div className="flex items-center justify-between px-3 py-2 border-b border-border/50 shrink-0">
                 <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
                   {activeSidebarTab === "blocs" && <><span>Blocs image</span> <kbd className="text-[9px] font-mono bg-muted text-muted-foreground border border-border px-1 rounded">B</kbd></>}
@@ -1351,7 +1351,7 @@ export default function ChapterDetail() {
 
           {/* Panneau propriétés — overlay absolu, uniquement quand un élément est sélectionné */}
           {hasSelection && (
-            <div className="absolute top-0 left-full h-full w-[220px] bg-background border-r border-border shadow-xl flex flex-col overflow-hidden">
+            <div className="absolute top-0 left-full h-full w-[340px] bg-background border-r border-border shadow-xl flex flex-col overflow-hidden">
               <div className="flex-1 overflow-y-auto min-h-0">
                 {selectedBlock ? (() => {
                   const block = selectedBlock;

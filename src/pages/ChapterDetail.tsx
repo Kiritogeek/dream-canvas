@@ -1270,7 +1270,14 @@ export default function ChapterDetail() {
                 key={id}
                 type="button"
                 title={label}
-                onClick={() => setActiveSidebarTab((t) => (t === id ? null : id))}
+                onClick={() => {
+                  if (hasSelection) {
+                    setSelectedBlockIdInModal(null);
+                    setSelectedColorBlockIdInModal(null);
+                    setSelectedSpeechBubbleIdInModal(null);
+                  }
+                  setActiveSidebarTab((t) => (t === id ? null : id));
+                }}
                 className={`w-10 h-10 rounded-lg flex flex-col items-center justify-center gap-0.5 transition-colors ${activeSidebarTab === id ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"}`}
               >
                 <Icon className="h-4 w-4" />
@@ -1436,7 +1443,8 @@ export default function ChapterDetail() {
 
         </aside>
         {/* Centre : panel 800px de large exactement, zoomable via contrôles header ou Ctrl+Scroll */}
-        <div className="flex-1 min-w-0 flex items-start justify-center overflow-auto p-6 bg-background">
+        {/* pl-[360px] compense l'asymétrie sidebar droite (416px) vs gauche (56px) pour centrer dans le viewport */}
+        <div className="flex-1 min-w-0 flex items-start justify-center overflow-auto p-6 bg-background pl-[360px]">
           <div style={{ width: PANEL_WIDTH * zoomLevel, height: panelHeight * zoomLevel, flexShrink: 0 }}>
             <div style={{ transform: `scale(${zoomLevel})`, transformOrigin: "top left", width: PANEL_WIDTH }}>
           <div className="rounded-2xl border-2 border-border bg-muted shadow-lg min-w-0 ring-2 ring-border/60 shadow-[inset_0_3px_8px_-2px_rgba(0,0,0,0.15),inset_0_-3px_8px_-2px_rgba(0,0,0,0.15)]">

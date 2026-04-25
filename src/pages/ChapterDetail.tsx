@@ -1503,7 +1503,7 @@ export default function ChapterDetail() {
                   </div>
                   {/* Poignée de redimensionnement — verte, toujours visible */}
                   <div
-                    className="relative flex items-center justify-center select-none cursor-ns-resize mb-8"
+                    className="relative flex items-center justify-center select-none cursor-ns-resize mb-[600px]"
                     style={{ width: PANEL_WIDTH * zoomLevel, height: 24 }}
                     title={`Hauteur : ${Math.round(liveH)} px — glisser pour redimensionner`}
                     onPointerDown={(e) => {

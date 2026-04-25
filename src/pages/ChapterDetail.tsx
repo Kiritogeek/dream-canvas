@@ -1501,10 +1501,10 @@ export default function ChapterDetail() {
                   </div>
                     </div>
                   </div>
-                  {/* Poignée de redimensionnement verticale */}
+                  {/* Poignée de redimensionnement — verte, toujours visible */}
                   <div
-                    className="flex items-center justify-center select-none cursor-ns-resize group"
-                    style={{ width: PANEL_WIDTH * zoomLevel, height: 16 }}
+                    className="relative flex items-center justify-center select-none cursor-ns-resize mb-8"
+                    style={{ width: PANEL_WIDTH * zoomLevel, height: 24 }}
                     title={`Hauteur : ${Math.round(liveH)} px — glisser pour redimensionner`}
                     onPointerDown={(e) => {
                       if (e.button !== 0) return;
@@ -1531,10 +1531,16 @@ export default function ChapterDetail() {
                       setPanelHeightDragDraft(null);
                     }}
                   >
-                    <div className="w-10 h-1 rounded-full bg-border/60 group-hover:bg-primary/60 transition-colors" />
-                    {panelHeightDragDraft !== null && (
-                      <span className="absolute text-[10px] font-mono text-muted-foreground bg-background/90 border border-border/60 rounded px-1.5 py-0.5 shadow-sm" style={{ bottom: -18 }}>
+                    <div className="w-full h-full rounded-b-xl bg-emerald-500/20 border border-emerald-500/60 flex items-center justify-center gap-2 hover:bg-emerald-500/30 transition-colors">
+                      <div className="w-8 h-1 rounded-full bg-emerald-500" />
+                      <span className="text-[10px] font-medium text-emerald-600 dark:text-emerald-400 tabular-nums">
                         {Math.round(liveH)} px
+                      </span>
+                      <div className="w-8 h-1 rounded-full bg-emerald-500" />
+                    </div>
+                    {panelHeightDragDraft !== null && (
+                      <span className="absolute -bottom-6 text-[11px] font-mono font-semibold text-emerald-600 dark:text-emerald-400">
+                        ↕ {Math.round(liveH)} px
                       </span>
                     )}
                   </div>

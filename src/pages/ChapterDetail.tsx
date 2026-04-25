@@ -1434,7 +1434,7 @@ export default function ChapterDetail() {
                 <>
                   <div style={{ width: PANEL_WIDTH * zoomLevel, height: liveH * zoomLevel }}>
                     <div style={{ transform: `scale(${zoomLevel})`, transformOrigin: "top left", width: PANEL_WIDTH }}>
-                  <div className="rounded-2xl border-2 border-border bg-muted shadow-lg min-w-0 ring-2 ring-border/60 shadow-[inset_0_3px_8px_-2px_rgba(0,0,0,0.15),inset_0_-3px_8px_-2px_rgba(0,0,0,0.15)]">
+                  <div className="rounded-2xl border border-border bg-muted shadow-md min-w-0">
                     <div className="relative shrink-0 bg-muted rounded-xl overflow-hidden" style={{ width: PANEL_WIDTH, height: liveH }}>
                       <div
                         ref={(el) => { if (el) canvasRefByPanel.current[panel.id] = el; }}
@@ -1645,7 +1645,7 @@ export default function ChapterDetail() {
             </div>
           )}
         </aside>
-        <aside className="w-[76px] shrink-0 border-l border-border/80 bg-muted/20 px-2 py-4 flex flex-col items-center gap-2">
+        <aside className="w-[76px] shrink-0 border-l border-border bg-muted/20 px-2 py-4 flex flex-col items-center gap-2">
           <button
             type="button"
             onClick={() => setPanelEditorRightTool("chapter-text")}

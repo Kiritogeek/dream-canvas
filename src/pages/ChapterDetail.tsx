@@ -222,7 +222,7 @@ export default function ChapterDetail() {
   const [zoomLevel, setZoomLevel] = useState(0.5);
   const zoomRef = useRef(0.5);
   /** Onglet actif de la sidebar bibliothèque (null = fermée) */
-  const [activeSidebarTab, setActiveSidebarTab] = useState<"assets" | "blocs" | "couleurs" | "dialogue" | "cases" | null>(null);
+  const [activeSidebarTab, setActiveSidebarTab] = useState<"blocs" | "couleurs" | "dialogue" | null>(null);
 
   // Réduit la duplication des resets d'état de l'éditeur panel.
   const resetPanelEditorUiState = useCallback(() => {
@@ -1268,11 +1268,9 @@ export default function ChapterDetail() {
           {/* Barre d'icônes (56px, fixe) */}
           <div className="w-14 flex flex-col items-center gap-1 py-2 border-r border-border/40">
             {([
-              { id: "assets" as const, icon: Layers, label: "Assets" },
               { id: "blocs" as const, icon: LayoutPanelTop, label: "Blocs" },
               { id: "couleurs" as const, icon: Palette, label: "Couleurs" },
               { id: "dialogue" as const, icon: MessageCircle, label: "Dialogue" },
-              { id: "cases" as const, icon: BookOpen, label: "Cases" },
             ] as const).map(({ id, icon: Icon, label }) => (
               <button
                 key={id}
@@ -1303,11 +1301,9 @@ export default function ChapterDetail() {
               {/* Header flyout */}
               <div className="flex items-center justify-between px-3 py-2 border-b border-border/50 shrink-0">
                 <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                  {activeSidebarTab === "assets" && "Assets"}
                   {activeSidebarTab === "blocs" && <><span>Blocs image</span> <kbd className="text-[9px] font-mono bg-muted text-muted-foreground border border-border px-1 rounded">B</kbd></>}
                   {activeSidebarTab === "couleurs" && <><span>Couleurs</span> <kbd className="text-[9px] font-mono bg-muted text-muted-foreground border border-border px-1 rounded">C</kbd></>}
                   {activeSidebarTab === "dialogue" && <><span>Dialogue</span> <kbd className="text-[9px] font-mono bg-muted text-muted-foreground border border-border px-1 rounded">D</kbd></>}
-                  {activeSidebarTab === "cases" && "Cases du scénario"}
                 </span>
                 <button type="button" onClick={() => setActiveSidebarTab(null)} className="h-6 w-6 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors" aria-label="Fermer">
                   <X className="h-3.5 w-3.5" />
@@ -1316,29 +1312,6 @@ export default function ChapterDetail() {
 
               {/* Contenu bibliothèque (scrollable) */}
               <div className="flex-1 overflow-y-auto p-3 space-y-3 min-h-0">
-
-                {/* Assets */}
-                {activeSidebarTab === "assets" && (assets.length === 0 ? (
-                  <p className="text-xs text-muted-foreground/60 italic">Aucun asset dans ce projet.</p>
-                ) : (
-                  <>
-                    <p className="text-[11px] text-muted-foreground leading-tight">Glisser sur le canvas pour créer un bloc.</p>
-                    <div className="grid grid-cols-2 gap-1.5">
-                      {assets.map((asset) => {
-                        const imgUrl = getAssetReferenceImageUrl(asset);
-                        const assetName = asset.name?.trim() || asset.id.slice(0, 8);
-                        return (
-                          <div key={asset.id} draggable onDragStart={(e) => { e.dataTransfer.setData("application/json", JSON.stringify({ type: "asset-drop", assetId: asset.id, assetName })); e.dataTransfer.effectAllowed = "copy"; }} title={assetName} className="group cursor-grab active:cursor-grabbing rounded-lg border border-border/60 bg-background overflow-hidden hover:border-primary/40 hover:shadow-sm transition-[border-color,box-shadow]">
-                            <div className="aspect-square bg-muted flex items-center justify-center overflow-hidden">
-                              {imgUrl ? <ImageWithFallback src={imgUrl} alt={assetName} className="w-full h-full object-cover" /> : <div className="text-[10px] text-muted-foreground">—</div>}
-                            </div>
-                            <div className="px-1.5 py-1 text-[10px] text-foreground truncate font-medium">{assetName}</div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </>
-                ))}
 
                 {/* Blocs image */}
                 {activeSidebarTab === "blocs" && (
@@ -1380,22 +1353,6 @@ export default function ChapterDetail() {
                   </div>
                 )}
 
-                {/* Cases */}
-                {activeSidebarTab === "cases" && (validatedCases.length === 0 ? (
-                  <p className="text-xs text-muted-foreground/60 italic py-2">Aucune case validée dans le scénario.</p>
-                ) : (
-                  validatedCases.map((c) => (
-                    <div key={c.caseNumber} className="rounded-lg border border-border/60 bg-muted/20 p-2 space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-medium text-foreground">Case {c.caseNumber}</span>
-                        <Button size="sm" variant="outline" className="h-6 px-2 text-[11px] gap-1" onClick={() => handleAddBlockFromCase(c.description!)} disabled={!c.description || updatePanelMutation.isPending}>
-                          <Plus className="h-3 w-3" />Créer
-                        </Button>
-                      </div>
-                      <p className="text-xs text-muted-foreground line-clamp-2">{c.description}</p>
-                    </div>
-                  ))
-                ))}
 
               </div>{/* fin contenu scrollable */}
 

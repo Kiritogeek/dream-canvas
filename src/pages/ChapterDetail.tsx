@@ -9,7 +9,6 @@ import {
   Plus,
   Minus,
   ChevronDown,
-  ChevronUp,
   BookOpen,
   Save,
   Loader2,
@@ -1104,159 +1103,10 @@ export default function ChapterDetail() {
       );
     };
 
-    // ── Toolbar flottante : Dupliquer / Monter / Descendre ──────────────────
-
-    const clampInside = (x: number, y: number, w: number, h: number, ph: number) => ({
-      x: Math.max(0, Math.min(PANEL_WIDTH - w, x)),
-      y: Math.max(0, Math.min(ph - h, y)),
-    });
-
-    const duplicateSelected = () => {
-      if (selectedBlock) {
-        const src = selectedBlock;
-        const pos = clampInside(src.x + 20, src.y + 20, src.width, src.height, panelHeight);
-        const copy: PanelBlock = { ...src, id: crypto.randomUUID(), x: pos.x, y: pos.y, name: src.name ? `${src.name} (copie)` : "Bloc (copie)" };
-        const nextBlocks = [...layout.blocks, copy];
-        updatePanelMutation.mutate(
-          { id: panel.id, updates: { layout: { ...layout, blocks: nextBlocks } as unknown as Json } },
-          { onSuccess: () => { setSelectedBlockIdInModal({ panelId: panel.id, blockId: copy.id }); toast({ title: "Bloc dupliqué" }); }, onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }) }
-        );
-        return;
-      }
-      if (selectedColorBlock) {
-        const src = selectedColorBlock;
-        const pos = clampInside(src.x + 20, src.y + 20, src.width, src.height, panelHeight);
-        const copy: ColorBlock = { ...src, id: crypto.randomUUID(), x: pos.x, y: pos.y };
-        const next = [...colorBlocks, copy];
-        updatePanelMutation.mutate(
-          { id: panel.id, updates: { color_blocks: next as unknown as Json } },
-          { onSuccess: () => { setSelectedColorBlockIdInModal({ panelId: panel.id, colorBlockId: copy.id }); toast({ title: "Bloc couleur dupliqué" }); }, onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }) }
-        );
-        return;
-      }
-      if (selectedSpeechBubble) {
-        const src = selectedSpeechBubble;
-        const w = src.width ?? DEFAULT_SPEECH_BUBBLE_WIDTH;
-        const h = src.height ?? DEFAULT_SPEECH_BUBBLE_HEIGHT;
-        const pos = clampInside(src.position.x + 20, src.position.y + 20, w, h, panelHeight);
-        const copy: SpeechBubble = { ...src, id: crypto.randomUUID(), position: { x: pos.x, y: pos.y } };
-        const next = [...speechBubbles, copy];
-        updatePanelMutation.mutate(
-          { id: panel.id, updates: { speech_bubbles: next as unknown as Json } },
-          { onSuccess: () => { setSelectedSpeechBubbleIdInModal({ panelId: panel.id, bubbleId: copy.id }); toast({ title: "Bulle dupliquée" }); }, onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }) }
-        );
-      }
-    };
-
-    const moveSelected = (direction: "up" | "down") => {
-      const swap = <T,>(arr: T[], i: number, j: number): T[] => {
-        if (i < 0 || j < 0 || i >= arr.length || j >= arr.length) return arr;
-        const next = arr.slice();
-        const tmp = next[i];
-        next[i] = next[j];
-        next[j] = tmp;
-        return next;
-      };
-      const delta = direction === "up" ? 1 : -1;
-      if (selectedBlock) {
-        const idx = layout.blocks.findIndex((b) => b.id === selectedBlock.id);
-        const next = swap(layout.blocks, idx, idx + delta);
-        if (next === layout.blocks) return;
-        updatePanelMutation.mutate(
-          { id: panel.id, updates: { layout: { ...layout, blocks: next } as unknown as Json } },
-          { onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }) }
-        );
-        return;
-      }
-      if (selectedColorBlock) {
-        const idx = colorBlocks.findIndex((c) => c.id === selectedColorBlock.id);
-        const next = swap(colorBlocks, idx, idx + delta);
-        if (next === colorBlocks) return;
-        updatePanelMutation.mutate(
-          { id: panel.id, updates: { color_blocks: next as unknown as Json } },
-          { onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }) }
-        );
-        return;
-      }
-      if (selectedSpeechBubble) {
-        const idx = speechBubbles.findIndex((b) => b.id === selectedSpeechBubble.id);
-        const next = swap(speechBubbles, idx, idx + delta);
-        if (next === speechBubbles) return;
-        updatePanelMutation.mutate(
-          { id: panel.id, updates: { speech_bubbles: next as unknown as Json } },
-          { onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }) }
-        );
-      }
-    };
-
     const hasSelection = !!(selectedBlock || selectedColorBlock || selectedSpeechBubble);
-    const selectionLabel = selectedBlock
-      ? `Bloc « ${selectedBlock.name ?? "sans nom"} »`
-      : selectedColorBlock
-        ? "Bloc couleur"
-        : selectedSpeechBubble
-          ? `Bulle ${SPEECH_BUBBLE_TYPE_LABELS[selectedSpeechBubble.type] ?? ""}`
-          : "";
 
     return (
       <div className="relative flex flex-1 min-h-0 overflow-hidden bg-gradient-to-b from-background via-background to-muted/20">
-        {/* Toolbar contextuelle flottante — visible uniquement quand un objet est sélectionné */}
-        {hasSelection && (
-          <div
-            role="toolbar"
-            aria-label="Actions sur la sélection"
-            className="absolute top-3 left-1/2 -translate-x-1/2 z-50 flex items-center gap-1 rounded-full border border-border/70 bg-background/95 backdrop-blur-sm shadow-lg px-2 py-1"
-          >
-            <span className="px-2 text-xs text-muted-foreground truncate max-w-[200px]">{selectionLabel}</span>
-            <div className="h-5 w-px bg-border" />
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-7 gap-1 text-xs rounded-full"
-              onClick={duplicateSelected}
-              disabled={updatePanelMutation.isPending}
-              title="Dupliquer"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              Dupliquer
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-7 w-7 p-0 rounded-full"
-              onClick={() => moveSelected("up")}
-              disabled={updatePanelMutation.isPending}
-              title="Mettre au-dessus"
-            >
-              <ChevronUp className="h-3.5 w-3.5" />
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-7 w-7 p-0 rounded-full"
-              onClick={() => moveSelected("down")}
-              disabled={updatePanelMutation.isPending}
-              title="Mettre en dessous"
-            >
-              <ChevronDown className="h-3.5 w-3.5" />
-            </Button>
-            <div className="h-5 w-px bg-border" />
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-7 w-7 p-0 rounded-full text-destructive hover:text-destructive hover:bg-destructive/10"
-              onClick={() => {
-                if (selectedBlock) handleDeleteBlock(selectedBlock);
-                else if (selectedColorBlock) handleDeleteColorBlock(selectedColorBlock);
-                else if (selectedSpeechBubble) handleDeleteSpeechBubble(selectedSpeechBubble);
-              }}
-              disabled={updatePanelMutation.isPending}
-              title="Supprimer (Delete)"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </Button>
-          </div>
-        )}
         {/* Panneau gauche — barre d'icônes fixe + flyouts en overlay (ne poussent pas le canvas) */}
         <aside className="relative w-14 shrink-0 border-r border-border bg-background z-30">
 

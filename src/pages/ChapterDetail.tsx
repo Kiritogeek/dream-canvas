@@ -480,12 +480,6 @@ export default function ChapterDetail() {
     zoomRef.current = zoomLevel;
   }, [zoomLevel]);
 
-  /* Auto-ouvre l'onglet flyout selon l'élément sélectionné sur le canvas */
-  useEffect(() => {
-    if (selectedBlockIdInModal) setActiveSidebarTab("blocs");
-    else if (selectedColorBlockIdInModal) setActiveSidebarTab("couleurs");
-    else if (selectedSpeechBubbleIdInModal) setActiveSidebarTab("dialogue");
-  }, [selectedBlockIdInModal, selectedColorBlockIdInModal, selectedSpeechBubbleIdInModal]);
 
   useEffect(() => {
     if (!expandedPanelId) return;
@@ -1262,11 +1256,11 @@ export default function ChapterDetail() {
             </Button>
           </div>
         )}
-        {/* Panneau gauche — barre d'icônes + flyout bibliothèque */}
-        <aside className="flex shrink-0 border-r border-border bg-background">
+        {/* Panneau gauche — barre d'icônes fixe + flyouts en overlay (ne poussent pas le canvas) */}
+        <aside className="relative w-14 shrink-0 border-r border-border bg-background z-30">
 
           {/* Barre d'icônes (56px, fixe) */}
-          <div className="w-14 flex flex-col items-center gap-1 py-2 border-r border-border/40">
+          <div className="w-14 flex flex-col items-center gap-1 py-2">
             {([
               { id: "blocs" as const, icon: LayoutPanelTop, label: "Blocs" },
               { id: "couleurs" as const, icon: Palette, label: "Couleurs" },
@@ -1284,6 +1278,26 @@ export default function ChapterDetail() {
               </button>
             ))}
             <div className="flex-1" />
+            {/* Hauteur du canvas — contrôle compact */}
+            <div className="flex flex-col items-center gap-0.5 pb-1">
+              <span className="text-[8px] text-muted-foreground">H</span>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={panelHeightDraft !== null ? panelHeightDraft : String(layout.panelHeight ?? PANEL_HEIGHT_DEFAULT)}
+                onChange={(e) => setPanelHeightDraft(e.target.value)}
+                onBlur={() => {
+                  const raw = panelHeightDraft !== null ? panelHeightDraft.trim() : null;
+                  if (raw === null) return;
+                  const num = raw === "" ? PANEL_HEIGHT_MIN : Math.max(PANEL_HEIGHT_MIN, Math.min(PANEL_HEIGHT_MAX, Number(raw) || PANEL_HEIGHT_MIN));
+                  handlePanelHeightChange(num);
+                  setPanelHeightDraft(null);
+                }}
+                onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+                className="w-11 h-7 rounded border border-border/60 bg-background text-center text-[10px] tabular-nums"
+                title="Hauteur du canvas (px)"
+              />
+            </div>
             <button
               type="button"
               title="Découper & télécharger"
@@ -1295,10 +1309,9 @@ export default function ChapterDetail() {
             </button>
           </div>
 
-          {/* Flyout panel (200px, conditionnel) */}
-          {activeSidebarTab && (
-            <div className="w-[200px] flex flex-col border-r border-border/40 overflow-hidden">
-              {/* Header flyout */}
+          {/* Flyout bibliothèque — overlay absolu, uniquement quand aucun élément sélectionné */}
+          {activeSidebarTab && !hasSelection && (
+            <div className="absolute top-0 left-full h-full w-[220px] bg-background border-r border-border shadow-xl flex flex-col overflow-hidden">
               <div className="flex items-center justify-between px-3 py-2 border-b border-border/50 shrink-0">
                 <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
                   {activeSidebarTab === "blocs" && <><span>Blocs image</span> <kbd className="text-[9px] font-mono bg-muted text-muted-foreground border border-border px-1 rounded">B</kbd></>}
@@ -1309,11 +1322,7 @@ export default function ChapterDetail() {
                   <X className="h-3.5 w-3.5" />
                 </button>
               </div>
-
-              {/* Contenu bibliothèque (scrollable) */}
               <div className="flex-1 overflow-y-auto p-3 space-y-3 min-h-0">
-
-                {/* Blocs image */}
                 {activeSidebarTab === "blocs" && (
                   <div className="space-y-1.5">
                     <p className="text-[11px] text-muted-foreground">Clic ou glisser sur le canvas</p>
@@ -1327,16 +1336,12 @@ export default function ChapterDetail() {
                     </div>
                   </div>
                 )}
-
-                {/* Couleurs */}
                 {activeSidebarTab === "couleurs" && (
                   <div draggable onDragStart={(e) => { e.dataTransfer.setData("application/json", JSON.stringify({ type: "new-color-block", width: 300, height: 300, fill: { type: "solid", color: "#ffffff" } })); e.dataTransfer.effectAllowed = "copy"; }} onClick={() => { const ph = getPanelHeight(panel); const x = Math.round((PANEL_WIDTH - 300) / 2); const y = Math.round((ph - 300) / 2); handleAddColorBlock(x, y, 300, 300); }} className="cursor-grab active:cursor-grabbing rounded-lg border border-border/80 bg-white shadow-sm px-4 py-3 text-sm text-muted-foreground hover:text-foreground hover:shadow-md transition-all flex items-center justify-center gap-2">
                     <Square className="h-4 w-4 shrink-0" />
                     <span>Bloc de couleur</span>
                   </div>
                 )}
-
-                {/* Dialogue */}
                 {activeSidebarTab === "dialogue" && (
                   <div className="space-y-1.5">
                     <p className="text-[11px] text-muted-foreground">Clic ou glisser sur le canvas</p>
@@ -1352,22 +1357,15 @@ export default function ChapterDetail() {
                     </div>
                   </div>
                 )}
+              </div>
+            </div>
+          )}
 
-
-              </div>{/* fin contenu scrollable */}
-
-              {/* Propriétés — section fixe en bas du flyout */}
-              <div className="border-t border-border/60 shrink-0 overflow-y-auto max-h-[45vh]">
-                {!selectedBlock && !selectedColorBlock && !selectedSpeechBubble ? (
-                  <div className="p-3 space-y-2">
-                    <span className="text-xs font-medium text-muted-foreground">Hauteur du canvas</span>
-                    <div className="flex items-center gap-2">
-                      <input type="text" inputMode="numeric" value={panelHeightDraft !== null ? panelHeightDraft : String(layout.panelHeight ?? PANEL_HEIGHT_DEFAULT)} onChange={(e) => setPanelHeightDraft(e.target.value)} className="w-20 h-8 rounded-lg border border-border/60 bg-background px-2 text-sm" />
-                      <span className="text-xs text-muted-foreground">px</span>
-                      <Button size="sm" variant="outline" className="shrink-0 rounded-lg h-8 text-xs" onClick={() => { const raw = panelHeightDraft !== null ? panelHeightDraft.trim() : null; const num = raw === null ? (layout.panelHeight ?? PANEL_HEIGHT_DEFAULT) : (raw === "" ? PANEL_HEIGHT_MIN : Math.max(PANEL_HEIGHT_MIN, Math.min(PANEL_HEIGHT_MAX, Number(raw) || PANEL_HEIGHT_MIN))); handlePanelHeightChange(num); setPanelHeightDraft(null); }}>Appliquer</Button>
-                    </div>
-                  </div>
-                ) : selectedBlock ? (() => {
+          {/* Panneau propriétés — overlay absolu, uniquement quand un élément est sélectionné */}
+          {hasSelection && (
+            <div className="absolute top-0 left-full h-full w-[220px] bg-background border-r border-border shadow-xl flex flex-col overflow-hidden">
+              <div className="flex-1 overflow-y-auto min-h-0">
+                {selectedBlock ? (() => {
                   const block = selectedBlock;
                   const blockKey = `${panel.id}-${block.id}`;
                   const nameDraft = blockNameDrafts[blockKey] ?? block.name ?? "";
@@ -1376,7 +1374,7 @@ export default function ChapterDetail() {
                   return (
                     <div className="p-3 space-y-3">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-medium text-foreground">Bloc sélectionné</span>
+                        <span className="text-xs font-semibold text-foreground">Bloc image</span>
                         <Button size="sm" variant="ghost" className="h-7 w-7 p-0 rounded-lg" onClick={() => setSelectedBlockIdInModal(null)} aria-label="Désélectionner"><X className="h-3.5 w-3.5" /></Button>
                       </div>
                       <div className="space-y-1.5">
@@ -1397,7 +1395,7 @@ export default function ChapterDetail() {
                 })() : selectedColorBlock ? (
                   <div className="p-3 space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-medium text-foreground">Bloc sélectionné</span>
+                      <span className="text-xs font-semibold text-foreground">Bloc couleur</span>
                       <Button size="sm" variant="ghost" className="h-7 w-7 p-0 rounded-lg" onClick={() => setSelectedColorBlockIdInModal(null)} aria-label="Désélectionner"><X className="h-3.5 w-3.5" /></Button>
                     </div>
                     <div className="text-xs text-muted-foreground tabular-nums">{selectedColorBlock.width} × {Math.round(selectedColorBlock.height)} px</div>
@@ -1407,7 +1405,7 @@ export default function ChapterDetail() {
                 ) : selectedSpeechBubble ? (
                   <div className="p-3 space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-medium text-foreground">Bulle sélectionnée</span>
+                      <span className="text-xs font-semibold text-foreground">Bulle de dialogue</span>
                       <Button size="sm" variant="ghost" className="h-7 w-7 p-0 rounded-lg" onClick={() => setSelectedSpeechBubbleIdInModal(null)} aria-label="Désélectionner"><X className="h-3.5 w-3.5" /></Button>
                     </div>
                     <div className="space-y-1.5">
@@ -1432,10 +1430,9 @@ export default function ChapterDetail() {
                     <Button size="sm" variant="ghost" className="w-full gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10" disabled={updatePanelMutation.isPending} onClick={() => handleDeleteSpeechBubble(selectedSpeechBubble)}><Trash2 className="h-3 w-3" /> Supprimer la bulle</Button>
                   </div>
                 ) : null}
-              </div>{/* fin propriétés */}
-
+              </div>
             </div>
-          )}{/* fin flyout */}
+          )}
 
         </aside>
         {/* Centre : panel 800px de large exactement, zoomable via contrôles header ou Ctrl+Scroll */}

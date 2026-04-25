@@ -1442,9 +1442,9 @@ export default function ChapterDetail() {
                         style={{
                           width: PANEL_WIDTH,
                           height: liveH,
-                          backgroundImage: "linear-gradient(to right, hsl(var(--border)) 1px, transparent 1px), linear-gradient(to bottom, hsl(var(--border)) 1px, transparent 1px)",
+                          backgroundImage: "radial-gradient(circle, hsl(var(--border) / 0.7) 1.5px, transparent 1.5px)",
                           backgroundSize: "24px 24px",
-                          backgroundColor: "hsl(var(--muted))",
+                          backgroundColor: "hsl(var(--background))",
                         }}
                         onDragOver={handleCanvasDragOver}
                         onDrop={handleCanvasDrop}

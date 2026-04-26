@@ -113,12 +113,23 @@ export function BubbleLayer({
             className={`group absolute z-20 overflow-visible transition-[box-shadow,ring] duration-150 ${isEditing ? "cursor-text" : "cursor-grab active:cursor-grabbing"} ${isSelected ? "ring-2 ring-primary ring-offset-2 ring-offset-background" : "hover:ring-2 hover:ring-primary/40"}`}
             style={{ left: geom.x, top: geom.y, width: geom.width, height: totalH }}
             onPointerDown={!isResizingThis && !isResizingSpeechBubbleRef.current && !isEditing ? (e) => dragSpeechBubble.onPointerDown(e, panel.id, bubble.id, geom.x, geom.y, geom.width, totalH, getPanelHeight(panel)) : undefined}
-            onClick={(e) => { e.stopPropagation(); if (!isEditing) onSelectBubble(bubble.id); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (isEditing) return;
+              if (isSelected) {
+                setEditingBubbleId(bubble.id);
+                setEditDraft(bubble.text);
+              } else {
+                onSelectBubble(bubble.id);
+              }
+            }}
             onDoubleClick={(e) => {
               e.stopPropagation();
-              onSelectBubble(bubble.id);
-              setEditingBubbleId(bubble.id);
-              setEditDraft(bubble.text);
+              if (!isEditing) {
+                onSelectBubble(bubble.id);
+                setEditingBubbleId(bubble.id);
+                setEditDraft(bubble.text);
+              }
             }}
           >
             {bubble.type !== "text" && (

@@ -1,6 +1,8 @@
 import { useCallback } from "react";
 import { PANEL_WIDTH } from "@/services/panels";
 
+const DRAG_THRESHOLD_PX = 5;
+
 function viewportToCanvas(canvasEl: HTMLDivElement, clientX: number, clientY: number) {
   const rect = canvasEl.getBoundingClientRect();
   const scale = canvasEl.offsetWidth > 0 ? rect.width / canvasEl.offsetWidth : 1;
@@ -53,17 +55,9 @@ export function useDragBlock(options: UseDragBlockOptions): DragHandlers {
       const startMouseY = (e.clientY - rect.top) / dragScale;
 
       const el = e.currentTarget as HTMLDivElement;
-      const ghost = ghostRefByPanel.current[panelId];
-      if (ghost) {
-        ghost.style.display = "block";
-        ghost.style.left = `${startX}px`;
-        ghost.style.top = `${startY}px`;
-        ghost.style.width = `${width}px`;
-        ghost.style.height = `${height}px`;
-      }
-      el.style.opacity = "0.35";
-
       const dataRef = { panelId, entityId, startX, startY, startMouseX, startMouseY, width, height, rectLeft: rect.left, rectTop: rect.top };
+
+      let dragStarted = false;
 
       const onPointerMove = (ev: PointerEvent) => {
         const canvas = canvasRefByPanel.current[panelId];
@@ -71,8 +65,25 @@ export function useDragBlock(options: UseDragBlockOptions): DragHandlers {
         const ms = canvas && canvas.offsetWidth > 0 ? r!.width / canvas.offsetWidth : 1;
         const canvasMouseX = r ? (ev.clientX - r.left) / ms : (ev.clientX - dataRef.rectLeft) / (zoomRef.current ?? 1);
         const canvasMouseY = r ? (ev.clientY - r.top) / ms : (ev.clientY - dataRef.rectTop) / (zoomRef.current ?? 1);
-        const newX = Math.max(0, Math.min(PANEL_WIDTH - width, startX + (canvasMouseX - startMouseX)));
-        const newY = Math.max(0, Math.min(panelHeight - height, startY + (canvasMouseY - startMouseY)));
+        const dx = canvasMouseX - startMouseX;
+        const dy = canvasMouseY - startMouseY;
+
+        if (!dragStarted) {
+          if (Math.sqrt(dx * dx + dy * dy) < DRAG_THRESHOLD_PX) return;
+          dragStarted = true;
+          const ghost = ghostRefByPanel.current[panelId];
+          if (ghost) {
+            ghost.style.display = "block";
+            ghost.style.left = `${startX}px`;
+            ghost.style.top = `${startY}px`;
+            ghost.style.width = `${width}px`;
+            ghost.style.height = `${height}px`;
+          }
+          el.style.opacity = "0.35";
+        }
+
+        const newX = Math.max(0, Math.min(PANEL_WIDTH - width, startX + dx));
+        const newY = Math.max(0, Math.min(panelHeight - height, startY + dy));
         const g = ghostRefByPanel.current[panelId];
         if (g) { g.style.left = `${newX}px`; g.style.top = `${newY}px`; }
       };
@@ -85,6 +96,8 @@ export function useDragBlock(options: UseDragBlockOptions): DragHandlers {
         el.style.opacity = "";
         const g = ghostRefByPanel.current[panelId];
         if (g) g.style.display = "none";
+
+        if (!dragStarted) return;
 
         const canvas = canvasRefByPanel.current[panelId];
         if (!canvas) return;

@@ -1,4 +1,11 @@
 import { useState, useRef } from "react";
+
+function recenterTextarea(el: HTMLTextAreaElement, areaH: number) {
+  el.style.paddingTop = "0px";
+  const contentH = el.scrollHeight;
+  const pt = Math.max(8, Math.round((areaH - contentH) / 2));
+  el.style.paddingTop = `${pt}px`;
+}
 import type { Panel, SpeechBubble } from "@/types";
 import { getSpeechBubbleFillStroke, DEFAULT_SPEECH_BUBBLE_WIDTH, DEFAULT_SPEECH_BUBBLE_HEIGHT, SPEECH_BUBBLE_NO_TAIL_TYPES } from "@/types";
 import { getPanelHeight } from "@/services/panels";
@@ -104,10 +111,6 @@ export function BubbleLayer({
         const tailH = SPEECH_BUBBLE_NO_TAIL_TYPES.has(bubble.type) ? 0 : SPEECH_BUBBLE_TAIL_H;
         const totalH = geom.height + tailH;
         const textAreaH = bubble.type === "narration" || bubble.type === "text" ? geom.height : (totalH * 100) / 120;
-        const activeText = isEditing ? editDraft : bubble.text;
-        const lineCount = Math.max(1, activeText.split("\n").length);
-        const estimatedContentH = Math.min(lineCount * fontSize * 1.4, textAreaH - 16);
-        const textPaddingTop = Math.max(8, Math.round((textAreaH - estimatedContentH) / 2));
 
         return (
           <div
@@ -144,9 +147,13 @@ export function BubbleLayer({
 
             {isEditing ? (
               <textarea
+                ref={(el) => { if (el) recenterTextarea(el, textAreaH); }}
                 autoFocus
                 value={editDraft}
-                onChange={(e) => setEditDraft(e.target.value)}
+                onChange={(e) => {
+                  setEditDraft(e.target.value);
+                  recenterTextarea(e.currentTarget, textAreaH);
+                }}
                 onBlur={() => {
                   setEditingBubbleId(null);
                   onTextCommit(bubble.id, editDraft);
@@ -160,7 +167,7 @@ export function BubbleLayer({
                 className="absolute inset-x-0 top-0 bg-transparent border-none outline-none resize-none w-full px-3 z-30 overflow-y-hidden"
                 style={{
                   height: textAreaH,
-                  paddingTop: textPaddingTop,
+                  paddingTop: 8,
                   boxSizing: "border-box",
                   fontSize: `${fontSize}px`,
                   fontFamily: fontFamily === "inherit" ? undefined : fontFamily,

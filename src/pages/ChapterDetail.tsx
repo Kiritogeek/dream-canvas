@@ -1189,11 +1189,18 @@ export default function ChapterDetail() {
         </aside>
         {/* Centre : panel 800px de large exactement, zoomable via contrôles header ou Ctrl+Scroll */}
         {/* pl-[360px] compense l'asymétrie sidebar droite (416px) vs gauche (56px) pour centrer dans le viewport */}
-        <div className="flex-1 min-w-0 flex flex-col items-center overflow-auto p-6 bg-background pl-[360px]">
+        <div
+          className="flex-1 min-w-0 flex flex-col items-center overflow-auto p-6 bg-background pl-[360px]"
+          onClick={() => {
+            setSelectedBlockIdInModal(null);
+            setSelectedColorBlockIdInModal(null);
+            setSelectedSpeechBubbleIdInModal(null);
+          }}
+        >
           {/* Toolbar bulle — sticky en haut du scroll canvas, ne décale rien */}
           {selectedSpeechBubble && (
             <div className="sticky top-1 z-50 self-center pointer-events-none" style={{ height: 0, overflow: "visible" }}>
-              <div className="pointer-events-auto">
+              <div className="pointer-events-auto" onClick={(e) => e.stopPropagation()}>
                 <BubbleToolbar
                   bubble={selectedSpeechBubble}
                   speechBubbles={speechBubbles}

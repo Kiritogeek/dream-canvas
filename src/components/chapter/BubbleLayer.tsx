@@ -104,9 +104,9 @@ export function BubbleLayer({
         const tailH = SPEECH_BUBBLE_NO_TAIL_TYPES.has(bubble.type) ? 0 : SPEECH_BUBBLE_TAIL_H;
         const totalH = geom.height + tailH;
         const textAreaH = bubble.type === "narration" || bubble.type === "text" ? geom.height : (totalH * 100) / 120;
-        // paddingTop stable calculé depuis le texte committé → même position en affichage et en édition, sans saut
-        const committedLineCount = Math.max(1, bubble.text.split("\n").length);
-        const estimatedContentH = Math.min(committedLineCount * fontSize * 1.4, textAreaH - 16);
+        const activeText = isEditing ? editDraft : bubble.text;
+        const lineCount = Math.max(1, activeText.split("\n").length);
+        const estimatedContentH = Math.min(lineCount * fontSize * 1.4, textAreaH - 16);
         const textPaddingTop = Math.max(8, Math.round((textAreaH - estimatedContentH) / 2));
 
         return (

@@ -185,6 +185,7 @@ export default function ChapterDetail() {
   /** Brouillons des prompts par bloc : clé = `${panelId}-${blockId}` */
   const [blockPromptDrafts, setBlockPromptDrafts] = useState<Record<string, string>>({});
   const [blockNameDrafts, setBlockNameDrafts] = useState<Record<string, string>>({});
+  const [bubbleTextDrafts, setBubbleTextDrafts] = useState<Record<string, string>>({});
   /** Blocs en train de générer une suggestion IA de prompt (clé = `${panelId}-${blockId}`). */
   const [suggestingBlockKeys, setSuggestingBlockKeys] = useState<Set<string>>(() => new Set());
   /** Hauteur live pendant le drag de la poignée bas-du-canvas ; null = pas de drag en cours */
@@ -1265,7 +1266,20 @@ export default function ChapterDetail() {
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-xs font-medium text-muted-foreground">Texte</label>
-                      <textarea autoFocus value={selectedSpeechBubble.text} onChange={(e) => { const next = speechBubbles.map((b) => b.id === selectedSpeechBubble.id ? { ...b, text: e.target.value } : b); handleUpdateSpeechBubbles(next); }} className="w-full min-h-[60px] rounded-lg border border-border/60 bg-background px-3 py-2 text-sm resize-y" placeholder="Dialogue, pensée, narration…" />
+                      <textarea
+                        autoFocus
+                        value={bubbleTextDrafts[selectedSpeechBubble.id] ?? selectedSpeechBubble.text}
+                        onChange={(e) => setBubbleTextDrafts((prev) => ({ ...prev, [selectedSpeechBubble.id]: e.target.value }))}
+                        onBlur={() => {
+                          const draft = bubbleTextDrafts[selectedSpeechBubble.id];
+                          if (draft !== undefined && draft !== selectedSpeechBubble.text) {
+                            const next = speechBubbles.map((b) => b.id === selectedSpeechBubble.id ? { ...b, text: draft } : b);
+                            handleUpdateSpeechBubbles(next);
+                          }
+                        }}
+                        className="w-full min-h-[60px] rounded-lg border border-border/60 bg-background px-3 py-2 text-sm resize-y"
+                        placeholder="Dialogue, pensée, narration…"
+                      />
                     </div>
                     {selectedSpeechBubble.type !== "text" && (
                       <div className="flex items-center gap-3">

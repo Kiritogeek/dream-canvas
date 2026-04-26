@@ -1,4 +1,4 @@
-import { Bold, Italic, AlignLeft, AlignCenter, AlignRight, Copy, Trash2, FlipHorizontal2, Minus, Plus } from "lucide-react";
+import { Bold, Italic, AlignLeft, AlignCenter, AlignRight, Copy, Trash2, FlipHorizontal2 } from "lucide-react";
 import type { SpeechBubble } from "@/types";
 import { getSpeechBubbleFillStroke, SPEECH_BUBBLE_NO_TAIL_TYPES } from "@/types";
 
@@ -51,19 +51,12 @@ export function BubbleToolbar({ bubble, speechBubbles, onUpdate, onDuplicate, on
       </select>
 
       {/* Size */}
-      <div className="flex items-center shrink-0">
-        <button type="button" onClick={() => patchStyle({ size: Math.max(8, size - 1) })} className="h-7 w-6 flex items-center justify-center rounded-l-md border border-border/60 bg-background text-muted-foreground hover:bg-muted/50 transition-colors">
-          <Minus className="h-2.5 w-2.5" />
-        </button>
-        <input
-          type="number" min={8} max={72} value={size}
-          onChange={(e) => { const n = parseInt(e.target.value, 10); if (!Number.isNaN(n)) patchStyle({ size: n }); }}
-          className="h-7 w-10 border-y border-border/60 bg-background text-xs text-center tabular-nums focus:outline-none"
-        />
-        <button type="button" onClick={() => patchStyle({ size: Math.min(72, size + 1) })} className="h-7 w-6 flex items-center justify-center rounded-r-md border border-border/60 bg-background text-muted-foreground hover:bg-muted/50 transition-colors">
-          <Plus className="h-2.5 w-2.5" />
-        </button>
-      </div>
+      <input
+        type="number" min={8} max={72} value={size}
+        onChange={(e) => { const n = parseInt(e.target.value, 10); if (!Number.isNaN(n)) patchStyle({ size: n }); }}
+        className="h-7 w-12 rounded-md border border-border/60 bg-background text-xs text-center tabular-nums focus:outline-none shrink-0"
+        title="Taille de police (px)"
+      />
 
       {/* Bold / Italic */}
       <button
@@ -85,9 +78,9 @@ export function BubbleToolbar({ bubble, speechBubbles, onUpdate, onDuplicate, on
 
       {/* Text color */}
       <label className="relative cursor-pointer shrink-0" title="Couleur du texte">
-        <div className="w-6 h-6 rounded border border-border/80 shadow-inner flex items-end justify-center pb-0.5 bg-background">
-          <span className="text-[10px] font-bold leading-none" style={{ color: bubble.style?.color ?? "#000000" }}>A</span>
-          <div className="absolute bottom-0.5 left-1 right-1 h-1 rounded-sm" style={{ background: bubble.style?.color ?? "#000000" }} />
+        <div className="w-6 h-6 rounded border border-border/80 bg-background flex flex-col items-center justify-center gap-px">
+          <span className="text-[11px] font-bold leading-none" style={{ color: bubble.style?.color ?? "#000000" }}>A</span>
+          <div className="w-4 h-[3px] rounded-sm" style={{ background: bubble.style?.color ?? "#000000" }} />
         </div>
         <input
           type="color"
@@ -142,15 +135,12 @@ export function BubbleToolbar({ bubble, speechBubbles, onUpdate, onDuplicate, on
           </label>
 
           {/* Border width */}
-          <div className="flex items-center gap-1 shrink-0">
-            <input
-              type="number" min={0} max={12} value={borderWidth}
-              onChange={(e) => { const n = parseInt(e.target.value, 10); if (!Number.isNaN(n)) patch({ borderWidth: n }); }}
-              className="w-10 h-7 rounded-md border border-border/60 bg-background text-xs text-center tabular-nums"
-              title="Épaisseur du contour (px)"
-            />
-            <span className="text-xs text-muted-foreground">px</span>
-          </div>
+          <input
+            type="number" min={0} max={12} value={borderWidth}
+            onChange={(e) => { const n = parseInt(e.target.value, 10); if (!Number.isNaN(n)) patch({ borderWidth: n }); }}
+            className="w-10 h-7 rounded-md border border-border/60 bg-background text-xs text-center tabular-nums shrink-0"
+            title="Épaisseur du contour (px)"
+          />
 
           {/* Tail flip */}
           {!hasNoTail && (

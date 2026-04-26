@@ -21,7 +21,6 @@ const SAMPLE_TEXT: Record<SpeechBubbleType, string> = {
   text: "CRACK!",
 };
 
-/** Cercle à bristles radiaux — style pensée dramatique manhwa (Solo Leveling). */
 function bristlePath(cx: number, cy: number, rInner: number, rOuter: number, count: number): string {
   const parts: string[] = [];
   for (let i = 0; i < count; i++) {
@@ -40,7 +39,6 @@ function bristlePath(cx: number, cy: number, rInner: number, rOuter: number, cou
   return parts.join(" ");
 }
 
-/** Ellipse ondulée — pour wavy. */
 function wavyEllipsePath(cx: number, cy: number, rx: number, ry: number, amp: number, freq: number, n = 60): string {
   const pts: string[] = [];
   for (let i = 0; i < n; i++) {
@@ -51,7 +49,6 @@ function wavyEllipsePath(cx: number, cy: number, rx: number, ry: number, amp: nu
   return `M ${pts[0]} L ${pts.slice(1).join(" L ")} Z`;
 }
 
-/** Étoile à N pointes — pour shout et explosion. */
 function spikePath(cx: number, cy: number, rInner: number, rOuter: number, spikes: number): string {
   const pts: string[] = [];
   const total = spikes * 2;
@@ -63,7 +60,6 @@ function spikePath(cx: number, cy: number, rInner: number, rOuter: number, spike
   return `M ${pts[0]} L ${pts.slice(1).join(" L ")} Z`;
 }
 
-/** Ovale avec petites pointes périphériques — pour la colère. */
 function angryOvalPath(cx: number, cy: number, rx: number, ry: number, amp: number, spikes: number, n = 120): string {
   const pts: string[] = [];
   for (let i = 0; i < n; i++) {
@@ -75,6 +71,7 @@ function angryOvalPath(cx: number, cy: number, rx: number, ry: number, amp: numb
 }
 
 const TAIL_FLIP = "translate(100, 0) scale(-1, 1)";
+const NNS = "non-scaling-stroke" as const;
 
 export function SpeechBubbleShape({ type, fill, stroke, tailFlip }: {
   type: SpeechBubble["type"];
@@ -82,22 +79,20 @@ export function SpeechBubbleShape({ type, fill, stroke, tailFlip }: {
   stroke: string;
   tailFlip?: boolean;
 }) {
-  const sw = 2.5;
+  const sw = 2;
   const tf = tailFlip ? TAIL_FLIP : undefined;
 
-  // ── Dialogue standard — ovale propre, queue triangle pointée ──────────────
   if (type === "speech") {
     return (
       <>
-        <ellipse cx={50} cy={46} rx={47} ry={42} fill={fill} stroke={stroke} strokeWidth={sw} />
+        <ellipse cx={50} cy={46} rx={47} ry={42} fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
         <g transform={tf}>
-          <path d="M 16 84 L 4 120 L 36 90 Z" fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" />
+          <path d="M 16 84 L 4 120 L 36 90 Z" fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" vectorEffect={NNS} />
         </g>
       </>
     );
   }
 
-  // ── Pensée dramatique — cercle à bristles radiaux (manhwa style) ──────────
   if (type === "thought") {
     const bristles = bristlePath(50, 50, 37, 56, 180);
     return (
@@ -108,128 +103,118 @@ export function SpeechBubbleShape({ type, fill, stroke, tailFlip }: {
     );
   }
 
-  // ── Pensée nuage — chaîne de bulles (style occidental classique) ──────────
   if (type === "cloud") {
     return (
       <>
-        <ellipse cx={50} cy={47} rx={44} ry={36} fill={fill} stroke={stroke} strokeWidth={sw} />
-        <circle cx={20} cy={43} r={12} fill={fill} stroke={stroke} strokeWidth={sw} />
-        <circle cx={80} cy={43} r={12} fill={fill} stroke={stroke} strokeWidth={sw} />
-        <circle cx={32} cy={18} r={9.5} fill={fill} stroke={stroke} strokeWidth={sw} />
-        <circle cx={68} cy={18} r={9.5} fill={fill} stroke={stroke} strokeWidth={sw} />
+        <ellipse cx={50} cy={47} rx={44} ry={36} fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
+        <circle cx={20} cy={43} r={12} fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
+        <circle cx={80} cy={43} r={12} fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
+        <circle cx={32} cy={18} r={9.5} fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
+        <circle cx={68} cy={18} r={9.5} fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
         <g transform={tf}>
-          <circle cx={62} cy={86} r={7} fill={fill} stroke={stroke} strokeWidth={sw} />
-          <circle cx={70} cy={101} r={5} fill={fill} stroke={stroke} strokeWidth={sw} />
-          <circle cx={77} cy={113} r={3.5} fill={fill} stroke={stroke} strokeWidth={sw} />
+          <circle cx={62} cy={86} r={7} fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
+          <circle cx={70} cy={101} r={5} fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
+          <circle cx={77} cy={113} r={3.5} fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
         </g>
       </>
     );
   }
 
-  // ── Narration — rectangle simple, contour net ─────────────────────────────
   if (type === "narration") {
-    return <rect x={3} y={3} width={94} height={94} rx={3} ry={3} fill={fill} stroke={stroke} strokeWidth={sw + 0.5} />;
+    return <rect x={3} y={3} width={94} height={94} rx={3} ry={3} fill={fill} stroke={stroke} strokeWidth={sw + 0.5} vectorEffect={NNS} />;
   }
 
-  // ── Cri — étoile à 12 pointes + queue éclair ──────────────────────────────
   if (type === "shout") {
     const body = spikePath(50, 50, 37, 52, 12);
     return (
       <>
-        <path d={body} fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" />
+        <path d={body} fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" vectorEffect={NNS} />
         <g transform={tf}>
-          <path d="M 28 88 L 18 104 L 30 106 L 16 120 L 32 116 L 29 108 L 42 98 Z" fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" />
+          <path d="M 28 88 L 18 104 L 30 106 L 16 120 L 32 116 L 29 108 L 42 98 Z" fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" vectorEffect={NNS} />
         </g>
       </>
     );
   }
 
-  // ── Chuchotement — ovale en tirets + queue en tirets ─────────────────────
   if (type === "whisper") {
     return (
       <>
-        <ellipse cx={50} cy={46} rx={47} ry={42} fill={fill} stroke={stroke} strokeWidth={sw} strokeDasharray="6 3" />
+        <ellipse cx={50} cy={46} rx={47} ry={42} fill={fill} stroke={stroke} strokeWidth={sw} strokeDasharray="6 3" vectorEffect={NNS} />
         <g transform={tf}>
-          <path d="M 16 84 L 4 120 L 36 90 Z" fill={fill} stroke={stroke} strokeWidth={sw} strokeDasharray="6 3" strokeLinejoin="round" />
+          <path d="M 16 84 L 4 120 L 36 90 Z" fill={fill} stroke={stroke} strokeWidth={sw} strokeDasharray="6 3" strokeLinejoin="round" vectorEffect={NNS} />
         </g>
       </>
     );
   }
 
-  // ── Colère — ovale avec petites pointes périphériques + queue éclair ─────
   if (type === "anger") {
     const body = angryOvalPath(50, 46, 43, 38, 8, 10);
     return (
       <>
-        <path d={body} fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" />
+        <path d={body} fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" vectorEffect={NNS} />
         <g transform={tf}>
-          <path d="M 16 80 L 6 104 L 20 100 L 10 120 L 26 114 L 22 106 L 34 88 Z" fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" />
+          <path d="M 16 80 L 6 104 L 20 100 L 10 120 L 26 114 L 22 106 L 34 88 Z" fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" vectorEffect={NNS} />
         </g>
       </>
     );
   }
 
-  // ── Tristesse — ovale doux + larmes tombantes ────────────────────────────
   if (type === "sadness") {
     return (
       <>
-        <ellipse cx={50} cy={44} rx={47} ry={40} fill={fill} stroke={stroke} strokeWidth={sw} />
+        <ellipse cx={50} cy={44} rx={47} ry={40} fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
         <ellipse cx={28} cy={91} rx={4} ry={6.5} fill={stroke} />
         <ellipse cx={40} cy={94} rx={3} ry={5} fill={stroke} />
         <ellipse cx={52} cy={93} rx={3.5} ry={5.5} fill={stroke} />
         <g transform={tf}>
-          <path d="M 16 82 L 4 120 L 36 88 Z" fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" />
+          <path d="M 16 82 L 4 120 L 36 88 Z" fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" vectorEffect={NNS} />
         </g>
       </>
     );
   }
 
-  // ── Transmission — octogone + queue éclair ───────────────────────────────
   if (type === "radio") {
     return (
       <>
-        <path d="M 10 14 L 90 14 L 96 26 L 96 76 L 88 88 L 12 88 L 4 76 L 4 26 Z" fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" />
+        <path d="M 10 14 L 90 14 L 96 26 L 96 76 L 88 88 L 12 88 L 4 76 L 4 26 Z" fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" vectorEffect={NNS} />
         <g transform={tf}>
-          <path d="M 70 88 L 60 103 L 71 105 L 57 120 L 72 117 L 69 109 L 80 95 Z" fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" />
+          <path d="M 70 88 L 60 103 L 71 105 L 57 120 L 72 117 L 69 109 L 80 95 Z" fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" vectorEffect={NNS} />
         </g>
       </>
     );
   }
 
-  // ── Électronique — octogone anguleux + zigzag + queue ────────────────────
   if (type === "electronic") {
     return (
       <>
-        <path d="M 6 18 L 20 8 L 80 8 L 94 18 L 96 82 L 82 92 L 18 92 L 4 82 Z" fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" />
-        <polyline points="20,92 24,98 28,92 32,98 36,92" fill="none" stroke={stroke} strokeWidth={sw} strokeLinejoin="round" />
+        <path d="M 6 18 L 20 8 L 80 8 L 94 18 L 96 82 L 82 92 L 18 92 L 4 82 Z" fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" vectorEffect={NNS} />
+        <polyline points="20,92 24,98 28,92 32,98 36,92" fill="none" stroke={stroke} strokeWidth={sw} strokeLinejoin="round" vectorEffect={NNS} />
         <g transform={tf}>
-          <path d="M 42 92 L 38 106 L 45 108 L 40 120 L 50 117 L 48 108 L 56 98 Z" fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" />
+          <path d="M 42 92 L 38 106 L 45 108 L 40 120 L 50 117 L 48 108 L 56 98 Z" fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" vectorEffect={NNS} />
         </g>
       </>
     );
   }
 
-  // ── Impact / Explosion — étoile irrégulière + queue ──────────────────────
   if (type === "explosion") {
     const body = spikePath(50, 50, 28, 52, 9);
     return (
       <>
-        <path d={body} fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" />
+        <path d={body} fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" vectorEffect={NNS} />
         <g transform={tf}>
-          <path d="M 26 84 L 20 100 L 32 102 L 22 118 L 36 114 L 33 106 L 44 96 Z" fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" />
+          <path d="M 26 84 L 20 100 L 32 102 L 22 118 L 36 114 L 33 106 L 44 96 Z" fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" vectorEffect={NNS} />
         </g>
       </>
     );
   }
 
-  // ── Tremblant — contour ondulé + queue en tirets ─────────────────────────
   if (type === "wavy") {
     const body = wavyEllipsePath(50, 46, 46, 41, 3, 7);
     return (
       <>
-        <path d={body} fill={fill} stroke={stroke} strokeWidth={sw} />
+        <path d={body} fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
         <g transform={tf}>
-          <path d="M 16 84 L 4 120 L 36 90 Z" fill={fill} stroke={stroke} strokeWidth={sw} strokeDasharray="5 2" strokeLinejoin="round" />
+          <path d="M 16 84 L 4 120 L 36 90 Z" fill={fill} stroke={stroke} strokeWidth={sw} strokeDasharray="5 2" strokeLinejoin="round" vectorEffect={NNS} />
         </g>
       </>
     );
@@ -238,7 +223,6 @@ export function SpeechBubbleShape({ type, fill, stroke, tailFlip }: {
   return null;
 }
 
-/** Aperçu miniature d'une bulle — utilisé dans la sidebar du menu Dialogue. */
 export function BubblePreview({ type }: { type: SpeechBubbleType }) {
   const { fill, stroke } = SPEECH_BUBBLE_DEFAULT_STYLE[type];
   const label = SAMPLE_TEXT[type];
@@ -262,7 +246,7 @@ export function BubblePreview({ type }: { type: SpeechBubbleType }) {
         <SpeechBubbleShape type={type} fill={fill} stroke={stroke} />
       </svg>
       <div className={`absolute inset-0 flex items-center justify-center px-2 ${isNoTail ? "" : "pb-2"}`}>
-        <span className="text-center leading-tight break-words line-clamp-2" style={{ fontSize: 8, color: type === "sadness" ? "#2244cc" : type === "anger" ? "#880000" : "#111", maxWidth: "88%" }}>
+        <span className="text-center leading-tight break-words line-clamp-2" style={{ fontSize: 8, color: "#111", maxWidth: "88%" }}>
           {label}
         </span>
       </div>

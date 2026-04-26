@@ -136,8 +136,8 @@ export interface ColorBlock {
 }
 
 /** Dimensions par défaut d'une nouvelle bulle de dialogue (panel 800px de large). */
-export const DEFAULT_SPEECH_BUBBLE_WIDTH = 200;
-export const DEFAULT_SPEECH_BUBBLE_HEIGHT = 110;
+export const DEFAULT_SPEECH_BUBBLE_WIDTH = 300;
+export const DEFAULT_SPEECH_BUBBLE_HEIGHT = 160;
 
 /** Types de bulles (format stockage). dialogue = speech, caption = narration en UI. */
 export type SpeechBubbleType = "speech" | "thought" | "cloud" | "shout" | "whisper" | "narration" | "radio" | "text" | "electronic" | "explosion" | "wavy" | "anger" | "sadness";
@@ -224,21 +224,21 @@ export const SPEECH_BUBBLE_TYPE_LABELS: Record<SpeechBubbleType, string> = {
   wavy: "Tremblant",
 };
 
-/** Couleurs par défaut (fond, contour) par type de bulle — alignées Edition_Panel_Blocs_Bulles.md § 7.1. */
+/** Couleurs par défaut (fond, contour) par type de bulle. Toutes blanc/noir — l'utilisateur personnalise ensuite. */
 export const SPEECH_BUBBLE_DEFAULT_STYLE: Record<SpeechBubbleType, { fill: string; stroke: string }> = {
   text: { fill: "transparent", stroke: "transparent" },
   speech: { fill: "#ffffff", stroke: "#000000" },
   thought: { fill: "#ffffff", stroke: "#000000" },
   cloud: { fill: "#ffffff", stroke: "#000000" },
   shout: { fill: "#ffffff", stroke: "#000000" },
-  anger: { fill: "#fff0f0", stroke: "#bb0000" },
-  sadness: { fill: "#f0f4ff", stroke: "#2244cc" },
-  whisper: { fill: "#f8f8f8", stroke: "#555555" },
+  anger: { fill: "#ffffff", stroke: "#000000" },
+  sadness: { fill: "#ffffff", stroke: "#000000" },
+  whisper: { fill: "#ffffff", stroke: "#000000" },
   narration: { fill: "#ffffff", stroke: "#000000" },
-  radio: { fill: "#e8f4ff", stroke: "#0055aa" },
-  electronic: { fill: "#e8f4ff", stroke: "#0055aa" },
-  explosion: { fill: "#fff3e0", stroke: "#cc4400" },
-  wavy: { fill: "#f3e5f5", stroke: "#7b1fa2" },
+  radio: { fill: "#ffffff", stroke: "#000000" },
+  electronic: { fill: "#ffffff", stroke: "#000000" },
+  explosion: { fill: "#ffffff", stroke: "#000000" },
+  wavy: { fill: "#ffffff", stroke: "#000000" },
 };
 
 /** Types de bulles sans queue ni hauteur de queue (tailH = 0). */

@@ -1348,7 +1348,7 @@ export default function ChapterDetail() {
         <div className="flex-1 min-w-0 flex flex-col items-center overflow-auto p-6 bg-background pl-[360px]">
           {/* Toolbar bulle — sticky en haut du scroll canvas, ne décale rien */}
           {selectedSpeechBubble && (
-            <div className="sticky top-1 z-50 mb-[-96px] self-center pointer-events-none">
+            <div className="sticky top-1 z-50 self-center pointer-events-none" style={{ height: 0, overflow: "visible" }}>
               <div className="pointer-events-auto">
                 <BubbleToolbar
                   bubble={selectedSpeechBubble}

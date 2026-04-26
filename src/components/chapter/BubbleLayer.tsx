@@ -1,8 +1,10 @@
 import { useState, useRef } from "react";
 
 function recenterTextarea(el: HTMLTextAreaElement, areaH: number) {
+  el.style.height = "0px";
   el.style.paddingTop = "0px";
   const contentH = el.scrollHeight;
+  el.style.height = `${areaH}px`;
   const pt = Math.max(8, Math.round((areaH - contentH) / 2));
   el.style.paddingTop = `${pt}px`;
 }

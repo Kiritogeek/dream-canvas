@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { PANEL_WIDTH } from "@/services/panels";
 
 const DRAG_THRESHOLD_PX = 5;
@@ -33,6 +33,15 @@ export interface DragHandlers {
 export function useDragBlock(options: UseDragBlockOptions): DragHandlers {
   const { canvasRefByPanel, ghostRefByPanel, isResizingRef, zoomRef, onCommit } = options;
 
+  // Stores the cancel function of any active drag so unmount can clean up.
+  const cancelRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => {
+    return () => {
+      cancelRef.current?.();
+    };
+  }, []);
+
   const onPointerDown = useCallback(
     (
       e: React.PointerEvent,
@@ -58,6 +67,17 @@ export function useDragBlock(options: UseDragBlockOptions): DragHandlers {
       const dataRef = { panelId, entityId, startX, startY, startMouseX, startMouseY, width, height, rectLeft: rect.left, rectTop: rect.top };
 
       let dragStarted = false;
+
+      const cancel = () => {
+        document.removeEventListener("pointermove", onPointerMove, true);
+        document.removeEventListener("pointerup", onPointerUp, true);
+        el.style.opacity = "";
+        const g = ghostRefByPanel.current[panelId];
+        if (g) g.style.display = "none";
+        cancelRef.current = null;
+      };
+
+      cancelRef.current = cancel;
 
       const onPointerMove = (ev: PointerEvent) => {
         const canvas = canvasRefByPanel.current[panelId];
@@ -90,12 +110,7 @@ export function useDragBlock(options: UseDragBlockOptions): DragHandlers {
 
       const onPointerUp = (ev: PointerEvent) => {
         if (ev.button !== 0) return;
-        document.removeEventListener("pointermove", onPointerMove, true);
-        document.removeEventListener("pointerup", onPointerUp, true);
-
-        el.style.opacity = "";
-        const g = ghostRefByPanel.current[panelId];
-        if (g) g.style.display = "none";
+        cancel();
 
         if (!dragStarted) return;
 

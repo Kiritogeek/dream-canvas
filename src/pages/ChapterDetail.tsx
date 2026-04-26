@@ -67,7 +67,6 @@ import {
   useUpdatePanel,
   useDeletePanel,
   useGeneratePanelImage,
-  useCreatePanelsFromOutline,
 } from "@/hooks/usePanels";
 import {
   getPanelBlocks,
@@ -79,12 +78,11 @@ import {
   DEFAULT_BLOCK_HEIGHT,
   BLOCK_PRESETS,
   DEFAULT_COLOR_BLOCK_FILL,
-  PANEL_HEIGHT_DEFAULT,
   PANEL_HEIGHT_MIN,
   PANEL_HEIGHT_MAX,
 } from "@/services/panels";
 import { callSuggestBlockPrompt } from "@/services/scenarioAI";
-import { renderPanelToCanvas, renderChapterToCanvas, downloadCanvas, exportChapterAsZip } from "@/services/exportPanel";
+import { exportChapterAsZip } from "@/services/exportPanel";
 import { ColorBlockLayer } from "@/components/chapter/ColorBlockLayer";
 import { ImageBlockLayer } from "@/components/chapter/ImageBlockLayer";
 import { BubbleLayer } from "@/components/chapter/BubbleLayer";
@@ -137,7 +135,6 @@ export default function ChapterDetail() {
   const queryClient = useQueryClient();
   const { data: panels = [], isLoading: loadingPanels } = usePanels(chapterId);
   const createPanelMutation = useCreatePanel(chapterId ?? "");
-  const _createFromOutlineMutation = useCreatePanelsFromOutline(chapterId ?? "");
   const updatePanelMutation = useUpdatePanel(chapterId ?? "");
   const deletePanelMutation = useDeletePanel(chapterId ?? "");
   /** Panel dont la suppression est en attente de confirmation */
@@ -186,22 +183,15 @@ export default function ChapterDetail() {
   /** Brouillons des prompts par bloc : clé = `${panelId}-${blockId}` */
   const [blockPromptDrafts, setBlockPromptDrafts] = useState<Record<string, string>>({});
   const [blockNameDrafts, setBlockNameDrafts] = useState<Record<string, string>>({});
-  const [_bubbleTextDrafts, _setBubbleTextDrafts] = useState<Record<string, string>>({});
   /** Blocs en train de générer une suggestion IA de prompt (clé = `${panelId}-${blockId}`). */
   const [suggestingBlockKeys, setSuggestingBlockKeys] = useState<Set<string>>(() => new Set());
   /** Hauteur live pendant le drag de la poignée bas-du-canvas ; null = pas de drag en cours */
   const [panelHeightDragDraft, setPanelHeightDragDraft] = useState<number | null>(null);
   const panelHeightDragRef = useRef<{ startY: number; startH: number } | null>(null);
-  /** Bloc en cours d'édition de prompt : clé = `${panelId}-${blockId}` */
-  const [_editingBlockKey, setEditingBlockKey] = useState<string | null>(null);
-  /** Brouillon dimensions par bloc : clé = `${panelId}-${blockId}` → { width, height } */
-  const [_blockDimensionDrafts, setBlockDimensionDrafts] = useState<Record<string, { width: number; height: number }>>({});
   /** Refs du canvas par panel (pour calcul position de dépôt quand on drop sur un bloc) */
   const canvasRefByPanel = useRef<Record<string, HTMLDivElement | null>>({});
   /** Refs du canvas de prévisualisation par panel (utilisées pour l'export PNG) */
   const exportCanvasRefByPanel = useRef<Record<string, HTMLDivElement | null>>({});
-  /** Export en cours : id du panel exporté individuellement, ou null */
-  const [_exportingPanel, _setExportingPanel] = useState<string | null>(null);
   /** Export du chapitre entier en cours */
   const [exportingChapter, setExportingChapter] = useState(false);
   /** Élément ghost pour le drag « nouveau bloc » (setDragImage) */
@@ -226,50 +216,6 @@ export default function ChapterDetail() {
   /** Onglet actif de la sidebar bibliothèque (null = fermée) */
   const [activeSidebarTab, setActiveSidebarTab] = useState<"blocs" | "couleurs" | "dialogue" | null>(null);
 
-  // ── Toolbar bulle — dérivé au top level pour rendu entre header et canvas ──
-  const topLevelSelectedPanel = selectedSpeechBubbleIdInModal
-    ? panels.find((p) => p.id === selectedSpeechBubbleIdInModal.panelId) ?? null
-    : null;
-  const topLevelSpeechBubbles: SpeechBubble[] = useMemo(
-    () => (topLevelSelectedPanel ? getPanelSpeechBubbles(topLevelSelectedPanel) : []),
-    [topLevelSelectedPanel]
-  );
-  const topLevelSelectedBubble: SpeechBubble | null = selectedSpeechBubbleIdInModal
-    ? (topLevelSpeechBubbles.find((b) => b.id === selectedSpeechBubbleIdInModal.bubbleId) ?? null)
-    : null;
-
-  const handleTopLevelUpdateSpeechBubbles = useCallback((next: SpeechBubble[]) => {
-    if (!selectedSpeechBubbleIdInModal) return;
-    const panelId = selectedSpeechBubbleIdInModal.panelId;
-    queryClient.setQueryData<Panel[]>(panelsQueryKey, (old) => (!old ? old : old.map((p) => (p.id === panelId ? { ...p, speech_bubbles: next as unknown as import("@/integrations/supabase/types").Json } : p))));
-    updatePanelMutation.mutate(
-      { id: panelId, updates: { speech_bubbles: next as unknown as import("@/integrations/supabase/types").Json } },
-      { onError: (err) => { toast({ title: "Erreur", description: err.message, variant: "destructive" }); queryClient.invalidateQueries({ queryKey: panelsQueryKey }); } }
-    );
-  }, [selectedSpeechBubbleIdInModal, panelsQueryKey, queryClient, updatePanelMutation, toast]);
-
-  const _handleTopLevelDuplicateBubble = useCallback(() => {
-    if (!topLevelSelectedBubble || !selectedSpeechBubbleIdInModal) return;
-    const newBubble: SpeechBubble = {
-      ...topLevelSelectedBubble,
-      id: crypto.randomUUID(),
-      position: { x: topLevelSelectedBubble.position.x + 20, y: topLevelSelectedBubble.position.y + 20 },
-    };
-    handleTopLevelUpdateSpeechBubbles([...topLevelSpeechBubbles, newBubble]);
-    setSelectedSpeechBubbleIdInModal({ panelId: selectedSpeechBubbleIdInModal.panelId, bubbleId: newBubble.id });
-  }, [topLevelSelectedBubble, topLevelSpeechBubbles, selectedSpeechBubbleIdInModal, handleTopLevelUpdateSpeechBubbles]);
-
-  const _handleTopLevelDeleteBubble = useCallback(() => {
-    if (!topLevelSelectedBubble) return;
-    const next = topLevelSpeechBubbles.filter((b) => b.id !== topLevelSelectedBubble.id);
-    setSelectedSpeechBubbleIdInModal(null);
-    if (!selectedSpeechBubbleIdInModal) return;
-    updatePanelMutation.mutate(
-      { id: selectedSpeechBubbleIdInModal.panelId, updates: { speech_bubbles: next as unknown as import("@/integrations/supabase/types").Json } },
-      { onSuccess: () => toast({ title: "Bulle supprimée" }), onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }) }
-    );
-  }, [topLevelSelectedBubble, topLevelSpeechBubbles, selectedSpeechBubbleIdInModal, updatePanelMutation, toast]);
-
   // Réduit la duplication des resets d'état de l'éditeur panel.
   const resetPanelEditorUiState = useCallback(() => {
     setSelectedBlockIdInModal(null);
@@ -282,7 +228,6 @@ export default function ChapterDetail() {
     setExpandedPanelId(null);
     resetPanelEditorUiState();
   }, [resetPanelEditorUiState]);
-  const [_pendingOutline, _setPendingOutline] = useState<Array<{ description: string; context?: { lieu?: string; scene?: string; personnages?: string } }> | null>(null);
   /** Valeur sentinelle pour "Aucun" (Radix Select n'accepte pas value="") */
   const SCENARIO_NONE_VALUE = "__none__";
   /** undefined = pas encore choisi (afficher la suggestion par numéro), null = "Aucun", string = id choisi */
@@ -318,14 +263,6 @@ export default function ChapterDetail() {
     displayedScenarioChapterId ?? undefined
   );
 
-  /** Clamp position/dimensions pour rester dans le panel (largeur fixe, hauteur variable). */
-  const clampBlockToPanel = (x: number, y: number, w: number, h: number, panelHeight = PANEL_HEIGHT_DEFAULT) => {
-    const width = Math.round(Math.max(100, Math.min(PANEL_WIDTH, w)));
-    const height = Math.round(Math.max(100, Math.min(panelHeight, h)));
-    const x2 = Math.round(Math.max(0, Math.min(PANEL_WIDTH - width, x)));
-    const y2 = Math.round(Math.max(0, Math.min(panelHeight - height, y)));
-    return { x: x2, y: y2, width: width, height: height };
-  };
 
   /** Convertit viewport -> coords logiques canvas. getBoundingClientRect() reflète déjà le scroll (le canvas bouge dans la viewport), donc pas d’ajout de scroll. */
   const viewportToCanvas = (canvasEl: HTMLDivElement, clientX: number, clientY: number) => {
@@ -335,34 +272,6 @@ export default function ChapterDetail() {
       x: (clientX - rect.left) / scale,
       y: (clientY - rect.top) / scale,
     };
-  };
-
-  const _handleExportPanel = async (panel: Panel) => {
-    const el = exportCanvasRefByPanel.current[panel.id];
-    if (!el) return;
-    _setExportingPanel(panel.id);
-    try {
-      const canvas = await renderPanelToCanvas(el);
-      downloadCanvas(canvas, `panel-${panel.panel_number}.png`);
-    } finally {
-      _setExportingPanel(null);
-    }
-  };
-
-  const _handleExportChapter = async () => {
-    // TODO: panels fermés = ref null — expansion requise pour les panels non visibles
-    const orderedPanels = [...panels].sort((a, b) => a.panel_number - b.panel_number);
-    const els = orderedPanels
-      .map((p) => exportCanvasRefByPanel.current[p.id])
-      .filter(Boolean) as HTMLDivElement[];
-    if (els.length === 0) return;
-    setExportingChapter(true);
-    try {
-      const canvas = await renderChapterToCanvas(els);
-      downloadCanvas(canvas, `chapitre-${chapter?.chapter_number ?? 1}.png`);
-    } finally {
-      setExportingChapter(false);
-    }
   };
 
   const handleSaveScenarioLink = () => {
@@ -851,18 +760,6 @@ export default function ChapterDetail() {
       } catch { /* ignore */ }
     };
 
-    const _handleSaveBlockDimensions = (block: PanelBlock, width: number, height: number) => {
-      const { x, y, width: w, height: h } = clampBlockToPanel(block.x, block.y, width, height, panelHeight);
-      const nextBlocks = layout.blocks.map((b) => (b.id === block.id ? { ...b, x, y, width: w, height: h } : b));
-      updatePanelMutation.mutate(
-        { id: panel.id, updates: { layout: { ...layout, blocks: nextBlocks } as unknown as Json } },
-        {
-          onSuccess: () => { setBlockDimensionDrafts((prev) => { const next = { ...prev }; delete next[`${panel.id}-${block.id}`]; return next; }); },
-          onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }),
-        }
-      );
-    };
-
     const handleSaveBlockName = (block: PanelBlock, name: string) => {
       const nextBlocks = layout.blocks.map((b) => (b.id === block.id ? { ...b, name: name.trim() || null } : b));
       updatePanelMutation.mutate(
@@ -906,7 +803,6 @@ export default function ChapterDetail() {
         { id: panel.id, updates: { layout: { ...layout, blocks: nextBlocks } as unknown as Json } },
         {
           onSuccess: () => {
-            setEditingBlockKey((k) => (k === `${panel.id}-${block.id}` ? null : k));
             setBlockPromptDrafts((prev) => { const next = { ...prev }; delete next[`${panel.id}-${block.id}`]; return next; });
             toast({ title: "Bloc supprimé" });
           },
@@ -968,16 +864,6 @@ export default function ChapterDetail() {
       );
     };
 
-    const _handleDuplicateSpeechBubble = (bubble: SpeechBubble) => {
-      const newBubble: SpeechBubble = {
-        ...bubble,
-        id: crypto.randomUUID(),
-        position: { x: bubble.position.x + 20, y: bubble.position.y + 20 },
-      };
-      handleUpdateSpeechBubbles([...speechBubbles, newBubble]);
-      setSelectedSpeechBubbleIdInModal({ panelId: panel.id, bubbleId: newBubble.id });
-    };
-
     const handleDeleteSpeechBubble = (bubble: SpeechBubble) => {
       const next = speechBubbles.filter((b) => b.id !== bubble.id);
       setSelectedSpeechBubbleIdInModal(null);
@@ -1014,7 +900,6 @@ export default function ChapterDetail() {
         { id: panel.id, updates: { layout: { ...layout, blocks: nextBlocks } as unknown as Json } },
         {
           onSuccess: () => {
-            setEditingBlockKey(null);
             if (!options?.silent) {
               setBlockPromptDrafts((prev) => { const next = { ...prev }; delete next[`${panel.id}-${block.id}`]; return next; });
               toast({ title: "Prompt du bloc enregistré" });
@@ -1022,14 +907,6 @@ export default function ChapterDetail() {
           },
           onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }),
         }
-      );
-    };
-
-    const _handleSaveBlockAssetRefs = (block: PanelBlock, assetIds: string[]) => {
-      const nextBlocks = layout.blocks.map((b) => (b.id === block.id ? { ...b, asset_refs: assetIds.length ? assetIds : undefined } : b));
-      updatePanelMutation.mutate(
-        { id: panel.id, updates: { layout: { ...layout, blocks: nextBlocks } as unknown as Json } },
-        { onSuccess: () => toast({ title: "Assets du bloc enregistrés" }), onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }) }
       );
     };
 

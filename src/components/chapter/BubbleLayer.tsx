@@ -104,6 +104,10 @@ export function BubbleLayer({
         const tailH = SPEECH_BUBBLE_NO_TAIL_TYPES.has(bubble.type) ? 0 : SPEECH_BUBBLE_TAIL_H;
         const totalH = geom.height + tailH;
         const textAreaH = bubble.type === "narration" || bubble.type === "text" ? geom.height : (totalH * 100) / 120;
+        // paddingTop stable calculé depuis le texte committé → même position en affichage et en édition, sans saut
+        const committedLineCount = Math.max(1, bubble.text.split("\n").length);
+        const estimatedContentH = Math.min(committedLineCount * fontSize * 1.4, textAreaH - 16);
+        const textPaddingTop = Math.max(8, Math.round((textAreaH - estimatedContentH) / 2));
 
         return (
           <div
@@ -139,49 +143,35 @@ export function BubbleLayer({
             )}
 
             {isEditing ? (
-              <div
-                className="absolute inset-x-0 top-0 flex items-center px-3 py-2 overflow-hidden z-30"
-                style={{ height: textAreaH }}
-              >
-                <textarea
-                  autoFocus
-                  ref={(el) => {
-                    if (el) {
-                      el.style.height = "auto";
-                      el.style.height = `${Math.min(el.scrollHeight, textAreaH - 16)}px`;
-                    }
-                  }}
-                  value={editDraft}
-                  onChange={(e) => {
-                    setEditDraft(e.target.value);
-                    const t = e.target;
-                    t.style.height = "auto";
-                    t.style.height = `${Math.min(t.scrollHeight, textAreaH - 16)}px`;
-                  }}
-                  onBlur={() => {
+              <textarea
+                autoFocus
+                value={editDraft}
+                onChange={(e) => setEditDraft(e.target.value)}
+                onBlur={() => {
+                  setEditingBubbleId(null);
+                  onTextCommit(bubble.id, editDraft);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Escape") {
                     setEditingBubbleId(null);
-                    onTextCommit(bubble.id, editDraft);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Escape") {
-                      setEditingBubbleId(null);
-                      setEditDraft(bubble.text);
-                    }
-                  }}
-                  className="bg-transparent border-none outline-none resize-none w-full"
-                  style={{
-                    fontSize: `${fontSize}px`,
-                    fontFamily: fontFamily === "inherit" ? undefined : fontFamily,
-                    color,
-                    fontWeight,
-                    fontStyle,
-                    textAlign,
-                    textTransform,
-                    lineHeight: "1.4",
-                    overflowY: "hidden",
-                  }}
-                />
-              </div>
+                    setEditDraft(bubble.text);
+                  }
+                }}
+                className="absolute inset-x-0 top-0 bg-transparent border-none outline-none resize-none w-full px-3 z-30 overflow-y-hidden"
+                style={{
+                  height: textAreaH,
+                  paddingTop: textPaddingTop,
+                  boxSizing: "border-box",
+                  fontSize: `${fontSize}px`,
+                  fontFamily: fontFamily === "inherit" ? undefined : fontFamily,
+                  color,
+                  fontWeight,
+                  fontStyle,
+                  textAlign,
+                  textTransform,
+                  lineHeight: "1.4",
+                }}
+              />
             ) : (
               <div
                 className="absolute inset-x-0 top-0 flex items-center px-3 py-2 pointer-events-none overflow-hidden"

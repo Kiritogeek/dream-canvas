@@ -1667,17 +1667,6 @@ export default function ChapterDetail() {
         </div>
       </header>
 
-      {/* Toolbar bulle — barre contextuelle pleine largeur sous le header, comme Canva */}
-      {topLevelSelectedBubble && (
-        <BubbleToolbar
-          bubble={topLevelSelectedBubble}
-          speechBubbles={topLevelSpeechBubbles}
-          onUpdate={handleTopLevelUpdateSpeechBubbles}
-          onDuplicate={handleTopLevelDuplicateBubble}
-          onDelete={handleTopLevelDeleteBubble}
-        />
-      )}
-
       {/* Corps : left panel (scénario + cases) + right (canvas) */}
       <div className="flex-1 flex overflow-hidden">
         {/* Left panel ~380px, scrollable */}
@@ -2006,6 +1995,16 @@ export default function ChapterDetail() {
               </div>
             </div>
           </DialogHeader>
+          {/* Toolbar bulle — barre contextuelle sous le header de la modale, style Canva */}
+          {topLevelSelectedBubble && (
+            <BubbleToolbar
+              bubble={topLevelSelectedBubble}
+              speechBubbles={topLevelSpeechBubbles}
+              onUpdate={handleTopLevelUpdateSpeechBubbles}
+              onDuplicate={handleTopLevelDuplicateBubble}
+              onDelete={handleTopLevelDeleteBubble}
+            />
+          )}
           {expandedPanelId && (() => {
             const panel = panels.find((p) => p.id === expandedPanelId);
             if (!panel) return null;

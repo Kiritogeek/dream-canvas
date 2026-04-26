@@ -248,7 +248,7 @@ export default function ChapterDetail() {
     );
   }, [selectedSpeechBubbleIdInModal, panelsQueryKey, queryClient, updatePanelMutation, toast]);
 
-  const handleTopLevelDuplicateBubble = useCallback(() => {
+  const _handleTopLevelDuplicateBubble = useCallback(() => {
     if (!topLevelSelectedBubble || !selectedSpeechBubbleIdInModal) return;
     const newBubble: SpeechBubble = {
       ...topLevelSelectedBubble,
@@ -259,7 +259,7 @@ export default function ChapterDetail() {
     setSelectedSpeechBubbleIdInModal({ panelId: selectedSpeechBubbleIdInModal.panelId, bubbleId: newBubble.id });
   }, [topLevelSelectedBubble, topLevelSpeechBubbles, selectedSpeechBubbleIdInModal, handleTopLevelUpdateSpeechBubbles]);
 
-  const handleTopLevelDeleteBubble = useCallback(() => {
+  const _handleTopLevelDeleteBubble = useCallback(() => {
     if (!topLevelSelectedBubble) return;
     const next = topLevelSpeechBubbles.filter((b) => b.id !== topLevelSelectedBubble.id);
     setSelectedSpeechBubbleIdInModal(null);
@@ -1348,6 +1348,35 @@ export default function ChapterDetail() {
         <div className="flex-1 min-w-0 flex items-start justify-center overflow-auto p-6 bg-background pl-[360px]">
           {/* Wrapper relatif pour positionner la poignée de redimensionnement */}
           <div className="relative" style={{ flexShrink: 0 }}>
+            {/* Toolbar bulle flottant au-dessus de la bulle sélectionnée — style Canva */}
+            {selectedSpeechBubble && (() => {
+              const bx = selectedSpeechBubble.position.x * zoomLevel;
+              const by = selectedSpeechBubble.position.y * zoomLevel;
+              const bw = (selectedSpeechBubble.width ?? DEFAULT_SPEECH_BUBBLE_WIDTH) * zoomLevel;
+              const toolbarTop = Math.max(-40, by - 46);
+              return (
+                <div
+                  className="absolute z-50 pointer-events-auto"
+                  style={{ top: toolbarTop, left: bx, minWidth: Math.max(bw, 320) }}
+                >
+                  <BubbleToolbar
+                    bubble={selectedSpeechBubble}
+                    speechBubbles={speechBubbles}
+                    onUpdate={handleUpdateSpeechBubbles}
+                    onDuplicate={() => {
+                      const newBubble: SpeechBubble = {
+                        ...selectedSpeechBubble,
+                        id: crypto.randomUUID(),
+                        position: { x: selectedSpeechBubble.position.x + 20, y: selectedSpeechBubble.position.y + 20 },
+                      };
+                      handleUpdateSpeechBubbles([...speechBubbles, newBubble]);
+                      setSelectedSpeechBubbleIdInModal({ panelId: panel.id, bubbleId: newBubble.id });
+                    }}
+                    onDelete={() => handleDeleteSpeechBubble(selectedSpeechBubble)}
+                  />
+                </div>
+              );
+            })()}
             {(() => {
               const liveH = panelHeightDragDraft ?? panelHeight;
               return (
@@ -1995,16 +2024,6 @@ export default function ChapterDetail() {
               </div>
             </div>
           </DialogHeader>
-          {/* Toolbar bulle — barre contextuelle sous le header de la modale, style Canva */}
-          {topLevelSelectedBubble && (
-            <BubbleToolbar
-              bubble={topLevelSelectedBubble}
-              speechBubbles={topLevelSpeechBubbles}
-              onUpdate={handleTopLevelUpdateSpeechBubbles}
-              onDuplicate={handleTopLevelDuplicateBubble}
-              onDelete={handleTopLevelDeleteBubble}
-            />
-          )}
           {expandedPanelId && (() => {
             const panel = panels.find((p) => p.id === expandedPanelId);
             if (!panel) return null;

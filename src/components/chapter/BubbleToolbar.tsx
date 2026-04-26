@@ -40,7 +40,7 @@ export function BubbleToolbar({ bubble, speechBubbles, onUpdate, onDuplicate, on
   const sep = <div className="w-px h-5 bg-border/60 shrink-0 mx-0.5" />;
 
   return (
-    <div className="shrink-0 flex items-center gap-1 px-3 py-1.5 bg-background border-b border-border shadow-sm z-40 overflow-x-auto">
+    <div className="inline-flex items-center gap-1 px-2 py-1.5 bg-background border border-border rounded-lg shadow-lg z-50 overflow-x-auto max-w-full">
       {/* Font */}
       <select
         value={bubble.style?.font ?? "inherit"}

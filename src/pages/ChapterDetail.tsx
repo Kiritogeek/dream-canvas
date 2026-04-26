@@ -1159,8 +1159,6 @@ export default function ChapterDetail() {
       );
     };
 
-    const hasSelection = !!(selectedBlock || selectedColorBlock || selectedSpeechBubble);
-
     return (
       <div className="relative flex flex-1 min-h-0 overflow-hidden bg-gradient-to-b from-background via-background to-muted/20">
         {/* Panneau gauche — barre d'icônes fixe + flyouts en overlay (ne poussent pas le canvas) */}
@@ -1178,11 +1176,6 @@ export default function ChapterDetail() {
                 type="button"
                 title={label}
                 onClick={() => {
-                  if (hasSelection) {
-                    setSelectedBlockIdInModal(null);
-                    setSelectedColorBlockIdInModal(null);
-                    setSelectedSpeechBubbleIdInModal(null);
-                  }
                   setActiveSidebarTab((t) => (t === id ? null : id));
                 }}
                 className={`w-10 h-12 rounded-xl border flex items-center justify-center transition-colors ${activeSidebarTab === id ? "border-primary/70 bg-primary/15 text-primary shadow-sm" : "border-border/70 bg-background text-muted-foreground hover:text-foreground hover:bg-muted/50"}`}

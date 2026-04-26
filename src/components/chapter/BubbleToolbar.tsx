@@ -83,6 +83,20 @@ export function BubbleToolbar({ bubble, speechBubbles, onUpdate, onDuplicate, on
         <Italic className="h-3.5 w-3.5" />
       </button>
 
+      {/* Text color */}
+      <label className="relative cursor-pointer shrink-0" title="Couleur du texte">
+        <div className="w-6 h-6 rounded border border-border/80 shadow-inner flex items-end justify-center pb-0.5 bg-background">
+          <span className="text-[10px] font-bold leading-none" style={{ color: bubble.style?.color ?? "#000000" }}>A</span>
+          <div className="absolute bottom-0.5 left-1 right-1 h-1 rounded-sm" style={{ background: bubble.style?.color ?? "#000000" }} />
+        </div>
+        <input
+          type="color"
+          value={bubble.style?.color ?? "#000000"}
+          onChange={(e) => patchStyle({ color: e.target.value })}
+          className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+        />
+      </label>
+
       {sep}
 
       {/* Text alignment */}

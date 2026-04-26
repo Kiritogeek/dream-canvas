@@ -1323,6 +1323,33 @@ export default function ChapterDetail() {
                           title="Italique"
                         >I</button>
                       </div>
+                      <div className="flex items-center gap-1.5">
+                        {(["left", "center", "right"] as const).map((align) => (
+                          <button
+                            key={align}
+                            type="button"
+                            onClick={() => { const next = speechBubbles.map((b) => b.id === selectedSpeechBubble.id ? { ...b, style: { ...b.style, textAlign: align } } : b); handleUpdateSpeechBubbles(next); }}
+                            className={`h-8 w-8 rounded-lg border text-xs transition-colors flex items-center justify-center ${(selectedSpeechBubble.style?.textAlign ?? "center") === align ? "border-primary bg-primary/15 text-primary" : "border-border/60 bg-background text-muted-foreground hover:bg-muted/50"}`}
+                            title={align === "left" ? "Aligner à gauche" : align === "center" ? "Centrer" : "Aligner à droite"}
+                          >
+                            {align === "left" ? "⬅" : align === "center" ? "↔" : "➡"}
+                          </button>
+                        ))}
+                        <button
+                          type="button"
+                          onClick={() => { const isUpper = selectedSpeechBubble.style?.textTransform === "uppercase"; const next = speechBubbles.map((b) => b.id === selectedSpeechBubble.id ? { ...b, style: { ...b.style, textTransform: isUpper ? "none" as const : "uppercase" as const } } : b); handleUpdateSpeechBubbles(next); }}
+                          className={`h-8 px-2 rounded-lg border text-xs font-bold uppercase tracking-wide transition-colors ${selectedSpeechBubble.style?.textTransform === "uppercase" ? "border-primary bg-primary/15 text-primary" : "border-border/60 bg-background text-muted-foreground hover:bg-muted/50"}`}
+                          title="Majuscules"
+                        >AA</button>
+                      </div>
+                      {!["narration", "text"].includes(selectedSpeechBubble.type) && (
+                        <button
+                          type="button"
+                          onClick={() => { const next = speechBubbles.map((b) => b.id === selectedSpeechBubble.id ? { ...b, tailFlip: !b.tailFlip } : b); handleUpdateSpeechBubbles(next); }}
+                          className={`w-full h-8 rounded-lg border text-xs transition-colors ${selectedSpeechBubble.tailFlip ? "border-primary bg-primary/15 text-primary" : "border-border/60 bg-background text-muted-foreground hover:bg-muted/50"}`}
+                          title="Retourner la queue"
+                        >↔ Retourner la queue</button>
+                      )}
                     </div>
                     <Button size="sm" variant="ghost" className="w-full gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10" disabled={updatePanelMutation.isPending} onClick={() => handleDeleteSpeechBubble(selectedSpeechBubble)}><Trash2 className="h-3 w-3" /> Supprimer la bulle</Button>
                   </div>

@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Bold, Italic, Underline, Strikethrough, AlignLeft, AlignCenter, AlignRight, Copy, Trash2, FlipHorizontal2, Plus, Minus, Square, Blend } from "lucide-react";
 import type { SpeechBubble } from "@/types";
 import { getSpeechBubbleFillStroke, SPEECH_BUBBLE_NO_TAIL_TYPES } from "@/types";
@@ -13,7 +13,25 @@ interface BubbleToolbarProps {
 
 export function BubbleToolbar({ bubble, speechBubbles, onUpdate, onDuplicate, onDelete }: BubbleToolbarProps) {
   const [showBorderSlider, setShowBorderSlider] = useState(false);
+  const [showTransparencySlider, setShowTransparencySlider] = useState(false);
   const savedRangeRef = useRef<Range | null>(null);
+
+  // Active state pour les boutons de formatage (mis à jour à chaque changement de sélection)
+  const [fmtState, setFmtState] = useState({ bold: false, italic: false, underline: false, strikeThrough: false });
+  useEffect(() => {
+    const update = () => {
+      try {
+        setFmtState({
+          bold: document.queryCommandState("bold"),
+          italic: document.queryCommandState("italic"),
+          underline: document.queryCommandState("underline"),
+          strikeThrough: document.queryCommandState("strikeThrough"),
+        });
+      } catch { /* ignore si pas de contenteditable */ }
+    };
+    document.addEventListener("selectionchange", update);
+    return () => document.removeEventListener("selectionchange", update);
+  }, []);
 
   const patch = (changes: Partial<SpeechBubble>) =>
     onUpdate(speechBubbles.map((b) => (b.id === bubble.id ? { ...b, ...changes } : b)));
@@ -29,7 +47,17 @@ export function BubbleToolbar({ bubble, speechBubbles, onUpdate, onDuplicate, on
   const borderWidth = bubble.borderWidth ?? 2;
   const bgTransparency = bubble.bgTransparency ?? 0;
 
-  const exec = (cmd: string, value?: string) => document.execCommand(cmd, false, value);
+  // Applique le format sur la sélection (execCommand) OU en CSS sur toute la bulle si pas de contenteditable actif
+  const applyFmt = (e: React.MouseEvent, styleKey: "bold" | "italic" | "underline" | "strikethrough", cmd: string) => {
+    e.preventDefault();
+    const success = document.execCommand(cmd, false, undefined);
+    const sel = window.getSelection();
+    const hasSelection = sel && sel.rangeCount > 0 && !sel.isCollapsed;
+    // Si execCommand échoue (pas de contenteditable actif) ou si pas de sélection → toggle CSS
+    if (!success || !hasSelection) {
+      patchStyle({ [styleKey]: !bubble.style?.[styleKey] });
+    }
+  };
 
   const saveRange = () => {
     const sel = window.getSelection();
@@ -42,26 +70,19 @@ export function BubbleToolbar({ bubble, speechBubbles, onUpdate, onDuplicate, on
       sel?.removeAllRanges();
       sel?.addRange(savedRangeRef.current);
     }
-    exec(cmd, value);
+    document.execCommand(cmd, false, value);
   };
 
-  const fmtBtn = (title: string, Icon: React.ElementType, cmd: string, value?: string) => (
-    <button
-      type="button"
-      title={title}
-      onMouseDown={(e) => { e.preventDefault(); exec(cmd, value); }}
-      className="h-7 w-7 flex items-center justify-center rounded-md border border-border/60 bg-background text-muted-foreground hover:bg-muted/50 transition-colors shrink-0"
-    >
-      <Icon className="h-3.5 w-3.5" />
-    </button>
-  );
-
   const sep = <div className="w-px h-5 bg-border/60 shrink-0 mx-0.5" />;
+
+  // Classes bouton avec état actif/inactif
+  const btnCls = (active: boolean) =>
+    `h-7 w-7 flex items-center justify-center rounded-md border transition-colors shrink-0 ${active ? "border-primary bg-primary/15 text-primary" : "border-border/60 bg-background text-muted-foreground hover:bg-muted/50"}`;
 
   return (
     <div className="relative inline-flex items-center gap-1 px-2 py-1.5 bg-background border border-border rounded-lg shadow-lg z-50 overflow-x-auto max-w-full">
 
-      {/* Border slider — apparaît inline quand actif */}
+      {/* Slider border — inline quand actif */}
       {showBorderSlider && !isText && (
         <div className="flex items-center gap-1.5 shrink-0 bg-muted/40 rounded px-2 py-0.5">
           <span className="text-[10px] text-muted-foreground">0</span>
@@ -72,6 +93,20 @@ export function BubbleToolbar({ bubble, speechBubbles, onUpdate, onDuplicate, on
           />
           <span className="text-[10px] text-muted-foreground">12</span>
           <span className="text-xs tabular-nums font-mono text-foreground w-5">{borderWidth}</span>
+        </div>
+      )}
+
+      {/* Slider transparence — inline quand actif */}
+      {showTransparencySlider && !isText && (
+        <div className="flex items-center gap-1.5 shrink-0 bg-muted/40 rounded px-2 py-0.5">
+          <span className="text-[10px] text-muted-foreground">0%</span>
+          <input
+            type="range" min={0} max={100} value={bgTransparency}
+            onChange={(e) => { const n = parseInt(e.target.value, 10); if (!Number.isNaN(n)) patch({ bgTransparency: n }); }}
+            className="w-20 accent-primary"
+          />
+          <span className="text-[10px] text-muted-foreground">100%</span>
+          <span className="text-xs tabular-nums font-mono text-foreground w-7">{bgTransparency}%</span>
         </div>
       )}
 
@@ -103,18 +138,32 @@ export function BubbleToolbar({ bubble, speechBubbles, onUpdate, onDuplicate, on
 
       {sep}
 
-      {/* Formatage sélection (execCommand) */}
-      {fmtBtn("Gras", Bold, "bold")}
-      {fmtBtn("Italique", Italic, "italic")}
-      {fmtBtn("Souligné", Underline, "underline")}
-      {fmtBtn("Barré", Strikethrough, "strikeThrough")}
+      {/* Gras */}
+      <button type="button" title="Gras" onMouseDown={(e) => applyFmt(e, "bold", "bold")}
+        className={btnCls(!!bubble.style?.bold || fmtState.bold)}>
+        <Bold className="h-3.5 w-3.5" />
+      </button>
 
-      {/* Couleur du texte — sauvegarde la sélection avant ouverture du picker */}
-      <label
-        className="relative cursor-pointer shrink-0"
-        title="Couleur du texte"
-        onMouseDown={saveRange}
-      >
+      {/* Italique */}
+      <button type="button" title="Italique" onMouseDown={(e) => applyFmt(e, "italic", "italic")}
+        className={btnCls(!!bubble.style?.italic || fmtState.italic)}>
+        <Italic className="h-3.5 w-3.5" />
+      </button>
+
+      {/* Souligné */}
+      <button type="button" title="Souligné" onMouseDown={(e) => applyFmt(e, "underline", "underline")}
+        className={btnCls(!!bubble.style?.underline || fmtState.underline)}>
+        <Underline className="h-3.5 w-3.5" />
+      </button>
+
+      {/* Barré */}
+      <button type="button" title="Barré" onMouseDown={(e) => applyFmt(e, "strikethrough", "strikeThrough")}
+        className={btnCls(!!bubble.style?.strikethrough || fmtState.strikeThrough)}>
+        <Strikethrough className="h-3.5 w-3.5" />
+      </button>
+
+      {/* Couleur du texte */}
+      <label className="relative cursor-pointer shrink-0" title="Couleur du texte" onMouseDown={saveRange}>
         <div className="w-6 h-6 rounded border border-border/80 bg-background flex flex-col items-center justify-center gap-px">
           <span className="text-[11px] font-bold leading-none" style={{ color: bubble.style?.color ?? "#000000" }}>A</span>
           <div className="w-4 h-[3px] rounded-sm" style={{ background: bubble.style?.color ?? "#000000" }} />
@@ -140,7 +189,7 @@ export function BubbleToolbar({ bubble, speechBubbles, onUpdate, onDuplicate, on
             key={align}
             type="button"
             onMouseDown={(e) => { e.preventDefault(); patchStyle({ textAlign: align }); }}
-            className={`h-7 w-7 flex items-center justify-center rounded-md border transition-colors shrink-0 ${textAlign === align ? "border-primary bg-primary/15 text-primary" : "border-border/60 bg-background text-muted-foreground hover:bg-muted/50"}`}
+            className={btnCls(textAlign === align)}
             title={align === "left" ? "Gauche" : align === "center" ? "Centre" : "Droite"}
           >
             <Icon className="h-3.5 w-3.5" />
@@ -155,54 +204,38 @@ export function BubbleToolbar({ bubble, speechBubbles, onUpdate, onDuplicate, on
           {/* Couleur de fond */}
           <label className="relative cursor-pointer shrink-0" title="Couleur de fond">
             <div className="w-6 h-6 rounded border border-border/80 shadow-inner" style={{ background: fillColor === "transparent" ? "#ffffff" : fillColor }} />
-            <input
-              type="color"
-              value={fillColor === "transparent" ? "#ffffff" : fillColor}
+            <input type="color" value={fillColor === "transparent" ? "#ffffff" : fillColor}
               onChange={(e) => patch({ bgColor: e.target.value })}
-              className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-            />
+              className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" />
           </label>
 
           {/* Couleur du contour */}
           <label className="relative cursor-pointer shrink-0" title="Couleur du contour">
             <div className="w-6 h-6 rounded" style={{ background: strokeColor === "transparent" ? "#000000" : strokeColor, outline: "1px solid hsl(var(--border) / 0.6)", outlineOffset: "1px" }} />
-            <input
-              type="color"
-              value={strokeColor === "transparent" ? "#000000" : strokeColor}
+            <input type="color" value={strokeColor === "transparent" ? "#000000" : strokeColor}
               onChange={(e) => patch({ borderColor: e.target.value })}
-              className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-            />
+              className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" />
           </label>
 
           {/* Épaisseur du contour */}
-          <button
-            type="button"
-            onClick={() => setShowBorderSlider((v) => !v)}
-            className={`h-7 w-7 flex items-center justify-center rounded-md border transition-colors shrink-0 ${showBorderSlider ? "border-primary bg-primary/15 text-primary" : "border-border/60 bg-background text-muted-foreground hover:bg-muted/50"}`}
-            title={`Épaisseur contour (${borderWidth}px)`}
-          >
+          <button type="button" onClick={() => { setShowBorderSlider((v) => !v); setShowTransparencySlider(false); }}
+            className={btnCls(showBorderSlider)}
+            title={`Épaisseur contour (${borderWidth}px)`}>
             <Square className="h-3.5 w-3.5" />
           </button>
 
           {/* Transparence du fond */}
-          <div className="flex items-center gap-1 shrink-0" title="Transparence du fond (%)">
-            <Blend className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-            <input
-              type="range" min={0} max={100} value={bgTransparency}
-              onChange={(e) => { const n = parseInt(e.target.value, 10); if (!Number.isNaN(n)) patch({ bgTransparency: n }); }}
-              className="w-16 accent-primary"
-            />
-            <span className="text-[10px] tabular-nums text-muted-foreground w-7">{bgTransparency}%</span>
-          </div>
+          <button type="button" onClick={() => { setShowTransparencySlider((v) => !v); setShowBorderSlider(false); }}
+            className={btnCls(showTransparencySlider || bgTransparency > 0)}
+            title={`Transparence du fond (${bgTransparency}%)`}>
+            <Blend className="h-3.5 w-3.5" />
+          </button>
 
           {/* Retourner la queue */}
           {!hasNoTail && (
-            <button
-              type="button"
-              onClick={() => patch({ tailFlip: !bubble.tailFlip })}
-              className={`h-7 w-7 flex items-center justify-center rounded-md border transition-colors shrink-0 ${bubble.tailFlip ? "border-primary bg-primary/15 text-primary" : "border-border/60 bg-background text-muted-foreground hover:bg-muted/50"}`}
-              title="Retourner la queue"
-            >
+            <button type="button" onClick={() => patch({ tailFlip: !bubble.tailFlip })}
+              className={btnCls(!!bubble.tailFlip)}
+              title="Retourner la queue">
               <FlipHorizontal2 className="h-3.5 w-3.5" />
             </button>
           )}
@@ -212,22 +245,16 @@ export function BubbleToolbar({ bubble, speechBubbles, onUpdate, onDuplicate, on
       <div className="flex-1 min-w-2" />
 
       {/* Dupliquer */}
-      <button
-        type="button"
-        onClick={onDuplicate}
+      <button type="button" onClick={onDuplicate}
         className="h-7 w-7 flex items-center justify-center rounded-md border border-border/60 bg-background text-muted-foreground hover:bg-muted/50 transition-colors shrink-0"
-        title="Dupliquer"
-      >
+        title="Dupliquer">
         <Copy className="h-3.5 w-3.5" />
       </button>
 
       {/* Supprimer */}
-      <button
-        type="button"
-        onClick={onDelete}
+      <button type="button" onClick={onDelete}
         className="h-7 w-7 flex items-center justify-center rounded-md border border-border/60 bg-background text-destructive hover:bg-destructive/10 transition-colors shrink-0"
-        title="Supprimer"
-      >
+        title="Supprimer">
         <Trash2 className="h-3.5 w-3.5" />
       </button>
     </div>

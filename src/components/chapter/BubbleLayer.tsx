@@ -109,6 +109,7 @@ export function BubbleLayer({
         const color = bubble.style?.color ?? "#000000";
         const fontWeight = bubble.style?.bold ? "bold" : "normal";
         const fontStyle = bubble.style?.italic ? "italic" : "normal";
+        const textDecoration = [bubble.style?.underline ? "underline" : null, bubble.style?.strikethrough ? "line-through" : null].filter(Boolean).join(" ") || undefined;
         const textAlign = bubble.style?.textAlign ?? "center";
         const textTransform = bubble.style?.textTransform ?? "none";
         const { fill: fillColor, stroke: strokeColor } = getSpeechBubbleFillStroke(bubble);
@@ -123,10 +124,15 @@ export function BubbleLayer({
           color,
           fontWeight,
           fontStyle,
+          textDecoration,
           textAlign,
           textTransform,
           lineHeight: "1.4",
         };
+
+        // Tailwind preflight efface text-decoration/font-weight/font-style des balises HTML.
+        // Ces classes les restaurent pour le rich text stocké en HTML dans bubble.text.
+        const richTextClass = "[&_u]:underline [&_s]:line-through [&_strike]:line-through [&_b]:font-bold [&_strong]:font-bold [&_i]:italic [&_em]:italic";
 
         return (
           <div
@@ -203,7 +209,7 @@ export function BubbleLayer({
                   const text = e.clipboardData.getData("text/plain");
                   document.execCommand("insertText", false, text);
                 }}
-                className="absolute inset-x-0 top-0 bg-transparent border-none outline-none w-full px-3 z-30 overflow-y-hidden"
+                className={`absolute inset-x-0 top-0 bg-transparent border-none outline-none w-full px-3 z-30 overflow-y-hidden ${richTextClass}`}
                 style={{ height: textAreaH, paddingTop: 8, boxSizing: "border-box", ...sharedTextStyle }}
               />
             ) : (
@@ -212,7 +218,7 @@ export function BubbleLayer({
                 style={{ height: textAreaH }}
               >
                 <div
-                  className="break-words w-full"
+                  className={`break-words w-full ${richTextClass}`}
                   style={sharedTextStyle}
                   dangerouslySetInnerHTML={{ __html: bubble.text || "…" }}
                 />

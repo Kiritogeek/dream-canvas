@@ -187,7 +187,7 @@ export interface SpeechBubble {
   /** Hauteur de la bulle. Défaut: DEFAULT_SPEECH_BUBBLE_HEIGHT. */
   height?: number;
   /** Style minimal (compatible écran chapitre). */
-  style?: { font?: string; size?: number; color?: string; stroke?: string; fill?: string; bold?: boolean; italic?: boolean; textAlign?: "left" | "center" | "right"; textTransform?: "none" | "uppercase" };
+  style?: { font?: string; size?: number; color?: string; stroke?: string; fill?: string; bold?: boolean; italic?: boolean; underline?: boolean; strikethrough?: boolean; textAlign?: "left" | "center" | "right"; textTransform?: "none" | "uppercase" };
   character?: string;
   // ── Format étendu (Edition_Panel_Blocs_Bulles.md, 08_Modele_de_Donnees.md)
   /** Retourne la queue de la bulle du côté opposé (droite au lieu de gauche). */

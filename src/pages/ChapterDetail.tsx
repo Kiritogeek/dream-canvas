@@ -143,7 +143,7 @@ export default function ChapterDetail() {
   /** Panel dont la suppression est en attente de confirmation */
   const [panelToDeleteId, setPanelToDeleteId] = useState<string | null>(null);
   const generatePanelImage = useGeneratePanelImage(chapterId ?? "");
-  const panelsQueryKey = ["panels", chapterId] as const;
+  const panelsQueryKey = useMemo(() => ["panels", chapterId] as const, [chapterId]);
   const preloadedImagesRef = useRef<HTMLImageElement[]>([]);
 
   useEffect(() => {
@@ -225,6 +225,50 @@ export default function ChapterDetail() {
   const zoomRef = useRef(0.5);
   /** Onglet actif de la sidebar bibliothèque (null = fermée) */
   const [activeSidebarTab, setActiveSidebarTab] = useState<"blocs" | "couleurs" | "dialogue" | null>(null);
+
+  // ── Toolbar bulle — dérivé au top level pour rendu entre header et canvas ──
+  const topLevelSelectedPanel = selectedSpeechBubbleIdInModal
+    ? panels.find((p) => p.id === selectedSpeechBubbleIdInModal.panelId) ?? null
+    : null;
+  const topLevelSpeechBubbles: SpeechBubble[] = useMemo(
+    () => (topLevelSelectedPanel ? getPanelSpeechBubbles(topLevelSelectedPanel) : []),
+    [topLevelSelectedPanel]
+  );
+  const topLevelSelectedBubble: SpeechBubble | null = selectedSpeechBubbleIdInModal
+    ? (topLevelSpeechBubbles.find((b) => b.id === selectedSpeechBubbleIdInModal.bubbleId) ?? null)
+    : null;
+
+  const handleTopLevelUpdateSpeechBubbles = useCallback((next: SpeechBubble[]) => {
+    if (!selectedSpeechBubbleIdInModal) return;
+    const panelId = selectedSpeechBubbleIdInModal.panelId;
+    queryClient.setQueryData<Panel[]>(panelsQueryKey, (old) => (!old ? old : old.map((p) => (p.id === panelId ? { ...p, speech_bubbles: next as unknown as import("@/integrations/supabase/types").Json } : p))));
+    updatePanelMutation.mutate(
+      { id: panelId, updates: { speech_bubbles: next as unknown as import("@/integrations/supabase/types").Json } },
+      { onError: (err) => { toast({ title: "Erreur", description: err.message, variant: "destructive" }); queryClient.invalidateQueries({ queryKey: panelsQueryKey }); } }
+    );
+  }, [selectedSpeechBubbleIdInModal, panelsQueryKey, queryClient, updatePanelMutation, toast]);
+
+  const handleTopLevelDuplicateBubble = useCallback(() => {
+    if (!topLevelSelectedBubble || !selectedSpeechBubbleIdInModal) return;
+    const newBubble: SpeechBubble = {
+      ...topLevelSelectedBubble,
+      id: crypto.randomUUID(),
+      position: { x: topLevelSelectedBubble.position.x + 20, y: topLevelSelectedBubble.position.y + 20 },
+    };
+    handleTopLevelUpdateSpeechBubbles([...topLevelSpeechBubbles, newBubble]);
+    setSelectedSpeechBubbleIdInModal({ panelId: selectedSpeechBubbleIdInModal.panelId, bubbleId: newBubble.id });
+  }, [topLevelSelectedBubble, topLevelSpeechBubbles, selectedSpeechBubbleIdInModal, handleTopLevelUpdateSpeechBubbles]);
+
+  const handleTopLevelDeleteBubble = useCallback(() => {
+    if (!topLevelSelectedBubble) return;
+    const next = topLevelSpeechBubbles.filter((b) => b.id !== topLevelSelectedBubble.id);
+    setSelectedSpeechBubbleIdInModal(null);
+    if (!selectedSpeechBubbleIdInModal) return;
+    updatePanelMutation.mutate(
+      { id: selectedSpeechBubbleIdInModal.panelId, updates: { speech_bubbles: next as unknown as import("@/integrations/supabase/types").Json } },
+      { onSuccess: () => toast({ title: "Bulle supprimée" }), onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }) }
+    );
+  }, [topLevelSelectedBubble, topLevelSpeechBubbles, selectedSpeechBubbleIdInModal, updatePanelMutation, toast]);
 
   // Réduit la duplication des resets d'état de l'éditeur panel.
   const resetPanelEditorUiState = useCallback(() => {
@@ -924,7 +968,7 @@ export default function ChapterDetail() {
       );
     };
 
-    const handleDuplicateSpeechBubble = (bubble: SpeechBubble) => {
+    const _handleDuplicateSpeechBubble = (bubble: SpeechBubble) => {
       const newBubble: SpeechBubble = {
         ...bubble,
         id: crypto.randomUUID(),
@@ -1119,18 +1163,6 @@ export default function ChapterDetail() {
 
     return (
       <div className="relative flex flex-1 min-h-0 overflow-hidden bg-gradient-to-b from-background via-background to-muted/20">
-        {/* Toolbar bulle — flotte en overlay sous le header, sans décaler le canvas */}
-        {selectedSpeechBubble && (
-          <div className="absolute top-0 left-14 right-0 z-40">
-            <BubbleToolbar
-              bubble={selectedSpeechBubble}
-              speechBubbles={speechBubbles}
-              onUpdate={handleUpdateSpeechBubbles}
-              onDuplicate={() => handleDuplicateSpeechBubble(selectedSpeechBubble)}
-              onDelete={() => handleDeleteSpeechBubble(selectedSpeechBubble)}
-            />
-          </div>
-        )}
         {/* Panneau gauche — barre d'icônes fixe + flyouts en overlay (ne poussent pas le canvas) */}
         <aside className="relative w-14 shrink-0 border-r border-border bg-background z-30">
 
@@ -1634,6 +1666,17 @@ export default function ChapterDetail() {
           </button>
         </div>
       </header>
+
+      {/* Toolbar bulle — barre contextuelle pleine largeur sous le header, comme Canva */}
+      {topLevelSelectedBubble && (
+        <BubbleToolbar
+          bubble={topLevelSelectedBubble}
+          speechBubbles={topLevelSpeechBubbles}
+          onUpdate={handleTopLevelUpdateSpeechBubbles}
+          onDuplicate={handleTopLevelDuplicateBubble}
+          onDelete={handleTopLevelDeleteBubble}
+        />
+      )}
 
       {/* Corps : left panel (scénario + cases) + right (canvas) */}
       <div className="flex-1 flex overflow-hidden">

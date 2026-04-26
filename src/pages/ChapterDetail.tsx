@@ -1267,10 +1267,6 @@ export default function ChapterDetail() {
                       <label className="text-xs font-medium text-muted-foreground">Texte</label>
                       <textarea autoFocus value={selectedSpeechBubble.text} onChange={(e) => { const next = speechBubbles.map((b) => b.id === selectedSpeechBubble.id ? { ...b, text: e.target.value } : b); handleUpdateSpeechBubbles(next); }} className="w-full min-h-[60px] rounded-lg border border-border/60 bg-background px-3 py-2 text-sm resize-y" placeholder="Dialogue, pensée, narration…" />
                     </div>
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-medium text-muted-foreground">Type</label>
-                      <div className="grid grid-cols-2 gap-1">{(Object.entries(SPEECH_BUBBLE_TYPE_LABELS) as [SpeechBubbleType, string][]).map(([t, lbl]) => (<button key={t} type="button" onClick={() => { const next = speechBubbles.map((b) => b.id === selectedSpeechBubble.id ? { ...b, type: t } : b); handleUpdateSpeechBubbles(next); }} className={`rounded-lg border px-2 py-1 text-xs transition-colors ${selectedSpeechBubble.type === t ? "border-primary bg-primary/10 text-foreground font-medium" : "border-border/60 bg-background text-muted-foreground hover:bg-muted/50"}`}>{lbl}</button>))}</div>
-                    </div>
                     {selectedSpeechBubble.type !== "text" && (
                       <div className="flex items-center gap-3">
                         <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">Fond<input type="color" value={selectedSpeechBubble.bgColor ?? selectedSpeechBubble.style?.fill ?? SPEECH_BUBBLE_DEFAULT_STYLE[selectedSpeechBubble.type].fill} onChange={(e) => { const v = e.target.value; const next = speechBubbles.map((b) => b.id === selectedSpeechBubble.id ? { ...b, style: { ...b.style, fill: v }, bgColor: v } : b); handleUpdateSpeechBubbles(next); }} className="h-6 w-8 rounded border border-border/60 cursor-pointer" /></label>
@@ -1395,10 +1391,16 @@ export default function ChapterDetail() {
                         canvasRefByPanel={canvasRefByPanel}
                         zoomRef={zoomRef}
                         selectedColorBlockId={selectedColorBlockIdInModal?.panelId === panel.id ? selectedColorBlockIdInModal.colorBlockId : null}
-                        onSelectColorBlock={(id) => id
-                          ? setSelectedColorBlockIdInModal({ panelId: panel.id, colorBlockId: id })
-                          : setSelectedColorBlockIdInModal(null)
-                        }
+                        onSelectColorBlock={(id) => {
+                          if (id) {
+                            setSelectedBlockIdInModal(null);
+                            setSelectedSpeechBubbleIdInModal(null);
+                            setSelectedColorBlockIdInModal({ panelId: panel.id, colorBlockId: id });
+                            setActiveSidebarTab("couleurs");
+                          } else {
+                            setSelectedColorBlockIdInModal(null);
+                          }
+                        }}
                         onMoveCommit={handleColorBlockMoveCommit}
                         onResizeCommit={handleColorBlockResizeCommit}
                         onDelete={handleDeleteColorBlock}
@@ -1410,10 +1412,16 @@ export default function ChapterDetail() {
                         canvasRefByPanel={canvasRefByPanel}
                         zoomRef={zoomRef}
                         selectedBlockId={selectedBlockIdInModal?.panelId === panel.id ? selectedBlockIdInModal.blockId : null}
-                        onSelectBlock={(id) => id
-                          ? setSelectedBlockIdInModal({ panelId: panel.id, blockId: id })
-                          : setSelectedBlockIdInModal(null)
-                        }
+                        onSelectBlock={(id) => {
+                          if (id) {
+                            setSelectedSpeechBubbleIdInModal(null);
+                            setSelectedColorBlockIdInModal(null);
+                            setSelectedBlockIdInModal({ panelId: panel.id, blockId: id });
+                            setActiveSidebarTab("blocs");
+                          } else {
+                            setSelectedBlockIdInModal(null);
+                          }
+                        }}
                         onMoveCommit={handleImageBlockMoveCommit}
                         onResizeCommit={handleImageBlockResizeCommit}
                         onDelete={handleDeleteBlock}
@@ -1427,10 +1435,16 @@ export default function ChapterDetail() {
                         canvasRefByPanel={canvasRefByPanel}
                         zoomRef={zoomRef}
                         selectedBubbleId={selectedSpeechBubbleIdInModal?.panelId === panel.id ? selectedSpeechBubbleIdInModal.bubbleId : null}
-                        onSelectBubble={(id) => id
-                          ? setSelectedSpeechBubbleIdInModal({ panelId: panel.id, bubbleId: id })
-                          : setSelectedSpeechBubbleIdInModal(null)
-                        }
+                        onSelectBubble={(id) => {
+                          if (id) {
+                            setSelectedBlockIdInModal(null);
+                            setSelectedColorBlockIdInModal(null);
+                            setSelectedSpeechBubbleIdInModal({ panelId: panel.id, bubbleId: id });
+                            setActiveSidebarTab("dialogue");
+                          } else {
+                            setSelectedSpeechBubbleIdInModal(null);
+                          }
+                        }}
                         onMoveCommit={handleBubbleMoveCommit}
                         onResizeCommit={handleBubbleResizeCommit}
                         onDelete={handleDeleteSpeechBubble}

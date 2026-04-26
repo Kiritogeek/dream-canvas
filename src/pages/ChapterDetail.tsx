@@ -22,6 +22,7 @@ import {
   Layers,
   CheckCircle2,
 } from "lucide-react";
+import { BubbleToolbar } from "@/components/chapter/BubbleToolbar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
@@ -923,6 +924,16 @@ export default function ChapterDetail() {
       );
     };
 
+    const handleDuplicateSpeechBubble = (bubble: SpeechBubble) => {
+      const newBubble: SpeechBubble = {
+        ...bubble,
+        id: crypto.randomUUID(),
+        position: { x: bubble.position.x + 20, y: bubble.position.y + 20 },
+      };
+      handleUpdateSpeechBubbles([...speechBubbles, newBubble]);
+      setSelectedSpeechBubbleIdInModal({ panelId: panel.id, bubbleId: newBubble.id });
+    };
+
     const handleDeleteSpeechBubble = (bubble: SpeechBubble) => {
       const next = speechBubbles.filter((b) => b.id !== bubble.id);
       setSelectedSpeechBubbleIdInModal(null);
@@ -1107,7 +1118,18 @@ export default function ChapterDetail() {
     const hasSelection = !!(selectedBlock || selectedColorBlock || selectedSpeechBubble);
 
     return (
-      <div className="relative flex flex-1 min-h-0 overflow-hidden bg-gradient-to-b from-background via-background to-muted/20">
+      <div className="relative flex flex-col flex-1 min-h-0 overflow-hidden bg-gradient-to-b from-background via-background to-muted/20">
+        {/* Toolbar bulle — Canva style, sticky en haut quand une bulle est sélectionnée */}
+        {selectedSpeechBubble && (
+          <BubbleToolbar
+            bubble={selectedSpeechBubble}
+            speechBubbles={speechBubbles}
+            onUpdate={handleUpdateSpeechBubbles}
+            onDuplicate={() => handleDuplicateSpeechBubble(selectedSpeechBubble)}
+            onDelete={() => handleDeleteSpeechBubble(selectedSpeechBubble)}
+          />
+        )}
+        <div className="flex flex-1 min-h-0 overflow-hidden">
         {/* Panneau gauche — barre d'icônes fixe + flyouts en overlay (ne poussent pas le canvas) */}
         <aside className="relative w-14 shrink-0 border-r border-border bg-background z-30">
 
@@ -1261,7 +1283,7 @@ export default function ChapterDetail() {
                 ) : selectedSpeechBubble ? (
                   <div className="p-3 space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-semibold text-foreground">Bulle de dialogue</span>
+                      <span className="text-xs font-semibold text-foreground">Bulle · {SPEECH_BUBBLE_TYPE_LABELS[selectedSpeechBubble.type]}</span>
                       <Button size="sm" variant="ghost" className="h-7 w-7 p-0 rounded-lg" onClick={() => setSelectedSpeechBubbleIdInModal(null)} aria-label="Désélectionner"><X className="h-3.5 w-3.5" /></Button>
                     </div>
                     <div className="space-y-1.5">
@@ -1277,91 +1299,10 @@ export default function ChapterDetail() {
                             handleUpdateSpeechBubbles(next);
                           }
                         }}
-                        className="w-full min-h-[60px] rounded-lg border border-border/60 bg-background px-3 py-2 text-sm resize-y"
+                        className="w-full min-h-[80px] rounded-lg border border-border/60 bg-background px-3 py-2 text-sm resize-y"
                         placeholder="Dialogue, pensée, narration…"
                       />
                     </div>
-                    {selectedSpeechBubble.type !== "text" && (
-                      <div className="flex items-center gap-3">
-                        <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">Fond<input type="color" value={selectedSpeechBubble.bgColor ?? selectedSpeechBubble.style?.fill ?? SPEECH_BUBBLE_DEFAULT_STYLE[selectedSpeechBubble.type].fill} onChange={(e) => { const v = e.target.value; const next = speechBubbles.map((b) => b.id === selectedSpeechBubble.id ? { ...b, style: { ...b.style, fill: v }, bgColor: v } : b); handleUpdateSpeechBubbles(next); }} className="h-6 w-8 rounded border border-border/60 cursor-pointer" /></label>
-                        <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">Contour<input type="color" value={selectedSpeechBubble.borderColor ?? selectedSpeechBubble.style?.stroke ?? SPEECH_BUBBLE_DEFAULT_STYLE[selectedSpeechBubble.type].stroke} onChange={(e) => { const v = e.target.value; const next = speechBubbles.map((b) => b.id === selectedSpeechBubble.id ? { ...b, style: { ...b.style, stroke: v }, borderColor: v } : b); handleUpdateSpeechBubbles(next); }} className="h-6 w-8 rounded border border-border/60 cursor-pointer" /></label>
-                      </div>
-                    )}
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-medium text-muted-foreground">Typographie</label>
-                      <select
-                        value={selectedSpeechBubble.style?.font ?? "inherit"}
-                        onChange={(e) => { const next = speechBubbles.map((b) => b.id === selectedSpeechBubble.id ? { ...b, style: { ...b.style, font: e.target.value || undefined } } : b); handleUpdateSpeechBubbles(next); }}
-                        className="w-full h-8 rounded-lg border border-border/60 bg-background px-2 text-xs"
-                      >
-                        <option value="inherit">Défaut</option>
-                        <option value="'Comic Neue', cursive">Comic Neue</option>
-                        <option value="'Bangers', cursive">Bangers</option>
-                        <option value="'Patrick Hand', cursive">Patrick Hand</option>
-                        <option value="'Permanent Marker', cursive">Permanent Marker</option>
-                        <option value="'Special Elite', serif">Special Elite</option>
-                        <option value="'Roboto Mono', monospace">Roboto Mono</option>
-                        <option value="'Gochi Hand', cursive">Gochi Hand</option>
-                        <option value="sans-serif">Sans-serif</option>
-                        <option value="serif">Serif</option>
-                      </select>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="number" min={8} max={72}
-                          value={selectedSpeechBubble.style?.size ?? 14}
-                          onChange={(e) => { const n = parseInt(e.target.value, 10); if (!Number.isNaN(n)) { const next = speechBubbles.map((b) => b.id === selectedSpeechBubble.id ? { ...b, style: { ...b.style, size: n } } : b); handleUpdateSpeechBubbles(next); } }}
-                          className="w-16 h-8 rounded-lg border border-border/60 bg-background px-2 text-xs tabular-nums"
-                        />
-                        <span className="text-xs text-muted-foreground">px</span>
-                        <input
-                          type="color"
-                          value={selectedSpeechBubble.style?.color ?? "#000000"}
-                          onChange={(e) => { const next = speechBubbles.map((b) => b.id === selectedSpeechBubble.id ? { ...b, style: { ...b.style, color: e.target.value } } : b); handleUpdateSpeechBubbles(next); }}
-                          className="h-8 w-10 rounded border border-border/60 cursor-pointer bg-background"
-                          title="Couleur du texte"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => { const next = speechBubbles.map((b) => b.id === selectedSpeechBubble.id ? { ...b, style: { ...b.style, bold: !b.style?.bold } } : b); handleUpdateSpeechBubbles(next); }}
-                          className={`h-8 w-8 rounded-lg border text-xs font-bold transition-colors ${selectedSpeechBubble.style?.bold ? "border-primary bg-primary/15 text-primary" : "border-border/60 bg-background text-muted-foreground hover:bg-muted/50"}`}
-                          title="Gras"
-                        >B</button>
-                        <button
-                          type="button"
-                          onClick={() => { const next = speechBubbles.map((b) => b.id === selectedSpeechBubble.id ? { ...b, style: { ...b.style, italic: !b.style?.italic } } : b); handleUpdateSpeechBubbles(next); }}
-                          className={`h-8 w-8 rounded-lg border text-xs italic font-medium transition-colors ${selectedSpeechBubble.style?.italic ? "border-primary bg-primary/15 text-primary" : "border-border/60 bg-background text-muted-foreground hover:bg-muted/50"}`}
-                          title="Italique"
-                        >I</button>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        {(["left", "center", "right"] as const).map((align) => (
-                          <button
-                            key={align}
-                            type="button"
-                            onClick={() => { const next = speechBubbles.map((b) => b.id === selectedSpeechBubble.id ? { ...b, style: { ...b.style, textAlign: align } } : b); handleUpdateSpeechBubbles(next); }}
-                            className={`h-8 w-8 rounded-lg border text-xs transition-colors flex items-center justify-center ${(selectedSpeechBubble.style?.textAlign ?? "center") === align ? "border-primary bg-primary/15 text-primary" : "border-border/60 bg-background text-muted-foreground hover:bg-muted/50"}`}
-                            title={align === "left" ? "Aligner à gauche" : align === "center" ? "Centrer" : "Aligner à droite"}
-                          >
-                            {align === "left" ? "⬅" : align === "center" ? "↔" : "➡"}
-                          </button>
-                        ))}
-                        <button
-                          type="button"
-                          onClick={() => { const isUpper = selectedSpeechBubble.style?.textTransform === "uppercase"; const next = speechBubbles.map((b) => b.id === selectedSpeechBubble.id ? { ...b, style: { ...b.style, textTransform: isUpper ? "none" as const : "uppercase" as const } } : b); handleUpdateSpeechBubbles(next); }}
-                          className={`h-8 px-2 rounded-lg border text-xs font-bold uppercase tracking-wide transition-colors ${selectedSpeechBubble.style?.textTransform === "uppercase" ? "border-primary bg-primary/15 text-primary" : "border-border/60 bg-background text-muted-foreground hover:bg-muted/50"}`}
-                          title="Majuscules"
-                        >AA</button>
-                      </div>
-                      {!["narration", "text"].includes(selectedSpeechBubble.type) && (
-                        <button
-                          type="button"
-                          onClick={() => { const next = speechBubbles.map((b) => b.id === selectedSpeechBubble.id ? { ...b, tailFlip: !b.tailFlip } : b); handleUpdateSpeechBubbles(next); }}
-                          className={`w-full h-8 rounded-lg border text-xs transition-colors ${selectedSpeechBubble.tailFlip ? "border-primary bg-primary/15 text-primary" : "border-border/60 bg-background text-muted-foreground hover:bg-muted/50"}`}
-                          title="Retourner la queue"
-                        >↔ Retourner la queue</button>
-                      )}
-                    </div>
-                    <Button size="sm" variant="ghost" className="w-full gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10" disabled={updatePanelMutation.isPending} onClick={() => handleDeleteSpeechBubble(selectedSpeechBubble)}><Trash2 className="h-3 w-3" /> Supprimer la bulle</Button>
                   </div>
                 ) : null}
               </div>
@@ -1644,6 +1585,7 @@ export default function ChapterDetail() {
             )}
           </button>
         </aside>
+        </div>
       </div>
     );
   };

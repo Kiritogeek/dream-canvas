@@ -81,13 +81,14 @@ const NNS = "non-scaling-stroke" as const;
  * Les points de base de la queue sont volontairement placés à l'intérieur du corps
  * pour garantir que le fill du corps les couvre totalement.
  */
-export function SpeechBubbleShape({ type, fill, stroke, tailFlip }: {
+export function SpeechBubbleShape({ type, fill, stroke, tailFlip, strokeWidth }: {
   type: SpeechBubble["type"];
   fill: string;
   stroke: string;
   tailFlip?: boolean;
+  strokeWidth?: number;
 }) {
-  const sw = 2;
+  const sw = strokeWidth ?? 2;
   const tf = tailFlip ? TAIL_FLIP : undefined;
 
   // ── Dialogue : ovale propre, queue triangle, base ancrée dans l'ellipse ──

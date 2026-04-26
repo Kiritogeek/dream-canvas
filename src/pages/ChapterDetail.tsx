@@ -1345,38 +1345,9 @@ export default function ChapterDetail() {
         </aside>
         {/* Centre : panel 800px de large exactement, zoomable via contrôles header ou Ctrl+Scroll */}
         {/* pl-[360px] compense l'asymétrie sidebar droite (416px) vs gauche (56px) pour centrer dans le viewport */}
-        <div className="flex-1 min-w-0 flex items-start justify-center overflow-auto p-6 bg-background pl-[360px]">
+        <div className="flex-1 min-w-0 flex items-start justify-center overflow-auto p-6 pt-16 bg-background pl-[360px]">
           {/* Wrapper relatif pour positionner la poignée de redimensionnement */}
           <div className="relative" style={{ flexShrink: 0 }}>
-            {/* Toolbar bulle flottant au-dessus de la bulle sélectionnée — style Canva */}
-            {selectedSpeechBubble && (() => {
-              const bx = selectedSpeechBubble.position.x * zoomLevel;
-              const by = selectedSpeechBubble.position.y * zoomLevel;
-              const bw = (selectedSpeechBubble.width ?? DEFAULT_SPEECH_BUBBLE_WIDTH) * zoomLevel;
-              const toolbarTop = Math.max(-40, by - 46);
-              return (
-                <div
-                  className="absolute z-50 pointer-events-auto"
-                  style={{ top: toolbarTop, left: bx, minWidth: Math.max(bw, 320) }}
-                >
-                  <BubbleToolbar
-                    bubble={selectedSpeechBubble}
-                    speechBubbles={speechBubbles}
-                    onUpdate={handleUpdateSpeechBubbles}
-                    onDuplicate={() => {
-                      const newBubble: SpeechBubble = {
-                        ...selectedSpeechBubble,
-                        id: crypto.randomUUID(),
-                        position: { x: selectedSpeechBubble.position.x + 20, y: selectedSpeechBubble.position.y + 20 },
-                      };
-                      handleUpdateSpeechBubbles([...speechBubbles, newBubble]);
-                      setSelectedSpeechBubbleIdInModal({ panelId: panel.id, bubbleId: newBubble.id });
-                    }}
-                    onDelete={() => handleDeleteSpeechBubble(selectedSpeechBubble)}
-                  />
-                </div>
-              );
-            })()}
             {(() => {
               const liveH = panelHeightDragDraft ?? panelHeight;
               return (
@@ -2024,6 +1995,38 @@ export default function ChapterDetail() {
               </div>
             </div>
           </DialogHeader>
+          {/* Toolbar bulle — centré sous le header, flottant au-dessus du canvas */}
+          {topLevelSelectedBubble && expandedPanelId && (() => {
+            const panel = panels.find((p) => p.id === expandedPanelId);
+            if (!panel) return null;
+            const speechBubbles = getPanelSpeechBubbles(panel);
+            return (
+              <div className="shrink-0 flex justify-center py-1.5 bg-background/80 backdrop-blur border-b border-border/40">
+                <BubbleToolbar
+                  bubble={topLevelSelectedBubble}
+                  speechBubbles={speechBubbles}
+                  onUpdate={handleTopLevelUpdateSpeechBubbles}
+                  onDuplicate={() => {
+                    const newBubble: SpeechBubble = {
+                      ...topLevelSelectedBubble,
+                      id: crypto.randomUUID(),
+                      position: { x: topLevelSelectedBubble.position.x + 20, y: topLevelSelectedBubble.position.y + 20 },
+                    };
+                    handleTopLevelUpdateSpeechBubbles([...speechBubbles, newBubble]);
+                    setSelectedSpeechBubbleIdInModal({ panelId: panel.id, bubbleId: newBubble.id });
+                  }}
+                  onDelete={() => {
+                    const next = speechBubbles.filter((b) => b.id !== topLevelSelectedBubble.id);
+                    setSelectedSpeechBubbleIdInModal(null);
+                    updatePanelMutation.mutate(
+                      { id: panel.id, updates: { speech_bubbles: next as unknown as import("@/integrations/supabase/types").Json } },
+                      { onSuccess: () => toast({ title: "Bulle supprimée" }), onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }) }
+                    );
+                  }}
+                />
+              </div>
+            );
+          })()}
           {expandedPanelId && (() => {
             const panel = panels.find((p) => p.id === expandedPanelId);
             if (!panel) return null;

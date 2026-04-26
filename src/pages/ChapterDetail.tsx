@@ -1185,10 +1185,9 @@ export default function ChapterDetail() {
                   }
                   setActiveSidebarTab((t) => (t === id ? null : id));
                 }}
-                className={`w-10 h-12 rounded-xl border flex flex-col items-center justify-center gap-0.5 transition-colors ${activeSidebarTab === id ? "border-primary/70 bg-primary/15 text-primary shadow-sm" : "border-border/70 bg-background text-muted-foreground hover:text-foreground hover:bg-muted/50"}`}
+                className={`w-10 h-12 rounded-xl border flex items-center justify-center transition-colors ${activeSidebarTab === id ? "border-primary/70 bg-primary/15 text-primary shadow-sm" : "border-border/70 bg-background text-muted-foreground hover:text-foreground hover:bg-muted/50"}`}
               >
                 <Icon className="h-5 w-5" />
-                <span className="text-[9px] font-medium">{label}</span>
               </button>
             ))}
             <div className="flex-1" />
@@ -1196,10 +1195,9 @@ export default function ChapterDetail() {
               type="button"
               title="Découper & télécharger"
               onClick={() => setSliceModalOpen(true)}
-              className="w-10 h-12 rounded-xl border border-border/70 bg-background flex flex-col items-center justify-center gap-0.5 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+              className="w-10 h-12 rounded-xl border border-border/70 bg-background flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
             >
               <Download className="h-5 w-5" />
-              <span className="text-[9px] font-medium">Export</span>
             </button>
           </div>
 
@@ -1422,7 +1420,6 @@ export default function ChapterDetail() {
                             setSelectedBlockIdInModal(null);
                             setSelectedColorBlockIdInModal(null);
                             setSelectedSpeechBubbleIdInModal({ panelId: panel.id, bubbleId: id });
-                            setActiveSidebarTab(null);
                           } else {
                             setSelectedSpeechBubbleIdInModal(null);
                           }

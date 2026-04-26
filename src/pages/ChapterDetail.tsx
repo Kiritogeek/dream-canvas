@@ -1348,7 +1348,7 @@ export default function ChapterDetail() {
         <div className="flex-1 min-w-0 flex flex-col items-center overflow-auto p-6 bg-background pl-[360px]">
           {/* Toolbar bulle — sticky en haut du scroll canvas, ne décale rien */}
           {selectedSpeechBubble && (
-            <div className="sticky top-3 z-50 mb-[-46px] self-center pointer-events-none">
+            <div className="sticky top-3 z-50 mb-[-96px] self-center pointer-events-none">
               <div className="pointer-events-auto">
                 <BubbleToolbar
                   bubble={selectedSpeechBubble}
@@ -1365,7 +1365,7 @@ export default function ChapterDetail() {
             </div>
           )}
           {/* Wrapper relatif pour positionner la poignée de redimensionnement */}
-          <div className="relative mt-14" style={{ flexShrink: 0 }}>
+          <div className="relative mt-[64px]" style={{ flexShrink: 0 }}>
             {(() => {
               const liveH = panelHeightDragDraft ?? panelHeight;
               return (

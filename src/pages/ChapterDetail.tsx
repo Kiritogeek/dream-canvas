@@ -1201,8 +1201,8 @@ export default function ChapterDetail() {
             </button>
           </div>
 
-          {/* Flyout bibliothèque — overlay absolu, uniquement quand aucun élément sélectionné */}
-          {activeSidebarTab && !hasSelection && (
+          {/* Flyout bibliothèque — overlay absolu, masqué uniquement quand un bloc/couleur est sélectionné (bulle : toolbar inline, flyout reste visible) */}
+          {activeSidebarTab && !(selectedBlock || selectedColorBlock) && (
             <div className="absolute top-0 left-full h-full w-[340px] bg-background border-r border-border shadow-xl flex flex-col overflow-hidden">
               <div className="flex items-center justify-between px-3 py-2 border-b border-border/50 shrink-0">
                 <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">

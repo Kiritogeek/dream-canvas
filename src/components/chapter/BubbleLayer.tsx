@@ -18,6 +18,7 @@ interface BubbleLayerProps {
   onMoveCommit: (panelId: string, bubbleId: string, x: number, y: number) => void;
   onResizeCommit: (panelId: string, bubbleId: string, draft: { x: number; y: number; width: number; height: number }) => void;
   onDelete?: (bubble: SpeechBubble) => void;
+  onTextCommit: (bubbleId: string, text: string) => void;
 }
 
 type BubbleResizingState = ResizingState & { bubbleId: string };
@@ -32,6 +33,7 @@ export function BubbleLayer({
   onSelectBubble,
   onMoveCommit,
   onResizeCommit,
+  onTextCommit,
 }: BubbleLayerProps) {
   const ghostRefByPanel = useRef<Record<string, HTMLDivElement | null>>({});
   const isResizingSpeechBubbleRef = useRef(false);
@@ -42,6 +44,8 @@ export function BubbleLayer({
   const saveResizeSpeechBubbleRef = useRef<((draft: { x: number; y: number; width: number; height: number }) => void) | null>(null);
   const lastResizeSpeechBubbleMouseRef = useRef<{ x: number; y: number } | null>(null);
   const resizeSpeechBubbleCaptureTargetRef = useRef<HTMLElement | null>(null);
+  const [editingBubbleId, setEditingBubbleId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState<string>("");
 
   const dragSpeechBubble = useDragBlock({
     canvasRefByPanel,
@@ -79,9 +83,9 @@ export function BubbleLayer({
 
   return (
     <>
-      {/* Bulles de dialogue (overlay) — forme ovale + queue, déplaçables et redimensionnables */}
       {speechBubbles.map((bubble) => {
         const isSelected = selectedBubbleId === bubble.id;
+        const isEditing = editingBubbleId === bubble.id;
         const isResizingThis = resizingSpeechBubbleState?.panelId === panel.id && resizingSpeechBubbleState?.bubbleId === bubble.id;
         const useResizeDraft = isResizingThis && resizeSpeechBubbleDraft != null;
         const bw = bubble.width ?? DEFAULT_SPEECH_BUBBLE_WIDTH;
@@ -99,37 +103,77 @@ export function BubbleLayer({
         const { fill: fillColor, stroke: strokeColor } = getSpeechBubbleFillStroke(bubble);
         const tailH = SPEECH_BUBBLE_NO_TAIL_TYPES.has(bubble.type) ? 0 : SPEECH_BUBBLE_TAIL_H;
         const totalH = geom.height + tailH;
+        const textAreaH = bubble.type === "narration" || bubble.type === "text" ? geom.height : (totalH * 100) / 120;
+
         return (
           <div
             key={bubble.id}
             ref={isResizingThis ? (el) => { if (el) resizingSpeechBubbleElRef.current = el; } : undefined}
-            role={!isResizingThis ? "button" : undefined}
-            className={`group absolute z-20 overflow-visible transition-[box-shadow,ring] duration-150 cursor-grab active:cursor-grabbing ${isSelected ? "ring-2 ring-primary ring-offset-2 ring-offset-background" : "hover:ring-2 hover:ring-primary/40"}`}
+            role={!isResizingThis && !isEditing ? "button" : undefined}
+            className={`group absolute z-20 overflow-visible transition-[box-shadow,ring] duration-150 ${isEditing ? "cursor-text" : "cursor-grab active:cursor-grabbing"} ${isSelected ? "ring-2 ring-primary ring-offset-2 ring-offset-background" : "hover:ring-2 hover:ring-primary/40"}`}
             style={{ left: geom.x, top: geom.y, width: geom.width, height: totalH }}
-            onPointerDown={!isResizingThis && !isResizingSpeechBubbleRef.current ? (e) => dragSpeechBubble.onPointerDown(e, panel.id, bubble.id, geom.x, geom.y, geom.width, totalH, getPanelHeight(panel)) : undefined}
-            onClick={(e) => { e.stopPropagation(); onSelectBubble(bubble.id); }}
+            onPointerDown={!isResizingThis && !isResizingSpeechBubbleRef.current && !isEditing ? (e) => dragSpeechBubble.onPointerDown(e, panel.id, bubble.id, geom.x, geom.y, geom.width, totalH, getPanelHeight(panel)) : undefined}
+            onClick={(e) => { e.stopPropagation(); if (!isEditing) onSelectBubble(bubble.id); }}
+            onDoubleClick={(e) => {
+              e.stopPropagation();
+              onSelectBubble(bubble.id);
+              setEditingBubbleId(bubble.id);
+              setEditDraft(bubble.text);
+            }}
           >
             {bubble.type !== "text" && (
               <svg width="100%" height="100%" viewBox={SPEECH_BUBBLE_NO_TAIL_TYPES.has(bubble.type) ? SPEECH_BUBBLE_VIEWBOX_NARRATION : SPEECH_BUBBLE_VIEWBOX_WITH_TAIL} className="absolute inset-0 pointer-events-none" preserveAspectRatio="none">
                 <SpeechBubbleShape type={bubble.type} fill={fillColor} stroke={strokeColor} tailFlip={bubble.tailFlip} strokeWidth={bubble.borderWidth} />
               </svg>
             )}
-            <div
-              className="absolute inset-0 flex items-center justify-center px-3 py-1 pointer-events-none overflow-hidden"
-              style={{
-                fontSize: `${fontSize}px`,
-                fontFamily: fontFamily === "inherit" ? undefined : fontFamily,
-                color,
-                fontWeight,
-                fontStyle,
-                textAlign,
-                textTransform,
-                height: bubble.type === "narration" || bubble.type === "text" ? geom.height : (totalH * 100) / 120,
-              }}
-            >
-              <span className="break-words w-full">{bubble.text || "…"}</span>
-            </div>
-            {isSelected && !isResizingThis && [
+
+            {isEditing ? (
+              <textarea
+                autoFocus
+                value={editDraft}
+                onChange={(e) => setEditDraft(e.target.value)}
+                onBlur={() => {
+                  setEditingBubbleId(null);
+                  onTextCommit(bubble.id, editDraft);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Escape") {
+                    setEditingBubbleId(null);
+                    setEditDraft(bubble.text);
+                  }
+                }}
+                className="absolute inset-0 bg-transparent border-none outline-none resize-none w-full px-3 py-1 z-30"
+                style={{
+                  fontSize: `${fontSize}px`,
+                  fontFamily: fontFamily === "inherit" ? undefined : fontFamily,
+                  color,
+                  fontWeight,
+                  fontStyle,
+                  textAlign,
+                  textTransform,
+                  height: textAreaH,
+                  lineHeight: "1.4",
+                }}
+              />
+            ) : (
+              <div
+                className="absolute inset-0 flex items-center justify-center px-3 py-1 pointer-events-none overflow-hidden"
+                style={{
+                  fontSize: `${fontSize}px`,
+                  fontFamily: fontFamily === "inherit" ? undefined : fontFamily,
+                  color,
+                  fontWeight,
+                  fontStyle,
+                  textAlign,
+                  textTransform,
+                  height: textAreaH,
+                }}
+              >
+                <span className="break-words w-full">{bubble.text || "…"}</span>
+              </div>
+            )}
+
+            {isSelected && !isResizingThis && !isEditing && [
               { edge: "r" as const, style: { right: 0, top: 0, bottom: 0, width: 8 }, cursor: "ew-resize" },
               { edge: "b" as const, style: { bottom: 0, left: 0, right: 0, height: 8 }, cursor: "ns-resize" },
               { edge: "l" as const, style: { left: 0, top: 0, bottom: 0, width: 8 }, cursor: "ew-resize" },

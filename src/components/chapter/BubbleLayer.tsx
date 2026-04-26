@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import type { Panel, SpeechBubble } from "@/types";
-import { getSpeechBubbleFillStroke, DEFAULT_SPEECH_BUBBLE_WIDTH, DEFAULT_SPEECH_BUBBLE_HEIGHT } from "@/types";
+import { getSpeechBubbleFillStroke, DEFAULT_SPEECH_BUBBLE_WIDTH, DEFAULT_SPEECH_BUBBLE_HEIGHT, SPEECH_BUBBLE_NO_TAIL_TYPES } from "@/types";
 import { getPanelHeight } from "@/services/panels";
 import { useDragBlock } from "@/hooks/useDragBlock";
 import { useResizeBlock } from "@/hooks/useResizeBlock";
@@ -94,8 +94,10 @@ export function BubbleLayer({
         const color = bubble.style?.color ?? "#000000";
         const fontWeight = bubble.style?.bold ? "bold" : "normal";
         const fontStyle = bubble.style?.italic ? "italic" : "normal";
+        const textAlign = bubble.style?.textAlign ?? "center";
+        const textTransform = bubble.style?.textTransform ?? "none";
         const { fill: fillColor, stroke: strokeColor } = getSpeechBubbleFillStroke(bubble);
-        const tailH = (bubble.type === "narration" || bubble.type === "text") ? 0 : SPEECH_BUBBLE_TAIL_H;
+        const tailH = SPEECH_BUBBLE_NO_TAIL_TYPES.has(bubble.type) ? 0 : SPEECH_BUBBLE_TAIL_H;
         const totalH = geom.height + tailH;
         return (
           <div
@@ -108,15 +110,24 @@ export function BubbleLayer({
             onClick={(e) => { e.stopPropagation(); onSelectBubble(bubble.id); }}
           >
             {bubble.type !== "text" && (
-              <svg width="100%" height="100%" viewBox={bubble.type === "narration" ? SPEECH_BUBBLE_VIEWBOX_NARRATION : SPEECH_BUBBLE_VIEWBOX_WITH_TAIL} className="absolute inset-0 pointer-events-none" preserveAspectRatio="none">
-                <SpeechBubbleShape type={bubble.type} fill={fillColor} stroke={strokeColor} />
+              <svg width="100%" height="100%" viewBox={SPEECH_BUBBLE_NO_TAIL_TYPES.has(bubble.type) ? SPEECH_BUBBLE_VIEWBOX_NARRATION : SPEECH_BUBBLE_VIEWBOX_WITH_TAIL} className="absolute inset-0 pointer-events-none" preserveAspectRatio="none">
+                <SpeechBubbleShape type={bubble.type} fill={fillColor} stroke={strokeColor} tailFlip={bubble.tailFlip} />
               </svg>
             )}
             <div
-              className="absolute inset-0 flex items-center justify-center text-center px-2 py-1 pointer-events-none"
-              style={{ fontSize: `${fontSize}px`, fontFamily: fontFamily === "inherit" ? undefined : fontFamily, color, fontWeight, fontStyle, height: bubble.type === "narration" || bubble.type === "text" ? geom.height : (totalH * 100) / 120 }}
+              className="absolute inset-0 flex items-center justify-center px-3 py-1 pointer-events-none overflow-hidden"
+              style={{
+                fontSize: `${fontSize}px`,
+                fontFamily: fontFamily === "inherit" ? undefined : fontFamily,
+                color,
+                fontWeight,
+                fontStyle,
+                textAlign,
+                textTransform,
+                height: bubble.type === "narration" || bubble.type === "text" ? geom.height : (totalH * 100) / 120,
+              }}
             >
-              <span className="line-clamp-3 break-words">{bubble.text || "…"}</span>
+              <span className="break-words w-full">{bubble.text || "…"}</span>
             </div>
             {isSelected && !isResizingThis && [
               { edge: "r" as const, style: { right: 0, top: 0, bottom: 0, width: 8 }, cursor: "ew-resize" },

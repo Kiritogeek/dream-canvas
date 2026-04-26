@@ -140,7 +140,7 @@ export const DEFAULT_SPEECH_BUBBLE_WIDTH = 200;
 export const DEFAULT_SPEECH_BUBBLE_HEIGHT = 110;
 
 /** Types de bulles (format stockage). dialogue = speech, caption = narration en UI. */
-export type SpeechBubbleType = "speech" | "thought" | "shout" | "whisper" | "narration" | "radio" | "text" | "electronic" | "explosion" | "wavy";
+export type SpeechBubbleType = "speech" | "thought" | "cloud" | "shout" | "whisper" | "narration" | "radio" | "text" | "electronic" | "explosion" | "wavy" | "anger" | "sadness";
 
 /** Style de texte étendu (éditeur avancé). */
 export interface SpeechBubbleTextStyle {
@@ -187,9 +187,11 @@ export interface SpeechBubble {
   /** Hauteur de la bulle. Défaut: DEFAULT_SPEECH_BUBBLE_HEIGHT. */
   height?: number;
   /** Style minimal (compatible écran chapitre). */
-  style?: { font?: string; size?: number; color?: string; stroke?: string; fill?: string; bold?: boolean; italic?: boolean };
+  style?: { font?: string; size?: number; color?: string; stroke?: string; fill?: string; bold?: boolean; italic?: boolean; textAlign?: "left" | "center" | "right"; textTransform?: "none" | "uppercase" };
   character?: string;
   // ── Format étendu (Edition_Panel_Blocs_Bulles.md, 08_Modele_de_Donnees.md)
+  /** Retourne la queue de la bulle du côté opposé (droite au lieu de gauche). */
+  tailFlip?: boolean;
   borderRadius?: number;
   tailX?: number;
   tailY?: number;
@@ -209,8 +211,11 @@ export interface SpeechBubble {
 export const SPEECH_BUBBLE_TYPE_LABELS: Record<SpeechBubbleType, string> = {
   text: "Texte libre",
   speech: "Dialogue",
-  thought: "Pensée",
+  thought: "Dramatique",
+  cloud: "Pensée",
   shout: "Cri",
+  anger: "Colère",
+  sadness: "Tristesse",
   whisper: "Chuchotement",
   narration: "Narration",
   radio: "Transmission",
@@ -224,14 +229,20 @@ export const SPEECH_BUBBLE_DEFAULT_STYLE: Record<SpeechBubbleType, { fill: strin
   text: { fill: "transparent", stroke: "transparent" },
   speech: { fill: "#ffffff", stroke: "#000000" },
   thought: { fill: "#ffffff", stroke: "#000000" },
+  cloud: { fill: "#ffffff", stroke: "#000000" },
   shout: { fill: "#ffffff", stroke: "#000000" },
+  anger: { fill: "#fff0f0", stroke: "#bb0000" },
+  sadness: { fill: "#f0f4ff", stroke: "#2244cc" },
   whisper: { fill: "#f8f8f8", stroke: "#555555" },
-  narration: { fill: "#fffbe6", stroke: "#b08000" },
+  narration: { fill: "#ffffff", stroke: "#000000" },
   radio: { fill: "#e8f4ff", stroke: "#0055aa" },
   electronic: { fill: "#e8f4ff", stroke: "#0055aa" },
   explosion: { fill: "#fff3e0", stroke: "#cc4400" },
   wavy: { fill: "#f3e5f5", stroke: "#7b1fa2" },
 };
+
+/** Types de bulles sans queue ni hauteur de queue (tailH = 0). */
+export const SPEECH_BUBBLE_NO_TAIL_TYPES = new Set<SpeechBubbleType>(["narration", "text", "thought"] as const);
 
 /** Retourne fill et stroke pour le rendu d'une bulle (étendu puis style minimal puis défaut par type). */
 export function getSpeechBubbleFillStroke(bubble: SpeechBubble): { fill: string; stroke: string } {

@@ -1,5 +1,5 @@
 import type { SpeechBubble, SpeechBubbleType } from "@/types";
-import { SPEECH_BUBBLE_DEFAULT_STYLE } from "@/types";
+import { SPEECH_BUBBLE_DEFAULT_STYLE, SPEECH_BUBBLE_NO_TAIL_TYPES } from "@/types";
 
 export const SPEECH_BUBBLE_TAIL_H = 14;
 export const SPEECH_BUBBLE_VIEWBOX_WITH_TAIL = "0 0 100 120";
@@ -7,9 +7,12 @@ export const SPEECH_BUBBLE_VIEWBOX_NARRATION = "0 0 100 100";
 
 const SAMPLE_TEXT: Record<SpeechBubbleType, string> = {
   speech: "Salut !",
+  thought: "...",
+  cloud: "Hmm...",
   shout: "AAAH !",
+  anger: "RAGE !",
+  sadness: "sob...",
   whisper: "...psst",
-  thought: "Hmm...",
   narration: "Il était une fois…",
   radio: "Bzzt—",
   electronic: "01101",
@@ -18,59 +21,95 @@ const SAMPLE_TEXT: Record<SpeechBubbleType, string> = {
   text: "CRACK!",
 };
 
-function wavyEllipsePath(cx: number, cy: number, rx: number, ry: number, amplitude: number, freq: number, n = 60): string {
+/** Cercle à bristles radiaux — style pensée dramatique manhwa (Solo Leveling). */
+function bristlePath(cx: number, cy: number, rInner: number, rOuter: number, count: number): string {
+  const parts: string[] = [];
+  for (let i = 0; i < count; i++) {
+    const a = (i / count) * 2 * Math.PI;
+    const v = 0.7 + 0.3 * ((Math.sin(i * 1.7 + 0.5) + Math.sin(i * 3.1 + 1.2) + Math.sin(i * 7.3)) / 3);
+    const ro = rInner + (rOuter - rInner) * v;
+    const hw = (Math.PI / count) * 0.22;
+    const x1 = (cx + rInner * Math.cos(a - hw)).toFixed(1);
+    const y1 = (cy + rInner * Math.sin(a - hw)).toFixed(1);
+    const x2 = (cx + rInner * Math.cos(a + hw)).toFixed(1);
+    const y2 = (cy + rInner * Math.sin(a + hw)).toFixed(1);
+    const x3 = (cx + ro * Math.cos(a)).toFixed(1);
+    const y3 = (cy + ro * Math.sin(a)).toFixed(1);
+    parts.push(`M ${x1} ${y1} L ${x3} ${y3} L ${x2} ${y2} Z`);
+  }
+  return parts.join(" ");
+}
+
+/** Ellipse ondulée — pour wavy. */
+function wavyEllipsePath(cx: number, cy: number, rx: number, ry: number, amp: number, freq: number, n = 60): string {
   const pts: string[] = [];
   for (let i = 0; i < n; i++) {
-    const angle = (i / n) * 2 * Math.PI;
-    const wave = amplitude * Math.sin(freq * angle);
-    pts.push(`${(cx + (rx + wave) * Math.cos(angle)).toFixed(2)},${(cy + (ry + wave) * Math.sin(angle)).toFixed(2)}`);
+    const a = (i / n) * 2 * Math.PI;
+    const w = amp * Math.sin(freq * a);
+    pts.push(`${(cx + (rx + w) * Math.cos(a)).toFixed(2)},${(cy + (ry + w) * Math.sin(a)).toFixed(2)}`);
   }
   return `M ${pts[0]} L ${pts.slice(1).join(" L ")} Z`;
 }
 
+/** Étoile à N pointes — pour shout et explosion. */
 function spikePath(cx: number, cy: number, rInner: number, rOuter: number, spikes: number): string {
   const pts: string[] = [];
   const total = spikes * 2;
   for (let i = 0; i < total; i++) {
-    const angle = (i / total) * 2 * Math.PI - Math.PI / 2;
+    const a = (i / total) * 2 * Math.PI - Math.PI / 2;
     const r = i % 2 === 0 ? rOuter : rInner;
-    pts.push(`${(cx + r * Math.cos(angle)).toFixed(2)},${(cy + r * Math.sin(angle)).toFixed(2)}`);
+    pts.push(`${(cx + r * Math.cos(a)).toFixed(2)},${(cy + r * Math.sin(a)).toFixed(2)}`);
   }
   return `M ${pts[0]} L ${pts.slice(1).join(" L ")} Z`;
 }
 
-export function SpeechBubbleShape({ type, fill, stroke }: {
+/** Ovale avec petites pointes périphériques — pour la colère. */
+function angryOvalPath(cx: number, cy: number, rx: number, ry: number, amp: number, spikes: number, n = 120): string {
+  const pts: string[] = [];
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * 2 * Math.PI;
+    const s = amp * Math.abs(Math.sin(spikes * a));
+    pts.push(`${(cx + (rx + s) * Math.cos(a)).toFixed(2)},${(cy + (ry + s) * Math.sin(a)).toFixed(2)}`);
+  }
+  return `M ${pts[0]} L ${pts.slice(1).join(" L ")} Z`;
+}
+
+const TAIL_FLIP = "translate(100, 0) scale(-1, 1)";
+
+export function SpeechBubbleShape({ type, fill, stroke, tailFlip }: {
   type: SpeechBubble["type"];
   fill: string;
   stroke: string;
+  tailFlip?: boolean;
 }) {
-  const sw = 2.2;
+  const sw = 2.5;
+  const tf = tailFlip ? TAIL_FLIP : undefined;
 
+  // ── Dialogue standard — ovale propre, queue triangle pointée ──────────────
   if (type === "speech") {
     return (
       <>
-        <ellipse cx={50} cy={49} rx={47} ry={43} fill={fill} stroke={stroke} strokeWidth={sw} />
-        <path
-          d="M 26 90 Q 12 108 20 118 Q 28 110 40 91 Z"
-          fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round"
-        />
+        <ellipse cx={50} cy={46} rx={47} ry={42} fill={fill} stroke={stroke} strokeWidth={sw} />
+        <g transform={tf}>
+          <path d="M 16 84 L 4 120 L 36 90 Z" fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" />
+        </g>
       </>
     );
   }
 
-  if (type === "whisper") {
+  // ── Pensée dramatique — cercle à bristles radiaux (manhwa style) ──────────
+  if (type === "thought") {
+    const bristles = bristlePath(50, 50, 37, 56, 180);
     return (
       <>
-        <ellipse cx={50} cy={49} rx={47} ry={43} fill={fill} stroke={stroke} strokeWidth={sw} strokeDasharray="5 3" />
-        <path
-          d="M 26 90 Q 12 108 20 118 Q 28 110 40 91 Z"
-          fill={fill} stroke={stroke} strokeWidth={sw} strokeDasharray="5 3" strokeLinejoin="round"
-        />
+        <path d={bristles} fill={stroke} />
+        <circle cx={50} cy={50} r={37} fill={fill} />
       </>
     );
   }
 
-  if (type === "thought") {
+  // ── Pensée nuage — chaîne de bulles (style occidental classique) ──────────
+  if (type === "cloud") {
     return (
       <>
         <ellipse cx={50} cy={47} rx={44} ry={36} fill={fill} stroke={stroke} strokeWidth={sw} />
@@ -78,91 +117,120 @@ export function SpeechBubbleShape({ type, fill, stroke }: {
         <circle cx={80} cy={43} r={12} fill={fill} stroke={stroke} strokeWidth={sw} />
         <circle cx={32} cy={18} r={9.5} fill={fill} stroke={stroke} strokeWidth={sw} />
         <circle cx={68} cy={18} r={9.5} fill={fill} stroke={stroke} strokeWidth={sw} />
-        <circle cx={62} cy={86} r={7} fill={fill} stroke={stroke} strokeWidth={sw} />
-        <circle cx={70} cy={101} r={5} fill={fill} stroke={stroke} strokeWidth={sw} />
-        <circle cx={77} cy={113} r={3.5} fill={fill} stroke={stroke} strokeWidth={sw} />
+        <g transform={tf}>
+          <circle cx={62} cy={86} r={7} fill={fill} stroke={stroke} strokeWidth={sw} />
+          <circle cx={70} cy={101} r={5} fill={fill} stroke={stroke} strokeWidth={sw} />
+          <circle cx={77} cy={113} r={3.5} fill={fill} stroke={stroke} strokeWidth={sw} />
+        </g>
       </>
     );
   }
 
+  // ── Narration — rectangle simple, contour net ─────────────────────────────
   if (type === "narration") {
-    return (
-      <>
-        <rect x={3} y={3} width={94} height={94} rx={6} ry={6} fill={fill} stroke={stroke} strokeWidth={sw} />
-        <rect x={3} y={3} width={6} height={94} rx={3} ry={3} fill={stroke} />
-      </>
-    );
+    return <rect x={3} y={3} width={94} height={94} rx={3} ry={3} fill={fill} stroke={stroke} strokeWidth={sw + 0.5} />;
   }
 
+  // ── Cri — étoile à 12 pointes + queue éclair ──────────────────────────────
   if (type === "shout") {
-    const body = spikePath(50, 50, 37, 51, 12);
+    const body = spikePath(50, 50, 37, 52, 12);
     return (
       <>
         <path d={body} fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" />
-        <path
-          d="M 30 88 L 20 104 L 32 106 L 18 120 L 33 116 L 30 108 L 42 98 Z"
-          fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round"
-        />
+        <g transform={tf}>
+          <path d="M 28 88 L 18 104 L 30 106 L 16 120 L 32 116 L 29 108 L 42 98 Z" fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" />
+        </g>
       </>
     );
   }
 
+  // ── Chuchotement — ovale en tirets + queue en tirets ─────────────────────
+  if (type === "whisper") {
+    return (
+      <>
+        <ellipse cx={50} cy={46} rx={47} ry={42} fill={fill} stroke={stroke} strokeWidth={sw} strokeDasharray="6 3" />
+        <g transform={tf}>
+          <path d="M 16 84 L 4 120 L 36 90 Z" fill={fill} stroke={stroke} strokeWidth={sw} strokeDasharray="6 3" strokeLinejoin="round" />
+        </g>
+      </>
+    );
+  }
+
+  // ── Colère — ovale avec petites pointes périphériques + queue éclair ─────
+  if (type === "anger") {
+    const body = angryOvalPath(50, 46, 43, 38, 8, 10);
+    return (
+      <>
+        <path d={body} fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" />
+        <g transform={tf}>
+          <path d="M 16 80 L 6 104 L 20 100 L 10 120 L 26 114 L 22 106 L 34 88 Z" fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" />
+        </g>
+      </>
+    );
+  }
+
+  // ── Tristesse — ovale doux + larmes tombantes ────────────────────────────
+  if (type === "sadness") {
+    return (
+      <>
+        <ellipse cx={50} cy={44} rx={47} ry={40} fill={fill} stroke={stroke} strokeWidth={sw} />
+        <ellipse cx={28} cy={91} rx={4} ry={6.5} fill={stroke} />
+        <ellipse cx={40} cy={94} rx={3} ry={5} fill={stroke} />
+        <ellipse cx={52} cy={93} rx={3.5} ry={5.5} fill={stroke} />
+        <g transform={tf}>
+          <path d="M 16 82 L 4 120 L 36 88 Z" fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" />
+        </g>
+      </>
+    );
+  }
+
+  // ── Transmission — octogone + queue éclair ───────────────────────────────
   if (type === "radio") {
     return (
       <>
-        <path
-          d="M 10 14 L 90 14 L 96 26 L 96 76 L 88 88 L 12 88 L 4 76 L 4 26 Z"
-          fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round"
-        />
-        <path
-          d="M 70 88 L 60 103 L 71 105 L 57 120 L 72 117 L 69 109 L 80 95 Z"
-          fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round"
-        />
+        <path d="M 10 14 L 90 14 L 96 26 L 96 76 L 88 88 L 12 88 L 4 76 L 4 26 Z" fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" />
+        <g transform={tf}>
+          <path d="M 70 88 L 60 103 L 71 105 L 57 120 L 72 117 L 69 109 L 80 95 Z" fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" />
+        </g>
       </>
     );
   }
 
+  // ── Électronique — octogone anguleux + zigzag + queue ────────────────────
   if (type === "electronic") {
     return (
       <>
-        <path
-          d="M 6 18 L 20 8 L 80 8 L 94 18 L 96 82 L 82 92 L 18 92 L 4 82 Z"
-          fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round"
-        />
-        <polyline
-          points="20,92 24,98 28,92 32,98 36,92"
-          fill="none" stroke={stroke} strokeWidth={sw} strokeLinejoin="round"
-        />
-        <path
-          d="M 42 92 L 38 106 L 45 108 L 40 120 L 50 117 L 48 108 L 56 98 Z"
-          fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round"
-        />
+        <path d="M 6 18 L 20 8 L 80 8 L 94 18 L 96 82 L 82 92 L 18 92 L 4 82 Z" fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" />
+        <polyline points="20,92 24,98 28,92 32,98 36,92" fill="none" stroke={stroke} strokeWidth={sw} strokeLinejoin="round" />
+        <g transform={tf}>
+          <path d="M 42 92 L 38 106 L 45 108 L 40 120 L 50 117 L 48 108 L 56 98 Z" fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" />
+        </g>
       </>
     );
   }
 
+  // ── Impact / Explosion — étoile irrégulière + queue ──────────────────────
   if (type === "explosion") {
     const body = spikePath(50, 50, 28, 52, 9);
     return (
       <>
         <path d={body} fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" />
-        <path
-          d="M 28 84 L 22 100 L 34 102 L 24 118 L 38 114 L 35 106 L 46 96 Z"
-          fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round"
-        />
+        <g transform={tf}>
+          <path d="M 26 84 L 20 100 L 32 102 L 22 118 L 36 114 L 33 106 L 44 96 Z" fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" />
+        </g>
       </>
     );
   }
 
+  // ── Tremblant — contour ondulé + queue en tirets ─────────────────────────
   if (type === "wavy") {
-    const wavyPath = wavyEllipsePath(50, 49, 46, 42, 3, 7);
+    const body = wavyEllipsePath(50, 46, 46, 41, 3, 7);
     return (
       <>
-        <path d={wavyPath} fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" />
-        <path
-          d="M 26 90 Q 12 108 20 118 Q 28 110 40 91 Z"
-          fill={fill} stroke={stroke} strokeWidth={sw} strokeDasharray="4 2" strokeLinejoin="round"
-        />
+        <path d={body} fill={fill} stroke={stroke} strokeWidth={sw} />
+        <g transform={tf}>
+          <path d="M 16 84 L 4 120 L 36 90 Z" fill={fill} stroke={stroke} strokeWidth={sw} strokeDasharray="5 2" strokeLinejoin="round" />
+        </g>
       </>
     );
   }
@@ -171,22 +239,17 @@ export function SpeechBubbleShape({ type, fill, stroke }: {
 }
 
 /** Aperçu miniature d'une bulle — utilisé dans la sidebar du menu Dialogue. */
-export function BubblePreview({ type, size = "md" }: {
-  type: SpeechBubbleType;
-  size?: "sm" | "md";
-}) {
+export function BubblePreview({ type }: { type: SpeechBubbleType }) {
   const { fill, stroke } = SPEECH_BUBBLE_DEFAULT_STYLE[type];
   const label = SAMPLE_TEXT[type];
   const isNoShape = type === "text";
-  const isNarration = type === "narration";
-  const viewBox = isNarration ? SPEECH_BUBBLE_VIEWBOX_NARRATION : SPEECH_BUBBLE_VIEWBOX_WITH_TAIL;
-  const h = size === "sm" ? 44 : 52;
-  const fontSize = size === "sm" ? 8 : 9;
+  const isNoTail = SPEECH_BUBBLE_NO_TAIL_TYPES.has(type);
+  const viewBox = isNoTail ? SPEECH_BUBBLE_VIEWBOX_NARRATION : SPEECH_BUBBLE_VIEWBOX_WITH_TAIL;
 
   if (isNoShape) {
     return (
-      <div className="w-full flex items-center justify-center" style={{ height: h }}>
-        <span className="font-bold tracking-widest text-foreground" style={{ fontSize: 13, fontFamily: "'Bangers', cursive", letterSpacing: "0.1em" }}>
+      <div className="w-full h-14 flex items-center justify-center">
+        <span style={{ fontSize: 15, fontFamily: "'Bangers', cursive", letterSpacing: "0.1em", color: "hsl(var(--foreground))" }}>
           {label}
         </span>
       </div>
@@ -194,15 +257,12 @@ export function BubblePreview({ type, size = "md" }: {
   }
 
   return (
-    <div className="relative w-full" style={{ height: h }}>
+    <div className="relative w-full h-14">
       <svg viewBox={viewBox} className="absolute inset-0 w-full h-full" preserveAspectRatio="xMidYMid meet">
         <SpeechBubbleShape type={type} fill={fill} stroke={stroke} />
       </svg>
-      <div className="absolute inset-0 flex items-center justify-center pb-2 px-2">
-        <span
-          className="text-center font-medium leading-tight line-clamp-2 break-words"
-          style={{ fontSize, color: "#111", maxWidth: "90%" }}
-        >
+      <div className={`absolute inset-0 flex items-center justify-center px-2 ${isNoTail ? "" : "pb-2"}`}>
+        <span className="text-center leading-tight break-words line-clamp-2" style={{ fontSize: 8, color: type === "sadness" ? "#2244cc" : type === "anger" ? "#880000" : "#111", maxWidth: "88%" }}>
           {label}
         </span>
       </div>

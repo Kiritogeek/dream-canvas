@@ -1118,18 +1118,19 @@ export default function ChapterDetail() {
     const hasSelection = !!(selectedBlock || selectedColorBlock || selectedSpeechBubble);
 
     return (
-      <div className="relative flex flex-col flex-1 min-h-0 overflow-hidden bg-gradient-to-b from-background via-background to-muted/20">
-        {/* Toolbar bulle — Canva style, sticky en haut quand une bulle est sélectionnée */}
+      <div className="relative flex flex-1 min-h-0 overflow-hidden bg-gradient-to-b from-background via-background to-muted/20">
+        {/* Toolbar bulle — flotte en overlay sous le header, sans décaler le canvas */}
         {selectedSpeechBubble && (
-          <BubbleToolbar
-            bubble={selectedSpeechBubble}
-            speechBubbles={speechBubbles}
-            onUpdate={handleUpdateSpeechBubbles}
-            onDuplicate={() => handleDuplicateSpeechBubble(selectedSpeechBubble)}
-            onDelete={() => handleDeleteSpeechBubble(selectedSpeechBubble)}
-          />
+          <div className="absolute top-0 left-14 right-0 z-40">
+            <BubbleToolbar
+              bubble={selectedSpeechBubble}
+              speechBubbles={speechBubbles}
+              onUpdate={handleUpdateSpeechBubbles}
+              onDuplicate={() => handleDuplicateSpeechBubble(selectedSpeechBubble)}
+              onDelete={() => handleDeleteSpeechBubble(selectedSpeechBubble)}
+            />
+          </div>
         )}
-        <div className="flex flex-1 min-h-0 overflow-hidden">
         {/* Panneau gauche — barre d'icônes fixe + flyouts en overlay (ne poussent pas le canvas) */}
         <aside className="relative w-14 shrink-0 border-r border-border bg-background z-30">
 
@@ -1585,7 +1586,6 @@ export default function ChapterDetail() {
             )}
           </button>
         </aside>
-        </div>
       </div>
     );
   };

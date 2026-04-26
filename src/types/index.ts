@@ -202,6 +202,7 @@ export interface SpeechBubble {
   gradientDir?: "to bottom" | "to right" | "to bottom right" | "to bottom left";
   borderColor?: string;
   borderWidth?: number;
+  bgTransparency?: number;
   textStyle?: SpeechBubbleTextStyle;
   spikes?: number;
   connected?: SpeechBubbleConnected | null;

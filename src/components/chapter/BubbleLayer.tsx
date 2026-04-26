@@ -1,13 +1,4 @@
 import { useState, useRef } from "react";
-
-function recenterTextarea(el: HTMLTextAreaElement, areaH: number) {
-  el.style.height = "0px";
-  el.style.paddingTop = "0px";
-  const contentH = el.scrollHeight;
-  el.style.height = `${areaH}px`;
-  const pt = Math.max(8, Math.round((areaH - contentH) / 2));
-  el.style.paddingTop = `${pt}px`;
-}
 import type { Panel, SpeechBubble } from "@/types";
 import { getSpeechBubbleFillStroke, DEFAULT_SPEECH_BUBBLE_WIDTH, DEFAULT_SPEECH_BUBBLE_HEIGHT, SPEECH_BUBBLE_NO_TAIL_TYPES } from "@/types";
 import { getPanelHeight } from "@/services/panels";
@@ -32,6 +23,15 @@ interface BubbleLayerProps {
 
 type BubbleResizingState = ResizingState & { bubbleId: string };
 
+function recenterEditable(el: HTMLElement, areaH: number) {
+  el.style.height = "0px";
+  el.style.paddingTop = "0px";
+  const contentH = el.scrollHeight;
+  el.style.height = `${areaH}px`;
+  const pt = Math.max(8, Math.round((areaH - contentH) / 2));
+  el.style.paddingTop = `${pt}px`;
+}
+
 export function BubbleLayer({
   panel,
   panels,
@@ -54,7 +54,9 @@ export function BubbleLayer({
   const lastResizeSpeechBubbleMouseRef = useRef<{ x: number; y: number } | null>(null);
   const resizeSpeechBubbleCaptureTargetRef = useRef<HTMLElement | null>(null);
   const [editingBubbleId, setEditingBubbleId] = useState<string | null>(null);
-  const [editDraft, setEditDraft] = useState<string>("");
+
+  // Ref to the currently active contenteditable div (uncontrolled)
+  const editingDivRef = useRef<HTMLDivElement | null>(null);
 
   const dragSpeechBubble = useDragBlock({
     canvasRefByPanel,
@@ -113,6 +115,18 @@ export function BubbleLayer({
         const tailH = SPEECH_BUBBLE_NO_TAIL_TYPES.has(bubble.type) ? 0 : SPEECH_BUBBLE_TAIL_H;
         const totalH = geom.height + tailH;
         const textAreaH = bubble.type === "narration" || bubble.type === "text" ? geom.height : (totalH * 100) / 120;
+        const fillOpacity = 1 - (bubble.bgTransparency ?? 0) / 100;
+
+        const sharedTextStyle: React.CSSProperties = {
+          fontSize: `${fontSize}px`,
+          fontFamily: fontFamily === "inherit" ? undefined : fontFamily,
+          color,
+          fontWeight,
+          fontStyle,
+          textAlign,
+          textTransform,
+          lineHeight: "1.4",
+        };
 
         return (
           <div
@@ -127,7 +141,6 @@ export function BubbleLayer({
               if (isEditing) return;
               if (isSelected) {
                 setEditingBubbleId(bubble.id);
-                setEditDraft(bubble.text);
               } else {
                 onSelectBubble(bubble.id);
               }
@@ -137,65 +150,72 @@ export function BubbleLayer({
               if (!isEditing) {
                 onSelectBubble(bubble.id);
                 setEditingBubbleId(bubble.id);
-                setEditDraft(bubble.text);
               }
             }}
           >
             {bubble.type !== "text" && (
-              <svg width="100%" height="100%" viewBox={SPEECH_BUBBLE_NO_TAIL_TYPES.has(bubble.type) ? SPEECH_BUBBLE_VIEWBOX_NARRATION : SPEECH_BUBBLE_VIEWBOX_WITH_TAIL} className="absolute inset-0 pointer-events-none" preserveAspectRatio="none">
+              <svg
+                width="100%" height="100%"
+                viewBox={SPEECH_BUBBLE_NO_TAIL_TYPES.has(bubble.type) ? SPEECH_BUBBLE_VIEWBOX_NARRATION : SPEECH_BUBBLE_VIEWBOX_WITH_TAIL}
+                className="absolute inset-0 pointer-events-none"
+                preserveAspectRatio="none"
+                fillOpacity={fillOpacity}
+              >
                 <SpeechBubbleShape type={bubble.type} fill={fillColor} stroke={strokeColor} tailFlip={bubble.tailFlip} strokeWidth={bubble.borderWidth} />
               </svg>
             )}
 
             {isEditing ? (
-              <textarea
-                ref={(el) => { if (el) recenterTextarea(el, textAreaH); }}
-                autoFocus
-                value={editDraft}
-                onChange={(e) => {
-                  setEditDraft(e.target.value);
-                  recenterTextarea(e.currentTarget, textAreaH);
+              <div
+                ref={(el) => {
+                  if (el) {
+                    if (!editingDivRef.current) {
+                      el.innerHTML = bubble.text;
+                      recenterEditable(el, textAreaH);
+                      el.focus();
+                      const range = document.createRange();
+                      range.selectNodeContents(el);
+                      range.collapse(false);
+                      window.getSelection()?.removeAllRanges();
+                      window.getSelection()?.addRange(range);
+                    }
+                    editingDivRef.current = el;
+                  } else {
+                    editingDivRef.current = null;
+                  }
                 }}
-                onBlur={() => {
+                contentEditable
+                suppressContentEditableWarning
+                onInput={(e) => recenterEditable(e.currentTarget as HTMLDivElement, textAreaH)}
+                onBlur={(e) => {
+                  const html = e.currentTarget.innerHTML;
                   setEditingBubbleId(null);
-                  onTextCommit(bubble.id, editDraft);
+                  onTextCommit(bubble.id, html);
                 }}
                 onKeyDown={(e) => {
                   if (e.key === "Escape") {
+                    e.currentTarget.innerHTML = bubble.text;
                     setEditingBubbleId(null);
-                    setEditDraft(bubble.text);
                   }
                 }}
-                className="absolute inset-x-0 top-0 bg-transparent border-none outline-none resize-none w-full px-3 z-30 overflow-y-hidden"
-                style={{
-                  height: textAreaH,
-                  paddingTop: 8,
-                  boxSizing: "border-box",
-                  fontSize: `${fontSize}px`,
-                  fontFamily: fontFamily === "inherit" ? undefined : fontFamily,
-                  color,
-                  fontWeight,
-                  fontStyle,
-                  textAlign,
-                  textTransform,
-                  lineHeight: "1.4",
+                onPaste={(e) => {
+                  e.preventDefault();
+                  const text = e.clipboardData.getData("text/plain");
+                  document.execCommand("insertText", false, text);
                 }}
+                className="absolute inset-x-0 top-0 bg-transparent border-none outline-none w-full px-3 z-30 overflow-y-hidden"
+                style={{ height: textAreaH, paddingTop: 8, boxSizing: "border-box", ...sharedTextStyle }}
               />
             ) : (
               <div
-                className="absolute inset-x-0 top-0 flex items-center px-3 py-2 pointer-events-none overflow-hidden"
-                style={{
-                  height: textAreaH,
-                  fontSize: `${fontSize}px`,
-                  fontFamily: fontFamily === "inherit" ? undefined : fontFamily,
-                  color,
-                  fontWeight,
-                  fontStyle,
-                  textAlign,
-                  textTransform,
-                }}
+                className="absolute inset-x-0 top-0 flex items-center px-3 pointer-events-none overflow-hidden"
+                style={{ height: textAreaH }}
               >
-                <span className="break-words w-full" style={{ lineHeight: "1.4" }}>{bubble.text || "…"}</span>
+                <div
+                  className="break-words w-full"
+                  style={sharedTextStyle}
+                  dangerouslySetInnerHTML={{ __html: bubble.text || "…" }}
+                />
               </div>
             )}
 

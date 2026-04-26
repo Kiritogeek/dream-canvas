@@ -1396,7 +1396,6 @@ export default function ChapterDetail() {
                             setSelectedBlockIdInModal(null);
                             setSelectedSpeechBubbleIdInModal(null);
                             setSelectedColorBlockIdInModal({ panelId: panel.id, colorBlockId: id });
-                            setActiveSidebarTab("couleurs");
                           } else {
                             setSelectedColorBlockIdInModal(null);
                           }
@@ -1417,7 +1416,6 @@ export default function ChapterDetail() {
                             setSelectedSpeechBubbleIdInModal(null);
                             setSelectedColorBlockIdInModal(null);
                             setSelectedBlockIdInModal({ panelId: panel.id, blockId: id });
-                            setActiveSidebarTab("blocs");
                           } else {
                             setSelectedBlockIdInModal(null);
                           }
@@ -1440,7 +1438,6 @@ export default function ChapterDetail() {
                             setSelectedBlockIdInModal(null);
                             setSelectedColorBlockIdInModal(null);
                             setSelectedSpeechBubbleIdInModal({ panelId: panel.id, bubbleId: id });
-                            setActiveSidebarTab("dialogue");
                           } else {
                             setSelectedSpeechBubbleIdInModal(null);
                           }

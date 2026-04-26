@@ -139,37 +139,54 @@ export function BubbleLayer({
             )}
 
             {isEditing ? (
-              <textarea
-                autoFocus
-                value={editDraft}
-                onChange={(e) => setEditDraft(e.target.value)}
-                onBlur={() => {
-                  setEditingBubbleId(null);
-                  onTextCommit(bubble.id, editDraft);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Escape") {
+              <div
+                className="absolute inset-x-0 top-0 flex items-center px-3 py-2 overflow-hidden z-30"
+                style={{ height: textAreaH }}
+              >
+                <textarea
+                  autoFocus
+                  ref={(el) => {
+                    if (el) {
+                      el.style.height = "auto";
+                      el.style.height = `${Math.min(el.scrollHeight, textAreaH - 16)}px`;
+                    }
+                  }}
+                  value={editDraft}
+                  onChange={(e) => {
+                    setEditDraft(e.target.value);
+                    const t = e.target;
+                    t.style.height = "auto";
+                    t.style.height = `${Math.min(t.scrollHeight, textAreaH - 16)}px`;
+                  }}
+                  onBlur={() => {
                     setEditingBubbleId(null);
-                    setEditDraft(bubble.text);
-                  }
-                }}
-                className="absolute inset-0 bg-transparent border-none outline-none resize-none w-full px-3 py-1 z-30"
-                style={{
-                  fontSize: `${fontSize}px`,
-                  fontFamily: fontFamily === "inherit" ? undefined : fontFamily,
-                  color,
-                  fontWeight,
-                  fontStyle,
-                  textAlign,
-                  textTransform,
-                  height: textAreaH,
-                  lineHeight: "1.4",
-                }}
-              />
+                    onTextCommit(bubble.id, editDraft);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Escape") {
+                      setEditingBubbleId(null);
+                      setEditDraft(bubble.text);
+                    }
+                  }}
+                  className="bg-transparent border-none outline-none resize-none w-full"
+                  style={{
+                    fontSize: `${fontSize}px`,
+                    fontFamily: fontFamily === "inherit" ? undefined : fontFamily,
+                    color,
+                    fontWeight,
+                    fontStyle,
+                    textAlign,
+                    textTransform,
+                    lineHeight: "1.4",
+                    overflowY: "hidden",
+                  }}
+                />
+              </div>
             ) : (
               <div
-                className="absolute inset-0 flex items-start px-3 py-1 pointer-events-none overflow-hidden"
+                className="absolute inset-x-0 top-0 flex items-center px-3 py-2 pointer-events-none overflow-hidden"
                 style={{
+                  height: textAreaH,
                   fontSize: `${fontSize}px`,
                   fontFamily: fontFamily === "inherit" ? undefined : fontFamily,
                   color,
@@ -177,10 +194,9 @@ export function BubbleLayer({
                   fontStyle,
                   textAlign,
                   textTransform,
-                  height: textAreaH,
                 }}
               >
-                <span className="break-words w-full">{bubble.text || "…"}</span>
+                <span className="break-words w-full" style={{ lineHeight: "1.4" }}>{bubble.text || "…"}</span>
               </div>
             )}
 

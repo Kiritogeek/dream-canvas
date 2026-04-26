@@ -92,6 +92,8 @@ export function BubbleLayer({
         const fontSize = bubble.style?.size ?? 14;
         const fontFamily = bubble.style?.font ?? "inherit";
         const color = bubble.style?.color ?? "#000000";
+        const fontWeight = bubble.style?.bold ? "bold" : "normal";
+        const fontStyle = bubble.style?.italic ? "italic" : "normal";
         const { fill: fillColor, stroke: strokeColor } = getSpeechBubbleFillStroke(bubble);
         const tailH = (bubble.type === "narration" || bubble.type === "text") ? 0 : SPEECH_BUBBLE_TAIL_H;
         const totalH = geom.height + tailH;
@@ -112,7 +114,7 @@ export function BubbleLayer({
             )}
             <div
               className="absolute inset-0 flex items-center justify-center text-center px-2 py-1 pointer-events-none"
-              style={{ fontSize: `${fontSize}px`, fontFamily: fontFamily === "inherit" ? undefined : fontFamily, color, height: bubble.type === "narration" || bubble.type === "text" ? geom.height : (totalH * 100) / 120 }}
+              style={{ fontSize: `${fontSize}px`, fontFamily: fontFamily === "inherit" ? undefined : fontFamily, color, fontWeight, fontStyle, height: bubble.type === "narration" || bubble.type === "text" ? geom.height : (totalH * 100) / 120 }}
             >
               <span className="line-clamp-3 break-words">{bubble.text || "…"}</span>
             </div>

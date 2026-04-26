@@ -18,7 +18,6 @@ import {
   X,
   Square,
   Trash2,
-  Type,
   Download,
   Layers,
   CheckCircle2,
@@ -88,6 +87,7 @@ import { renderPanelToCanvas, renderChapterToCanvas, downloadCanvas, exportChapt
 import { ColorBlockLayer } from "@/components/chapter/ColorBlockLayer";
 import { ImageBlockLayer } from "@/components/chapter/ImageBlockLayer";
 import { BubbleLayer } from "@/components/chapter/BubbleLayer";
+import { BubblePreview } from "@/components/chapter/SpeechBubbleShape";
 import type { Json } from "@/integrations/supabase/types";
 import type { Panel, PanelBlock, PanelLayout, ColorBlock, ColorBlockFill, SpeechBubble, SpeechBubbleType, Asset } from "@/types";
 import {
@@ -1181,15 +1181,32 @@ export default function ChapterDetail() {
                   </div>
                 )}
                 {activeSidebarTab === "dialogue" && (
-                  <div className="space-y-1.5">
-                    <p className="text-[11px] text-muted-foreground">Clic ou glisser sur le canvas</p>
-                    <button type="button" draggable onDragStart={(e) => { e.dataTransfer.setData("application/json", JSON.stringify({ type: "speech-bubble", bubbleType: "text" })); e.dataTransfer.effectAllowed = "copy"; }} onClick={() => { const ph = getPanelHeight(panel); const cx = Math.round((PANEL_WIDTH - DEFAULT_SPEECH_BUBBLE_WIDTH) / 2); const cy = Math.round((ph - DEFAULT_SPEECH_BUBBLE_HEIGHT) / 2); handleAddSpeechBubble("text", cx, cy); }} className="w-full cursor-pointer rounded-lg border border-border/60 bg-background px-2 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors flex items-center gap-1.5 justify-center">
-                      <Type className="h-3 w-3 shrink-0" />✏️ Texte libre
+                  <div className="space-y-2">
+                    <p className="text-[11px] text-muted-foreground">Clic pour ajouter au centre du canvas</p>
+                    {/* Texte libre — pleine largeur */}
+                    <button
+                      type="button"
+                      draggable
+                      onDragStart={(e) => { e.dataTransfer.setData("application/json", JSON.stringify({ type: "speech-bubble", bubbleType: "text" })); e.dataTransfer.effectAllowed = "copy"; }}
+                      onClick={() => { const ph = getPanelHeight(panel); const cx = Math.round((PANEL_WIDTH - DEFAULT_SPEECH_BUBBLE_WIDTH) / 2); const cy = Math.round((ph - DEFAULT_SPEECH_BUBBLE_HEIGHT) / 2); handleAddSpeechBubble("text", cx, cy); }}
+                      className="w-full cursor-pointer rounded-lg border border-border/60 bg-background hover:border-primary/50 hover:bg-muted/40 transition-colors flex flex-col items-center pb-1.5 overflow-hidden"
+                    >
+                      <BubblePreview type="text" />
+                      <span className="text-[10px] font-medium text-muted-foreground">Texte libre / Onomatopée</span>
                     </button>
-                    <div className="grid grid-cols-2 gap-1.5">
+                    {/* Autres types — grille 2 colonnes */}
+                    <div className="grid grid-cols-2 gap-2">
                       {(Object.entries(SPEECH_BUBBLE_TYPE_LABELS) as [SpeechBubbleType, string][]).filter(([type]) => type !== "text").map(([type, label]) => (
-                        <button key={type} type="button" draggable onDragStart={(e) => { e.dataTransfer.setData("application/json", JSON.stringify({ type: "speech-bubble", bubbleType: type })); e.dataTransfer.effectAllowed = "copy"; }} onClick={() => { const ph = getPanelHeight(panel); const cx = Math.round((PANEL_WIDTH - DEFAULT_SPEECH_BUBBLE_WIDTH) / 2); const cy = Math.round((ph - DEFAULT_SPEECH_BUBBLE_HEIGHT) / 2); handleAddSpeechBubble(type, cx, cy); }} className="cursor-pointer rounded-lg border border-border/60 bg-background px-2 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors flex items-center gap-1 justify-center">
-                          <Plus className="h-3 w-3 shrink-0" />{label}
+                        <button
+                          key={type}
+                          type="button"
+                          draggable
+                          onDragStart={(e) => { e.dataTransfer.setData("application/json", JSON.stringify({ type: "speech-bubble", bubbleType: type })); e.dataTransfer.effectAllowed = "copy"; }}
+                          onClick={() => { const ph = getPanelHeight(panel); const cx = Math.round((PANEL_WIDTH - DEFAULT_SPEECH_BUBBLE_WIDTH) / 2); const cy = Math.round((ph - DEFAULT_SPEECH_BUBBLE_HEIGHT) / 2); handleAddSpeechBubble(type, cx, cy); }}
+                          className="cursor-pointer rounded-lg border border-border/60 bg-background hover:border-primary/50 hover:bg-muted/40 transition-colors flex flex-col items-center pb-1.5 overflow-hidden"
+                        >
+                          <BubblePreview type={type} />
+                          <span className="text-[10px] font-medium text-muted-foreground">{label}</span>
                         </button>
                       ))}
                     </div>
@@ -1260,10 +1277,52 @@ export default function ChapterDetail() {
                         <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">Contour<input type="color" value={selectedSpeechBubble.borderColor ?? selectedSpeechBubble.style?.stroke ?? SPEECH_BUBBLE_DEFAULT_STYLE[selectedSpeechBubble.type].stroke} onChange={(e) => { const v = e.target.value; const next = speechBubbles.map((b) => b.id === selectedSpeechBubble.id ? { ...b, style: { ...b.style, stroke: v }, borderColor: v } : b); handleUpdateSpeechBubbles(next); }} className="h-6 w-8 rounded border border-border/60 cursor-pointer" /></label>
                       </div>
                     )}
-                    <div className="flex items-center gap-2">
-                      <select value={selectedSpeechBubble.style?.font ?? "inherit"} onChange={(e) => { const next = speechBubbles.map((b) => b.id === selectedSpeechBubble.id ? { ...b, style: { ...b.style, font: e.target.value || undefined } } : b); handleUpdateSpeechBubbles(next); }} className="flex-1 h-8 rounded-lg border border-border/60 bg-background px-2 text-xs"><option value="inherit">Police par défaut</option><option value="sans-serif">Sans-serif</option><option value="serif">Serif</option><option value="monospace">Monospace</option></select>
-                      <input type="number" min={8} max={72} value={selectedSpeechBubble.style?.size ?? 14} onChange={(e) => { const n = parseInt(e.target.value, 10); if (!Number.isNaN(n)) { const next = speechBubbles.map((b) => b.id === selectedSpeechBubble.id ? { ...b, style: { ...b.style, size: n } } : b); handleUpdateSpeechBubbles(next); } }} className="w-14 h-8 rounded-lg border border-border/60 bg-background px-2 text-xs tabular-nums" />
-                      <input type="color" value={selectedSpeechBubble.style?.color ?? "#000000"} onChange={(e) => { const next = speechBubbles.map((b) => b.id === selectedSpeechBubble.id ? { ...b, style: { ...b.style, color: e.target.value } } : b); handleUpdateSpeechBubbles(next); }} className="h-8 w-10 rounded border border-border/60 cursor-pointer bg-background" />
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-muted-foreground">Typographie</label>
+                      <select
+                        value={selectedSpeechBubble.style?.font ?? "inherit"}
+                        onChange={(e) => { const next = speechBubbles.map((b) => b.id === selectedSpeechBubble.id ? { ...b, style: { ...b.style, font: e.target.value || undefined } } : b); handleUpdateSpeechBubbles(next); }}
+                        className="w-full h-8 rounded-lg border border-border/60 bg-background px-2 text-xs"
+                      >
+                        <option value="inherit">Défaut</option>
+                        <option value="'Comic Neue', cursive">Comic Neue</option>
+                        <option value="'Bangers', cursive">Bangers</option>
+                        <option value="'Patrick Hand', cursive">Patrick Hand</option>
+                        <option value="'Permanent Marker', cursive">Permanent Marker</option>
+                        <option value="'Special Elite', serif">Special Elite</option>
+                        <option value="'Roboto Mono', monospace">Roboto Mono</option>
+                        <option value="'Gochi Hand', cursive">Gochi Hand</option>
+                        <option value="sans-serif">Sans-serif</option>
+                        <option value="serif">Serif</option>
+                      </select>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number" min={8} max={72}
+                          value={selectedSpeechBubble.style?.size ?? 14}
+                          onChange={(e) => { const n = parseInt(e.target.value, 10); if (!Number.isNaN(n)) { const next = speechBubbles.map((b) => b.id === selectedSpeechBubble.id ? { ...b, style: { ...b.style, size: n } } : b); handleUpdateSpeechBubbles(next); } }}
+                          className="w-16 h-8 rounded-lg border border-border/60 bg-background px-2 text-xs tabular-nums"
+                        />
+                        <span className="text-xs text-muted-foreground">px</span>
+                        <input
+                          type="color"
+                          value={selectedSpeechBubble.style?.color ?? "#000000"}
+                          onChange={(e) => { const next = speechBubbles.map((b) => b.id === selectedSpeechBubble.id ? { ...b, style: { ...b.style, color: e.target.value } } : b); handleUpdateSpeechBubbles(next); }}
+                          className="h-8 w-10 rounded border border-border/60 cursor-pointer bg-background"
+                          title="Couleur du texte"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => { const next = speechBubbles.map((b) => b.id === selectedSpeechBubble.id ? { ...b, style: { ...b.style, bold: !b.style?.bold } } : b); handleUpdateSpeechBubbles(next); }}
+                          className={`h-8 w-8 rounded-lg border text-xs font-bold transition-colors ${selectedSpeechBubble.style?.bold ? "border-primary bg-primary/15 text-primary" : "border-border/60 bg-background text-muted-foreground hover:bg-muted/50"}`}
+                          title="Gras"
+                        >B</button>
+                        <button
+                          type="button"
+                          onClick={() => { const next = speechBubbles.map((b) => b.id === selectedSpeechBubble.id ? { ...b, style: { ...b.style, italic: !b.style?.italic } } : b); handleUpdateSpeechBubbles(next); }}
+                          className={`h-8 w-8 rounded-lg border text-xs italic font-medium transition-colors ${selectedSpeechBubble.style?.italic ? "border-primary bg-primary/15 text-primary" : "border-border/60 bg-background text-muted-foreground hover:bg-muted/50"}`}
+                          title="Italique"
+                        >I</button>
+                      </div>
                     </div>
                     <Button size="sm" variant="ghost" className="w-full gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10" disabled={updatePanelMutation.isPending} onClick={() => handleDeleteSpeechBubble(selectedSpeechBubble)}><Trash2 className="h-3 w-3" /> Supprimer la bulle</Button>
                   </div>

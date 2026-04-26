@@ -140,7 +140,7 @@ export const DEFAULT_SPEECH_BUBBLE_WIDTH = 200;
 export const DEFAULT_SPEECH_BUBBLE_HEIGHT = 110;
 
 /** Types de bulles (format stockage). dialogue = speech, caption = narration en UI. */
-export type SpeechBubbleType = "speech" | "thought" | "shout" | "whisper" | "narration" | "radio" | "text";
+export type SpeechBubbleType = "speech" | "thought" | "shout" | "whisper" | "narration" | "radio" | "text" | "electronic" | "explosion" | "wavy";
 
 /** Style de texte étendu (éditeur avancé). */
 export interface SpeechBubbleTextStyle {
@@ -187,7 +187,7 @@ export interface SpeechBubble {
   /** Hauteur de la bulle. Défaut: DEFAULT_SPEECH_BUBBLE_HEIGHT. */
   height?: number;
   /** Style minimal (compatible écran chapitre). */
-  style?: { font?: string; size?: number; color?: string; stroke?: string; fill?: string };
+  style?: { font?: string; size?: number; color?: string; stroke?: string; fill?: string; bold?: boolean; italic?: boolean };
   character?: string;
   // ── Format étendu (Edition_Panel_Blocs_Bulles.md, 08_Modele_de_Donnees.md)
   borderRadius?: number;
@@ -207,13 +207,16 @@ export interface SpeechBubble {
 
 /** Libellés UI des types de bulles (alignés Edition_Panel_Blocs_Bulles.md § 7.1). */
 export const SPEECH_BUBBLE_TYPE_LABELS: Record<SpeechBubbleType, string> = {
-  text: "✏️ Texte libre",
-  speech: "💬 Dialogue",
-  thought: "💭 Pensée",
-  shout: "💥 Cri",
-  whisper: "🔇 Chuchotement",
-  narration: "📋 Narrative",
-  radio: "📻 Radio / Transmission",
+  text: "Texte libre",
+  speech: "Dialogue",
+  thought: "Pensée",
+  shout: "Cri",
+  whisper: "Chuchotement",
+  narration: "Narration",
+  radio: "Transmission",
+  electronic: "Électronique",
+  explosion: "Impact",
+  wavy: "Tremblant",
 };
 
 /** Couleurs par défaut (fond, contour) par type de bulle — alignées Edition_Panel_Blocs_Bulles.md § 7.1. */
@@ -222,9 +225,12 @@ export const SPEECH_BUBBLE_DEFAULT_STYLE: Record<SpeechBubbleType, { fill: strin
   speech: { fill: "#ffffff", stroke: "#000000" },
   thought: { fill: "#ffffff", stroke: "#000000" },
   shout: { fill: "#ffffff", stroke: "#000000" },
-  whisper: { fill: "#ffffff", stroke: "#000000" },
-  narration: { fill: "#ffffff", stroke: "#000000" },
-  radio: { fill: "#ffffff", stroke: "#000000" },
+  whisper: { fill: "#f8f8f8", stroke: "#555555" },
+  narration: { fill: "#fffbe6", stroke: "#b08000" },
+  radio: { fill: "#e8f4ff", stroke: "#0055aa" },
+  electronic: { fill: "#e8f4ff", stroke: "#0055aa" },
+  explosion: { fill: "#fff3e0", stroke: "#cc4400" },
+  wavy: { fill: "#f3e5f5", stroke: "#7b1fa2" },
 };
 
 /** Retourne fill et stroke pour le rendu d'une bulle (étendu puis style minimal puis défaut par type). */

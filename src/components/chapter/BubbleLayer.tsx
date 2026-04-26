@@ -168,7 +168,7 @@ export function BubbleLayer({
               />
             ) : (
               <div
-                className="absolute inset-0 flex items-center justify-center px-3 py-1 pointer-events-none overflow-hidden"
+                className="absolute inset-0 flex items-start px-3 py-1 pointer-events-none overflow-hidden"
                 style={{
                   fontSize: `${fontSize}px`,
                   fontFamily: fontFamily === "inherit" ? undefined : fontFamily,

@@ -200,8 +200,8 @@ export default function ChapterDetail() {
   const moveDropHandledRef = useRef(false);
   /** Panel ouvert en modale « Edition » (id ou null) */
   const [expandedPanelId, setExpandedPanelId] = useState<string | null>(null);
-  /** Outil à droite dans la modale d'édition (suivi chapitre textuel). */
-  const [panelEditorRightTool, setPanelEditorRightTool] = useState<"chapter-text" | "cases">("chapter-text");
+  /** Outil à droite dans la modale d'édition — null = panel rétracté. */
+  const [panelEditorRightTool, setPanelEditorRightTool] = useState<"chapter-text" | "cases" | null>("chapter-text");
   /** Bloc sélectionné dans la modale (mode Personalisation) pour afficher le panneau droit ou gauche */
   const [selectedBlockIdInModal, setSelectedBlockIdInModal] = useState<{ panelId: string; blockId: string } | null>(null);
   /** Bloc de couleur sélectionné (onglet Couleurs) pour éditer la couleur */
@@ -1043,10 +1043,10 @@ export default function ChapterDetail() {
     return (
       <div className="relative flex flex-1 min-h-0 overflow-hidden bg-gradient-to-b from-background via-background to-muted/20">
         {/* Panneau gauche — barre d'icônes fixe + flyouts en overlay (ne poussent pas le canvas) */}
-        <aside className="relative w-14 shrink-0 border-r border-border bg-background z-30">
+        <aside className="relative w-[76px] shrink-0 border-r border-border bg-background z-30">
 
-          {/* Barre d'icônes (56px, fixe) */}
-          <div className="w-14 flex flex-col items-center gap-1 py-2">
+          {/* Barre d'icônes (76px, fixe) */}
+          <div className="w-[76px] flex flex-col items-center gap-2 px-2 py-4">
             {([
               { id: "blocs" as const, icon: LayoutPanelTop, label: "Blocs" },
               { id: "couleurs" as const, icon: Palette, label: "Couleurs" },
@@ -1059,7 +1059,7 @@ export default function ChapterDetail() {
                 onClick={() => {
                   setActiveSidebarTab((t) => (t === id ? null : id));
                 }}
-                className={`w-10 h-12 rounded-xl border flex items-center justify-center transition-colors ${activeSidebarTab === id ? "border-primary/70 bg-primary/15 text-primary shadow-sm" : "border-border/70 bg-background text-muted-foreground hover:text-foreground hover:bg-muted/50"}`}
+                className={`w-full h-12 rounded-xl border flex items-center justify-center transition-colors ${activeSidebarTab === id ? "border-primary/70 bg-primary/15 text-primary shadow-sm" : "border-border/70 bg-background text-muted-foreground hover:text-foreground hover:bg-muted/50"}`}
               >
                 <Icon className="h-5 w-5" />
               </button>
@@ -1069,15 +1069,14 @@ export default function ChapterDetail() {
               type="button"
               title="Découper & télécharger"
               onClick={() => setSliceModalOpen(true)}
-              className="w-10 h-12 rounded-xl border border-border/70 bg-background flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+              className="w-full h-12 rounded-xl border border-border/70 bg-background flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
             >
               <Download className="h-5 w-5" />
             </button>
           </div>
 
           {/* Flyout bibliothèque — overlay absolu, masqué quand un bloc/couleur est sélectionné */}
-          {activeSidebarTab && !selectedBlock && !selectedColorBlock && (
-            <div className="absolute top-0 left-full h-full w-[340px] bg-background border-r border-border shadow-xl flex flex-col overflow-hidden">
+          <div className={`absolute top-0 left-full h-full flex flex-col bg-background border-r border-border shadow-xl overflow-hidden transition-[width] duration-200 ease-in-out ${activeSidebarTab && !selectedBlock && !selectedColorBlock ? "w-[340px]" : "w-0 pointer-events-none border-r-0"}`}>
               <div className="flex items-center justify-between px-3 py-2 border-b border-border/50 shrink-0">
                 <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
                   {activeSidebarTab === "blocs" && <><span>Blocs image</span> <kbd className="text-[9px] font-mono bg-muted text-muted-foreground border border-border px-1 rounded">B</kbd></>}
@@ -1141,12 +1140,10 @@ export default function ChapterDetail() {
                   </div>
                 )}
               </div>
-            </div>
-          )}
+          </div>
 
           {/* Panneau propriétés — overlay absolu, uniquement pour blocs/couleurs (bulle : toolbar inline) */}
-          {!!(selectedBlock || selectedColorBlock) && (
-            <div className="absolute top-0 left-full h-full w-[340px] bg-background border-r border-border shadow-xl flex flex-col overflow-hidden">
+          <div className={`absolute top-0 left-full h-full flex flex-col bg-background border-r border-border shadow-xl overflow-hidden transition-[width] duration-200 ease-in-out ${selectedBlock || selectedColorBlock ? "w-[340px]" : "w-0 pointer-events-none border-r-0"}`}>
               <div className="flex-1 overflow-y-auto min-h-0">
                 {selectedBlock ? (() => {
                   const block = selectedBlock;
@@ -1187,14 +1184,12 @@ export default function ChapterDetail() {
                   </div>
                 ) : null}
               </div>
-            </div>
-          )}
+          </div>
 
         </aside>
         {/* Centre : panel 800px de large exactement, zoomable via contrôles header ou Ctrl+Scroll */}
-        {/* pl-[360px] compense l'asymétrie sidebar droite (416px) vs gauche (56px) pour centrer dans le viewport */}
         <div
-          className="flex-1 min-w-0 flex flex-col items-center overflow-auto p-6 bg-background pl-[360px]"
+          className="flex-1 min-w-0 flex flex-col items-center overflow-auto p-6 bg-background"
           onClick={() => {
             setSelectedBlockIdInModal(null);
             setSelectedColorBlockIdInModal(null);
@@ -1373,8 +1368,8 @@ export default function ChapterDetail() {
             })()}
           </div>
         </div>
-        {/* Droite : chapitre textuel + cases (largeur fixe pour ne pas décaler le canvas) */}
-        <aside className="w-[340px] shrink-0 flex flex-col border-l border-border bg-background overflow-y-auto">
+        {/* Droite : panel contenu en overlay absolu — ne pousse pas le canvas */}
+        <aside className={`absolute right-[76px] top-0 bottom-0 flex flex-col border-l border-border bg-background z-20 transition-[width] duration-200 ease-in-out overflow-hidden ${panelEditorRightTool ? "w-[340px]" : "w-0 pointer-events-none border-l-0"}`}>
           {panelEditorRightTool === "chapter-text" && (
             <div className="p-4 space-y-2 flex-1 min-h-0 flex flex-col">
               <span className="text-xs font-medium text-muted-foreground">Scénario</span>
@@ -1469,10 +1464,10 @@ export default function ChapterDetail() {
             </div>
           )}
         </aside>
-        <aside className="w-[76px] shrink-0 border-l border-border bg-muted/20 px-2 py-4 flex flex-col items-center gap-2">
+        <aside className="relative w-[76px] shrink-0 border-l border-border bg-muted/20 px-2 py-4 flex flex-col items-center gap-2 z-30">
           <button
             type="button"
-            onClick={() => setPanelEditorRightTool("chapter-text")}
+            onClick={() => setPanelEditorRightTool((t) => (t === "chapter-text" ? null : "chapter-text"))}
             className={`w-full h-12 rounded-xl border flex items-center justify-center transition-colors duration-150 ${
               panelEditorRightTool === "chapter-text"
                 ? "border-primary/70 bg-primary/15 text-primary shadow-sm"
@@ -1484,7 +1479,7 @@ export default function ChapterDetail() {
           </button>
           <button
             type="button"
-            onClick={isPro ? () => setPanelEditorRightTool("cases") : () => navigate("/dashboard/plans")}
+            onClick={isPro ? () => setPanelEditorRightTool((t) => (t === "cases" ? null : "cases")) : () => navigate("/dashboard/plans")}
             className={`w-full h-12 rounded-xl border flex items-center justify-center transition-colors duration-150 relative ${
               isPro
                 ? panelEditorRightTool === "cases"

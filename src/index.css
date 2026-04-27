@@ -121,9 +121,9 @@
 }
 
 @layer base {
-  /* Base fluide : 14px mobile → 18px desktop large. Tout rem scale automatiquement. */
+  /* Base fluide : 13px mobile → 16px desktop large. Tout rem scale automatiquement. */
   html {
-    font-size: clamp(14px, 0.5vw + 12px, 18px);
+    font-size: clamp(13px, 0.5vw + 11px, 16px);
     scrollbar-gutter: stable;
   }
   * {

@@ -249,7 +249,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Top bar */}
-      <header className="sticky top-0 z-50 glass border-b border-border/50 shadow-sm">
+      <header className="fixed top-0 left-0 right-0 z-50 glass border-b border-border/50 shadow-sm">
         <div className="px-4 sm:px-6 flex h-14 sm:h-16 items-center justify-between">
           <div className="flex items-center gap-2">
             <ThemeToggle />
@@ -345,7 +345,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         )}
       </header>
 
-      <div className="flex flex-1">
+      <div className="flex flex-1 pt-14 sm:pt-16">
         {/* Desktop sidebar — lg+ only */}
         <aside className="hidden lg:flex flex-col fixed left-0 top-16 w-[260px] h-[calc(100vh-4rem)] border-r border-border/30 bg-background/80 backdrop-blur-sm z-40 overflow-y-auto">
           <div className="py-4 flex flex-col h-full">

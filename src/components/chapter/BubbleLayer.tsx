@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useLayoutEffect } from "react";
 import type { Panel, SpeechBubble } from "@/types";
 import { getSpeechBubbleFillStroke, DEFAULT_SPEECH_BUBBLE_WIDTH, DEFAULT_SPEECH_BUBBLE_HEIGHT, SPEECH_BUBBLE_NO_TAIL_TYPES } from "@/types";
 import { getPanelHeight } from "@/services/panels";
@@ -10,6 +10,29 @@ import { getTailHitPath, TAIL_ELLIPSE as BUBBLE_TAIL_ELLIPSE, buildUnifiedTailPa
 
 // Types qui ont une queue draggable via handle
 const DRAGGABLE_TAIL_TYPES = new Set(["speech", "whisper", "cloud", "wavy", "sadness", "anger"]);
+
+// Bounds du corps visible de la bulle dans le viewBox "0 0 100 120" (ou "0 0 100 100" pour no-tail).
+// topFrac / heightFrac × totalH donnent la zone où centrer le texte.
+// Dérivé des formes SVG réelles dans SpeechBubbleShape.tsx.
+const BODY_BOUNDS_FRAC: Partial<Record<string, { topFrac: number; heightFrac: number }>> = {
+  // Ellipses (cy, ry depuis TAIL_ELLIPSE — viewBox height = 120)
+  speech:     { topFrac:  3 / 120, heightFrac: 86 / 120 }, // cy=46 ry=43
+  whisper:    { topFrac:  4 / 120, heightFrac: 84 / 120 }, // cy=46 ry=42
+  cloud:      { topFrac: 11 / 120, heightFrac: 72 / 120 }, // cy=47 ry=36
+  wavy:       { topFrac:  5 / 120, heightFrac: 82 / 120 }, // cy=46 ry=41
+  sadness:    { topFrac:  4 / 120, heightFrac: 80 / 120 }, // cy=44 ry=40
+  anger:      { topFrac:  8 / 120, heightFrac: 76 / 120 }, // cy=46 ry=38
+  // Cercle principal de la pensée (cx=50, cy=46, r=29)
+  thought:    { topFrac: 17 / 120, heightFrac: 58 / 120 },
+  // Étoile irrégulière centrée (50,50) innerR≈37
+  shout:      { topFrac: 13 / 120, heightFrac: 74 / 120 },
+  // Octogone radio : y=14→88
+  radio:      { topFrac: 14 / 120, heightFrac: 74 / 120 },
+  // Hexagone électronique : y=8→92
+  electronic: { topFrac:  8 / 120, heightFrac: 76 / 120 },
+  // Étoile explosion centrée (50,50) innerR≈28
+  explosion:  { topFrac: 20 / 120, heightFrac: 60 / 120 },
+};
 
 interface BubbleLayerProps {
   panel: Panel;
@@ -77,8 +100,9 @@ export function BubbleLayer({
   const ghostRefByPanel = useRef<Record<string, HTMLDivElement | null>>({});
   const bubbleSvgRefs = useRef<Map<string, SVGSVGElement>>(new Map());
   const bubbleHandleRefs = useRef<Map<string, HTMLDivElement>>(new Map());
-  const [tailDragActive, setTailDragActive] = useState(false);
-  const tailDragBubbleIdRef = useRef<string | null>(null);
+  // Position "live" de la queue pendant le drag — aucun setState, juste une ref.
+  // Utilisée par le useLayoutEffect pour corriger le DOM après tout re-render React externe.
+  const liveTailRef = useRef<{ bubbleId: string; vbX: number; vbY: number; hw: number; curve: number } | null>(null);
   const isResizingSpeechBubbleRef = useRef(false);
   const resizingSpeechBubbleElRef = useRef<HTMLDivElement | null>(null);
   const [resizingSpeechBubbleState, setResizingSpeechBubbleState] = useState<BubbleResizingState | null>(null);
@@ -145,6 +169,31 @@ export function BubbleLayer({
     },
   });
 
+  // Garde de sécurité contre les re-renders React externes (mutation qui finit, React Query, etc.)
+  // Si un drag de queue est en cours, tout re-render React écrase notre setAttribute direct.
+  // Ce useLayoutEffect (sans deps = après CHAQUE render) réapplique la bonne position
+  // AVANT que le navigateur peigne — aucun flash visible.
+  useLayoutEffect(() => {
+    const live = liveTailRef.current;
+    if (!live) return;
+    const svgEl = bubbleSvgRefs.current.get(live.bubbleId);
+    if (!svgEl) return;
+    const bubble = speechBubbles.find((b) => b.id === live.bubbleId);
+    if (!bubble) return;
+    const e = BUBBLE_TAIL_ELLIPSE[bubble.type];
+    if (!e) return;
+    const newPath = buildUnifiedTailPath(e.cx, e.cy, e.rx, e.ry, live.vbX, live.vbY, live.hw, live.curve);
+    svgEl.querySelector("path")?.setAttribute("d", newPath);
+    const handleEl = bubbleHandleRefs.current.get(live.bubbleId);
+    if (handleEl) {
+      const bw = bubble.width ?? DEFAULT_SPEECH_BUBBLE_WIDTH;
+      const bh = bubble.height ?? DEFAULT_SPEECH_BUBBLE_HEIGHT;
+      const totalH = bh + (SPEECH_BUBBLE_NO_TAIL_TYPES.has(bubble.type) ? 0 : SPEECH_BUBBLE_TAIL_H);
+      handleEl.style.left = `${(live.vbX / 100) * bw}px`;
+      handleEl.style.top = `${(live.vbY / 120) * totalH}px`;
+    }
+  });
+
   return (
     <>
       {speechBubbles.map((bubble) => {
@@ -168,7 +217,16 @@ export function BubbleLayer({
         const { fill: fillColor, stroke: strokeColor } = getSpeechBubbleFillStroke(bubble);
         const tailH = SPEECH_BUBBLE_NO_TAIL_TYPES.has(bubble.type) ? 0 : SPEECH_BUBBLE_TAIL_H;
         const totalH = geom.height + tailH;
-        const textAreaH = bubble.type === "narration" || bubble.type === "text" ? geom.height : (totalH * 100) / 120;
+
+        // Zone de texte centrée sur le corps visible de la bulle (pas sur tout le viewBox)
+        const noTailType = SPEECH_BUBBLE_NO_TAIL_TYPES.has(bubble.type);
+        const bodyBounds = noTailType ? null : BODY_BOUNDS_FRAC[bubble.type];
+        const textAreaTop = bodyBounds ? bodyBounds.topFrac * totalH : 0;
+        const textAreaH = noTailType
+          ? geom.height
+          : bodyBounds
+            ? bodyBounds.heightFrac * totalH
+            : (totalH * 100) / 120;
         const fillOpacity = 1 - (bubble.bgTransparency ?? 0) / 100;
 
         const sharedTextStyle: React.CSSProperties = {
@@ -207,7 +265,7 @@ export function BubbleLayer({
             role={!isResizingThis && !isEditing ? "button" : undefined}
             className={`group absolute z-20 overflow-visible transition-[box-shadow,ring] duration-150 ${isEditing ? "cursor-text" : "cursor-grab active:cursor-grabbing"} ${isSelected ? "ring-2 ring-primary ring-offset-2 ring-offset-background" : "hover:ring-2 hover:ring-primary/40"}`}
             style={{ left: geom.x, top: geom.y, width: geom.width, height: totalH }}
-            onPointerDown={!isResizingThis && !isResizingSpeechBubbleRef.current && !isEditing && !tailDragActive ? (e) => dragSpeechBubble.onPointerDown(e, panel.id, bubble.id, geom.x, geom.y, geom.width, totalH, getPanelHeight(panel)) : undefined}
+            onPointerDown={!isResizingThis && !isResizingSpeechBubbleRef.current && !isEditing ? (e) => dragSpeechBubble.onPointerDown(e, panel.id, bubble.id, geom.x, geom.y, geom.width, totalH, getPanelHeight(panel)) : undefined}
             onClick={(e) => {
               e.stopPropagation();
               if (isEditing) return;
@@ -327,9 +385,6 @@ export function BubbleLayer({
                   // Track latest position for single commit on pointerup
                   const latestPos = { vbX: resolvedTailX, vbY: resolvedTailY };
 
-                  tailDragBubbleIdRef.current = capturedId;
-                  setTailDragActive(true);
-
                   const onMove = (ev: PointerEvent) => {
                     const r = bubbleDiv.getBoundingClientRect();
                     const vbX = (ev.clientX - r.left) / (r.width  / 100) - clickOffX;
@@ -343,7 +398,11 @@ export function BubbleLayer({
                     latestPos.vbX = Math.round(vbX * 10) / 10;
                     latestPos.vbY = Math.round(vbY * 10) / 10;
 
-                    // Direct DOM update — no React re-render per frame
+                    // Met à jour la ref "live" — le useLayoutEffect corrigera le DOM
+                    // si un re-render React externe survient pendant ce drag.
+                    liveTailRef.current = { bubbleId: capturedId, vbX, vbY, hw: capturedHw, curve: capturedCurve };
+
+                    // Direct DOM update — réponse immédiate, sans attendre un re-render
                     if (svgEl && capturedEllipse) {
                       const { cx, cy, rx, ry } = capturedEllipse;
                       const newPath = buildUnifiedTailPath(cx, cy, rx, ry, vbX, vbY, capturedHw, capturedCurve);
@@ -356,11 +415,11 @@ export function BubbleLayer({
                   };
 
                   const onUp = () => {
-                    tailDragBubbleIdRef.current = null;
-                    setTailDragActive(false);
                     window.removeEventListener("pointermove", onMove);
                     window.removeEventListener("pointerup", onUp);
-                    // Single React commit with final position
+                    // Efface la ref live — React reprend le contrôle du DOM pour le paint final
+                    liveTailRef.current = null;
+                    // Single React commit avec la position finale (1 seul re-render)
                     onBubbleUpdate?.(speechBubbles.map((b) =>
                       b.id === capturedId
                         ? { ...b, tailX: latestPos.vbX, tailY: latestPos.vbY }
@@ -402,17 +461,17 @@ export function BubbleLayer({
                   const text = e.clipboardData.getData("text/plain");
                   document.execCommand("insertText", false, text);
                 }}
-                className={`absolute inset-x-0 top-0 bg-transparent border-none outline-none w-full px-3 z-30 overflow-y-hidden ${richTextClass}`}
-                style={{ height: textAreaH, boxSizing: "border-box", ...sharedTextStyle }}
+                className={`absolute inset-x-0 bg-transparent border-none outline-none w-full px-3 z-30 overflow-y-hidden ${richTextClass}`}
+                style={{ top: textAreaTop, height: textAreaH, boxSizing: "border-box", ...sharedTextStyle }}
               />
             ) : (
               <div
                 key="bubble-readonly"
-                className="absolute inset-x-0 top-0 flex items-center px-3 pointer-events-none overflow-hidden"
-                style={{ height: textAreaH }}
+                className="absolute inset-x-0 flex items-center justify-center px-3 pointer-events-none overflow-hidden"
+                style={{ top: textAreaTop, height: textAreaH }}
               >
                 <div
-                  className={`break-words w-full ${richTextClass}`}
+                  className={`break-words w-full text-center ${richTextClass}`}
                   style={sharedTextStyle}
                   dangerouslySetInnerHTML={{ __html: sanitizeBubbleHtml(bubble.text) || "…" }}
                 />

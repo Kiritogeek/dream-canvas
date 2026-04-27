@@ -118,14 +118,19 @@ export function SpeechBubbleShape({ type, fill, stroke, tailFlip, strokeWidth, t
     return { tx, ty, hw, curve };
   };
 
-  // ── Dialogue : path unifié complet (corps + queue = 1 seul path) ──────────
+  // ── Dialogue : queue dessinée EN PREMIER, corps (ellipse fixe) PAR-DESSUS ──
+  // Même règle que whisper/cloud : le fill de l'ellipse couvre la base de la queue,
+  // ce qui stabilise le body quand tailBaseWidth / tailCurve changent.
   if (type === "speech") {
     const e = TAIL_ELLIPSE.speech;
     const defaultTx = tailFlip ? 85 : 15;
     const { tx, ty, hw, curve } = resolveTailCoords(defaultTx);
     const d = buildUnifiedTailPath(e.cx, e.cy, e.rx, e.ry, tx, ty, hw, curve);
     return (
-      <path d={d} fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" vectorEffect={NNS} />
+      <>
+        <path d={d} fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" vectorEffect={NNS} />
+        <ellipse cx={e.cx} cy={e.cy} rx={e.rx} ry={e.ry} fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
+      </>
     );
   }
 

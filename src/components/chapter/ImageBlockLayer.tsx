@@ -82,12 +82,16 @@ export function ImageBlockLayer({
   return (
     <>
       {blocks.length === 0 ? (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-center p-6 text-muted-foreground text-sm">
-          <Square className="h-10 w-10 opacity-50" />
-          <p>Aucun bloc. Glissez un bloc depuis la bibliothèque (gauche) ou ajoutez un premier bloc.</p>
-          <Button size="sm" variant="outline" onClick={() => onAddBlock(0, 0)} disabled={isUpdating}>
-            <Plus className="h-4 w-4 mr-1.5" /> Ajouter un bloc
-          </Button>
+        // pointer-events-none sur le conteneur : laisse passer les clics vers les color blocks
+        // en dessous. L'inner div conserve pointer-events-auto pour le bouton.
+        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+          <div className="flex flex-col items-center gap-3 text-center p-6 text-muted-foreground text-sm pointer-events-auto">
+            <Square className="h-10 w-10 opacity-50" />
+            <p>Aucun bloc. Glissez un bloc depuis la bibliothèque (gauche) ou ajoutez un premier bloc.</p>
+            <Button size="sm" variant="outline" onClick={() => onAddBlock(0, 0)} disabled={isUpdating}>
+              <Plus className="h-4 w-4 mr-1.5" /> Ajouter un bloc
+            </Button>
+          </div>
         </div>
       ) : (
         blocks.map((block, blockIndex) => {

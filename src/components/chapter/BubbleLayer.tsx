@@ -173,11 +173,6 @@ export function BubbleLayer({
         // Ces classes les restaurent pour le rich text stocké en HTML dans bubble.text.
         const richTextClass = "[&_u]:underline [&_s]:line-through [&_strike]:line-through [&_b]:font-bold [&_strong]:font-bold [&_i]:italic [&_em]:italic";
 
-        if (isEditing) {
-          editingBubbleTextRef.current = bubble.text;
-          textAreaHRef.current = textAreaH;
-        }
-
         return (
           <div
             key={bubble.id}
@@ -190,6 +185,8 @@ export function BubbleLayer({
               e.stopPropagation();
               if (isEditing) return;
               if (isSelected) {
+                editingBubbleTextRef.current = bubble.text;
+                textAreaHRef.current = textAreaH;
                 committedCurrentEditRef.current = false;
                 setEditingBubbleId(bubble.id);
               } else {
@@ -199,6 +196,8 @@ export function BubbleLayer({
             onDoubleClick={(e) => {
               e.stopPropagation();
               if (!isEditing) {
+                editingBubbleTextRef.current = bubble.text;
+                textAreaHRef.current = textAreaH;
                 onSelectBubble(bubble.id);
                 committedCurrentEditRef.current = false;
                 setEditingBubbleId(bubble.id);
@@ -246,7 +245,7 @@ export function BubbleLayer({
                   document.execCommand("insertText", false, text);
                 }}
                 className={`absolute inset-x-0 top-0 bg-transparent border-none outline-none w-full px-3 z-30 overflow-y-hidden ${richTextClass}`}
-                style={{ height: textAreaH, paddingTop: 8, boxSizing: "border-box", ...sharedTextStyle }}
+                style={{ height: textAreaH, boxSizing: "border-box", ...sharedTextStyle }}
               />
             ) : (
               <div

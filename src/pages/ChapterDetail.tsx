@@ -857,6 +857,7 @@ export default function ChapterDetail() {
     };
 
     const handleUpdateSpeechBubbles = (next: SpeechBubble[]) => {
+      queryClient.cancelQueries({ queryKey: panelsQueryKey });
       queryClient.setQueryData<Panel[]>(panelsQueryKey, (old) => (!old ? old : old.map((p) => (p.id === panel.id ? { ...p, speech_bubbles: next as unknown as Json } : p))));
       updatePanelMutation.mutate(
         { id: panel.id, updates: { speech_bubbles: next as unknown as Json } },

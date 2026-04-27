@@ -32,6 +32,26 @@ function recenterEditable(el: HTMLElement, areaH: number) {
   el.style.paddingTop = `${pt}px`;
 }
 
+// Whitelist HTML : on ne garde que les balises de formatage propres.
+// Tout le reste (<font>, <span>, <div>, attributs, styles inline, classes…) est strippé.
+// Cause directe du bug de doublon historique : execCommand("foreColor") injectait
+// `<font color="...">` qui s'accumulait dans bubble.text au fil des saves.
+const ALLOWED_TAGS = new Set(["b", "strong", "i", "em", "u", "s", "strike", "del", "br"]);
+
+function sanitizeBubbleHtml(html: string): string {
+  if (!html) return "";
+  let out = html.replace(/<\/(p|div|li|h[1-6])>/gi, "<br>");
+  out = out.replace(/<(p|div|li|h[1-6])\b[^>]*>/gi, "");
+  out = out.replace(/<(\/?)([a-zA-Z][a-zA-Z0-9]*)[^>]*>/g, (_match, slash, tag: string) => {
+    const tagLower = tag.toLowerCase();
+    return ALLOWED_TAGS.has(tagLower) ? `<${slash}${tagLower}>` : "";
+  });
+  out = out.replace(/<br\s*\/?>/gi, "<br>");
+  out = out.replace(/(<br>\s*){3,}/gi, "<br><br>");
+  out = out.replace(/(<br>\s*)+$/i, "");
+  return out.trim();
+}
+
 export function BubbleLayer({
   panel,
   panels,
@@ -59,16 +79,14 @@ export function BubbleLayer({
   const editingDivRef = useRef<HTMLDivElement | null>(null);
   const textAreaHRef = useRef<number>(0);
   const editingBubbleTextRef = useRef<string>("");
+  const committedCurrentEditRef = useRef<boolean>(false);
 
-  // Stable callback ref — fires only on mount/unmount, never on re-render.
-  // Prevents re-initialization (and content reset) caused by inline function refs.
+  // Callback ref stable — n'est appelé qu'au mount/unmount, jamais au re-render.
   const editingDivCallback = useCallback((el: HTMLDivElement | null) => {
     if (el) {
-      el.innerHTML = editingBubbleTextRef.current;
+      el.innerHTML = sanitizeBubbleHtml(editingBubbleTextRef.current);
       recenterEditable(el, textAreaHRef.current);
       el.focus({ preventScroll: true });
-      // Sélectionne tout le texte à l'entrée : l'utilisateur voit le contenu
-      // existant sélectionné et peut taper pour le remplacer ou cliquer pour positionner le curseur.
       const r = document.createRange();
       r.selectNodeContents(el);
       window.getSelection()?.removeAllRanges();
@@ -172,6 +190,7 @@ export function BubbleLayer({
               e.stopPropagation();
               if (isEditing) return;
               if (isSelected) {
+                committedCurrentEditRef.current = false;
                 setEditingBubbleId(bubble.id);
               } else {
                 onSelectBubble(bubble.id);
@@ -181,6 +200,7 @@ export function BubbleLayer({
               e.stopPropagation();
               if (!isEditing) {
                 onSelectBubble(bubble.id);
+                committedCurrentEditRef.current = false;
                 setEditingBubbleId(bubble.id);
               }
             }}
@@ -199,18 +219,24 @@ export function BubbleLayer({
 
             {isEditing ? (
               <div
+                key="bubble-editor"
                 ref={editingDivCallback}
                 contentEditable
                 suppressContentEditableWarning
                 onInput={(e) => recenterEditable(e.currentTarget as HTMLDivElement, textAreaH)}
                 onBlur={(e) => {
-                  const html = e.currentTarget.innerHTML;
+                  if (committedCurrentEditRef.current) return;
+                  committedCurrentEditRef.current = true;
+                  const html = sanitizeBubbleHtml(e.currentTarget.innerHTML);
                   setEditingBubbleId(null);
-                  onTextCommit(bubble.id, html);
+                  if (html !== bubble.text) {
+                    onTextCommit(bubble.id, html);
+                  }
                 }}
                 onKeyDown={(e) => {
                   if (e.key === "Escape") {
-                    e.currentTarget.innerHTML = bubble.text;
+                    committedCurrentEditRef.current = true;
+                    e.currentTarget.innerHTML = sanitizeBubbleHtml(bubble.text);
                     setEditingBubbleId(null);
                   }
                 }}
@@ -224,13 +250,14 @@ export function BubbleLayer({
               />
             ) : (
               <div
+                key="bubble-readonly"
                 className="absolute inset-x-0 top-0 flex items-center px-3 pointer-events-none overflow-hidden"
                 style={{ height: textAreaH }}
               >
                 <div
                   className={`break-words w-full ${richTextClass}`}
                   style={sharedTextStyle}
-                  dangerouslySetInnerHTML={{ __html: bubble.text || "…" }}
+                  dangerouslySetInnerHTML={{ __html: sanitizeBubbleHtml(bubble.text) || "…" }}
                 />
               </div>
             )}

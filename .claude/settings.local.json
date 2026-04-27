@@ -70,7 +70,15 @@
       "Bash(git pull *)",
       "Bash(git -C \".claude/worktrees/agent-a0f30b10\" diff HEAD --stat)",
       "Bash(git stash *)",
-      "Bash(git *)"
+      "Bash(git *)",
+      "Read(//c/Users/kirit/Documents/**)",
+      "Read(//c/Users/kirit/OneDrive/**)",
+      "Bash(node -e ' *)",
+      "Bash(node replace_section.js)",
+      "Bash(mv \"C:\\\\Users\\\\kirit\\\\OneDrive\\\\Bureau\\\\DreamWeave\\\\.claude\\\\worktrees\\\\agent-a3e36e0f98dc63328\\\\replace_section.js\" \"C:\\\\Users\\\\kirit\\\\OneDrive\\\\Bureau\\\\DreamWeave\\\\.claude\\\\worktrees\\\\agent-a3e36e0f98dc63328\\\\replace_section.cjs\")",
+      "Bash(node replace_section.cjs)",
+      "Bash(echo \"Exit code: $?\")",
+      "Bash(echo \"EXIT:$?\")"
     ]
   },
   "hooks": {

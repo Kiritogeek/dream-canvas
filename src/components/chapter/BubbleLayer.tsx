@@ -304,43 +304,46 @@ export function BubbleLayer({
                   if (e.button !== 0) return;
                   e.preventDefault();
                   e.stopPropagation();
-                  (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-                  tailDragBubbleIdRef.current = bubble.id;
-                  setTailDragActive(true);
-                }}
-                onPointerMove={(e) => {
-                  if (tailDragBubbleIdRef.current !== bubble.id) return;
-                  const bubbleEl = canvasRefByPanel.current[panel.id]?.parentElement
-                    ? (e.currentTarget as HTMLElement).closest<HTMLDivElement>("[data-bubble-container]") ?? null
-                    : null;
-                  // Récupère le div parent de la bulle (le div avec left/top/width/height)
+
+                  // bubbleDiv = parent direct du handle (le div positionné sur le panel)
                   const bubbleDiv = (e.currentTarget as HTMLElement).parentElement;
                   if (!bubbleDiv) return;
+
+                  // rect.width/height = taille réelle en px viewport (zoom inclus)
                   const rect = bubbleDiv.getBoundingClientRect();
-                  const vbX = ((e.clientX - rect.left) / (geom.width / 100));
-                  const vbY = ((e.clientY - rect.top) / (totalH / 120));
+                  // Offset click dans le repère viewBox pour que la pointe ne saute pas
+                  const clickOffX = (e.clientX - rect.left) / (rect.width / 100) - resolvedTailX;
+                  const clickOffY = (e.clientY - rect.top)  / (rect.height / 120) - resolvedTailY;
 
-                  // Contrainte : la pointe doit rester en dehors de l'ellipse × 1.15
-                  if (ellipseParams) {
-                    const { cx, cy, rx, ry } = ellipseParams;
-                    const inside = Math.pow((vbX - cx) / rx, 2) + Math.pow((vbY - cy) / ry, 2);
-                    if (inside < 1.15 * 1.15) return;
-                  }
+                  tailDragBubbleIdRef.current = bubble.id;
+                  setTailDragActive(true);
 
-                  onBubbleUpdate?.(speechBubbles.map((b) =>
-                    b.id === bubble.id ? { ...b, tailX: Math.round(vbX * 10) / 10, tailY: Math.round(vbY * 10) / 10 } : b
-                  ));
-                  void bubbleEl; // suppress unused warning
-                }}
-                onPointerUp={(e) => {
-                  if (tailDragBubbleIdRef.current !== bubble.id) return;
-                  (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
-                  tailDragBubbleIdRef.current = null;
-                  setTailDragActive(false);
-                }}
-                onPointerCancel={() => {
-                  tailDragBubbleIdRef.current = null;
-                  setTailDragActive(false);
+                  const onMove = (ev: PointerEvent) => {
+                    const r = bubbleDiv.getBoundingClientRect();
+                    const vbX = (ev.clientX - r.left) / (r.width  / 100) - clickOffX;
+                    const vbY = (ev.clientY - r.top)  / (r.height / 120) - clickOffY;
+
+                    if (ellipseParams) {
+                      const { cx, cy, rx, ry } = ellipseParams;
+                      if (Math.pow((vbX - cx) / rx, 2) + Math.pow((vbY - cy) / ry, 2) < 1.15 * 1.15) return;
+                    }
+
+                    onBubbleUpdate?.(speechBubbles.map((b) =>
+                      b.id === bubble.id
+                        ? { ...b, tailX: Math.round(vbX * 10) / 10, tailY: Math.round(vbY * 10) / 10 }
+                        : b
+                    ));
+                  };
+
+                  const onUp = () => {
+                    tailDragBubbleIdRef.current = null;
+                    setTailDragActive(false);
+                    window.removeEventListener("pointermove", onMove);
+                    window.removeEventListener("pointerup", onUp);
+                  };
+
+                  window.addEventListener("pointermove", onMove);
+                  window.addEventListener("pointerup", onUp);
                 }}
               />
             )}

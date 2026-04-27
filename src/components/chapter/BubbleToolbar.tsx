@@ -80,35 +80,36 @@ export function BubbleToolbar({ bubble, speechBubbles, onUpdate, onDuplicate, on
     `h-7 w-7 flex items-center justify-center rounded-md border transition-colors shrink-0 ${active ? "border-primary bg-primary/15 text-primary" : "border-border/60 bg-background text-muted-foreground hover:bg-muted/50"}`;
 
   return (
-    <div className="relative inline-flex items-center gap-1 px-2 py-1.5 bg-background border border-border rounded-lg shadow-lg z-50 overflow-x-auto max-w-full">
-
-      {/* Slider border — inline quand actif */}
-      {showBorderSlider && !isText && (
-        <div className="flex items-center gap-1.5 shrink-0 bg-muted/40 rounded px-2 py-0.5">
-          <span className="text-[10px] text-muted-foreground">0</span>
-          <input
-            type="range" min={0} max={12} value={borderWidth}
-            onChange={(e) => { const n = parseInt(e.target.value, 10); if (!Number.isNaN(n)) patch({ borderWidth: n }); }}
-            className="w-20 accent-primary"
-          />
-          <span className="text-[10px] text-muted-foreground">12</span>
-          <span className="text-xs tabular-nums font-mono text-foreground w-5">{borderWidth}</span>
+    <div className="relative inline-block">
+      {/* Toolbar secondaire — apparaît juste en dessous */}
+      {(showBorderSlider || showTransparencySlider) && !isText && (
+        <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1.5 flex items-center gap-3 px-3 py-2 bg-background border border-border rounded-lg shadow-lg z-50 whitespace-nowrap">
+          {showBorderSlider && (
+            <>
+              <span className="text-xs text-muted-foreground shrink-0">Contour</span>
+              <input
+                type="range" min={0} max={12} value={borderWidth}
+                onChange={(e) => { const n = parseInt(e.target.value, 10); if (!Number.isNaN(n)) patch({ borderWidth: n }); }}
+                className="w-28 accent-primary"
+              />
+              <span className="text-xs tabular-nums text-foreground w-7 text-right">{borderWidth}px</span>
+            </>
+          )}
+          {showTransparencySlider && (
+            <>
+              <span className="text-xs text-muted-foreground shrink-0">Transparence</span>
+              <input
+                type="range" min={0} max={100} value={bgTransparency}
+                onChange={(e) => { const n = parseInt(e.target.value, 10); if (!Number.isNaN(n)) patch({ bgTransparency: n }); }}
+                className="w-28 accent-primary"
+              />
+              <span className="text-xs tabular-nums text-foreground w-8 text-right">{bgTransparency}%</span>
+            </>
+          )}
         </div>
       )}
 
-      {/* Slider transparence — inline quand actif */}
-      {showTransparencySlider && !isText && (
-        <div className="flex items-center gap-1.5 shrink-0 bg-muted/40 rounded px-2 py-0.5">
-          <span className="text-[10px] text-muted-foreground">0%</span>
-          <input
-            type="range" min={0} max={100} value={bgTransparency}
-            onChange={(e) => { const n = parseInt(e.target.value, 10); if (!Number.isNaN(n)) patch({ bgTransparency: n }); }}
-            className="w-20 accent-primary"
-          />
-          <span className="text-[10px] text-muted-foreground">100%</span>
-          <span className="text-xs tabular-nums font-mono text-foreground w-7">{bgTransparency}%</span>
-        </div>
-      )}
+    <div className="inline-flex items-center gap-1 px-2 py-1.5 bg-background border border-border rounded-lg shadow-lg z-50 overflow-x-auto max-w-full">
 
       {/* Taille : + [valeur] - */}
       <div className="flex items-center shrink-0">
@@ -257,6 +258,7 @@ export function BubbleToolbar({ bubble, speechBubbles, onUpdate, onDuplicate, on
         title="Supprimer">
         <Trash2 className="h-3.5 w-3.5" />
       </button>
+    </div>
     </div>
   );
 }

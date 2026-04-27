@@ -273,7 +273,8 @@ export function BubbleLayer({
                   strokeWidth={20}
                   pointerEvents="visibleStroke"
                   style={{ cursor: "crosshair" }}
-                  onPointerDown={(e) => {
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={(e) => {
                     e.stopPropagation();
                     onSelectBubble(bubble.id);
                     onTailContext?.(bubble.id);

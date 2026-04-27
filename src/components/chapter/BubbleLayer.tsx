@@ -74,10 +74,29 @@ export function BubbleLayer({
   // Ref to the currently active contenteditable div (uncontrolled)
   const editingDivRef = useRef<HTMLDivElement | null>(null);
   const textAreaHRef = useRef<number>(0);
+  const editingBubbleTextRef = useRef<string>("");
   const speechBubblesRef = useRef(speechBubbles);
   speechBubblesRef.current = speechBubbles;
   const onTextCommitRef = useRef(onTextCommit);
   onTextCommitRef.current = onTextCommit;
+
+  // Stable callback ref — fires only on mount/unmount, never on re-render.
+  // Prevents re-initialization (and content reset) caused by inline function refs.
+  const editingDivCallback = useCallback((el: HTMLDivElement | null) => {
+    if (el) {
+      el.innerHTML = editingBubbleTextRef.current;
+      recenterEditable(el, textAreaHRef.current);
+      el.focus({ preventScroll: true });
+      const r = document.createRange();
+      r.selectNodeContents(el);
+      r.collapse(false);
+      window.getSelection()?.removeAllRanges();
+      window.getSelection()?.addRange(r);
+      editingDivRef.current = el;
+    } else {
+      editingDivRef.current = null;
+    }
+  }, []);
 
   const formatAll = useCallback((cmd: string) => {
     if (!selectedBubbleId) return;
@@ -184,6 +203,11 @@ export function BubbleLayer({
         // Ces classes les restaurent pour le rich text stocké en HTML dans bubble.text.
         const richTextClass = "[&_u]:underline [&_s]:line-through [&_strike]:line-through [&_b]:font-bold [&_strong]:font-bold [&_i]:italic [&_em]:italic";
 
+        if (isEditing) {
+          editingBubbleTextRef.current = bubble.text;
+          textAreaHRef.current = textAreaH;
+        }
+
         return (
           <div
             key={bubble.id}
@@ -223,24 +247,7 @@ export function BubbleLayer({
 
             {isEditing ? (
               <div
-                ref={(el) => {
-                  if (el) {
-                    if (!editingDivRef.current) {
-                      textAreaHRef.current = textAreaH;
-                      el.innerHTML = bubble.text;
-                      recenterEditable(el, textAreaH);
-                      el.focus({ preventScroll: true });
-                      const r = document.createRange();
-                      r.selectNodeContents(el);
-                      r.collapse(false);
-                      window.getSelection()?.removeAllRanges();
-                      window.getSelection()?.addRange(r);
-                    }
-                    editingDivRef.current = el;
-                  } else {
-                    editingDivRef.current = null;
-                  }
-                }}
+                ref={editingDivCallback}
                 contentEditable
                 suppressContentEditableWarning
                 onInput={(e) => recenterEditable(e.currentTarget as HTMLDivElement, textAreaH)}

@@ -6,7 +6,7 @@ import { useDragBlock } from "@/hooks/useDragBlock";
 import { useResizeBlock } from "@/hooks/useResizeBlock";
 import type { ResizingState } from "@/hooks/useResizeBlock";
 import { SpeechBubbleShape, SPEECH_BUBBLE_TAIL_H, SPEECH_BUBBLE_VIEWBOX_WITH_TAIL, SPEECH_BUBBLE_VIEWBOX_NARRATION } from "./SpeechBubbleShape";
-import { getTailHitPath, TAIL_ELLIPSE as BUBBLE_TAIL_ELLIPSE } from "./speechBubbleTail";
+import { getTailHitPath, TAIL_ELLIPSE as BUBBLE_TAIL_ELLIPSE, buildUnifiedTailPath } from "./speechBubbleTail";
 
 // Types qui ont une queue draggable via handle
 const DRAGGABLE_TAIL_TYPES = new Set(["speech", "whisper", "cloud", "wavy", "sadness", "anger"]);
@@ -75,6 +75,8 @@ export function BubbleLayer({
   onBubbleUpdate,
 }: BubbleLayerProps) {
   const ghostRefByPanel = useRef<Record<string, HTMLDivElement | null>>({});
+  const bubbleSvgRefs = useRef<Map<string, SVGSVGElement>>(new Map());
+  const bubbleHandleRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const [tailDragActive, setTailDragActive] = useState(false);
   const tailDragBubbleIdRef = useRef<string | null>(null);
   const isResizingSpeechBubbleRef = useRef(false);
@@ -235,6 +237,7 @@ export function BubbleLayer({
           >
             {bubble.type !== "text" && (
               <svg
+                ref={(el) => { if (el) bubbleSvgRefs.current.set(bubble.id, el); else bubbleSvgRefs.current.delete(bubble.id); }}
                 width="100%" height="100%"
                 viewBox={SPEECH_BUBBLE_NO_TAIL_TYPES.has(bubble.type) ? SPEECH_BUBBLE_VIEWBOX_NARRATION : SPEECH_BUBBLE_VIEWBOX_WITH_TAIL}
                 className="absolute inset-0 pointer-events-none"
@@ -256,7 +259,7 @@ export function BubbleLayer({
               </svg>
             )}
 
-            {/* SVG overlay pour la zone de hit de la queue — pointer-events sur le path uniquement */}
+            {/* SVG overlay pour la zone de hit de la queue — triangle seulement */}
             {hitPath && (
               <svg
                 width="100%" height="100%"
@@ -268,9 +271,9 @@ export function BubbleLayer({
               >
                 <path
                   d={hitPath}
-                  strokeWidth={20}
-                  pointerEvents="visibleStroke"
-                  className="fill-transparent stroke-transparent hover:stroke-primary/40 transition-colors cursor-crosshair"
+                  strokeWidth={1.5}
+                  pointerEvents="all"
+                  className="fill-transparent stroke-transparent hover:fill-primary/20 hover:stroke-primary/50 transition-colors cursor-crosshair"
                   onPointerDown={(e) => e.stopPropagation()}
                   onClick={(e) => {
                     e.stopPropagation();
@@ -284,6 +287,7 @@ export function BubbleLayer({
             {/* Handle de la pointe de queue — visible uniquement si bulle sélectionnée */}
             {isSelected && hasDraggableTail && !isEditing && (
               <div
+                ref={(el) => { if (el) bubbleHandleRefs.current.set(bubble.id, el); else bubbleHandleRefs.current.delete(bubble.id); }}
                 style={{
                   position: "absolute",
                   left: (resolvedTailX / 100) * geom.width,
@@ -304,17 +308,26 @@ export function BubbleLayer({
                   e.preventDefault();
                   e.stopPropagation();
 
-                  // bubbleDiv = parent direct du handle (le div positionné sur le panel)
                   const bubbleDiv = (e.currentTarget as HTMLElement).parentElement;
                   if (!bubbleDiv) return;
 
-                  // rect.width/height = taille réelle en px viewport (zoom inclus)
                   const rect = bubbleDiv.getBoundingClientRect();
-                  // Offset click dans le repère viewBox pour que la pointe ne saute pas
                   const clickOffX = (e.clientX - rect.left) / (rect.width / 100) - resolvedTailX;
                   const clickOffY = (e.clientY - rect.top)  / (rect.height / 120) - resolvedTailY;
 
-                  tailDragBubbleIdRef.current = bubble.id;
+                  // Capture stable values for the drag closure
+                  const capturedId = bubble.id;
+                  const capturedEllipse = ellipseParams;
+                  const capturedHw = (bubble.tailBaseWidth ?? 28) / 2;
+                  const capturedCurve = bubble.tailCurve ?? 0;
+                  const capturedGeomW = geom.width;
+                  const capturedTotalH = totalH;
+                  const svgEl = bubbleSvgRefs.current.get(capturedId);
+                  const handleEl = bubbleHandleRefs.current.get(capturedId);
+                  // Track latest position for single commit on pointerup
+                  const latestPos = { vbX: resolvedTailX, vbY: resolvedTailY };
+
+                  tailDragBubbleIdRef.current = capturedId;
                   setTailDragActive(true);
 
                   const onMove = (ev: PointerEvent) => {
@@ -322,16 +335,24 @@ export function BubbleLayer({
                     const vbX = (ev.clientX - r.left) / (r.width  / 100) - clickOffX;
                     const vbY = (ev.clientY - r.top)  / (r.height / 120) - clickOffY;
 
-                    if (ellipseParams) {
-                      const { cx, cy, rx, ry } = ellipseParams;
+                    if (capturedEllipse) {
+                      const { cx, cy, rx, ry } = capturedEllipse;
                       if (Math.pow((vbX - cx) / rx, 2) + Math.pow((vbY - cy) / ry, 2) < 1.15 * 1.15) return;
                     }
 
-                    onBubbleUpdate?.(speechBubbles.map((b) =>
-                      b.id === bubble.id
-                        ? { ...b, tailX: Math.round(vbX * 10) / 10, tailY: Math.round(vbY * 10) / 10 }
-                        : b
-                    ));
+                    latestPos.vbX = Math.round(vbX * 10) / 10;
+                    latestPos.vbY = Math.round(vbY * 10) / 10;
+
+                    // Direct DOM update — no React re-render per frame
+                    if (svgEl && capturedEllipse) {
+                      const { cx, cy, rx, ry } = capturedEllipse;
+                      const newPath = buildUnifiedTailPath(cx, cy, rx, ry, vbX, vbY, capturedHw, capturedCurve);
+                      svgEl.querySelector("path")?.setAttribute("d", newPath);
+                    }
+                    if (handleEl) {
+                      handleEl.style.left = `${(vbX / 100) * capturedGeomW}px`;
+                      handleEl.style.top  = `${(vbY / 120) * capturedTotalH}px`;
+                    }
                   };
 
                   const onUp = () => {
@@ -339,6 +360,12 @@ export function BubbleLayer({
                     setTailDragActive(false);
                     window.removeEventListener("pointermove", onMove);
                     window.removeEventListener("pointerup", onUp);
+                    // Single React commit with final position
+                    onBubbleUpdate?.(speechBubbles.map((b) =>
+                      b.id === capturedId
+                        ? { ...b, tailX: latestPos.vbX, tailY: latestPos.vbY }
+                        : b
+                    ));
                   };
 
                   window.addEventListener("pointermove", onMove);

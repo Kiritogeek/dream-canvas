@@ -213,6 +213,7 @@ export default function ChapterDetail() {
   /** Niveau de zoom du canvas éditeur (0.1–2.0, défaut 0.5) */
   const [zoomLevel, setZoomLevel] = useState(0.5);
   const zoomRef = useRef(0.5);
+  const bubbleFormatRef = useRef<{ formatAll: (cmd: string) => void } | null>(null);
   /** Onglet actif de la sidebar bibliothèque (null = fermée) */
   const [activeSidebarTab, setActiveSidebarTab] = useState<"blocs" | "couleurs" | "dialogue" | null>(null);
 
@@ -1211,6 +1212,7 @@ export default function ChapterDetail() {
                     setSelectedSpeechBubbleIdInModal({ panelId: panel.id, bubbleId: nb.id });
                   }}
                   onDelete={() => handleDeleteSpeechBubble(selectedSpeechBubble)}
+                  onFormatAll={(cmd) => bubbleFormatRef.current?.formatAll(cmd)}
                 />
               </div>
             </div>
@@ -1308,6 +1310,7 @@ export default function ChapterDetail() {
                           const next = speechBubbles.map((b) => b.id === bubbleId ? { ...b, text } : b);
                           handleUpdateSpeechBubbles(next);
                         }}
+                        imperativeRef={bubbleFormatRef}
                       />
                       </div>
                     </div>

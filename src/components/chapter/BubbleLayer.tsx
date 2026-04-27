@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import type { Panel, SpeechBubble } from "@/types";
 import { getSpeechBubbleFillStroke, DEFAULT_SPEECH_BUBBLE_WIDTH, DEFAULT_SPEECH_BUBBLE_HEIGHT, SPEECH_BUBBLE_NO_TAIL_TYPES } from "@/types";
 import { getPanelHeight } from "@/services/panels";
@@ -19,9 +19,24 @@ interface BubbleLayerProps {
   onResizeCommit: (panelId: string, bubbleId: string, draft: { x: number; y: number; width: number; height: number }) => void;
   onDelete?: (bubble: SpeechBubble) => void;
   onTextCommit: (bubbleId: string, text: string) => void;
+  imperativeRef?: React.MutableRefObject<{ formatAll: (cmd: string) => void } | null>;
 }
 
 type BubbleResizingState = ResizingState & { bubbleId: string };
+
+function cmdToTag(cmd: string): string | null {
+  const map: Record<string, string> = { bold: "b", italic: "i", underline: "u", strikeThrough: "s" };
+  return map[cmd] ?? null;
+}
+
+function toggleTagWrap(html: string, tag: string): string {
+  const div = document.createElement("div");
+  div.innerHTML = html;
+  if (div.children.length === 1 && div.firstElementChild?.tagName.toLowerCase() === tag) {
+    return (div.firstElementChild as HTMLElement).innerHTML;
+  }
+  return `<${tag}>${div.innerHTML}</${tag}>`;
+}
 
 function recenterEditable(el: HTMLElement, areaH: number) {
   el.style.height = "0px";
@@ -43,6 +58,7 @@ export function BubbleLayer({
   onMoveCommit,
   onResizeCommit,
   onTextCommit,
+  imperativeRef,
 }: BubbleLayerProps) {
   const ghostRefByPanel = useRef<Record<string, HTMLDivElement | null>>({});
   const isResizingSpeechBubbleRef = useRef(false);
@@ -57,6 +73,40 @@ export function BubbleLayer({
 
   // Ref to the currently active contenteditable div (uncontrolled)
   const editingDivRef = useRef<HTMLDivElement | null>(null);
+  const textAreaHRef = useRef<number>(0);
+  const speechBubblesRef = useRef(speechBubbles);
+  speechBubblesRef.current = speechBubbles;
+  const onTextCommitRef = useRef(onTextCommit);
+  onTextCommitRef.current = onTextCommit;
+
+  const formatAll = useCallback((cmd: string) => {
+    if (!selectedBubbleId) return;
+    const tag = cmdToTag(cmd);
+    if (!tag) return;
+
+    if (editingDivRef.current) {
+      const el = editingDivRef.current;
+      el.innerHTML = toggleTagWrap(el.innerHTML, tag);
+      recenterEditable(el, textAreaHRef.current);
+      const r = document.createRange();
+      r.selectNodeContents(el);
+      r.collapse(false);
+      window.getSelection()?.removeAllRanges();
+      window.getSelection()?.addRange(r);
+      return;
+    }
+
+    const bubble = speechBubblesRef.current.find(b => b.id === selectedBubbleId);
+    if (!bubble) return;
+    onTextCommitRef.current(selectedBubbleId, toggleTagWrap(bubble.text, tag));
+  }, [selectedBubbleId]);
+
+  useEffect(() => {
+    if (imperativeRef) {
+      imperativeRef.current = { formatAll };
+      return () => { imperativeRef.current = null; };
+    }
+  }, [imperativeRef, formatAll]);
 
   const dragSpeechBubble = useDragBlock({
     canvasRefByPanel,
@@ -176,14 +226,15 @@ export function BubbleLayer({
                 ref={(el) => {
                   if (el) {
                     if (!editingDivRef.current) {
+                      textAreaHRef.current = textAreaH;
                       el.innerHTML = bubble.text;
                       recenterEditable(el, textAreaH);
-                      el.focus();
-                      const range = document.createRange();
-                      range.selectNodeContents(el);
-                      range.collapse(false);
+                      el.focus({ preventScroll: true });
+                      const r = document.createRange();
+                      r.selectNodeContents(el);
+                      r.collapse(false);
                       window.getSelection()?.removeAllRanges();
-                      window.getSelection()?.addRange(range);
+                      window.getSelection()?.addRange(r);
                     }
                     editingDivRef.current = el;
                   } else {

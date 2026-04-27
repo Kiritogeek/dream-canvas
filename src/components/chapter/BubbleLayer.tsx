@@ -240,6 +240,7 @@ export function BubbleLayer({
                 className="absolute inset-0 pointer-events-none"
                 preserveAspectRatio="none"
                 fillOpacity={fillOpacity}
+                overflow="visible"
               >
                 <SpeechBubbleShape
                   type={bubble.type}
@@ -263,6 +264,7 @@ export function BubbleLayer({
                 className="absolute inset-0"
                 style={{ pointerEvents: "none" }}
                 preserveAspectRatio="none"
+                overflow="visible"
               >
                 <path
                   d={hitPath}

@@ -47,14 +47,18 @@ export function BubbleToolbar({ bubble, speechBubbles, onUpdate, onDuplicate, on
   const borderWidth = bubble.borderWidth ?? 2;
   const bgTransparency = bubble.bgTransparency ?? 0;
 
-  // Applique le format sur la sélection (execCommand) OU en CSS sur toute la bulle si pas de contenteditable actif
+  // Applique le format sur la sélection (execCommand) OU en CSS sur toute la bulle si pas de sélection active
   const applyFmt = (e: React.MouseEvent, styleKey: "bold" | "italic" | "underline" | "strikethrough", cmd: string) => {
     e.preventDefault();
-    const success = document.execCommand(cmd, false, undefined);
     const sel = window.getSelection();
     const hasSelection = sel && sel.rangeCount > 0 && !sel.isCollapsed;
-    // Si execCommand échoue (pas de contenteditable actif) ou si pas de sélection → toggle CSS
-    if (!success || !hasSelection) {
+    if (hasSelection) {
+      // Texte sélectionné → execCommand sur la sélection uniquement
+      const applied = document.execCommand(cmd, false, undefined);
+      // Si execCommand échoue (sélection hors contenteditable) → toggle CSS
+      if (!applied) patchStyle({ [styleKey]: !bubble.style?.[styleKey] });
+    } else {
+      // Pas de sélection → toggle CSS sur toute la bulle
       patchStyle({ [styleKey]: !bubble.style?.[styleKey] });
     }
   };

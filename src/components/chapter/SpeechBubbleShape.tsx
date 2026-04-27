@@ -21,29 +21,22 @@ const SAMPLE_TEXT: Record<SpeechBubbleType, string> = {
   text: "CRACK!",
 };
 
-function bristlePath(cx: number, cy: number, rInner: number, rOuter: number, count: number): string {
-  const parts: string[] = [];
-  for (let i = 0; i < count; i++) {
-    const a = (i / count) * 2 * Math.PI;
-    const v = 0.7 + 0.3 * ((Math.sin(i * 1.7 + 0.5) + Math.sin(i * 3.1 + 1.2) + Math.sin(i * 7.3)) / 3);
-    const ro = rInner + (rOuter - rInner) * v;
-    const hw = (Math.PI / count) * 0.22;
-    const x1 = (cx + rInner * Math.cos(a - hw)).toFixed(1);
-    const y1 = (cy + rInner * Math.sin(a - hw)).toFixed(1);
-    const x2 = (cx + rInner * Math.cos(a + hw)).toFixed(1);
-    const y2 = (cy + rInner * Math.sin(a + hw)).toFixed(1);
-    const x3 = (cx + ro * Math.cos(a)).toFixed(1);
-    const y3 = (cy + ro * Math.sin(a)).toFixed(1);
-    parts.push(`M ${x1} ${y1} L ${x3} ${y3} L ${x2} ${y2} Z`);
-  }
-  return parts.join(" ");
-}
+// Subtle feTurbulence filter — simulates hand-drawn wobble (scale=1.5 = barely perceptible)
+const HAND_DRAWN_DEFS = (
+  <defs>
+    <filter id="hd" x="-5%" y="-5%" width="110%" height="110%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="4" seed="2" result="noise" />
+      <feDisplacementMap in="SourceGraphic" in2="noise" scale="1.5" xChannelSelector="R" yChannelSelector="G" />
+    </filter>
+  </defs>
+);
 
 function wavyEllipsePath(cx: number, cy: number, rx: number, ry: number, amp: number, freq: number, n = 60): string {
   const pts: string[] = [];
   for (let i = 0; i < n; i++) {
     const a = (i / n) * 2 * Math.PI;
-    const w = amp * Math.sin(freq * a);
+    const ampVar = amp * (0.75 + 0.25 * Math.sin(a * 2.1 + 0.8));
+    const w = ampVar * Math.sin(freq * a);
     pts.push(`${(cx + (rx + w) * Math.cos(a)).toFixed(2)},${(cy + (ry + w) * Math.sin(a)).toFixed(2)}`);
   }
   return `M ${pts[0]} L ${pts.slice(1).join(" L ")} Z`;
@@ -70,6 +63,26 @@ function angryOvalPath(cx: number, cy: number, rx: number, ry: number, amp: numb
   return `M ${pts[0]} L ${pts.slice(1).join(" L ")} Z`;
 }
 
+// Irregular star: variable outer radii + slight angular noise per spike
+function irregularSpikePath(
+  cx: number, cy: number, rInner: number,
+  outerRadii: number[], angleNoises: number[]
+): string {
+  const pts: string[] = [];
+  const spikes = outerRadii.length;
+  for (let i = 0; i < spikes; i++) {
+    const baseA = (i / spikes) * 2 * Math.PI - Math.PI / 2;
+    const outerA = baseA + (angleNoises[i] * Math.PI / 180);
+    const innerA = baseA + Math.PI / spikes;
+    pts.push(`${(cx + outerRadii[i] * Math.cos(outerA)).toFixed(2)},${(cy + outerRadii[i] * Math.sin(outerA)).toFixed(2)}`);
+    pts.push(`${(cx + rInner * Math.cos(innerA)).toFixed(2)},${(cy + rInner * Math.sin(innerA)).toFixed(2)}`);
+  }
+  return `M ${pts[0]} L ${pts.slice(1).join(" L ")} Z`;
+}
+
+const SHOUT_OUTER = [52, 47, 55, 46, 53, 49, 56, 48, 52, 45, 54, 47];
+const SHOUT_NOISE = [0, 1.5, -1, 2, -1.5, 1, -2, 2, -1, 1.5, -1.5, 1];
+
 const TAIL_FLIP = "translate(100, 0) scale(-1, 1)";
 const NNS = "non-scaling-stroke" as const;
 
@@ -91,50 +104,61 @@ export function SpeechBubbleShape({ type, fill, stroke, tailFlip, strokeWidth }:
   const sw = strokeWidth ?? 2;
   const tf = tailFlip ? TAIL_FLIP : undefined;
 
-  // ── Dialogue : ovale propre, queue triangle, base ancrée dans l'ellipse ──
+  // ── Dialogue : ovale asymétrique Bézier, queue courbe ────────────────────
   if (type === "speech") {
     return (
       <>
         <g transform={tf}>
-          <path d="M 24 76 L 4 120 L 38 82 Z"
+          <path d="M 26 78 Q 2 112, 4 120 Q 10 118, 40 82 Z"
             fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" vectorEffect={NNS} />
         </g>
-        <ellipse cx={50} cy={46} rx={47} ry={42}
+        <path d="M 52 5 C 77 3, 97 22, 96 47 C 95 72, 75 89, 49 88 C 24 88, 4 71, 4 47 C 3 23, 27 4, 52 5 Z"
           fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
       </>
     );
   }
 
-  // ── Dramatique : cercle à bristles radiaux, sans queue ───────────────────
+  // ── Pensée : nuage de cercles + queue de bulles décroissantes ─────────────
   if (type === "thought") {
-    const bristles = bristlePath(50, 50, 37, 56, 180);
-    return (
-      <>
-        <path d={bristles} fill={stroke} />
-        <circle cx={50} cy={50} r={37} fill={fill} />
-      </>
-    );
-  }
-
-  // ── Pensée nuage : chaîne derrière, corps par-dessus ────────────────────
-  if (type === "cloud") {
     return (
       <>
         <g transform={tf}>
-          <circle cx={62} cy={86} r={7} fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
-          <circle cx={70} cy={101} r={5} fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
-          <circle cx={77} cy={113} r={3.5} fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
+          <circle cx={34} cy={80} r={7} fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
+          <circle cx={25} cy={95} r={4.5} fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
+          <circle cx={18} cy={108} r={2.5} fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
         </g>
-        <ellipse cx={50} cy={47} rx={44} ry={36} fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
-        <circle cx={20} cy={43} r={12} fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
-        <circle cx={80} cy={43} r={12} fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
-        <circle cx={32} cy={18} r={9.5} fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
-        <circle cx={68} cy={18} r={9.5} fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
+        <circle cx={50} cy={46} r={29} fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
+        <circle cx={24} cy={53} r={17} fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
+        <circle cx={76} cy={53} r={17} fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
+        <circle cx={34} cy={32} r={14} fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
+        <circle cx={66} cy={32} r={14} fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
+        <circle cx={50} cy={23} r={12} fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
       </>
     );
   }
 
-  // ── Narration : rectangle simple, pas de queue ───────────────────────────
+  // ── Pensée nuage : filtre hd + chaîne de bulles ───────────────────────────
+  if (type === "cloud") {
+    return (
+      <>
+        {HAND_DRAWN_DEFS}
+        <g filter="url(#hd)">
+          <g transform={tf}>
+            <circle cx={62} cy={86} r={7} fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
+            <circle cx={70} cy={101} r={5} fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
+            <circle cx={77} cy={113} r={3.5} fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
+          </g>
+          <ellipse cx={50} cy={47} rx={44} ry={36} fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
+          <circle cx={20} cy={43} r={12} fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
+          <circle cx={80} cy={43} r={12} fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
+          <circle cx={32} cy={18} r={9.5} fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
+          <circle cx={68} cy={18} r={9.5} fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
+        </g>
+      </>
+    );
+  }
+
+  // ── Narration : rectangle, aspect intentionnellement mécanique ───────────
   if (type === "narration") {
     return (
       <rect x={3} y={3} width={94} height={94} rx={3} ry={3}
@@ -142,9 +166,9 @@ export function SpeechBubbleShape({ type, fill, stroke, tailFlip, strokeWidth }:
     );
   }
 
-  // ── Cri : étoile 12 pointes, queue éclair, base dans l'étoile ───────────
+  // ── Cri : étoile 12 pointes irrégulières, queue éclair ───────────────────
   if (type === "shout") {
-    const body = spikePath(50, 50, 37, 52, 12);
+    const body = irregularSpikePath(50, 50, 37, SHOUT_OUTER, SHOUT_NOISE);
     return (
       <>
         <g transform={tf}>
@@ -156,66 +180,78 @@ export function SpeechBubbleShape({ type, fill, stroke, tailFlip, strokeWidth }:
     );
   }
 
-  // ── Chuchotement : ovale tirets, queue tirets, base dans l'ellipse ───────
+  // ── Chuchotement : ovale tirets + filtre hd ───────────────────────────────
   if (type === "whisper") {
     return (
       <>
-        <g transform={tf}>
-          <path d="M 24 76 L 4 120 L 38 82 Z"
-            fill={fill} stroke={stroke} strokeWidth={sw} strokeDasharray="6 3" strokeLinejoin="round" vectorEffect={NNS} />
+        {HAND_DRAWN_DEFS}
+        <g filter="url(#hd)">
+          <g transform={tf}>
+            <path d="M 24 76 L 4 120 L 38 82 Z"
+              fill={fill} stroke={stroke} strokeWidth={sw} strokeDasharray="6 3" strokeLinejoin="round" vectorEffect={NNS} />
+          </g>
+          <ellipse cx={50} cy={46} rx={47} ry={42}
+            fill={fill} stroke={stroke} strokeWidth={sw} strokeDasharray="6 3" vectorEffect={NNS} />
         </g>
-        <ellipse cx={50} cy={46} rx={47} ry={42}
-          fill={fill} stroke={stroke} strokeWidth={sw} strokeDasharray="6 3" vectorEffect={NNS} />
       </>
     );
   }
 
-  // ── Colère : ovale avec pointes, queue éclair, base dans l'ovale ─────────
+  // ── Colère : ovale avec pointes + filtre hd ───────────────────────────────
   if (type === "anger") {
     const body = angryOvalPath(50, 46, 43, 38, 8, 10);
     return (
       <>
-        <g transform={tf}>
-          <path d="M 30 66 L 20 100 L 30 102 L 16 118 L 30 114 L 28 106 L 40 74 Z"
-            fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" vectorEffect={NNS} />
+        {HAND_DRAWN_DEFS}
+        <g filter="url(#hd)">
+          <g transform={tf}>
+            <path d="M 30 66 L 20 100 L 30 102 L 16 118 L 30 114 L 28 106 L 40 74 Z"
+              fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" vectorEffect={NNS} />
+          </g>
+          <path d={body} fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" vectorEffect={NNS} />
         </g>
-        <path d={body} fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" vectorEffect={NNS} />
       </>
     );
   }
 
-  // ── Tristesse : ovale doux, queue triangle, larmes par-dessus ───────────
+  // ── Tristesse : ovale + larmes + filtre hd ────────────────────────────────
   if (type === "sadness") {
     return (
       <>
-        <g transform={tf}>
-          <path d="M 24 72 L 4 120 L 38 78 Z"
-            fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" vectorEffect={NNS} />
+        {HAND_DRAWN_DEFS}
+        <g filter="url(#hd)">
+          <g transform={tf}>
+            <path d="M 24 72 L 4 120 L 38 78 Z"
+              fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" vectorEffect={NNS} />
+          </g>
+          <ellipse cx={50} cy={44} rx={47} ry={40}
+            fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
+          <ellipse cx={28} cy={91} rx={4} ry={6.5} fill={stroke} />
+          <ellipse cx={40} cy={94} rx={3} ry={5} fill={stroke} />
+          <ellipse cx={52} cy={93} rx={3.5} ry={5.5} fill={stroke} />
         </g>
-        <ellipse cx={50} cy={44} rx={47} ry={40}
-          fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
-        <ellipse cx={28} cy={91} rx={4} ry={6.5} fill={stroke} />
-        <ellipse cx={40} cy={94} rx={3} ry={5} fill={stroke} />
-        <ellipse cx={52} cy={93} rx={3.5} ry={5.5} fill={stroke} />
       </>
     );
   }
 
-  // ── Transmission : octogone, queue éclair, base dans le polygone ─────────
+  // ── Transmission : octogone + filtre hd ──────────────────────────────────
   if (type === "radio") {
     return (
       <>
-        <g transform={tf}>
-          <path d="M 70 82 L 60 103 L 71 105 L 57 120 L 72 117 L 69 109 L 80 84 Z"
+        {HAND_DRAWN_DEFS}
+        <g filter="url(#hd)">
+          <g transform={tf}>
+            <path d="M 70 82 L 60 103 L 71 105 L 57 120 L 72 117 L 69 109 L 80 84 Z"
+              fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" vectorEffect={NNS} />
+          </g>
+          <path d="M 10 14 L 90 14 L 96 26 L 96 76 L 88 88 L 12 88 L 4 76 L 4 26 Z"
             fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" vectorEffect={NNS} />
         </g>
-        <path d="M 10 14 L 90 14 L 96 26 L 96 76 L 88 88 L 12 88 L 4 76 L 4 26 Z"
-          fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" vectorEffect={NNS} />
       </>
     );
   }
 
-  // ── Électronique : oct. anguleux, queue éclair, zigzag déco ─────────────
+  // ── Électronique : aspect mécanique conservé intentionnellement ──────────
   if (type === "electronic") {
     return (
       <>
@@ -231,30 +267,36 @@ export function SpeechBubbleShape({ type, fill, stroke, tailFlip, strokeWidth }:
     );
   }
 
-  // ── Impact : étoile irrégulière, queue éclair, base dans l'étoile ────────
+  // ── Impact : étoile + filtre hd ───────────────────────────────────────────
   if (type === "explosion") {
     const body = spikePath(50, 50, 28, 52, 9);
     return (
       <>
-        <g transform={tf}>
-          <path d="M 34 62 L 22 100 L 34 102 L 22 118 L 36 114 L 33 106 L 44 70 Z"
-            fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" vectorEffect={NNS} />
+        {HAND_DRAWN_DEFS}
+        <g filter="url(#hd)">
+          <g transform={tf}>
+            <path d="M 34 62 L 22 100 L 34 102 L 22 118 L 36 114 L 33 106 L 44 70 Z"
+              fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" vectorEffect={NNS} />
+          </g>
+          <path d={body} fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" vectorEffect={NNS} />
         </g>
-        <path d={body} fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" vectorEffect={NNS} />
       </>
     );
   }
 
-  // ── Tremblant : ovale ondulé, queue triangle, base dans l'ovale ──────────
+  // ── Tremblant : ovale amplitude variable + filtre hd ─────────────────────
   if (type === "wavy") {
     const body = wavyEllipsePath(50, 46, 46, 41, 3, 7);
     return (
       <>
-        <g transform={tf}>
-          <path d="M 28 74 L 4 120 L 40 82 Z"
-            fill={fill} stroke={stroke} strokeWidth={sw} strokeDasharray="5 2" strokeLinejoin="round" vectorEffect={NNS} />
+        {HAND_DRAWN_DEFS}
+        <g filter="url(#hd)">
+          <g transform={tf}>
+            <path d="M 28 74 L 4 120 L 40 82 Z"
+              fill={fill} stroke={stroke} strokeWidth={sw} strokeDasharray="5 2" strokeLinejoin="round" vectorEffect={NNS} />
+          </g>
+          <path d={body} fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
         </g>
-        <path d={body} fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
       </>
     );
   }

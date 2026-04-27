@@ -36,31 +36,9 @@
 
 ## Design System
 
-### Classes custom (index.css)
-- `.glass` — Glassmorphisme : backdrop-blur(24px), bordure légère, ombre subtile
-- `.gradient-dream` — Dégradé lavande → pêche → menthe (135°, alpha 0.3)
-- `.gradient-primary` — Lavande → pêche-deep (135°, opaque) — utilisé pour les boutons CTA et éléments actifs
-- `.text-gradient` — Dégradé texte lavande → pêche
-- `.shadow-dream` — Ombre multi-couches (lavande 0.2 + pêche 0.15)
-- `.shadow-glow` — Halo lavande pour effets hover
-- `.bg-content` — Fond crème/pêche (light) ou lavande-dark (dark)
-- `.scrollbar-none` — Scrollbar cachée
+> Détail complet : `wiki/DesignSystem.md` — classes custom, tokens HSL, typographie.
 
-### Tokens couleur (HSL CSS variables)
-```
---lavender: 275° 45% 72%       (couleur primaire)
---lavender-soft: 275° 30% 92%  (fond doux)
---peach: 28° 80% 88%           (accent chaud)
---peach-deep: 20° 70% 75%      (gradient secondaire)
---mint: 170° 35% 78%           (accent froid)
---cream: 40° 40% 96%           (fond principal light)
-```
-Dark mode : background 275° 20% 7% (lavande foncé, jamais noir pur).
-
-### Typographie
-- Display : **Quicksand** (font-display) — titres, labels nav
-- Body : **Nunito** — texte courant
-- Base : 110% (~18px)
+Règle : ne jamais hardcoder des couleurs — utiliser les tokens HSL ou les classes custom (`.glass`, `.gradient-primary`, `.text-gradient`, etc.).
 
 ---
 
@@ -178,6 +156,8 @@ Cette règle s'applique même en fin de session, même pour une "mise à jour ra
 
 Ne pas poser toutes ces questions à la fois — choisir la plus pertinente selon le contexte. L'objectif est d'éviter d'implémenter la mauvaise chose parfaitement.
 
+**Règle obligatoire — Questions avant implémentation** : Pour tout prompt important (nouvelle feature, refactoring significatif, modification d'un composant clé), poser **au moins une question de clarification** avant de commencer à coder. Ne jamais sauter cette étape même si la demande semble claire — une question bien posée évite des heures de correction. Exception : corrections de bugs évidents < 5 lignes.
+
 ### Pendant le développement
 - Vérifier TypeScript : `npx tsc --noEmit` après chaque modification de types
 - Préférer `Edit` sur les fichiers existants, `Write` uniquement pour les nouveaux fichiers
@@ -192,19 +172,10 @@ Ne pas poser toutes ces questions à la fois — choisir la plus pertinente selo
 
 ### Agents disponibles
 
-| Agent | Couleur | Rôle | Quand l'utiliser |
-|-------|---------|------|-----------------|
-| `Interface Architect` | 🔵 #3B82F6 | UX/UI + design system | Composants, layout, glassmorphisme, animations, éditeur panels/bulles |
-| `Prompt Engineer IA` | 🟠 #F97316 | Prompts FAL.ai / FLUX | Génération assets, panels, style templates, cohérence visuelle IA |
-| `Fullstack Engineer` | 🟣 #8B5CF6 | React + TypeScript + Supabase | Bugs cross-couches, nouvelles features, auth, React Query, Edge Functions |
-| `Product Owner` | 🔴 #EF4444 | Stratégie produit | Cadrage feature, user stories, critères d'acceptation, priorisation backlog |
-| `Performance Auditor` | 🟢 #10B981 | Perf web React/CSS | Scroll lag, re-renders, memory leaks, GPU layers, lazy loading |
-| `QA Engineer` | 🟡 #EAB308 | Validation livraisons | **Obligatoire** après tout code livré — TypeScript, tests, patterns, sécurité |
-| `Explore` | ⚪ — | Scan codebase | Exploration > 3 fichiers, recherche de patterns |
+> Tableau complet + workflow PLAN→MERGE : `wiki/Agents.md`
 
-Chaque agent commence sa réponse par son badge coloré (ex : `🟡 QA Engineer — nom de tâche`).
-
-Pour les éditions ciblées (1-3 fichiers connus) : outils directs `Read`/`Edit`/`Grep`.
+Agents : `Interface Architect` 🔵, `Prompt Engineer IA` 🟠, `Fullstack Engineer` 🟣, `Product Owner` 🔴, `Performance Auditor` 🟢, `QA Engineer` 🟡, `Explore` ⚪.
+Seuil direct : **< 3 fichiers ET < 20 lignes → Claude principal** (pas d'agent).
 
 ### Règle QA — OBLIGATOIRE
 
@@ -233,62 +204,19 @@ En parallèle, le hook `PostToolUse` dans `.claude/settings.local.json` exécute
 
 ### Règle de délégation — OBLIGATOIRE
 
-**Toujours déléguer à l'agent le plus qualifié.** Ne jamais implémenter soi-même ce qu'un agent spécialisé ferait mieux.
+**Toujours déléguer à l'agent le plus qualifié.** Processus : tâche = agent existant → spawner. Compétence absente → enrichir l'agent (`/.claude/agents/<agent>.md`). Trop éloigné → créer un agent uniquement si réutilisable régulièrement.
 
-**Processus de décision :**
-1. La tâche correspond à un agent existant → le spawner immédiatement.
-2. La tâche touche à une compétence absente mais proche d'un agent → ajouter cette compétence dans son system prompt (`/.claude/agents/<agent>.md`), puis le spawner.
-3. La tâche est trop éloignée de tous les agents existants → créer un nouvel agent spécialisé dans `/.claude/agents/`, **uniquement si la compétence sera réutilisée régulièrement** (ne pas créer d'agent one-shot).
+Claude principal agit directement pour : éditions ciblées (1-3 fichiers, < 20 lignes), lecture/recherche simple, méta-travail (wiki, CLAUDE.md).
 
-**Cas où Claude principal agit directement** (sans délégation) :
-- Éditions ciblées connues (1-3 fichiers, < 20 lignes)
-- Lecture/recherche simple (`Read`, `Grep`, `Glob`)
-- Meta-travail : wiki, CLAUDE.md, configuration agents
-
-**Règles de prompt d'agent — obligatoires :**
-- Chaque prompt doit être **self-contained** : fichiers cibles (chemins exacts), types pertinents, contraintes RLS, ce qui ne doit pas être touché.
-- **Copier les extraits wiki pertinents** dans le prompt — les agents n'ont pas accès au wiki automatiquement.
-- Utiliser `run_in_background: true` pour les agents indépendants (Interface Architect + Fullstack Engineer simultanément).
-- Utiliser `isolation: "worktree"` pour les refactoring risqués (`ChapterDetail.tsx`, migrations).
-- Seuil strict : **< 3 fichiers ET < 20 lignes → Claude principal** (overhead agent > travail).
+Prompts d'agent : self-contained (chemins exacts, types, contraintes RLS). `run_in_background: true` pour agents indépendants. `isolation: "worktree"` pour refactoring risqués.
 
 ---
 
 ## Workflow de développement
 
-### Phases
+> Détail phases + démarrer une feature : `wiki/Agents.md`
 
-```
-PLAN → DESIGN → DEV → QA → REVIEW → MERGE
-```
-
-| Phase | Responsable | Couleur | Actions |
-|-------|-------------|---------|---------|
-| **PLAN** | `Product Owner` | 🔴 | Cadrer la feature, écrire user story + critères d'acceptation |
-| **DESIGN** | `Interface Architect` | 🔵 | Proposer l'approche UI/UX, valider la cohérence design system |
-| **DEV** | `Fullstack Engineer` | 🟣 | Implémenter (types → services → hooks → composants) |
-| **PROMPT** | `Prompt Engineer IA` | 🟠 | Si génération image impliquée : optimiser les prompts |
-| **QA** | `QA Engineer` | 🟡 | **Obligatoire** — TypeScript, Vitest, patterns, sécurité, RLS |
-| **REVIEW** | Claude principal | — | Cohérence globale, décisions d'architecture |
-| **MERGE** | Louis | — | PR propre, commit conventionnel français |
-
-### Démarrer une nouvelle feature
-
-1. Commencer par `Product Owner` → clarifier le besoin, écrire les critères d'acceptation
-2. Passer à `Interface Architect` si la feature a un impact visuel significatif
-3. Passer à `Fullstack Engineer` pour l'implémentation
-4. Impliquer `Prompt Engineer IA` si la feature touche la génération d'images IA
-
-### Implémenter du bas vers le haut
-
-```
-src/types/index.ts           (1) Ajouter/modifier les types
-src/integrations/supabase/   (2) Types DB si schéma impacté
-src/services/                (3) Logique métier et appels API
-src/hooks/                   (4) State, mutations React Query
-src/components/              (5) Composants UI
-src/pages/                   (6) Intégration dans les pages
-```
+Implémenter du bas vers le haut : `types/index.ts` → `integrations/supabase/` → `services/` → `hooks/` → `components/` → `pages/`
 
 ### Git
 
@@ -301,42 +229,17 @@ src/pages/                   (6) Intégration dans les pages
 
 ## Checklist Qualité — Definition of Done
 
-Obligatoire avant tout merge :
+> Checklist complète + pièges courants : `wiki/Checklist.md`
 
-- [ ] `npx tsc --noEmit` → **0 erreur TypeScript**
-- [ ] `npm run test` → **0 régression Vitest**
-- [ ] Pas de `console.log` de debug laissé
-- [ ] RLS non contournée — `auth.uid() = user_id` respecté
-- [ ] Service role non exposé côté client
-- [ ] Edge Functions non modifiées (sauf demande explicite)
-- [ ] Migrations non modifiées (sauf demande explicite)
-- [ ] `canGenerate()` vérifié avant tout appel FAL.ai
-- [ ] `refreshSession()` appelé avant tout appel Edge Function
-- [ ] UI testée sur le chemin principal (golden path)
-- [ ] Interface en français
-
-### Pièges courants à éviter
-
-- Envoyer le style template depuis un draft local (toujours depuis `project.style_template` en BDD)
-- Oublier d'invalider les React Query après une mutation
-- Lazy loading oublié pour une nouvelle page (`React.lazy` dans `App.tsx`)
-- Hardcoder des couleurs au lieu d'utiliser les tokens HSL
-- Modifier `supabase/migrations/` sans tester sur une DB locale d'abord
-- Appeler une Edge Function sans JWT valide
+Critiques non négociables : `tsc --noEmit` 0 erreur · `npm test` 0 régression · RLS respectée · `canGenerate()` avant FAL.ai · `refreshSession()` avant Edge Function · interface en français.
 
 ---
 
-## Roadmap (résumé — ordre strict)
+## Roadmap
 
-1. ✅ **Scénario IA** — refonte workspace + résumés contexte IA
-2. ✅ **Sheet System** — génération séquentielle face + sheet 4 angles (Free ET Pro)
-3. ✅ **Audit + nettoyage navigation** — pages mortes supprimées, Univers livré, NarraMind auto
-4. 🟡 **Refonte Éditeur** — Option B (simplification UX court terme) → Option A (canvas-first Figma-like) — spec : `Produit/RefontEditeurdeloeuvre.md`
-5. 🔜 **Finalisation plans Free/Pro** — après refonte éditeur
-6. 🔜 **Stripe** — code prêt, déploiement après finalisation des plans
-7. 🔜 **Vue Admin** — `/admin`, accès `kiritogeek@gmail.com`, override plan, analytics
+> Source de vérité : `C:/Users/kirit/OneDrive/Documents/Obsidian Vault/wiki/Roadmap-2026.md`
 
-Roadmap complète : `C:/Users/PC/Documents/WikiBrain/wiki/Roadmap-2026.md` (source de vérité)
+Ordre strict : Scénario IA ✅ → Sheet System ✅ → Audit nav ✅ → Refonte Éditeur (Option B ✅, Option A 🔜) → Plans Free/Pro → **Stripe** 🔴 → Vue Admin.
 
 ---
 
@@ -344,12 +247,9 @@ Roadmap complète : `C:/Users/PC/Documents/WikiBrain/wiki/Roadmap-2026.md` (sour
 
 Quand Louis écrit **"Initialisation"**, exécuter ce protocole sans attendre :
 
-1. Lire `C:/Users/PC/Documents/WikiBrain/wiki/index.md`
-2. Identifier les 2-3 pages wiki les plus pertinentes pour le contexte actuel du projet
-3. Lire ces pages en parallèle
-4. Lire `MEMORY.md` (déjà en contexte — vérifier qu'il est à jour)
-5. Spawner les agents nécessaires selon les tâches anticipées (voir tableau agents)
-6. Répondre : "✅ Initialisé — [résumé contexte en 3 lignes : état du projet, dernière session, prochaine priorité]"
+1. Lire `C:/Users/kirit/OneDrive/Documents/Obsidian Vault/wiki/index.md`
+2. Charger une page wiki spécifique **uniquement si la tâche du jour l'exige** (ex : travail sur Stripe → lire `wiki/Stripe.md`)
+3. Répondre : "✅ Initialisé — [résumé contexte en 3 lignes : état du projet, dernière session, prochaine priorité]"
 
 **Objectif** : être opérationnel à 100% dès le premier échange, sans devoir redemander le contexte.
 
@@ -358,10 +258,10 @@ Quand Louis écrit **"Initialisation"**, exécuter ce protocole sans attendre :
 ## Règle .md — Mise à jour automatique après chaque session
 
 **Automatique — pas besoin que Louis le demande.** Après chaque session avec des décisions durables :
-- Mettre à jour les pages wiki concernées (`C:/Users/PC/Documents/WikiBrain/wiki/`)
+- Mettre à jour les pages wiki concernées (`C:/Users/kirit/OneDrive/Documents/Obsidian Vault/wiki/`)
 - Créer une page wiki si la décision crée une nouvelle spec (ex : `[[Scenario-IA]]`, `[[RefontEditeur]]`)
 - Mettre à jour `wiki/index.md` si nouvelle page créée
-- Ajouter une entrée dans `C:/Users/PC/Documents/WikiBrain/log.md`
+- Ajouter une entrée dans `C:/Users/kirit/OneDrive/Documents/Obsidian Vault/log.md`
 - Mettre à jour `CLAUDE.md` si les tiers, la stack ou les règles changent
 
 **Sessions triviales** (fix < 5 lignes, exploration) → log.md uniquement, pas de mise à jour wiki.

@@ -3,38 +3,15 @@ import { Bold, Italic, Underline, Strikethrough, AlignLeft, AlignCenter, AlignRi
 import type { SpeechBubble } from "@/types";
 import { getSpeechBubbleFillStroke, SPEECH_BUBBLE_NO_TAIL_TYPES } from "@/types";
 
-// Vérifie si tous les nœuds texte du HTML ont un ancêtre avec l'un des tags donnés
-function isAllTagged(html: string, ...tags: string[]): boolean {
-  if (!html) return false;
-  const div = document.createElement("div");
-  div.innerHTML = html;
-  const walker = document.createTreeWalker(div, NodeFilter.SHOW_TEXT);
-  let node: Node | null;
-  let hasText = false;
-  while ((node = walker.nextNode())) {
-    if (!node.textContent?.trim()) continue;
-    hasText = true;
-    let el = node.parentElement;
-    let found = false;
-    while (el && el !== div) {
-      if (tags.includes(el.tagName.toLowerCase())) { found = true; break; }
-      el = el.parentElement;
-    }
-    if (!found) return false;
-  }
-  return hasText;
-}
-
 interface BubbleToolbarProps {
   bubble: SpeechBubble;
   speechBubbles: SpeechBubble[];
   onUpdate: (next: SpeechBubble[]) => void;
   onDuplicate: () => void;
   onDelete: () => void;
-  onFormatAll: (cmd: string) => void;
 }
 
-export function BubbleToolbar({ bubble, speechBubbles, onUpdate, onDuplicate, onDelete, onFormatAll }: BubbleToolbarProps) {
+export function BubbleToolbar({ bubble, speechBubbles, onUpdate, onDuplicate, onDelete }: BubbleToolbarProps) {
   const [showBorderSlider, setShowBorderSlider] = useState(false);
   const [showTransparencySlider, setShowTransparencySlider] = useState(false);
   const savedRangeRef = useRef<Range | null>(null);
@@ -70,22 +47,17 @@ export function BubbleToolbar({ bubble, speechBubbles, onUpdate, onDuplicate, on
   const borderWidth = bubble.borderWidth ?? 2;
   const bgTransparency = bubble.bgTransparency ?? 0;
 
-  // Applique le format sur la sélection (execCommand) OU en CSS sur toute la bulle si pas de sélection active
-  const applyFmt = (e: React.MouseEvent, cmd: string) => {
+  // Sans sélection → toggle CSS sur tout le texte. Avec sélection → execCommand sur la sélection.
+  const applyFmt = (e: React.MouseEvent, styleKey: "bold" | "italic" | "underline" | "strikethrough", cmd: string) => {
     e.preventDefault();
     const sel = window.getSelection();
     const hasSelection = sel && sel.rangeCount > 0 && !sel.isCollapsed;
     if (hasSelection) {
       document.execCommand(cmd, false, undefined);
     } else {
-      onFormatAll(cmd);
+      patchStyle({ [styleKey]: !bubble.style?.[styleKey] });
     }
   };
-
-  const isAllBold = isAllTagged(bubble.text, "b", "strong");
-  const isAllItalic = isAllTagged(bubble.text, "i", "em");
-  const isAllUnderline = isAllTagged(bubble.text, "u");
-  const isAllStrike = isAllTagged(bubble.text, "s", "strike");
 
   const saveRange = () => {
     const sel = window.getSelection();
@@ -168,26 +140,26 @@ export function BubbleToolbar({ bubble, speechBubbles, onUpdate, onDuplicate, on
       {sep}
 
       {/* Gras */}
-      <button type="button" title="Gras" onMouseDown={(e) => applyFmt(e, "bold")}
-        className={btnCls(isAllBold || fmtState.bold)}>
+      <button type="button" title="Gras" onMouseDown={(e) => applyFmt(e, "bold", "bold")}
+        className={btnCls((bubble.style?.bold ?? false) || fmtState.bold)}>
         <Bold className="h-3.5 w-3.5" />
       </button>
 
       {/* Italique */}
-      <button type="button" title="Italique" onMouseDown={(e) => applyFmt(e, "italic")}
-        className={btnCls(isAllItalic || fmtState.italic)}>
+      <button type="button" title="Italique" onMouseDown={(e) => applyFmt(e, "italic", "italic")}
+        className={btnCls((bubble.style?.italic ?? false) || fmtState.italic)}>
         <Italic className="h-3.5 w-3.5" />
       </button>
 
       {/* Souligné */}
-      <button type="button" title="Souligné" onMouseDown={(e) => applyFmt(e, "underline")}
-        className={btnCls(isAllUnderline || fmtState.underline)}>
+      <button type="button" title="Souligné" onMouseDown={(e) => applyFmt(e, "underline", "underline")}
+        className={btnCls((bubble.style?.underline ?? false) || fmtState.underline)}>
         <Underline className="h-3.5 w-3.5" />
       </button>
 
       {/* Barré */}
-      <button type="button" title="Barré" onMouseDown={(e) => applyFmt(e, "strikeThrough")}
-        className={btnCls(isAllStrike || fmtState.strikeThrough)}>
+      <button type="button" title="Barré" onMouseDown={(e) => applyFmt(e, "strikethrough", "strikeThrough")}
+        className={btnCls((bubble.style?.strikethrough ?? false) || fmtState.strikeThrough)}>
         <Strikethrough className="h-3.5 w-3.5" />
       </button>
 

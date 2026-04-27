@@ -67,9 +67,10 @@ export function BubbleLayer({
       el.innerHTML = editingBubbleTextRef.current;
       recenterEditable(el, textAreaHRef.current);
       el.focus({ preventScroll: true });
+      // Sélectionne tout le texte à l'entrée : l'utilisateur voit le contenu
+      // existant sélectionné et peut taper pour le remplacer ou cliquer pour positionner le curseur.
       const r = document.createRange();
       r.selectNodeContents(el);
-      r.collapse(false);
       window.getSelection()?.removeAllRanges();
       window.getSelection()?.addRange(r);
       editingDivRef.current = el;

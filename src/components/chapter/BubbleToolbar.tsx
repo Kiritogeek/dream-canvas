@@ -59,6 +59,12 @@ export function BubbleToolbar({ bubble, speechBubbles, onUpdate, onDuplicate, on
     }
   };
 
+  // Active state : CSS style OU HTML tag dans le texte OU état curseur execCommand
+  const hasBoldInHtml = /<b[\s/>]|<strong[\s/>]/i.test(bubble.text);
+  const hasItalicInHtml = /<i[\s/>]|<em[\s/>]/i.test(bubble.text);
+  const hasUnderlineInHtml = /<u[\s/>]/i.test(bubble.text);
+  const hasStrikeInHtml = /<s[\s/>]|<strike[\s/>]|<del[\s/>]/i.test(bubble.text);
+
   const saveRange = () => {
     const sel = window.getSelection();
     savedRangeRef.current = sel && sel.rangeCount > 0 ? sel.getRangeAt(0).cloneRange() : null;
@@ -141,25 +147,25 @@ export function BubbleToolbar({ bubble, speechBubbles, onUpdate, onDuplicate, on
 
       {/* Gras */}
       <button type="button" title="Gras" onMouseDown={(e) => applyFmt(e, "bold", "bold")}
-        className={btnCls((bubble.style?.bold ?? false) || fmtState.bold)}>
+        className={btnCls((bubble.style?.bold ?? false) || hasBoldInHtml || fmtState.bold)}>
         <Bold className="h-3.5 w-3.5" />
       </button>
 
       {/* Italique */}
       <button type="button" title="Italique" onMouseDown={(e) => applyFmt(e, "italic", "italic")}
-        className={btnCls((bubble.style?.italic ?? false) || fmtState.italic)}>
+        className={btnCls((bubble.style?.italic ?? false) || hasItalicInHtml || fmtState.italic)}>
         <Italic className="h-3.5 w-3.5" />
       </button>
 
       {/* Souligné */}
       <button type="button" title="Souligné" onMouseDown={(e) => applyFmt(e, "underline", "underline")}
-        className={btnCls((bubble.style?.underline ?? false) || fmtState.underline)}>
+        className={btnCls((bubble.style?.underline ?? false) || hasUnderlineInHtml || fmtState.underline)}>
         <Underline className="h-3.5 w-3.5" />
       </button>
 
       {/* Barré */}
       <button type="button" title="Barré" onMouseDown={(e) => applyFmt(e, "strikethrough", "strikeThrough")}
-        className={btnCls((bubble.style?.strikethrough ?? false) || fmtState.strikeThrough)}>
+        className={btnCls((bubble.style?.strikethrough ?? false) || hasStrikeInHtml || fmtState.strikeThrough)}>
         <Strikethrough className="h-3.5 w-3.5" />
       </button>
 

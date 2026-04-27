@@ -268,11 +268,9 @@ export function BubbleLayer({
               >
                 <path
                   d={hitPath}
-                  fill="transparent"
-                  stroke="transparent"
                   strokeWidth={20}
                   pointerEvents="visibleStroke"
-                  style={{ cursor: "crosshair" }}
+                  className="fill-transparent stroke-transparent hover:stroke-primary/40 transition-colors cursor-crosshair"
                   onPointerDown={(e) => e.stopPropagation()}
                   onClick={(e) => {
                     e.stopPropagation();

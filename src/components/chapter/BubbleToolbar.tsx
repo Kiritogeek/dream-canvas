@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Bold, Italic, Underline, Strikethrough, AlignLeft, AlignCenter, AlignRight, Copy, Trash2, FlipHorizontal2, Plus, Minus, Square, Blend, ChevronDown } from "lucide-react";
+import { Bold, Italic, Underline, Strikethrough, AlignLeft, AlignCenter, AlignRight, Copy, Trash2, FlipHorizontal2, Plus, Minus, Square, Blend, ChevronDown, ChevronLeft } from "lucide-react";
 import type { SpeechBubble } from "@/types";
 import { getSpeechBubbleFillStroke, SPEECH_BUBBLE_NO_TAIL_TYPES } from "@/types";
 
@@ -22,9 +22,11 @@ interface BubbleToolbarProps {
   onUpdate: (next: SpeechBubble[]) => void;
   onDuplicate: () => void;
   onDelete: () => void;
+  tailContext?: boolean;
+  onTailContextChange?: (v: boolean) => void;
 }
 
-export function BubbleToolbar({ bubble, speechBubbles, onUpdate, onDuplicate, onDelete }: BubbleToolbarProps) {
+export function BubbleToolbar({ bubble, speechBubbles, onUpdate, onDuplicate, onDelete, tailContext = false, onTailContextChange }: BubbleToolbarProps) {
   const [showBorderSlider, setShowBorderSlider] = useState(false);
   const [showTransparencySlider, setShowTransparencySlider] = useState(false);
   const [showFontDropdown, setShowFontDropdown] = useState(false);
@@ -116,6 +118,45 @@ export function BubbleToolbar({ bubble, speechBubbles, onUpdate, onDuplicate, on
   // Toolbar container : rounded-xl (12px) — boutons : rounded-md (6px) → continuité visuelle
   const btnCls = (active: boolean) =>
     `h-7 w-7 flex items-center justify-center rounded-md border transition-colors shrink-0 ${active ? "border-primary bg-primary/15 text-primary" : "border-border/60 bg-background text-muted-foreground hover:bg-muted/50"}`;
+
+  // ── Mode queue : toolbar dédiée ──────────────────────────────────────────
+  if (tailContext && !hasNoTail) {
+    const tailBaseWidth = bubble.tailBaseWidth ?? 28;
+    const tailCurve = bubble.tailCurve ?? 0;
+    return (
+      <div className="relative inline-block">
+        <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-background border border-border rounded-xl shadow-lg z-50">
+          <button
+            type="button"
+            onClick={() => onTailContextChange?.(false)}
+            className="h-7 flex items-center gap-1 px-2 rounded-md border border-border/60 bg-background text-muted-foreground hover:bg-muted/50 transition-colors text-xs shrink-0"
+            title="Retour aux options de la bulle"
+          >
+            <ChevronLeft className="h-3 w-3" />
+            Bulle
+          </button>
+          {sep}
+          <span className="text-xs text-muted-foreground shrink-0">Largeur</span>
+          <input
+            type="range" min={8} max={50} value={tailBaseWidth}
+            onChange={(e) => { const n = parseInt(e.target.value, 10); if (!Number.isNaN(n)) patch({ tailBaseWidth: n }); }}
+            className="w-24 accent-primary"
+            title={`Largeur de base : ${tailBaseWidth}px`}
+          />
+          <span className="text-xs tabular-nums text-foreground w-8 text-right shrink-0">{tailBaseWidth}px</span>
+          {sep}
+          <span className="text-xs text-muted-foreground shrink-0">Courbure</span>
+          <input
+            type="range" min={-100} max={100} value={tailCurve}
+            onChange={(e) => { const n = parseInt(e.target.value, 10); if (!Number.isNaN(n)) patch({ tailCurve: n }); }}
+            className="w-24 accent-primary"
+            title={`Courbure : ${tailCurve}`}
+          />
+          <span className="text-xs tabular-nums text-foreground w-8 text-right shrink-0">{tailCurve > 0 ? `+${tailCurve}` : tailCurve}</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative inline-block">

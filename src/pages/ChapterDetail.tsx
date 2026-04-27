@@ -208,6 +208,8 @@ export default function ChapterDetail() {
   const [selectedColorBlockIdInModal, setSelectedColorBlockIdInModal] = useState<{ panelId: string; colorBlockId: string } | null>(null);
   /** Bulle de dialogue sélectionnée (onglet Dialogue) pour éditer le texte et le style */
   const [selectedSpeechBubbleIdInModal, setSelectedSpeechBubbleIdInModal] = useState<{ panelId: string; bubbleId: string } | null>(null);
+  /** Bulle dont la toolbar affiche le mode queue (null = mode bulle normal) */
+  const [tailContextBubbleId, setTailContextBubbleId] = useState<string | null>(null);
   /** Modal de découpage et téléchargement ZIP */
   const [sliceModalOpen, setSliceModalOpen] = useState(false);
   /** Niveau de zoom du canvas éditeur (0.1–2.0, défaut 0.5) */
@@ -221,7 +223,8 @@ export default function ChapterDetail() {
     setSelectedBlockIdInModal(null);
     setSelectedColorBlockIdInModal(null);
     setSelectedSpeechBubbleIdInModal(null);
-    setPanelHeightDraft(null);
+    setTailContextBubbleId(null);
+    setPanelHeightDragDraft(null);
   }, []);
 
   const closePanelEditor = useCallback(() => {
@@ -1196,6 +1199,7 @@ export default function ChapterDetail() {
             setSelectedBlockIdInModal(null);
             setSelectedColorBlockIdInModal(null);
             setSelectedSpeechBubbleIdInModal(null);
+            setTailContextBubbleId(null);
           }}
         >
           {/* Toolbar bulle — sticky en haut du scroll canvas, ne décale rien */}
@@ -1212,6 +1216,8 @@ export default function ChapterDetail() {
                     setSelectedSpeechBubbleIdInModal({ panelId: panel.id, bubbleId: nb.id });
                   }}
                   onDelete={() => handleDeleteSpeechBubble(selectedSpeechBubble)}
+                  tailContext={tailContextBubbleId === selectedSpeechBubble.id}
+                  onTailContextChange={(v) => setTailContextBubbleId(v ? selectedSpeechBubble.id : null)}
                 />
               </div>
             </div>
@@ -1309,6 +1315,11 @@ export default function ChapterDetail() {
                           const next = speechBubbles.map((b) => b.id === bubbleId ? { ...b, text } : b);
                           handleUpdateSpeechBubbles(next);
                         }}
+                        tailContextBubbleId={tailContextBubbleId}
+                        onTailContext={(id) => {
+                          setTailContextBubbleId(id);
+                        }}
+                        onBubbleUpdate={handleUpdateSpeechBubbles}
                       />
                       </div>
                     </div>

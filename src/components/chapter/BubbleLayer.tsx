@@ -6,6 +6,10 @@ import { useDragBlock } from "@/hooks/useDragBlock";
 import { useResizeBlock } from "@/hooks/useResizeBlock";
 import type { ResizingState } from "@/hooks/useResizeBlock";
 import { SpeechBubbleShape, SPEECH_BUBBLE_TAIL_H, SPEECH_BUBBLE_VIEWBOX_WITH_TAIL, SPEECH_BUBBLE_VIEWBOX_NARRATION } from "./SpeechBubbleShape";
+import { getTailHitPath, TAIL_ELLIPSE as BUBBLE_TAIL_ELLIPSE } from "./speechBubbleTail";
+
+// Types qui ont une queue draggable via handle
+const DRAGGABLE_TAIL_TYPES = new Set(["speech", "whisper", "cloud", "wavy", "sadness", "anger"]);
 
 interface BubbleLayerProps {
   panel: Panel;
@@ -19,6 +23,9 @@ interface BubbleLayerProps {
   onResizeCommit: (panelId: string, bubbleId: string, draft: { x: number; y: number; width: number; height: number }) => void;
   onDelete?: (bubble: SpeechBubble) => void;
   onTextCommit: (bubbleId: string, text: string) => void;
+  tailContextBubbleId?: string | null;
+  onTailContext?: (id: string | null) => void;
+  onBubbleUpdate?: (bubbles: SpeechBubble[]) => void;
 }
 
 type BubbleResizingState = ResizingState & { bubbleId: string };
@@ -63,8 +70,13 @@ export function BubbleLayer({
   onMoveCommit,
   onResizeCommit,
   onTextCommit,
+  tailContextBubbleId,
+  onTailContext,
+  onBubbleUpdate,
 }: BubbleLayerProps) {
   const ghostRefByPanel = useRef<Record<string, HTMLDivElement | null>>({});
+  const [tailDragActive, setTailDragActive] = useState(false);
+  const tailDragBubbleIdRef = useRef<string | null>(null);
   const isResizingSpeechBubbleRef = useRef(false);
   const resizingSpeechBubbleElRef = useRef<HTMLDivElement | null>(null);
   const [resizingSpeechBubbleState, setResizingSpeechBubbleState] = useState<BubbleResizingState | null>(null);
@@ -173,6 +185,19 @@ export function BubbleLayer({
         // Ces classes les restaurent pour le rich text stocké en HTML dans bubble.text.
         const richTextClass = "[&_u]:underline [&_s]:line-through [&_strike]:line-through [&_b]:font-bold [&_strong]:font-bold [&_i]:italic [&_em]:italic";
 
+        // Coordonnées de la pointe de queue dans le repère viewBox
+        const hasDraggableTail = DRAGGABLE_TAIL_TYPES.has(bubble.type);
+        const defaultTailX = bubble.tailFlip ? 85 : 15;
+        const defaultTailY = 115;
+        const resolvedTailX = bubble.tailX ?? defaultTailX;
+        const resolvedTailY = bubble.tailY ?? defaultTailY;
+
+        const ellipseParams = BUBBLE_TAIL_ELLIPSE[bubble.type];
+
+        const hitPath = hasDraggableTail
+          ? getTailHitPath(bubble.type, bubble.tailX, bubble.tailY, bubble.tailFlip, bubble.tailBaseWidth, bubble.tailCurve)
+          : null;
+
         return (
           <div
             key={bubble.id}
@@ -180,10 +205,14 @@ export function BubbleLayer({
             role={!isResizingThis && !isEditing ? "button" : undefined}
             className={`group absolute z-20 overflow-visible transition-[box-shadow,ring] duration-150 ${isEditing ? "cursor-text" : "cursor-grab active:cursor-grabbing"} ${isSelected ? "ring-2 ring-primary ring-offset-2 ring-offset-background" : "hover:ring-2 hover:ring-primary/40"}`}
             style={{ left: geom.x, top: geom.y, width: geom.width, height: totalH }}
-            onPointerDown={!isResizingThis && !isResizingSpeechBubbleRef.current && !isEditing ? (e) => dragSpeechBubble.onPointerDown(e, panel.id, bubble.id, geom.x, geom.y, geom.width, totalH, getPanelHeight(panel)) : undefined}
+            onPointerDown={!isResizingThis && !isResizingSpeechBubbleRef.current && !isEditing && !tailDragActive ? (e) => dragSpeechBubble.onPointerDown(e, panel.id, bubble.id, geom.x, geom.y, geom.width, totalH, getPanelHeight(panel)) : undefined}
             onClick={(e) => {
               e.stopPropagation();
               if (isEditing) return;
+              if (tailContextBubbleId === bubble.id) {
+                onTailContext?.(null);
+                return;
+              }
               if (isSelected) {
                 editingBubbleTextRef.current = bubble.text;
                 textAreaHRef.current = textAreaH;
@@ -212,8 +241,106 @@ export function BubbleLayer({
                 preserveAspectRatio="none"
                 fillOpacity={fillOpacity}
               >
-                <SpeechBubbleShape type={bubble.type} fill={fillColor} stroke={strokeColor} tailFlip={bubble.tailFlip} strokeWidth={bubble.borderWidth} />
+                <SpeechBubbleShape
+                  type={bubble.type}
+                  fill={fillColor}
+                  stroke={strokeColor}
+                  tailFlip={bubble.tailFlip}
+                  strokeWidth={bubble.borderWidth}
+                  tailX={bubble.tailX}
+                  tailY={bubble.tailY}
+                  tailBaseWidth={bubble.tailBaseWidth}
+                  tailCurve={bubble.tailCurve}
+                />
               </svg>
+            )}
+
+            {/* SVG overlay pour la zone de hit de la queue — pointer-events sur le path uniquement */}
+            {hitPath && (
+              <svg
+                width="100%" height="100%"
+                viewBox={SPEECH_BUBBLE_VIEWBOX_WITH_TAIL}
+                className="absolute inset-0"
+                style={{ pointerEvents: "none" }}
+                preserveAspectRatio="none"
+              >
+                <path
+                  d={hitPath}
+                  fill="transparent"
+                  stroke="transparent"
+                  strokeWidth={20}
+                  pointerEvents="visibleStroke"
+                  style={{ cursor: "crosshair" }}
+                  onPointerDown={(e) => {
+                    e.stopPropagation();
+                    onSelectBubble(bubble.id);
+                    onTailContext?.(bubble.id);
+                  }}
+                />
+              </svg>
+            )}
+
+            {/* Handle de la pointe de queue — visible uniquement si bulle sélectionnée */}
+            {isSelected && hasDraggableTail && !isEditing && (
+              <div
+                style={{
+                  position: "absolute",
+                  left: (resolvedTailX / 100) * geom.width,
+                  top: (resolvedTailY / 120) * totalH,
+                  width: 14,
+                  height: 14,
+                  borderRadius: "50%",
+                  background: "#7c6ff7",
+                  border: "2px solid white",
+                  cursor: "grab",
+                  zIndex: 30,
+                  transform: "translate(-50%, -50%)",
+                  boxShadow: "0 1px 4px rgba(0,0,0,0.25)",
+                }}
+                title="Déplacer la pointe de la queue"
+                onPointerDown={(e) => {
+                  if (e.button !== 0) return;
+                  e.preventDefault();
+                  e.stopPropagation();
+                  (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+                  tailDragBubbleIdRef.current = bubble.id;
+                  setTailDragActive(true);
+                }}
+                onPointerMove={(e) => {
+                  if (tailDragBubbleIdRef.current !== bubble.id) return;
+                  const bubbleEl = canvasRefByPanel.current[panel.id]?.parentElement
+                    ? (e.currentTarget as HTMLElement).closest<HTMLDivElement>("[data-bubble-container]") ?? null
+                    : null;
+                  // Récupère le div parent de la bulle (le div avec left/top/width/height)
+                  const bubbleDiv = (e.currentTarget as HTMLElement).parentElement;
+                  if (!bubbleDiv) return;
+                  const rect = bubbleDiv.getBoundingClientRect();
+                  const vbX = ((e.clientX - rect.left) / (geom.width / 100));
+                  const vbY = ((e.clientY - rect.top) / (totalH / 120));
+
+                  // Contrainte : la pointe doit rester en dehors de l'ellipse × 1.15
+                  if (ellipseParams) {
+                    const { cx, cy, rx, ry } = ellipseParams;
+                    const inside = Math.pow((vbX - cx) / rx, 2) + Math.pow((vbY - cy) / ry, 2);
+                    if (inside < 1.15 * 1.15) return;
+                  }
+
+                  onBubbleUpdate?.(speechBubbles.map((b) =>
+                    b.id === bubble.id ? { ...b, tailX: Math.round(vbX * 10) / 10, tailY: Math.round(vbY * 10) / 10 } : b
+                  ));
+                  void bubbleEl; // suppress unused warning
+                }}
+                onPointerUp={(e) => {
+                  if (tailDragBubbleIdRef.current !== bubble.id) return;
+                  (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+                  tailDragBubbleIdRef.current = null;
+                  setTailDragActive(false);
+                }}
+                onPointerCancel={() => {
+                  tailDragBubbleIdRef.current = null;
+                  setTailDragActive(false);
+                }}
+              />
             )}
 
             {isEditing ? (

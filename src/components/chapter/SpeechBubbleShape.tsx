@@ -1,5 +1,6 @@
 import type { SpeechBubble, SpeechBubbleType } from "@/types";
 import { SPEECH_BUBBLE_DEFAULT_STYLE, SPEECH_BUBBLE_NO_TAIL_TYPES } from "@/types";
+import { buildUnifiedTailPath, TAIL_ELLIPSE } from "./speechBubbleTail";
 
 export const SPEECH_BUBBLE_TAIL_H = 14;
 export const SPEECH_BUBBLE_VIEWBOX_WITH_TAIL = "0 0 100 120";
@@ -94,27 +95,37 @@ const NNS = "non-scaling-stroke" as const;
  * Les points de base de la queue sont volontairement placés à l'intérieur du corps
  * pour garantir que le fill du corps les couvre totalement.
  */
-export function SpeechBubbleShape({ type, fill, stroke, tailFlip, strokeWidth }: {
+export function SpeechBubbleShape({ type, fill, stroke, tailFlip, strokeWidth, tailX, tailY, tailBaseWidth, tailCurve }: {
   type: SpeechBubble["type"];
   fill: string;
   stroke: string;
   tailFlip?: boolean;
   strokeWidth?: number;
+  tailX?: number;
+  tailY?: number;
+  tailBaseWidth?: number;
+  tailCurve?: number;
 }) {
   const sw = strokeWidth ?? 2;
   const tf = tailFlip ? TAIL_FLIP : undefined;
 
-  // ── Dialogue : ovale asymétrique Bézier, queue courbe ────────────────────
+  // Résout les coords de la pointe de queue (en coordonnées viewBox "0 0 100 120")
+  const resolveTailCoords = (defaultTx: number) => {
+    const tx = tailX ?? defaultTx;
+    const ty = tailY ?? 115;
+    const hw = (tailBaseWidth ?? 28) / 2;
+    const curve = tailCurve ?? 0;
+    return { tx, ty, hw, curve };
+  };
+
+  // ── Dialogue : path unifié complet (corps + queue = 1 seul path) ──────────
   if (type === "speech") {
+    const e = TAIL_ELLIPSE.speech;
+    const defaultTx = tailFlip ? 85 : 15;
+    const { tx, ty, hw, curve } = resolveTailCoords(defaultTx);
+    const d = buildUnifiedTailPath(e.cx, e.cy, e.rx, e.ry, tx, ty, hw, curve);
     return (
-      <>
-        <g transform={tf}>
-          <path d="M 26 78 Q 2 112, 4 120 Q 10 118, 40 82 Z"
-            fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" vectorEffect={NNS} />
-        </g>
-        <path d="M 52 5 C 77 3, 97 22, 96 47 C 95 72, 75 89, 49 88 C 24 88, 4 71, 4 47 C 3 23, 27 4, 52 5 Z"
-          fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
-      </>
+      <path d={d} fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" vectorEffect={NNS} />
     );
   }
 
@@ -137,17 +148,17 @@ export function SpeechBubbleShape({ type, fill, stroke, tailFlip, strokeWidth }:
     );
   }
 
-  // ── Pensée nuage : filtre hd + chaîne de bulles ───────────────────────────
+  // ── Pensée nuage : queue unifiée + filtre hd + corps nuage ──────────────
   if (type === "cloud") {
+    const e = TAIL_ELLIPSE.cloud;
+    const defaultTx = tailFlip ? 85 : 15;
+    const { tx, ty, hw, curve } = resolveTailCoords(defaultTx);
+    const tailPath = buildUnifiedTailPath(e.cx, e.cy, e.rx, e.ry, tx, ty, hw, curve);
     return (
       <>
         {HAND_DRAWN_DEFS}
         <g filter="url(#hd)">
-          <g transform={tf}>
-            <circle cx={62} cy={86} r={7} fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
-            <circle cx={70} cy={101} r={5} fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
-            <circle cx={77} cy={113} r={3.5} fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
-          </g>
+          <path d={tailPath} fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" vectorEffect={NNS} />
           <ellipse cx={50} cy={47} rx={44} ry={36} fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
           <circle cx={20} cy={43} r={12} fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
           <circle cx={80} cy={43} r={12} fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
@@ -180,16 +191,19 @@ export function SpeechBubbleShape({ type, fill, stroke, tailFlip, strokeWidth }:
     );
   }
 
-  // ── Chuchotement : ovale tirets + filtre hd ───────────────────────────────
+  // ── Chuchotement : queue unifiée + ovale tirets + filtre hd ─────────────
   if (type === "whisper") {
+    const e = TAIL_ELLIPSE.whisper;
+    const defaultTx = tailFlip ? 85 : 15;
+    const { tx, ty, hw, curve } = resolveTailCoords(defaultTx);
+    const tailPath = buildUnifiedTailPath(e.cx, e.cy, e.rx, e.ry, tx, ty, hw, curve);
     return (
       <>
         {HAND_DRAWN_DEFS}
         <g filter="url(#hd)">
-          <g transform={tf}>
-            <path d="M 24 76 L 4 120 L 38 82 Z"
-              fill={fill} stroke={stroke} strokeWidth={sw} strokeDasharray="6 3" strokeLinejoin="round" vectorEffect={NNS} />
-          </g>
+          {/* Queue unifiée dessinée EN PREMIER */}
+          <path d={tailPath} fill={fill} stroke={stroke} strokeWidth={sw} strokeDasharray="5 4" strokeLinejoin="round" vectorEffect={NNS} />
+          {/* Corps PAR-DESSUS — couvre la base de la queue */}
           <ellipse cx={50} cy={46} rx={47} ry={42}
             fill={fill} stroke={stroke} strokeWidth={sw} strokeDasharray="6 3" vectorEffect={NNS} />
         </g>
@@ -197,33 +211,35 @@ export function SpeechBubbleShape({ type, fill, stroke, tailFlip, strokeWidth }:
     );
   }
 
-  // ── Colère : ovale avec pointes + filtre hd ───────────────────────────────
+  // ── Colère : queue unifiée + ovale avec pointes + filtre hd ──────────────
   if (type === "anger") {
     const body = angryOvalPath(50, 46, 43, 38, 8, 10);
+    const e = TAIL_ELLIPSE.anger;
+    const defaultTx = tailFlip ? 85 : 15;
+    const { tx, ty, hw, curve } = resolveTailCoords(defaultTx);
+    const tailPath = buildUnifiedTailPath(e.cx, e.cy, e.rx, e.ry, tx, ty, hw, curve);
     return (
       <>
         {HAND_DRAWN_DEFS}
         <g filter="url(#hd)">
-          <g transform={tf}>
-            <path d="M 30 66 L 20 100 L 30 102 L 16 118 L 30 114 L 28 106 L 40 74 Z"
-              fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" vectorEffect={NNS} />
-          </g>
+          <path d={tailPath} fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" vectorEffect={NNS} />
           <path d={body} fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" vectorEffect={NNS} />
         </g>
       </>
     );
   }
 
-  // ── Tristesse : ovale + larmes + filtre hd ────────────────────────────────
+  // ── Tristesse : queue unifiée + ovale + larmes + filtre hd ───────────────
   if (type === "sadness") {
+    const e = TAIL_ELLIPSE.sadness;
+    const defaultTx = tailFlip ? 85 : 15;
+    const { tx, ty, hw, curve } = resolveTailCoords(defaultTx);
+    const tailPath = buildUnifiedTailPath(e.cx, e.cy, e.rx, e.ry, tx, ty, hw, curve);
     return (
       <>
         {HAND_DRAWN_DEFS}
         <g filter="url(#hd)">
-          <g transform={tf}>
-            <path d="M 24 72 L 4 120 L 38 78 Z"
-              fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" vectorEffect={NNS} />
-          </g>
+          <path d={tailPath} fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" vectorEffect={NNS} />
           <ellipse cx={50} cy={44} rx={47} ry={40}
             fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
           <ellipse cx={28} cy={91} rx={4} ry={6.5} fill={stroke} />
@@ -284,17 +300,18 @@ export function SpeechBubbleShape({ type, fill, stroke, tailFlip, strokeWidth }:
     );
   }
 
-  // ── Tremblant : ovale amplitude variable + filtre hd ─────────────────────
+  // ── Tremblant : queue unifiée + ovale amplitude variable + filtre hd ─────
   if (type === "wavy") {
     const body = wavyEllipsePath(50, 46, 46, 41, 3, 7);
+    const e = TAIL_ELLIPSE.wavy;
+    const defaultTx = tailFlip ? 85 : 15;
+    const { tx, ty, hw, curve } = resolveTailCoords(defaultTx);
+    const tailPath = buildUnifiedTailPath(e.cx, e.cy, e.rx, e.ry, tx, ty, hw, curve);
     return (
       <>
         {HAND_DRAWN_DEFS}
         <g filter="url(#hd)">
-          <g transform={tf}>
-            <path d="M 28 74 L 4 120 L 40 82 Z"
-              fill={fill} stroke={stroke} strokeWidth={sw} strokeDasharray="5 2" strokeLinejoin="round" vectorEffect={NNS} />
-          </g>
+          <path d={tailPath} fill={fill} stroke={stroke} strokeWidth={sw} strokeDasharray="5 2" strokeLinejoin="round" vectorEffect={NNS} />
           <path d={body} fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
         </g>
       </>

@@ -196,6 +196,7 @@ export interface SpeechBubble {
   tailX?: number;
   tailY?: number;
   tailBaseWidth?: number;
+  tailCurve?: number;
   bgFill?: "solid" | "gradient";
   bgColor?: string;
   bgColor2?: string;

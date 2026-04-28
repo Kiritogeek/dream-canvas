@@ -5,6 +5,7 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
+  LayoutPanelTop,
   Plus,
   Minus,
   ChevronDown,
@@ -12,6 +13,10 @@ import {
   Save,
   Loader2,
   Sparkles,
+  Palette,
+  MessageCircle,
+  X,
+  Square,
   Trash2,
   Download,
   Layers,
@@ -19,6 +24,7 @@ import {
 } from "lucide-react";
 import { BubbleToolbar } from "@/components/chapter/BubbleToolbar";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import {
   Collapsible,
@@ -49,6 +55,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ScenarioTextHighlighter, getDetectedAssets } from "@/components/project/ScenarioTextHighlighter";
+import { ImageWithFallback } from "@/components/ui/ImageWithFallback";
 import { useChapter, useUpdateChapter } from "@/hooks/useChapters";
 import { useScenarioChapters, useScenarioChapter } from "@/hooks/useScenarioChapters";
 import { useAssets } from "@/hooks/useAssets";
@@ -69,6 +76,7 @@ import {
   getPanelSpeechBubbles,
   DEFAULT_BLOCK_WIDTH,
   DEFAULT_BLOCK_HEIGHT,
+  BLOCK_PRESETS,
   DEFAULT_COLOR_BLOCK_FILL,
   PANEL_HEIGHT_MIN,
   PANEL_HEIGHT_MAX,
@@ -78,13 +86,15 @@ import { exportChapterAsZip } from "@/services/exportPanel";
 import { ColorBlockLayer } from "@/components/chapter/ColorBlockLayer";
 import { ImageBlockLayer } from "@/components/chapter/ImageBlockLayer";
 import { BubbleLayer } from "@/components/chapter/BubbleLayer";
-import { EditorLeftSidebar } from "@/components/chapter/EditorLeftSidebar";
+import { EditorRightPanel } from "@/components/chapter/EditorRightPanel";
+import { BubblePreview } from "@/components/chapter/SpeechBubbleShape";
 import type { Json } from "@/integrations/supabase/types";
-import type { Panel, PanelBlock, PanelLayout, ColorBlock, ColorBlockFill, SpeechBubble, Asset } from "@/types";
+import type { Panel, PanelBlock, PanelLayout, ColorBlock, ColorBlockFill, SpeechBubble, SpeechBubbleType, Asset } from "@/types";
 import {
   DEFAULT_SPEECH_BUBBLE_WIDTH,
   DEFAULT_SPEECH_BUBBLE_HEIGHT,
   SPEECH_BUBBLE_DEFAULT_STYLE,
+  SPEECH_BUBBLE_TYPE_LABELS,
 } from "@/types";
 
 const PANEL_WIDTH = 800;
@@ -635,6 +645,17 @@ export default function ChapterDetail() {
 
     const handleCanvasDragOver = (e: React.DragEvent) => {
       e.preventDefault();
+      if (draggingBlock && draggingBlock.panelId === panel.id) {
+        const block = layout.blocks.find((b) => b.id === draggingBlock.blockId);
+        if (block) {
+          const canvasEl = canvasRefByPanel.current[panel.id];
+          if (!canvasEl) return;
+          const { x: canvasMouseX, y: canvasMouseY } = viewportToCanvas(canvasEl, e.clientX, e.clientY);
+          const newX = Math.max(0, Math.min(PANEL_WIDTH - block.width, draggingBlock.startBlockX + (canvasMouseX - draggingBlock.startMouseX)));
+          const newY = Math.max(0, Math.min(panelHeight - block.height, draggingBlock.startBlockY + (canvasMouseY - draggingBlock.startMouseY)));
+          setDragPreview({ panelId: panel.id, blockId: block.id, x: newX, y: newY });
+        }
+      }
     };
 
     const handleCanvasDrop = (e: React.DragEvent) => {
@@ -678,11 +699,15 @@ export default function ChapterDetail() {
               onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }),
             }
           );
+          setDraggingBlock(null);
+          setDragPreview(null);
           return;
         }
         if (data.type === "speech-bubble" && data.bubbleType) {
           const { x, y } = getCanvasDropPosition(e, canvasEl, DEFAULT_SPEECH_BUBBLE_WIDTH, DEFAULT_SPEECH_BUBBLE_HEIGHT);
           handleAddSpeechBubble(data.bubbleType, x, y);
+          setDraggingBlock(null);
+          setDragPreview(null);
           return;
         }
         if (data.type === "new-block") {
@@ -690,6 +715,8 @@ export default function ChapterDetail() {
           const h = typeof data.height === "number" ? data.height : DEFAULT_BLOCK_HEIGHT;
           const { x, y } = getCanvasDropPosition(e, canvasEl, w, h);
           handleAddBlock(x, y, w, h);
+          setDraggingBlock(null);
+          setDragPreview(null);
           return;
         }
         if (data.type === "new-color-block") {
@@ -698,7 +725,41 @@ export default function ChapterDetail() {
           const fill: ColorBlockFill = data.fill && (data.fill as ColorBlockFill).type ? (data.fill as ColorBlockFill) : { type: "solid", color: "#ffffff" };
           const { x, y } = getCanvasDropPosition(e, canvasEl, w, h);
           handleAddColorBlock(x, y, w, h, fill);
+          setDraggingBlock(null);
+          setDragPreview(null);
           return;
+        }
+        if (data.type === "move-block" && data.blockId) {
+          const block = layout.blocks.find((b) => b.id === data.blockId);
+          if (block && draggingBlock && draggingBlock.panelId === panel.id && draggingBlock.blockId === data.blockId && canvasEl) {
+            const { x: canvasMouseX, y: canvasMouseY } = viewportToCanvas(canvasEl, e.clientX, e.clientY);
+            const clampedX = Math.max(0, Math.min(PANEL_WIDTH - block.width, Math.round(draggingBlock.startBlockX + (canvasMouseX - draggingBlock.startMouseX))));
+            const clampedY = Math.max(0, Math.min(panelHeight - block.height, Math.round(draggingBlock.startBlockY + (canvasMouseY - draggingBlock.startMouseY))));
+            const blockIndex = layout.blocks.findIndex((b) => b.id === data.blockId);
+            const nextBlocks = layout.blocks.map((b, i) => (i === blockIndex ? { ...b, x: clampedX, y: clampedY } : b));
+            moveDropHandledRef.current = true;
+            const movePayload = { id: panel.id, updates: { layout: { ...layout, blocks: nextBlocks } as unknown as Json } };
+            queryClient.cancelQueries({ queryKey: panelsQueryKey });
+            const previousPanels = queryClient.getQueryData<Panel[]>(panelsQueryKey);
+            queryClient.setQueryData<Panel[]>(panelsQueryKey, (old) => (!old ? old : old.map((p) => (p.id === movePayload.id ? { ...p, layout: movePayload.updates.layout ?? p.layout } : p))));
+            setDraggingBlock(null);
+            setDragPreview(null);
+            updatePanelMutation.mutate(movePayload, {
+              onSuccess: () => {
+                moveDropHandledRef.current = false;
+              },
+              onError: (err) => {
+                moveDropHandledRef.current = false;
+                setDraggingBlock(null);
+                setDragPreview(null);
+                if (previousPanels != null) queryClient.setQueryData(panelsQueryKey, previousPanels);
+                toast({ title: "Erreur", description: err.message, variant: "destructive" });
+              },
+            });
+          } else {
+            setDraggingBlock(null);
+            setDragPreview(null);
+          }
         }
       } catch { /* ignore */ }
     };
@@ -983,37 +1044,150 @@ export default function ChapterDetail() {
     return (
       <div className="relative flex flex-1 min-h-0 overflow-hidden bg-gradient-to-b from-background via-background to-muted/20">
         {/* Panneau gauche — barre d'icônes fixe + flyouts en overlay (ne poussent pas le canvas) */}
-        <EditorLeftSidebar
-          panel={panel}
-          activeSidebarTab={activeSidebarTab}
-          onTabChange={setActiveSidebarTab}
-          selectedBlock={selectedBlock}
-          selectedColorBlock={selectedColorBlock}
-          onSelectBlock={(id) => setSelectedBlockIdInModal(id ? { panelId: panel.id, blockId: id } : null)}
-          onSelectColorBlock={(id) => setSelectedColorBlockIdInModal(id ? { panelId: panel.id, colorBlockId: id } : null)}
-          blocks={blocks}
-          assets={assets}
-          project={project}
-          blockNameDrafts={blockNameDrafts}
-          onBlockNameChange={(key, value) => setBlockNameDrafts((prev) => ({ ...prev, [key]: value }))}
-          blockPromptDrafts={blockPromptDrafts}
-          onBlockPromptChange={(key, value, silent) => { setBlockPromptDrafts((prev) => ({ ...prev, [key]: value })); handleSaveBlockPrompt(blocks.find(b => `${panel.id}-${b.id}` === key)!, value, { silent }); }}
-          suggestingBlockKeys={suggestingBlockKeys}
-          scenarioChapter={scenarioChapter}
-          isUpdating={updatePanelMutation.isPending}
-          isGenerating={generatePanelImage.isPending && generatePanelImage.variables?.panel?.id === panel.id}
-          newBlockDragGhostRef={newBlockDragGhostRef}
-          onSliceOpen={() => setSliceModalOpen(true)}
-          onAddBlock={handleAddBlock}
-          onAddColorBlock={handleAddColorBlock}
-          onAddSpeechBubble={handleAddSpeechBubble}
-          onDeleteBlock={handleDeleteBlock}
-          onDeleteColorBlock={handleDeleteColorBlock}
-          onSaveBlockName={handleSaveBlockName}
-          onSuggestBlockPrompt={handleSuggestBlockPrompt}
-          onGenerateBlock={handleGenerateBlock}
-          onColorBlockFillChange={handleColorBlockFillChange}
-        />
+        <aside className="relative w-[76px] shrink-0 border-r border-border bg-background z-30">
+
+          {/* Barre d'icônes (76px, fixe) */}
+          <div className="w-[76px] flex flex-col items-center gap-2 px-2 py-4">
+            {([
+              { id: "blocs" as const, icon: LayoutPanelTop, label: "Blocs" },
+              { id: "couleurs" as const, icon: Palette, label: "Couleurs" },
+              { id: "dialogue" as const, icon: MessageCircle, label: "Dialogue" },
+            ] as const).map(({ id, icon: Icon, label }) => (
+              <button
+                key={id}
+                type="button"
+                title={label}
+                onClick={() => {
+                  setActiveSidebarTab((t) => (t === id ? null : id));
+                }}
+                className={`w-full h-12 rounded-xl border flex items-center justify-center transition-colors ${activeSidebarTab === id ? "border-primary/70 bg-primary/15 text-primary shadow-sm" : "border-border/70 bg-background text-muted-foreground hover:text-foreground hover:bg-muted/50"}`}
+              >
+                <Icon className="h-5 w-5" />
+              </button>
+            ))}
+            <div className="flex-1" />
+            <button
+              type="button"
+              title="Découper & télécharger"
+              onClick={() => setSliceModalOpen(true)}
+              className="w-full h-12 rounded-xl border border-border/70 bg-background flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+            >
+              <Download className="h-5 w-5" />
+            </button>
+          </div>
+
+          {/* Flyout bibliothèque — overlay absolu, masqué quand un bloc/couleur est sélectionné */}
+          <div className={`absolute top-0 left-full h-full flex flex-col bg-background border-r border-border shadow-xl overflow-hidden transition-[width] duration-200 ease-in-out ${activeSidebarTab && !selectedBlock && !selectedColorBlock ? "w-[340px]" : "w-0 pointer-events-none border-r-0"}`}>
+              <div className="flex items-center justify-between px-3 py-2 border-b border-border/50 shrink-0">
+                <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                  {activeSidebarTab === "blocs" && <><span>Blocs image</span> <kbd className="text-[9px] font-mono bg-muted text-muted-foreground border border-border px-1 rounded">B</kbd></>}
+                  {activeSidebarTab === "couleurs" && <><span>Couleurs</span> <kbd className="text-[9px] font-mono bg-muted text-muted-foreground border border-border px-1 rounded">C</kbd></>}
+                  {activeSidebarTab === "dialogue" && <><span>Dialogue</span> <kbd className="text-[9px] font-mono bg-muted text-muted-foreground border border-border px-1 rounded">D</kbd></>}
+                </span>
+                <button type="button" onClick={() => setActiveSidebarTab(null)} className="h-6 w-6 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors" aria-label="Fermer">
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto p-3 space-y-3 min-h-0">
+                {activeSidebarTab === "blocs" && (
+                  <div className="space-y-1.5">
+                    <p className="text-[11px] text-muted-foreground">Clic ou glisser sur le canvas</p>
+                    <div className="flex flex-col gap-1.5">
+                      {BLOCK_PRESETS.map((preset) => (
+                        <div key={preset.label} draggable onDragStart={(e) => { e.dataTransfer.setData("application/json", JSON.stringify({ type: "new-block", width: preset.width, height: preset.height })); e.dataTransfer.effectAllowed = "copy"; const ghost = newBlockDragGhostRef.current; if (ghost) e.dataTransfer.setDragImage(ghost, Math.min(250, preset.width / 2), Math.min(250, preset.height / 2)); }} onClick={() => handleAddBlock(undefined, undefined, preset.width, preset.height)} className="cursor-grab active:cursor-grabbing rounded-lg border border-border/60 bg-background px-3 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors flex items-center justify-between">
+                          <span>{preset.label}</span>
+                          <LayoutPanelTop className="h-3 w-3 opacity-40" />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {activeSidebarTab === "couleurs" && (
+                  <div draggable onDragStart={(e) => { e.dataTransfer.setData("application/json", JSON.stringify({ type: "new-color-block", width: 300, height: 300, fill: { type: "solid", color: "#ffffff" } })); e.dataTransfer.effectAllowed = "copy"; }} onClick={() => { const ph = getPanelHeight(panel); const x = Math.round((PANEL_WIDTH - 300) / 2); const y = Math.round((ph - 300) / 2); handleAddColorBlock(x, y, 300, 300); }} className="cursor-grab active:cursor-grabbing rounded-lg border border-border/80 bg-white shadow-sm px-4 py-3 text-sm text-muted-foreground hover:text-foreground hover:shadow-md transition-all flex items-center justify-center gap-2">
+                    <Square className="h-4 w-4 shrink-0" />
+                    <span>Bloc de couleur</span>
+                  </div>
+                )}
+                {activeSidebarTab === "dialogue" && (
+                  <div className="space-y-2">
+                    <p className="text-[11px] text-muted-foreground">Clic pour ajouter au centre du canvas</p>
+                    {/* Texte libre — pleine largeur */}
+                    <button
+                      type="button"
+                      draggable
+                      onDragStart={(e) => { e.dataTransfer.setData("application/json", JSON.stringify({ type: "speech-bubble", bubbleType: "text" })); e.dataTransfer.effectAllowed = "copy"; }}
+                      onClick={() => { const ph = getPanelHeight(panel); const cx = Math.round((PANEL_WIDTH - DEFAULT_SPEECH_BUBBLE_WIDTH) / 2); const cy = Math.round((ph - DEFAULT_SPEECH_BUBBLE_HEIGHT) / 2); handleAddSpeechBubble("text", cx, cy); }}
+                      className="w-full cursor-pointer rounded-lg border border-border/60 bg-background hover:border-primary/50 hover:bg-muted/40 transition-colors flex flex-col items-center pb-1.5 overflow-hidden"
+                    >
+                      <BubblePreview type="text" />
+                      <span className="text-[10px] font-medium text-muted-foreground">Texte libre / Onomatopée</span>
+                    </button>
+                    {/* Autres types — grille 2 colonnes */}
+                    <div className="grid grid-cols-2 gap-2">
+                      {(Object.entries(SPEECH_BUBBLE_TYPE_LABELS) as [SpeechBubbleType, string][]).filter(([type]) => type !== "text").map(([type, label]) => (
+                        <button
+                          key={type}
+                          type="button"
+                          draggable
+                          onDragStart={(e) => { e.dataTransfer.setData("application/json", JSON.stringify({ type: "speech-bubble", bubbleType: type })); e.dataTransfer.effectAllowed = "copy"; }}
+                          onClick={() => { const ph = getPanelHeight(panel); const cx = Math.round((PANEL_WIDTH - DEFAULT_SPEECH_BUBBLE_WIDTH) / 2); const cy = Math.round((ph - DEFAULT_SPEECH_BUBBLE_HEIGHT) / 2); handleAddSpeechBubble(type, cx, cy); }}
+                          className="cursor-pointer rounded-lg border border-border/60 bg-background hover:border-primary/50 hover:bg-muted/40 transition-colors flex flex-col items-center pb-1.5 overflow-hidden"
+                        >
+                          <BubblePreview type={type} />
+                          <span className="text-[10px] font-medium text-muted-foreground">{label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+          </div>
+
+          {/* Panneau propriétés — overlay absolu, uniquement pour blocs/couleurs (bulle : toolbar inline) */}
+          <div className={`absolute top-0 left-full h-full flex flex-col bg-background border-r border-border shadow-xl overflow-hidden transition-[width] duration-200 ease-in-out ${selectedBlock || selectedColorBlock ? "w-[340px]" : "w-0 pointer-events-none border-r-0"}`}>
+              <div className="flex-1 overflow-y-auto min-h-0">
+                {selectedBlock ? (() => {
+                  const block = selectedBlock;
+                  const blockKey = `${panel.id}-${block.id}`;
+                  const nameDraft = blockNameDrafts[blockKey] ?? block.name ?? "";
+                  const promptDraft = blockPromptDrafts[blockKey] ?? block.prompt ?? "";
+                  const isGenerating = generatePanelImage.isPending && generatePanelImage.variables?.panel?.id === panel.id;
+                  return (
+                    <div className="p-3 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold text-foreground">Bloc image</span>
+                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0 rounded-lg" onClick={() => setSelectedBlockIdInModal(null)} aria-label="Désélectionner"><X className="h-3.5 w-3.5" /></Button>
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-medium text-muted-foreground">Nom</label>
+                        <input type="text" value={nameDraft} onChange={(e) => setBlockNameDrafts((prev) => ({ ...prev, [blockKey]: e.target.value }))} onBlur={() => { if (nameDraft.trim() !== (block.name ?? "")) handleSaveBlockName(block, nameDraft); }} placeholder="Ex. Bloc 1" className="w-full h-8 rounded-lg border border-border/60 bg-background px-3 text-sm" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-medium text-muted-foreground">Prompt visuel</label>
+                        <Textarea value={promptDraft} onChange={(e) => { const v = e.target.value; setBlockPromptDrafts((prev) => ({ ...prev, [blockKey]: v })); handleSaveBlockPrompt(block, v, { silent: true }); }} placeholder="Description visuelle de ce bloc…" className="min-h-[70px] text-sm resize-y" />
+                        {!block.image_url && <Button variant="outline" size="sm" className="gap-1.5 h-7 text-xs w-full" disabled={suggestingBlockKeys.has(blockKey) || !scenarioChapter?.content?.trim()} onClick={() => handleSuggestBlockPrompt(block)}>{suggestingBlockKeys.has(blockKey) ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}Suggérer un prompt IA</Button>}
+                      </div>
+                      <div className="text-xs text-muted-foreground tabular-nums">{block.width} × {Math.round(block.height)} px</div>
+                      {(() => { const promptText = (promptDraft.trim() || (block.prompt ?? "").trim()) || ""; const detected = getDetectedAssets(promptText, assets); if (detected.length === 0) return null; return (<div className="space-y-1.5 rounded-lg border border-border/60 bg-muted/20 p-2">{detected.map((asset) => (<div key={asset.id} className="flex items-center gap-2"><div className="w-8 h-8 shrink-0 rounded overflow-hidden border border-border/60 bg-muted">{getAssetReferenceImageUrl(asset) ? <ImageWithFallback src={getAssetReferenceImageUrl(asset) ?? ""} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">—</div>}</div><span className="flex-1 min-w-0 truncate text-xs font-medium">{asset.name ?? asset.id.slice(0, 8)}</span></div>))}</div>); })()}
+                      {project && <Button size="sm" variant="outline" className="w-full gap-1.5" disabled={!selectedBlock.prompt?.trim() || !project.style_template?.trim() || isGenerating} onClick={() => handleGenerateBlock(block)}>{isGenerating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}{block.image_url ? "Régénérer" : "Générer l'image"}</Button>}
+                      <Button size="sm" variant="ghost" className="w-full gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10" disabled={updatePanelMutation.isPending} onClick={() => handleDeleteBlock(block)}><Trash2 className="h-3 w-3" /> Supprimer le bloc</Button>
+                    </div>
+                  );
+                })() : selectedColorBlock ? (
+                  <div className="p-3 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold text-foreground">Bloc couleur</span>
+                      <Button size="sm" variant="ghost" className="h-7 w-7 p-0 rounded-lg" onClick={() => setSelectedColorBlockIdInModal(null)} aria-label="Désélectionner"><X className="h-3.5 w-3.5" /></Button>
+                    </div>
+                    <div className="text-xs text-muted-foreground tabular-nums">{selectedColorBlock.width} × {Math.round(selectedColorBlock.height)} px</div>
+                    <label className="text-xs font-medium text-muted-foreground flex items-center gap-2">Couleur<input type="color" value={selectedColorBlock.fill.type === "solid" ? selectedColorBlock.fill.color : selectedColorBlock.fill.from} onChange={(e) => handleColorBlockFillChange(selectedColorBlock, { type: "solid", color: e.target.value })} className="h-7 w-12 rounded border border-border/60 cursor-pointer bg-background" /><span className="text-xs text-muted-foreground tabular-nums">{selectedColorBlock.fill.type === "solid" ? selectedColorBlock.fill.color : selectedColorBlock.fill.from}</span></label>
+                    <Button size="sm" variant="ghost" className="w-full gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10" disabled={updatePanelMutation.isPending} onClick={() => handleDeleteColorBlock(selectedColorBlock)}><Trash2 className="h-3 w-3" /> Supprimer</Button>
+                  </div>
+                ) : null}
+              </div>
+          </div>
+
+        </aside>
         {/* Centre : panel 800px de large exactement, zoomable via contrôles header ou Ctrl+Scroll */}
         <div
           className="flex-1 min-w-0 flex flex-col items-center overflow-auto p-6 bg-background"
@@ -1195,135 +1369,19 @@ export default function ChapterDetail() {
             })()}
           </div>
         </div>
-        {/* Droite : panel contenu en overlay absolu — ne pousse pas le canvas */}
-        <aside className={`absolute right-[76px] top-0 bottom-0 flex flex-col border-l border-border bg-background z-20 transition-[width] duration-200 ease-in-out overflow-hidden ${panelEditorRightTool ? "w-[340px]" : "w-0 pointer-events-none border-l-0"}`}>
-          {panelEditorRightTool === "chapter-text" && (
-            <div className="p-4 space-y-2 flex-1 min-h-0 flex flex-col">
-              <span className="text-xs font-medium text-muted-foreground">Scénario</span>
-              {loadingScenario ? (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Chargement...
-                </div>
-              ) : scenarioChapter?.content ? (
-                <div className="rounded-md border border-border bg-muted/30 p-3 min-h-[80px] flex-1 overflow-y-auto">
-                  <ScenarioTextHighlighter text={scenarioChapter.content} assets={assets} className="text-sm" />
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground italic py-2">Aucun chapitre scénario lié.</p>
-              )}
-            </div>
-          )}
-
-          {panelEditorRightTool === "cases" && (
-            <div className="p-4 space-y-3 flex-1 min-h-0 flex flex-col overflow-y-auto">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Cases du scénario</span>
-                {validatedCases.length > 0 && (
-                  <span className="text-[10px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25 px-2 py-0.5 rounded-full font-semibold">
-                    {validatedCases.length} validée{validatedCases.length > 1 ? "s" : ""}
-                  </span>
-                )}
-              </div>
-
-              {!scenarioChapter && !loadingScenario && (
-                <div className="rounded-xl border border-dashed border-border/70 bg-muted/30 px-4 py-8 text-center">
-                  <BookOpen className="h-6 w-6 text-muted-foreground/30 mx-auto mb-2" />
-                  <p className="text-xs text-muted-foreground">Aucun chapitre scénario lié à ce chapitre.</p>
-                </div>
-              )}
-
-              {loadingScenario && (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground/40" />
-                </div>
-              )}
-
-              {scenarioChapter && !loadingScenario && validatedCases.length === 0 && (
-                <div className="rounded-xl border border-dashed border-border/70 bg-muted/30 px-4 py-8 text-center">
-                  <BookOpen className="h-6 w-6 text-muted-foreground/30 mx-auto mb-2" />
-                  <p className="text-xs text-muted-foreground">Aucune case validée dans le scénario. Validez des cases dans l'onglet Scénario.</p>
-                </div>
-              )}
-
-              {validatedCases.length > 0 && (
-                <div className="flex flex-col gap-2">
-                  {validatedCases.map((c) => {
-                    const alreadyAdded = layout.blocks.some((b) => b.prompt?.trim() === c.description?.trim());
-                    return (
-                      <div
-                        key={`case-${c.panel_number}-${c.block_number}`}
-                        className="rounded-xl border border-border/60 bg-card/60 p-3 flex flex-col gap-2"
-                      >
-                        <div className="flex items-start gap-2">
-                          <span className="shrink-0 text-[10px] font-bold font-mono w-5 h-5 rounded bg-[hsl(var(--lavender)/0.15)] text-[hsl(275,45%,55%)] flex items-center justify-center mt-0.5">
-                            {c.caseNumber}
-                          </span>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs leading-relaxed text-foreground line-clamp-3">
-                              {c.description ?? "—"}
-                            </p>
-                            {c.text_excerpt && (
-                              <p className="text-[10px] text-muted-foreground italic mt-1 line-clamp-2 border-l-2 border-border pl-2">
-                                {c.text_excerpt}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                        <Button
-                          size="sm"
-                          variant={alreadyAdded ? "outline" : "default"}
-                          className={`w-full h-7 text-xs gap-1.5 ${alreadyAdded ? "opacity-60" : "gradient-primary text-primary-foreground"}`}
-                          disabled={!c.description || updatePanelMutation.isPending}
-                          onClick={() => !alreadyAdded && handleAddBlockFromCase(c.description!)}
-                        >
-                          {alreadyAdded ? (
-                            <>✓ Déjà ajouté</>
-                          ) : (
-                            <><Plus className="h-3 w-3" /> Créer un bloc</>
-                          )}
-                        </Button>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
-        </aside>
-        <aside className="relative w-[76px] shrink-0 border-l border-border bg-muted/20 px-2 py-4 flex flex-col items-center gap-2 z-30">
-          <button
-            type="button"
-            onClick={() => setPanelEditorRightTool((t) => (t === "chapter-text" ? null : "chapter-text"))}
-            className={`w-full h-12 rounded-xl border flex items-center justify-center transition-colors duration-150 ${
-              panelEditorRightTool === "chapter-text"
-                ? "border-primary/70 bg-primary/15 text-primary shadow-sm"
-                : "border-border/70 bg-background text-muted-foreground hover:text-foreground hover:bg-muted/50"
-            }`}
-            title="Scénario"
-          >
-            <BookOpen className="h-5 w-5" />
-          </button>
-          <button
-            type="button"
-            onClick={isPro ? () => setPanelEditorRightTool((t) => (t === "cases" ? null : "cases")) : () => navigate("/dashboard/plans")}
-            className={`w-full h-12 rounded-xl border flex items-center justify-center transition-colors duration-150 relative ${
-              isPro
-                ? panelEditorRightTool === "cases"
-                  ? "border-primary/70 bg-primary/15 text-primary shadow-sm"
-                  : "border-border/70 bg-background text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                : "border-border/70 bg-background text-muted-foreground/60 hover:text-muted-foreground hover:bg-muted/30"
-            }`}
-            title={isPro ? "Cases" : "Fonctionnalité Pro — Cliquez pour mettre à niveau"}
-          >
-            <Layers className="h-5 w-5" />
-            {!isPro && (
-              <span className="absolute -top-1 -right-1 bg-amber-400/30 text-amber-600 dark:text-amber-400 border border-amber-400/40 text-[8px] font-bold rounded px-1 tracking-wide">
-                PRO
-              </span>
-            )}
-          </button>
-        </aside>
+        <EditorRightPanel
+          activeTool={panelEditorRightTool}
+          onToolChange={setPanelEditorRightTool}
+          loadingScenario={loadingScenario}
+          scenarioContent={scenarioChapter?.content}
+          assets={assets}
+          validatedCases={validatedCases}
+          existingBlockPrompts={layout.blocks.map((b) => b.prompt ?? "")}
+          isUpdating={updatePanelMutation.isPending}
+          isPro={isPro}
+          onAddBlockFromCase={handleAddBlockFromCase}
+          onNavigateToPlans={() => navigate("/dashboard/plans")}
+        />
       </div>
     );
   };

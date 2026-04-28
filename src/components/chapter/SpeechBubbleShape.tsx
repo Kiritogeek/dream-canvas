@@ -1,6 +1,6 @@
 import type { SpeechBubble, SpeechBubbleType } from "@/types";
 import { SPEECH_BUBBLE_DEFAULT_STYLE, SPEECH_BUBBLE_NO_TAIL_TYPES } from "@/types";
-import { buildUnifiedTailPath, TAIL_ELLIPSE } from "./speechBubbleTail";
+import { buildUnifiedTailPath, buildTailOnlyPath, TAIL_ELLIPSE } from "./speechBubbleTail";
 
 export const SPEECH_BUBBLE_TAIL_H = 14;
 export const SPEECH_BUBBLE_VIEWBOX_WITH_TAIL = "0 0 100 120";
@@ -64,21 +64,35 @@ function angryOvalPath(cx: number, cy: number, rx: number, ry: number, amp: numb
   return `M ${pts[0]} L ${pts.slice(1).join(" L ")} Z`;
 }
 
-// Irregular star: variable outer radii + slight angular noise per spike
-function irregularSpikePath(
+// Irregular star with concave sides — control point pulled toward center
+function concaveIrregularSpikePath(
   cx: number, cy: number, rInner: number,
-  outerRadii: number[], angleNoises: number[]
+  outerRadii: number[], angleNoises: number[],
+  concaveness: number
 ): string {
-  const pts: string[] = [];
   const spikes = outerRadii.length;
+  const pts: { x: number; y: number }[] = [];
   for (let i = 0; i < spikes; i++) {
     const baseA = (i / spikes) * 2 * Math.PI - Math.PI / 2;
     const outerA = baseA + (angleNoises[i] * Math.PI / 180);
     const innerA = baseA + Math.PI / spikes;
-    pts.push(`${(cx + outerRadii[i] * Math.cos(outerA)).toFixed(2)},${(cy + outerRadii[i] * Math.sin(outerA)).toFixed(2)}`);
-    pts.push(`${(cx + rInner * Math.cos(innerA)).toFixed(2)},${(cy + rInner * Math.sin(innerA)).toFixed(2)}`);
+    pts.push({ x: cx + outerRadii[i] * Math.cos(outerA), y: cy + outerRadii[i] * Math.sin(outerA) });
+    pts.push({ x: cx + rInner * Math.cos(innerA), y: cy + rInner * Math.sin(innerA) });
   }
-  return `M ${pts[0]} L ${pts.slice(1).join(" L ")} Z`;
+  const total = pts.length;
+  let d = `M ${pts[0].x.toFixed(2)} ${pts[0].y.toFixed(2)} `;
+  for (let i = 0; i < total; i++) {
+    const from = pts[i];
+    const to = pts[(i + 1) % total];
+    if (concaveness > 0) {
+      const mx = (from.x + to.x) / 2;
+      const my = (from.y + to.y) / 2;
+      d += `Q ${(mx + (cx - mx) * concaveness).toFixed(2)} ${(my + (cy - my) * concaveness).toFixed(2)} ${to.x.toFixed(2)} ${to.y.toFixed(2)} `;
+    } else {
+      d += `L ${to.x.toFixed(2)} ${to.y.toFixed(2)} `;
+    }
+  }
+  return d + "Z";
 }
 
 const SHOUT_OUTER = [52, 47, 55, 46, 53, 49, 56, 48, 52, 45, 54, 47];
@@ -95,7 +109,7 @@ const NNS = "non-scaling-stroke" as const;
  * Les points de base de la queue sont volontairement placés à l'intérieur du corps
  * pour garantir que le fill du corps les couvre totalement.
  */
-export function SpeechBubbleShape({ type, fill, stroke, tailFlip, strokeWidth, tailX, tailY, tailBaseWidth, tailCurve }: {
+export function SpeechBubbleShape({ type, fill, stroke, tailFlip, strokeWidth, tailX, tailY, tailBaseWidth, tailCurve, tailOn }: {
   type: SpeechBubble["type"];
   fill: string;
   stroke: string;
@@ -105,6 +119,7 @@ export function SpeechBubbleShape({ type, fill, stroke, tailFlip, strokeWidth, t
   tailY?: number;
   tailBaseWidth?: number;
   tailCurve?: number;
+  tailOn?: boolean;
 }) {
   const sw = strokeWidth ?? 2;
   const tf = tailFlip ? TAIL_FLIP : undefined;
@@ -182,15 +197,24 @@ export function SpeechBubbleShape({ type, fill, stroke, tailFlip, strokeWidth, t
     );
   }
 
-  // ── Cri : étoile 12 pointes irrégulières, queue éclair ───────────────────
+  // ── Cri : étoile 12 pointes irrégulières concaves
+  // Queue opt-in (tailOn === true) : ellipse virtuelle interne dessinée EN PREMIER,
+  // corps PAR-DESSUS — même stratégie que cloud/explosion, zéro espace visible.
   if (type === "shout") {
-    const body = irregularSpikePath(50, 50, 37, SHOUT_OUTER, SHOUT_NOISE);
+    const conc = 0.5;
+    const body = concaveIrregularSpikePath(50, 46, 37, SHOUT_OUTER, SHOUT_NOISE, conc);
+    if (tailOn !== true) {
+      return <path d={body} fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" vectorEffect={NNS} />;
+    }
+    const defaultTx = tailFlip ? 85 : 15;
+    const { tx, ty, hw, curve } = resolveTailCoords(defaultTx);
+    const vr = Math.max(14, 30 * (1 - 0.5 * conc));
+    const tailPath = buildTailOnlyPath(50, 46, vr, vr, tx, ty, hw, curve);
     return (
       <>
-        <g transform={tf}>
-          <path d="M 34 70 L 24 104 L 34 106 L 20 120 L 34 116 L 32 108 L 44 80 Z"
-            fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" vectorEffect={NNS} />
-        </g>
+        {tailPath && (
+          <path d={tailPath} fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" vectorEffect={NNS} />
+        )}
         <path d={body} fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" vectorEffect={NNS} />
       </>
     );

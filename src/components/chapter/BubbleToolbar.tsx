@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Bold, Italic, Underline, Strikethrough, AlignLeft, AlignCenter, AlignRight, Copy, Trash2, FlipHorizontal2, Plus, Minus, Square, Blend, ChevronDown, ChevronLeft } from "lucide-react";
+import { Bold, Italic, Underline, Strikethrough, AlignLeft, AlignCenter, AlignRight, Copy, Trash2, MessageCircle, Plus, Minus, Square, Blend, ChevronDown, ChevronLeft } from "lucide-react";
 import type { SpeechBubble } from "@/types";
 import { getSpeechBubbleFillStroke, SPEECH_BUBBLE_NO_TAIL_TYPES } from "@/types";
 
@@ -342,12 +342,12 @@ export function BubbleToolbar({ bubble, speechBubbles, onUpdate, onDuplicate, on
               <Blend className="h-3.5 w-3.5" />
             </button>
 
-            {/* Retourner la queue */}
-            {!hasNoTail && (
-              <button type="button" onClick={() => patch({ tailFlip: !bubble.tailFlip })}
-                className={btnCls(!!bubble.tailFlip)}
-                title="Retourner la queue">
-                <FlipHorizontal2 className="h-3.5 w-3.5" />
+            {/* Queue : toggle pour la bulle Cri (opt-in) */}
+            {bubble.type === "shout" && (
+              <button type="button" onClick={() => patch({ tailOn: !bubble.tailOn })}
+                className={btnCls(!!bubble.tailOn)}
+                title={bubble.tailOn ? "Supprimer la queue" : "Ajouter une queue"}>
+                <MessageCircle className="h-3.5 w-3.5" />
               </button>
             )}
           </>

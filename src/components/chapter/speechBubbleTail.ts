@@ -120,6 +120,13 @@ export function getTailHitPath(
   type: SpeechBubbleType,
   tailX?: number, tailY?: number, tailFlip?: boolean, tailBaseWidth?: number, tailCurve?: number
 ): string | null {
+  // Shout : ellipse virtuelle interne (r≈22.5 pour conc=0.5)
+  if (type === "shout") {
+    const tx = tailX ?? (tailFlip ? 85 : 15);
+    const ty = tailY ?? 115;
+    const hw = (tailBaseWidth ?? 28) / 2;
+    return buildTailOnlyPath(50, 46, 22.5, 22.5, tx, ty, hw, tailCurve ?? 0);
+  }
   if (!UNIFIED_TAIL_TYPES.has(type)) return null;
   const e = TAIL_ELLIPSE[type];
   if (!e) return null;

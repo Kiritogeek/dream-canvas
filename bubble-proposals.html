@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>DreamWeave — Bulles par type</title>
+<link href="https://fonts.googleapis.com/css2?family=Bangers&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: #0d0d14; color: #e0e0f0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  height: 100vh; display: flex; flex-direction: column; overflow: hidden;
+}
+
+/* ── NAV ── */
+nav {
+  display: flex; gap: 2px; padding: 10px 16px 0; flex-shrink: 0;
+  background: #0a0a10; border-bottom: 1px solid #1a1a2e; overflow-x: auto;
+  scrollbar-width: none;
+}
+nav::-webkit-scrollbar { display: none; }
+nav button {
+  padding: 8px 14px; border: none; border-radius: 8px 8px 0 0;
+  background: #13131e; color: #505070; font-size: 12px; font-weight: 600;
+  cursor: pointer; white-space: nowrap; transition: all 0.15s;
+  border: 1px solid #1e1e2e; border-bottom: none;
+}
+nav button:hover { color: #a090e0; background: #16162a; }
+nav button.active { background: #0d0d18; color: #c0b0ff; border-color: #3a3060; border-bottom: 1px solid #0d0d18; }
+
+/* ── PAGES ── */
+.pages { flex: 1; overflow: hidden; background: #0d0d18; }
+.page { display: none; height: 100%; }
+.page.active { display: flex; }
+
+/* ── LAYOUT ── */
+.preview-col {
+  flex: 0 0 auto; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 14px; padding: 28px 24px;
+  border-right: 1px solid #1a1a2e; min-width: 300px;
+  background: #0a0a12;
+}
+.preview-hint { font-size: 11px; color: #404060; }
+.preview-hint span { color: #7c6ff7; }
+
+.controls-col {
+  flex: 1; overflow-y: auto; padding: 20px 24px;
+  display: flex; flex-direction: column; gap: 0;
+}
+.controls-col::-webkit-scrollbar { width: 4px; }
+.controls-col::-webkit-scrollbar-thumb { background: #2a2a4a; border-radius: 2px; }
+
+/* ── CONTROL SECTIONS ── */
+.ctrl-section {
+  border-bottom: 1px solid #181828; padding: 16px 0;
+}
+.ctrl-section:last-child { border-bottom: none; }
+.ctrl-section-title {
+  font-size: 10px; font-weight: 700; color: #5050a0; text-transform: uppercase;
+  letter-spacing: 0.12em; margin-bottom: 12px;
+}
+.ctrl-row { display: flex; flex-direction: column; gap: 2px; margin-bottom: 10px; }
+.ctrl-row:last-child { margin-bottom: 0; }
+.ctrl-label {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 11px; color: #6060a0;
+}
+.ctrl-label em { color: #a090e0; font-style: normal; font-weight: 700; font-size: 11px; }
+input[type=range] { width: 100%; accent-color: #7c6ff7; cursor: pointer; height: 3px; }
+input[type=color] {
+  width: 34px; height: 24px; border: 1px solid #2a2a4a; border-radius: 5px;
+  cursor: pointer; padding: 1px; background: none;
+}
+
+/* ── TOGGLE ── */
+.toggle-btn {
+  padding: 6px 14px; border-radius: 6px; border: 1px solid #3a3060;
+  background: #14142a; color: #a090f0; font-size: 11px; font-weight: 700;
+  cursor: pointer; transition: all 0.12s; width: fit-content;
+}
+.toggle-btn.off { background: #1a0a0a; border-color: #4a2020; color: #e06060; }
+
+/* ── CHECKBOXES ── */
+.check-list { display: flex; flex-direction: column; gap: 6px; }
+.check-item { display: flex; align-items: center; gap: 8px; }
+.check-item input[type=checkbox] { accent-color: #7c6ff7; width: 14px; height: 14px; cursor: pointer; }
+.check-item label { font-size: 12px; color: #7070a0; cursor: pointer; }
+.check-item input:checked + label { color: #c0b0ff; }
+
+/* ── SUMMARY ── */
+.summary-box {
+  background: #080810; border: 1px solid #1a1a30; border-radius: 8px;
+  padding: 12px 14px; font-size: 11px; color: #505070; line-height: 2;
+  font-family: 'SF Mono', 'Cascadia Code', monospace;
+}
+.summary-box span { color: #8878cc; }
+.summary-box em { color: #4ade80; font-style: normal; }
+</style>
+</head>
+<body>
+
+<nav id="nav"></nav>
+<div class="pages" id="pages"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// HELPERS SVG
+// ═══════════════════════════════════════════════════════
+
+function buildUnifiedPath(cx, cy, rx, ry, tx, ty, hw, curve) {
+  const angle = Math.atan2(ty - cy, tx - cx);
+  const r = (rx * ry) / Math.sqrt(Math.pow(ry * Math.cos(angle), 2) + Math.pow(rx * Math.sin(angle), 2));
+  const px = cx + r * Math.cos(angle), py = cy + r * Math.sin(angle);
+  const rawDist = Math.hypot(tx - px, ty - py);
+  if (rawDist < hw * 1.5)
+    return `M ${cx-rx} ${cy} A ${rx} ${ry} 0 1 0 ${cx+rx} ${cy} A ${rx} ${ry} 0 1 0 ${cx-rx} ${cy} Z`;
+  const perp = angle + Math.PI / 2;
+  const a1 = Math.atan2((py + hw*Math.sin(perp) - cy)/ry, (px + hw*Math.cos(perp) - cx)/rx);
+  const a2 = Math.atan2((py - hw*Math.sin(perp) - cy)/ry, (px - hw*Math.cos(perp) - cx)/rx);
+  const eb1x = cx+rx*Math.cos(a1), eb1y = cy+ry*Math.sin(a1);
+  const eb2x = cx+rx*Math.cos(a2), eb2y = cy+ry*Math.sin(a2);
+  const t1x = rx*Math.sin(a1), t1y = -ry*Math.cos(a1), t1l = Math.hypot(t1x, t1y);
+  const t2x = rx*Math.sin(a2), t2y = -ry*Math.cos(a2), t2l = Math.hypot(t2x, t2y);
+  const toTip = Math.hypot(tx-cx, ty-cy);
+  const tPerpX = -(ty-cy)/toTip, tPerpY = (tx-cx)/toTip;
+  const cpL = Math.min(hw*0.5, rawDist*0.18), cm = curve*rawDist*0.007, t = 0.55;
+  const f = n => n.toFixed(1);
+  return `M ${f(eb1x)} ${f(eb1y)} C ${f(eb1x+(t1x/t1l)*cpL)} ${f(eb1y+(t1y/t1l)*cpL)}, ${f(eb1x+(tx-eb1x)*t+tPerpX*cm)} ${f(eb1y+(ty-eb1y)*t+tPerpY*cm)}, ${f(tx)} ${f(ty)} C ${f(eb2x+(tx-eb2x)*t+tPerpX*cm)} ${f(eb2y+(ty-eb2y)*t+tPerpY*cm)}, ${f(eb2x-(t2x/t2l)*cpL)} ${f(eb2y-(t2y/t2l)*cpL)}, ${f(eb2x)} ${f(eb2y)} A ${rx} ${ry} 0 1 0 ${f(eb1x)} ${f(eb1y)} Z`;
+}
+
+function buildTailOnly(cx, cy, rx, ry, tx, ty, hw, curve) {
+  const angle = Math.atan2(ty - cy, tx - cx);
+  const r = (rx * ry) / Math.sqrt(Math.pow(ry * Math.cos(angle), 2) + Math.pow(rx * Math.sin(angle), 2));
+  const px = cx + r * Math.cos(angle), py = cy + r * Math.sin(angle);
+  const rawDist = Math.hypot(tx - px, ty - py);
+  if (rawDist < hw * 1.5) return null;
+  const perp = angle + Math.PI / 2;
+  const a1 = Math.atan2((py + hw*Math.sin(perp) - cy)/ry, (px + hw*Math.cos(perp) - cx)/rx);
+  const a2 = Math.atan2((py - hw*Math.sin(perp) - cy)/ry, (px - hw*Math.cos(perp) - cx)/rx);
+  const eb1x = cx+rx*Math.cos(a1), eb1y = cy+ry*Math.sin(a1);
+  const eb2x = cx+rx*Math.cos(a2), eb2y = cy+ry*Math.sin(a2);
+  const t1x = rx*Math.sin(a1), t1y = -ry*Math.cos(a1), t1l = Math.hypot(t1x, t1y);
+  const t2x = rx*Math.sin(a2), t2y = -ry*Math.cos(a2), t2l = Math.hypot(t2x, t2y);
+  const toTip = Math.hypot(tx-cx, ty-cy);
+  const tPerpX = -(ty-cy)/toTip, tPerpY = (tx-cx)/toTip;
+  const cpL = Math.min(hw*0.5, rawDist*0.18), cm = curve*rawDist*0.007, t = 0.55;
+  const f = n => n.toFixed(1);
+  return `M ${f(eb1x)} ${f(eb1y)} C ${f(eb1x+(t1x/t1l)*cpL)} ${f(eb1y+(t1y/t1l)*cpL)}, ${f(eb1x+(tx-eb1x)*t+tPerpX*cm)} ${f(eb1y+(ty-eb1y)*t+tPerpY*cm)}, ${f(tx)} ${f(ty)} C ${f(eb2x+(tx-eb2x)*t+tPerpX*cm)} ${f(eb2y+(ty-eb2y)*t+tPerpY*cm)}, ${f(eb2x-(t2x/t2l)*cpL)} ${f(eb2y-(t2y/t2l)*cpL)}, ${f(eb2x)} ${f(eb2y)} Z`;
+}
+
+function roundedIrregularSpikePath(cx, cy, rInner, outerRadii, noises, roundness) {
+  const spikes = outerRadii.length;
+  const pts = [];
+  for (let i = 0; i < spikes; i++) {
+    const baseA = (i / spikes) * 2 * Math.PI - Math.PI / 2;
+    const outerA = baseA + (noises[i] * Math.PI / 180);
+    const innerA = baseA + Math.PI / spikes;
+    pts.push({ x: cx + outerRadii[i] * Math.cos(outerA), y: cy + outerRadii[i] * Math.sin(outerA), outer: true });
+    pts.push({ x: cx + rInner * Math.cos(innerA), y: cy + rInner * Math.sin(innerA), outer: false });
+  }
+  const total = pts.length;
+  let d = '';
+  for (let i = 0; i < total; i++) {
+    const prev = pts[(i-1+total)%total], curr = pts[i], next = pts[(i+1)%total];
+    if (curr.outer && roundness > 0) {
+      const ax = curr.x+(prev.x-curr.x)*roundness, ay = curr.y+(prev.y-curr.y)*roundness;
+      const dx = curr.x+(next.x-curr.x)*roundness, dy = curr.y+(next.y-curr.y)*roundness;
+      d += (i===0 ? `M ${ax.toFixed(2)} ${ay.toFixed(2)} ` : `L ${ax.toFixed(2)} ${ay.toFixed(2)} `);
+      d += `Q ${curr.x.toFixed(2)} ${curr.y.toFixed(2)} ${dx.toFixed(2)} ${dy.toFixed(2)} `;
+    } else {
+      d += (i===0 ? `M ${curr.x.toFixed(2)} ${curr.y.toFixed(2)} ` : `L ${curr.x.toFixed(2)} ${curr.y.toFixed(2)} `);
+    }
+  }
+  return d + 'Z';
+}
+
+function concaveSpikePath(cx, cy, rInner, outerRadii, noises, concaveness) {
+  const spikes = outerRadii.length;
+  const pts = [];
+  for (let i = 0; i < spikes; i++) {
+    const baseA = (i / spikes) * 2 * Math.PI - Math.PI / 2;
+    const outerA = baseA + (noises[i] * Math.PI / 180);
+    const innerA = baseA + Math.PI / spikes;
+    pts.push({ x: cx + outerRadii[i] * Math.cos(outerA), y: cy + outerRadii[i] * Math.sin(outerA), outer: true });
+    pts.push({ x: cx + rInner * Math.cos(innerA), y: cy + rInner * Math.sin(innerA), outer: false });
+  }
+  const total = pts.length;
+  let d = `M ${pts[0].x.toFixed(2)} ${pts[0].y.toFixed(2)} `;
+  for (let i = 0; i < total; i++) {
+    const from = pts[i];
+    const to = pts[(i + 1) % total];
+    if (concaveness > 0) {
+      const mx = (from.x + to.x) / 2;
+      const my = (from.y + to.y) / 2;
+      const cpx = mx + (cx - mx) * concaveness;
+      const cpy = my + (cy - my) * concaveness;
+      d += `Q ${cpx.toFixed(2)} ${cpy.toFixed(2)} ${to.x.toFixed(2)} ${to.y.toFixed(2)} `;
+    } else {
+      d += `L ${to.x.toFixed(2)} ${to.y.toFixed(2)} `;
+    }
+  }
+  return d + 'Z';
+}
+
+
+function raySegIntersect(ox, oy, dx, dy, ax, ay, bx, by) {
+  const ex = bx-ax, ey = by-ay, denom = dx*ey - dy*ex;
+  if (Math.abs(denom) < 1e-8) return null;
+  const fx = ax-ox, fy = ay-oy;
+  const t = (fx*ey - fy*ex) / denom, u = (fx*dy - fy*dx) / denom;
+  return (t > 1e-4 && u >= 0 && u <= 1) ? { t, u, x: ox+dx*t, y: oy+dy*t } : null;
+}
+function rayPolyIntersect(ox, oy, dx, dy, pts, total) {
+  let best = null;
+  for (let i = 0; i < total; i++) {
+    const a = pts[i], b = pts[(i+1)%total];
+    const hit = raySegIntersect(ox, oy, dx, dy, a.x, a.y, b.x, b.y);
+    if (hit && (!best || hit.t < best.t)) best = { ...hit, segIdx: i };
+  }
+  return best;
+}
+
+function spikePath(cx, cy, rInner, rOuter, spikes, roundness = 0) {
+  const total = spikes * 2;
+  const pts = [];
+  for (let i = 0; i < total; i++) {
+    const a = (i / total) * 2 * Math.PI - Math.PI / 2;
+    pts.push({ x: cx + (i%2===0?rOuter:rInner)*Math.cos(a), y: cy + (i%2===0?rOuter:rInner)*Math.sin(a), outer: i%2===0 });
+  }
+  if (roundness <= 0) return `M ${pts.map(p=>`${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(' L ')} Z`;
+  let d = '';
+  for (let i = 0; i < total; i++) {
+    const prev = pts[(i-1+total)%total], curr = pts[i], next = pts[(i+1)%total];
+    if (curr.outer) {
+      const ax = curr.x+(prev.x-curr.x)*roundness, ay = curr.y+(prev.y-curr.y)*roundness;
+      const dx = curr.x+(next.x-curr.x)*roundness, dy = curr.y+(next.y-curr.y)*roundness;
+      d += (i===0 ? `M ${ax.toFixed(2)} ${ay.toFixed(2)} ` : `L ${ax.toFixed(2)} ${ay.toFixed(2)} `);
+      d += `Q ${curr.x.toFixed(2)} ${curr.y.toFixed(2)} ${dx.toFixed(2)} ${dy.toFixed(2)} `;
+    } else {
+      d += (i===0 ? `M ${curr.x.toFixed(2)} ${curr.y.toFixed(2)} ` : `L ${curr.x.toFixed(2)} ${curr.y.toFixed(2)} `);
+    }
+  }
+  return d + 'Z';
+}
+
+function wavyEllipsePath(cx, cy, rx, ry, amp, freq, n=60) {
+  const pts = [];
+  for (let i = 0; i < n; i++) {
+    const a = (i/n)*2*Math.PI;
+    const ampVar = amp*(0.75+0.25*Math.sin(a*2.1+0.8));
+    const w = ampVar*Math.sin(freq*a);
+    pts.push(`${(cx+(rx+w)*Math.cos(a)).toFixed(2)},${(cy+(ry+w)*Math.sin(a)).toFixed(2)}`);
+  }
+  return `M ${pts[0]} L ${pts.slice(1).join(' L ')} Z`;
+}
+
+function angryOvalPath(cx, cy, rx, ry, amp, spikes, n=120) {
+  const pts = [];
+  for (let i = 0; i < n; i++) {
+    const a = (i/n)*2*Math.PI;
+    const s = amp*Math.abs(Math.sin(spikes*a));
+    pts.push(`${(cx+(rx+s)*Math.cos(a)).toFixed(2)},${(cy+(ry+s)*Math.sin(a)).toFixed(2)}`);
+  }
+  return `M ${pts[0]} L ${pts.slice(1).join(' L ')} Z`;
+}
+
+// ═══════════════════════════════════════════════════════
+// BUBBLE DEFINITIONS
+// each entry: id, label, emoji, viewBox, hasTail, hasFilter, render(state, svgEl)
+// ═══════════════════════════════════════════════════════
+
+const SHOUT_OUTER = [52,47,55,46,53,49,56,48,52,45,54,47];
+const SHOUT_NOISE = [0,1.5,-1,2,-1.5,1,-2,2,-1,1.5,-1.5,1];
+const EXPLO_OUTER = [55,44,60,42,58,43,56,45,60,42,57,44,59];
+const EXPLO_NOISE = [0,3,-2,4,-3,2,-4,3,-2,3.5,-2.5,2,-1];
+
+const BUBBLES = [
+  {
+    id: 'speech', label: 'Dialogue', emoji: '💬',
+    hasTail: true, hasFilter: false,
+    defaults: { fill:'#ffffff', stroke:'#1a1a1a', sw:2, tailOn:true, tx:15, ty:115, hw:14, curve:0 },
+    userControls: ['Couleur fond','Couleur contour','Épaisseur contour','Position queue','Largeur queue','Courbure queue','Queue ON/OFF'],
+    render(s, g) {
+      g.innerHTML = '';
+      if (s.tailOn) {
+        const d = buildUnifiedPath(50,46,47,43, s.tx,s.ty, s.hw/2, s.curve);
+        g.innerHTML += `<path d="${d}" fill="${s.fill}" stroke="${s.stroke}" stroke-width="${s.sw}" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>`;
+        g.innerHTML += `<ellipse cx="50" cy="46" rx="47" ry="43" fill="${s.fill}" stroke="none" vector-effect="non-scaling-stroke"/>`;
+        g.innerHTML += `<ellipse cx="50" cy="46" rx="47" ry="43" fill="none" stroke="${s.stroke}" stroke-width="${s.sw}" vector-effect="non-scaling-stroke"/>`;
+      } else {
+        g.innerHTML += `<ellipse cx="50" cy="46" rx="47" ry="43" fill="${s.fill}" stroke="${s.stroke}" stroke-width="${s.sw}" vector-effect="non-scaling-stroke"/>`;
+      }
+    },
+    extraControls: [],
+  },
+  {
+    id: 'thought', label: 'Pensée', emoji: '💭',
+    hasTail: true, hasFilter: false,
+    defaults: { fill:'#ffffff', stroke:'#1a1a1a', sw:2, tailOn:true, tx:18, ty:108 },
+    userControls: ['Couleur fond','Couleur contour','Épaisseur contour','Direction queue','Queue ON/OFF'],
+    render(s, g) {
+      g.innerHTML = '';
+      if (s.tailOn) {
+        const angle = Math.atan2(s.ty - 46, s.tx - 50);
+        const r0 = 21, r1 = 33, r2 = 43;
+        const c1x = 50+r0*Math.cos(angle), c1y = 46+r0*Math.sin(angle);
+        const c2x = 50+r1*Math.cos(angle), c2y = 46+r1*Math.sin(angle);
+        const c3x = 50+r2*Math.cos(angle), c3y = 46+r2*Math.sin(angle);
+        g.innerHTML += `<circle cx="${c1x.toFixed(1)}" cy="${c1y.toFixed(1)}" r="7" fill="${s.fill}" stroke="${s.stroke}" stroke-width="${s.sw}" vector-effect="non-scaling-stroke"/>`;
+        g.innerHTML += `<circle cx="${c2x.toFixed(1)}" cy="${c2y.toFixed(1)}" r="4.5" fill="${s.fill}" stroke="${s.stroke}" stroke-width="${s.sw}" vector-effect="non-scaling-stroke"/>`;
+        g.innerHTML += `<circle cx="${c3x.toFixed(1)}" cy="${c3y.toFixed(1)}" r="2.5" fill="${s.fill}" stroke="${s.stroke}" stroke-width="${s.sw}" vector-effect="non-scaling-stroke"/>`;
+      }
+      g.innerHTML += `<circle cx="50" cy="46" r="29" fill="${s.fill}" stroke="${s.stroke}" stroke-width="${s.sw}" vector-effect="non-scaling-stroke"/>`;
+      g.innerHTML += `<circle cx="24" cy="53" r="17" fill="${s.fill}" stroke="${s.stroke}" stroke-width="${s.sw}" vector-effect="non-scaling-stroke"/>`;
+      g.innerHTML += `<circle cx="76" cy="53" r="17" fill="${s.fill}" stroke="${s.stroke}" stroke-width="${s.sw}" vector-effect="non-scaling-stroke"/>`;
+      g.innerHTML += `<circle cx="34" cy="32" r="14" fill="${s.fill}" stroke="${s.stroke}" stroke-width="${s.sw}" vector-effect="non-scaling-stroke"/>`;
+      g.innerHTML += `<circle cx="66" cy="32" r="14" fill="${s.fill}" stroke="${s.stroke}" stroke-width="${s.sw}" vector-effect="non-scaling-stroke"/>`;
+      g.innerHTML += `<circle cx="50" cy="23" r="12" fill="${s.fill}" stroke="${s.stroke}" stroke-width="${s.sw}" vector-effect="non-scaling-stroke"/>`;
+    },
+    extraControls: [],
+  },
+  {
+    id: 'cloud', label: 'Nuage', emoji: '☁️',
+    hasTail: true, hasFilter: true,
+    defaults: { fill:'#ffffff', stroke:'#1a1a1a', sw:2, tailOn:true, tx:15, ty:115, hw:14, curve:0 },
+    userControls: ['Couleur fond','Couleur contour','Épaisseur contour','Position queue','Largeur queue','Queue ON/OFF'],
+    render(s, g) {
+      g.innerHTML = '';
+      if (s.tailOn) {
+        const d = buildTailOnly(50,47,44,36, s.tx,s.ty, s.hw/2, s.curve);
+        if (d) g.innerHTML += `<path d="${d}" fill="${s.fill}" stroke="${s.stroke}" stroke-width="${s.sw}" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>`;
+      }
+      g.innerHTML += `<ellipse cx="50" cy="47" rx="44" ry="36" fill="${s.fill}" stroke="${s.stroke}" stroke-width="${s.sw}" vector-effect="non-scaling-stroke"/>`;
+      g.innerHTML += `<circle cx="20" cy="43" r="12" fill="${s.fill}" stroke="${s.stroke}" stroke-width="${s.sw}" vector-effect="non-scaling-stroke"/>`;
+      g.innerHTML += `<circle cx="80" cy="43" r="12" fill="${s.fill}" stroke="${s.stroke}" stroke-width="${s.sw}" vector-effect="non-scaling-stroke"/>`;
+      g.innerHTML += `<circle cx="32" cy="18" r="9.5" fill="${s.fill}" stroke="${s.stroke}" stroke-width="${s.sw}" vector-effect="non-scaling-stroke"/>`;
+      g.innerHTML += `<circle cx="68" cy="18" r="9.5" fill="${s.fill}" stroke="${s.stroke}" stroke-width="${s.sw}" vector-effect="non-scaling-stroke"/>`;
+    },
+    extraControls: [],
+  },
+  {
+    id: 'shout', label: 'Cri', emoji: '💢',
+    hasTail: true, hasFilter: false,
+    defaults: { fill:'#ffffff', stroke:'#1a1a1a', sw:2, tailOn:true, tx:18, ty:114, hw:13, curve:0, concaveness:50 },
+    userControls: ['Couleur fond','Couleur contour','Épaisseur contour','Position queue','Largeur queue','Courbure queue','Queue ON/OFF'],
+    render(s, g) {
+      g.innerHTML = '';
+      const conc = s.concaveness / 100;
+      // Virtual circle radius must stay inside the spike body at all concaveness levels.
+      // Concave Q bezier dips to ≈ |midpoint| * (1 - 0.5*conc). With avg |midpoint|≈44:
+      // min body r ≈ 44*(1-0.5*conc). We use 70% of that as safe margin.
+      const vr = Math.max(14, 30 * (1 - 0.5 * conc));
+      if (s.tailOn) {
+        const tail = buildTailOnly(50, 46, vr, vr, s.tx, s.ty, s.hw / 2, s.curve);
+        if (tail) g.innerHTML += `<path d="${tail}" fill="${s.fill}" stroke="${s.stroke}" stroke-width="${s.sw}" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>`;
+      }
+      // Body drawn on top: covers the tail base completely
+      const body = concaveSpikePath(50, 46, 37, SHOUT_OUTER, SHOUT_NOISE, conc);
+      g.innerHTML += `<path d="${body}" fill="${s.fill}" stroke="${s.stroke}" stroke-width="${s.sw}" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>`;
+    },
+    extraControls: [
+      { id:'concaveness', label:'Courbure côtés', min:0, max:85, step:1, unit:'%', scale:0.01 },
+    ],
+  },
+  {
+    id: 'whisper', label: 'Chuchotement', emoji: '🤫',
+    hasTail: true, hasFilter: true,
+    defaults: { fill:'#ffffff', stroke:'#1a1a1a', sw:2, tailOn:true, tx:15, ty:115, hw:14, curve:0 },
+    userControls: ['Couleur fond','Couleur contour','Épaisseur contour','Position queue','Largeur queue','Queue ON/OFF'],
+    render(s, g) {
+      g.innerHTML = '';
+      if (s.tailOn) {
+        const d = buildTailOnly(50,46,47,42, s.tx,s.ty, s.hw/2, s.curve);
+        if (d) g.innerHTML += `<path d="${d}" fill="${s.fill}" stroke="${s.stroke}" stroke-width="${s.sw}" stroke-dasharray="5 4" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>`;
+      }
+      g.innerHTML += `<ellipse cx="50" cy="46" rx="47" ry="42" fill="${s.fill}" stroke="${s.stroke}" stroke-width="${s.sw}" stroke-dasharray="6 3" vector-effect="non-scaling-stroke"/>`;
+    },
+    extraControls: [],
+  },
+  {
+    id: 'narration', label: 'Narration', emoji: '📖',
+    hasTail: false, hasFilter: false,
+    defaults: { fill:'#ffffff', stroke:'#1a1a1a', sw:2.5, radius:3 },
+    userControls: ['Couleur fond','Couleur contour','Épaisseur contour'],
+    render(s, g) {
+      g.innerHTML = `<rect x="3" y="3" width="94" height="94" rx="${s.radius}" ry="${s.radius}" fill="${s.fill}" stroke="${s.stroke}" stroke-width="${s.sw}" vector-effect="non-scaling-stroke"/>`;
+    },
+    extraControls: [
+      { id:'radius', label:'Arrondi coins', min:0, max:20, step:1, unit:'px', scale:1 },
+    ],
+  },
+  {
+    id: 'radio', label: 'Transmission', emoji: '📻',
+    hasTail: true, hasFilter: true,
+    defaults: { fill:'#ffffff', stroke:'#1a1a1a', sw:2, tailOn:true, tx:75, ty:114, hw:13, curve:0, style:0 },
+    userControls: ['Couleur fond','Couleur contour','Épaisseur contour','Position queue','Largeur queue','Queue ON/OFF'],
+    render(s, g) {
+      g.innerHTML = '';
+      if (s.tailOn) {
+        const e = s.style===0 ? {cx:50,cy:47,rx:46,ry:37} : {cx:50,cy:47,rx:45,ry:37};
+        const tail = buildTailOnly(e.cx,e.cy,e.rx,e.ry, s.tx,s.ty, s.hw/2, s.curve);
+        if (tail) {
+          const da = s.style===1 ? ' stroke-dasharray="5 3"' : '';
+          g.innerHTML += `<path d="${tail}" fill="${s.fill}" stroke="${s.stroke}" stroke-width="${s.sw}"${da} stroke-linejoin="round" vector-effect="non-scaling-stroke"/>`;
+        }
+      }
+      if (s.style === 0) {
+        g.innerHTML += `<path d="M 10 10 L 90 10 L 96 22 L 96 74 L 88 86 L 12 86 L 4 74 L 4 22 Z" fill="${s.fill}" stroke="${s.stroke}" stroke-width="${s.sw}" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>`;
+      } else {
+        g.innerHTML += `<rect x="5" y="8" width="90" height="78" rx="5" fill="${s.fill}" stroke="${s.stroke}" stroke-width="${s.sw}" stroke-dasharray="5 3" vector-effect="non-scaling-stroke"/>`;
+        g.innerHTML += `<line x1="30" y1="8" x2="30" y2="2" stroke="${s.stroke}" stroke-width="${s.sw}" vector-effect="non-scaling-stroke"/>`;
+        g.innerHTML += `<line x1="70" y1="8" x2="70" y2="2" stroke="${s.stroke}" stroke-width="${s.sw}" vector-effect="non-scaling-stroke"/>`;
+        g.innerHTML += `<circle cx="30" cy="2" r="2" fill="${s.stroke}"/>`;
+        g.innerHTML += `<circle cx="70" cy="2" r="2" fill="${s.stroke}"/>`;
+      }
+    },
+    extraControls: [
+      { id:'style', label:'Style corps', type:'select', options:['Octogone','Rect + antennes'], values:[0,1] },
+    ],
+  },
+  {
+    id: 'electronic', label: 'Électronique', emoji: '🤖',
+    hasTail: true, hasFilter: false,
+    defaults: { fill:'#ffffff', stroke:'#1a1a1a', sw:2, tailOn:true, tx:50, ty:114, hw:13, curve:0, style:0 },
+    userControls: ['Couleur fond','Couleur contour','Épaisseur contour','Position queue','Largeur queue','Queue ON/OFF'],
+    render(s, g) {
+      g.innerHTML = '';
+      if (s.tailOn) {
+        const tail = buildTailOnly(50,46,46,38, s.tx,s.ty, s.hw/2, s.curve);
+        if (tail) g.innerHTML += `<path d="${tail}" fill="${s.fill}" stroke="${s.stroke}" stroke-width="${s.sw}" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>`;
+      }
+      if (s.style === 0) {
+        g.innerHTML += `<path d="M 6 14 L 20 4 L 80 4 L 94 14 L 96 78 L 82 88 L 18 88 L 4 78 Z" fill="${s.fill}" stroke="${s.stroke}" stroke-width="${s.sw}" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>`;
+        g.innerHTML += `<polyline points="18,88 22,95 26,88 30,95 34,88" fill="none" stroke="${s.stroke}" stroke-width="${s.sw}" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>`;
+      } else {
+        g.innerHTML += `<rect x="4" y="4" width="92" height="82" rx="2" fill="${s.fill}" stroke="${s.stroke}" stroke-width="${s.sw}" vector-effect="non-scaling-stroke"/>`;
+        g.innerHTML += `<rect x="4" y="4" width="8" height="8" fill="${s.stroke}"/>`;
+        g.innerHTML += `<rect x="88" y="4" width="8" height="8" fill="${s.stroke}"/>`;
+        g.innerHTML += `<rect x="4" y="78" width="8" height="8" fill="${s.stroke}"/>`;
+        g.innerHTML += `<rect x="88" y="78" width="8" height="8" fill="${s.stroke}"/>`;
+      }
+    },
+    extraControls: [
+      { id:'style', label:'Style corps', type:'select', options:['Hexagonal + zigzag','Rect + coins pixels'], values:[0,1] },
+    ],
+  },
+  {
+    id: 'explosion', label: 'Impact', emoji: '💥',
+    hasTail: true, hasFilter: true,
+    defaults: { fill:'#ffffff', stroke:'#1a1a1a', sw:2, tailOn:true, tx:18, ty:114, hw:13, curve:0, roundness:20, spikes:13 },
+    userControls: ['Couleur fond','Couleur contour','Épaisseur contour','Position queue','Largeur queue','Queue ON/OFF'],
+    render(s, g) {
+      g.innerHTML = '';
+      const outerR = Array.from({length:s.spikes}, (_,i) => 44 + (i%3===0?11:i%3===1?-4:7));
+      const noises = Array.from({length:s.spikes}, (_,i) => [0,3,-2,4,-3,2,-4,3,-2,3.5,-2.5,2,-1,1.5][i%14]);
+      const body = s.spikes <= 9
+        ? spikePath(50,46,28,52,s.spikes,s.roundness/100)
+        : roundedIrregularSpikePath(50,46,26, outerR, noises, s.roundness/100);
+      if (s.tailOn) {
+        const tail = buildTailOnly(50,46,47,38, s.tx,s.ty, s.hw/2, s.curve);
+        if (tail) g.innerHTML += `<path d="${tail}" fill="${s.fill}" stroke="${s.stroke}" stroke-width="${s.sw}" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>`;
+      }
+      g.innerHTML += `<path d="${body}" fill="${s.fill}" stroke="${s.stroke}" stroke-width="${s.sw}" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>`;
+    },
+    extraControls: [
+      { id:'spikes', label:'Nombre de pointes', min:5, max:18, step:1, unit:'', scale:1 },
+      { id:'roundness', label:'Arrondi pointes', min:0, max:55, step:1, unit:'', scale:0.01 },
+    ],
+  },
+  {
+    id: 'wavy', label: 'Tremblant', emoji: '🌊',
+    hasTail: true, hasFilter: true,
+    defaults: { fill:'#ffffff', stroke:'#1a1a1a', sw:2, tailOn:true, tx:15, ty:115, hw:14, curve:0, amp:3, freq:7 },
+    userControls: ['Couleur fond','Couleur contour','Épaisseur contour','Position queue','Largeur queue','Queue ON/OFF'],
+    render(s, g) {
+      g.innerHTML = '';
+      const body = wavyEllipsePath(50,46,46,41, s.amp, s.freq);
+      if (s.tailOn) {
+        const tail = buildTailOnly(50,46,46,41, s.tx,s.ty, s.hw/2, s.curve);
+        if (tail) g.innerHTML += `<path d="${tail}" fill="${s.fill}" stroke="${s.stroke}" stroke-width="${s.sw}" stroke-dasharray="5 2" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>`;
+      }
+      g.innerHTML += `<path d="${body}" fill="${s.fill}" stroke="${s.stroke}" stroke-width="${s.sw}" vector-effect="non-scaling-stroke"/>`;
+    },
+    extraControls: [
+      { id:'amp', label:'Amplitude ondulation', min:1, max:8, step:0.5, unit:'', scale:1 },
+      { id:'freq', label:'Fréquence ondulation', min:3, max:14, step:1, unit:'', scale:1 },
+    ],
+  },
+  {
+    id: 'anger', label: 'Colère', emoji: '😤',
+    hasTail: true, hasFilter: true,
+    defaults: { fill:'#ffffff', stroke:'#1a1a1a', sw:2, tailOn:true, tx:15, ty:115, hw:14, curve:0, amp:8, spikes:10 },
+    userControls: ['Couleur fond','Couleur contour','Épaisseur contour','Position queue','Largeur queue','Queue ON/OFF'],
+    render(s, g) {
+      g.innerHTML = '';
+      const body = angryOvalPath(50,46,43,38, s.amp, s.spikes);
+      if (s.tailOn) {
+        const tail = buildTailOnly(50,46,43,38, s.tx,s.ty, s.hw/2, s.curve);
+        if (tail) g.innerHTML += `<path d="${tail}" fill="${s.fill}" stroke="${s.stroke}" stroke-width="${s.sw}" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>`;
+      }
+      g.innerHTML += `<path d="${body}" fill="${s.fill}" stroke="${s.stroke}" stroke-width="${s.sw}" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>`;
+    },
+    extraControls: [
+      { id:'amp', label:'Amplitude pointes', min:2, max:16, step:1, unit:'', scale:1 },
+      { id:'spikes', label:'Nombre de pointes', min:4, max:18, step:1, unit:'', scale:1 },
+    ],
+  },
+  {
+    id: 'sadness', label: 'Tristesse', emoji: '😢',
+    hasTail: true, hasFilter: true,
+    defaults: { fill:'#ffffff', stroke:'#1a1a1a', sw:2, tailOn:true, tx:15, ty:115, hw:14, curve:0, tears:true },
+    userControls: ['Couleur fond','Couleur contour','Épaisseur contour','Position queue','Largeur queue','Queue ON/OFF','Larmes ON/OFF'],
+    render(s, g) {
+      g.innerHTML = '';
+      if (s.tailOn) {
+        const d = buildUnifiedPath(50,44,47,40, s.tx,s.ty, s.hw/2, s.curve);
+        g.innerHTML += `<path d="${d}" fill="${s.fill}" stroke="${s.stroke}" stroke-width="${s.sw}" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>`;
+        g.innerHTML += `<ellipse cx="50" cy="44" rx="47" ry="40" fill="${s.fill}" stroke="none"/>`;
+        g.innerHTML += `<ellipse cx="50" cy="44" rx="47" ry="40" fill="none" stroke="${s.stroke}" stroke-width="${s.sw}" vector-effect="non-scaling-stroke"/>`;
+      } else {
+        g.innerHTML += `<ellipse cx="50" cy="44" rx="47" ry="40" fill="${s.fill}" stroke="${s.stroke}" stroke-width="${s.sw}" vector-effect="non-scaling-stroke"/>`;
+      }
+      if (s.tears) {
+        g.innerHTML += `<ellipse cx="28" cy="91" rx="4" ry="6.5" fill="${s.stroke}"/>`;
+        g.innerHTML += `<ellipse cx="40" cy="94" rx="3" ry="5" fill="${s.stroke}"/>`;
+        g.innerHTML += `<ellipse cx="52" cy="93" rx="3.5" ry="5.5" fill="${s.stroke}"/>`;
+      }
+    },
+    extraControls: [
+      { id:'tears', label:'Larmes', type:'toggle', onLabel:'Larmes ON', offLabel:'Larmes OFF' },
+    ],
+  },
+  {
+    id: 'text', label: 'Texte libre', emoji: '✏️',
+    hasTail: false, hasFilter: false,
+    defaults: { fill:'#1a1a1a', stroke:'#1a1a1a', sw:0 },
+    userControls: ['Couleur texte'],
+    render(s, g) {
+      g.innerHTML = '';
+    },
+    extraControls: [],
+  },
+];
+
+// ═══════════════════════════════════════════════════════
+// BUILD UI
+// ═══════════════════════════════════════════════════════
+
+const nav = document.getElementById('nav');
+const pages = document.getElementById('pages');
+
+// Per-page state (deep copy of defaults)
+const state = {};
+BUBBLES.forEach(b => { state[b.id] = { ...b.defaults }; });
+
+function buildPage(b) {
+  const vb = b.hasTail ? '0 0 100 120' : '0 0 100 100';
+  const svgH = b.hasTail ? 120 : 100;
+  const displayH = b.hasTail ? 300 : 250;
+  const displayW = Math.round(displayH * 100 / svgH);
+
+  // Sample text per type
+  const sampleText = {
+    speech:'Salut !', thought:'Hmm…', cloud:'Hmm…', shout:'AAAH !',
+    whisper:'…psst', narration:'Il était une fois…', radio:'Bzzt—',
+    electronic:'01101', explosion:'BOOM!', wavy:'n-non…',
+    anger:'RAGE !', sadness:'sob…', text:'CRACK!'
+  };
+
+  const div = document.createElement('div');
+  div.className = 'page';
+  div.id = 'page-' + b.id;
+
+  // Filter defs HTML
+  const filterDefs = b.hasFilter
+    ? `<defs><filter id="hd-${b.id}" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="4" seed="2" result="noise"/><feDisplacementMap in="SourceGraphic" in2="noise" scale="1.5" xChannelSelector="R" yChannelSelector="G"/></filter></defs>`
+    : '';
+  const filterAttr = b.hasFilter ? ` filter="url(#hd-${b.id})"` : '';
+
+  const textY = b.hasTail ? (b.id === 'narration' ? '54' : '50') : '54';
+  const sText = b.id === 'text'
+    ? `<text x="50" y="${textY}" text-anchor="middle" font-family="'Bangers', cursive" font-size="14" fill="${b.defaults.fill ?? '#1a1a1a'}" letter-spacing="1">${sampleText[b.id]}</text>`
+    : `<text x="50" y="${textY}" text-anchor="middle" dominant-baseline="middle" font-family="'Bangers', cursive" font-size="11" fill="#1a1a1a" letter-spacing="0.5">${sampleText[b.id]}</text>`;
+
+  // Tail handle (only for tail types, not thought & text & narration)
+  const showHandle = b.hasTail && b.id !== 'thought' && b.id !== 'text';
+  const initTx = b.defaults.tx ?? 15, initTy = b.defaults.ty ?? 115;
+
+  const handleHTML = showHandle
+    ? `<circle id="handle-${b.id}" cx="${initTx}" cy="${initTy}" r="4.5" fill="#7c6ff7" stroke="white" stroke-width="1.5" style="cursor:grab" pointer-events="all"/>
+       <circle id="dot-${b.id}" cx="${initTx}" cy="${initTy}" r="1.5" fill="white" pointer-events="none"/>`
+    : b.id === 'thought'
+    ? `<circle id="handle-thought" cx="${b.defaults.tx}" cy="${b.defaults.ty}" r="4.5" fill="#7c6ff7" stroke="white" stroke-width="1.5" style="cursor:grab" pointer-events="all"/>
+       <circle id="dot-thought" cx="${b.defaults.tx}" cy="${b.defaults.ty}" r="1.5" fill="white" pointer-events="none"/>`
+    : '';
+
+  div.innerHTML = `
+    <div class="preview-col">
+      <svg id="svg-${b.id}" viewBox="${vb}" width="${displayW}" height="${displayH}"
+        style="display:block; cursor:crosshair; user-select:none; touch-action:none">
+        ${filterDefs}
+        <g id="g-${b.id}"${filterAttr}></g>
+        ${sText}
+        ${handleHTML}
+      </svg>
+      <div class="preview-hint">${showHandle || b.id==='thought' ? '<span>●</span> Drag queue · ' : ''}Sliders = paramètres</div>
+    </div>
+    <div class="controls-col" id="ctrl-${b.id}">
+    </div>
+  `;
+
+  pages.appendChild(div);
+  buildControls(b);
+}
+
+function buildControls(b) {
+  const col = document.getElementById('ctrl-' + b.id);
+  const s = state[b.id];
+
+  let html = '';
+
+  // ── Queue section ──
+  if (b.hasTail && b.id !== 'text') {
+    const showTailXY = b.id !== 'thought';
+    html += `<div class="ctrl-section">
+      <div class="ctrl-section-title">Queue</div>
+      <div class="ctrl-row">
+        <button id="tail-toggle-${b.id}" class="toggle-btn ${s.tailOn ? '' : 'off'}" style="margin-bottom:8px">
+          ${s.tailOn ? '✓ Queue activée' : '✗ Queue désactivée'}
+        </button>
+      </div>`;
+    if (showTailXY) {
+      html += `
+      <div class="ctrl-row">
+        <div class="ctrl-label">Position X <em id="tx-val-${b.id}">${s.tx}</em></div>
+        <input id="tx-${b.id}" type="range" min="0" max="100" value="${s.tx}" step="1">
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Position Y <em id="ty-val-${b.id}">${s.ty}</em></div>
+        <input id="ty-${b.id}" type="range" min="${b.hasTail ? 60 : 0}" max="120" value="${s.ty}" step="1">
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Largeur base <em id="hw-val-${b.id}">${s.hw} px</em></div>
+        <input id="hw-${b.id}" type="range" min="6" max="36" value="${s.hw}" step="1">
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Courbure <em id="curve-val-${b.id}">${s.curve ?? 0}</em></div>
+        <input id="curve-${b.id}" type="range" min="-100" max="100" value="${s.curve ?? 0}" step="1" style="accent-color:#a78bfa">
+      </div>`;
+    }
+    html += `</div>`;
+  }
+
+  // ── Corps section ──
+  if (b.extraControls.length > 0) {
+    html += `<div class="ctrl-section"><div class="ctrl-section-title">Corps</div>`;
+    b.extraControls.forEach(ctrl => {
+      if (ctrl.type === 'select') {
+        html += `<div class="ctrl-row">
+          <div class="ctrl-label">${ctrl.label}</div>
+          <select id="ec-${b.id}-${ctrl.id}" style="width:100%;margin-top:4px;padding:5px 8px;background:#0d0d18;color:#c0b0ff;border:1px solid #2a2a4a;border-radius:6px;font-size:12px;cursor:pointer">
+            ${ctrl.options.map((o,i) => `<option value="${ctrl.values[i]}" ${s[ctrl.id]===ctrl.values[i]?'selected':''}>${o}</option>`).join('')}
+          </select>
+        </div>`;
+      } else if (ctrl.type === 'toggle') {
+        html += `<div class="ctrl-row">
+          <button id="ec-${b.id}-${ctrl.id}" class="toggle-btn ${s[ctrl.id] ? '' : 'off'}" style="margin-top:2px">
+            ${s[ctrl.id] ? '✓ ' + ctrl.onLabel : '✗ ' + ctrl.offLabel}
+          </button>
+        </div>`;
+      } else {
+        const displayVal = ctrl.scale !== undefined ? (s[ctrl.id] * (ctrl.scale <= 0.01 ? 100 : 1)).toFixed(ctrl.scale <= 0.01 ? 0 : 1) : s[ctrl.id];
+        const unit = ctrl.scale <= 0.01 ? '' : (ctrl.unit || '');
+        html += `<div class="ctrl-row">
+          <div class="ctrl-label">${ctrl.label} <em id="ec-val-${b.id}-${ctrl.id}">${displayVal}${unit}</em></div>
+          <input id="ec-${b.id}-${ctrl.id}" type="range" min="${ctrl.min}" max="${ctrl.max}" value="${s[ctrl.id]}" step="${ctrl.step}">
+        </div>`;
+      }
+    });
+    html += `</div>`;
+  }
+
+  // ── Style section ──
+  html += `<div class="ctrl-section">
+    <div class="ctrl-section-title">Couleurs & contour</div>
+    <div class="ctrl-row">
+      <div class="ctrl-label">Fond <em id="fill-val-${b.id}">${s.fill}</em></div>
+      <input id="fill-${b.id}" type="color" value="${s.fill}">
+    </div>
+    <div class="ctrl-row">
+      <div class="ctrl-label">Contour <em id="stroke-val-${b.id}">${s.stroke}</em></div>
+      <input id="stroke-${b.id}" type="color" value="${s.stroke}">
+    </div>
+    <div class="ctrl-row">
+      <div class="ctrl-label">Épaisseur <em id="sw-val-${b.id}">${s.sw} px</em></div>
+      <input id="sw-${b.id}" type="range" min="0.5" max="5" value="${s.sw}" step="0.5">
+    </div>
+  </div>`;
+
+  // ── Ce que l'utilisateur peut modifier ──
+  html += `<div class="ctrl-section">
+    <div class="ctrl-section-title">L'utilisateur peut modifier</div>
+    <div class="check-list">`;
+  b.userControls.forEach((label, i) => {
+    html += `<div class="check-item">
+      <input type="checkbox" id="uc-${b.id}-${i}" checked>
+      <label for="uc-${b.id}-${i}">${label}</label>
+    </div>`;
+  });
+  html += `</div></div>`;
+
+  // ── Résumé paramètres ──
+  html += `<div class="ctrl-section">
+    <div class="ctrl-section-title">Paramètres par défaut (live)</div>
+    <div class="summary-box" id="summary-${b.id}"></div>
+  </div>`;
+
+  col.innerHTML = html;
+  bindControls(b);
+  renderPage(b.id);
+  updateSummary(b.id);
+}
+
+function renderPage(id) {
+  const b = BUBBLES.find(x => x.id === id);
+  const g = document.getElementById('g-' + id);
+  b.render(state[id], g);
+
+  // Update handle visibility
+  const handle = document.getElementById('handle-' + id);
+  const dot = document.getElementById('dot-' + id);
+  if (handle) {
+    const on = state[id].tailOn !== false;
+    handle.setAttribute('visibility', on ? 'visible' : 'hidden');
+    if (dot) dot.setAttribute('visibility', on ? 'visible' : 'hidden');
+  }
+}
+
+function updateSummary(id) {
+  const s = state[id];
+  const b = BUBBLES.find(x => x.id === id);
+  const box = document.getElementById('summary-' + id);
+  if (!box) return;
+  let lines = [];
+  lines.push(`fill: <em>${s.fill}</em>`);
+  lines.push(`stroke: <em>${s.stroke}</em>`);
+  lines.push(`strokeWidth: <em>${s.sw}</em>`);
+  if (b.hasTail && id !== 'text') {
+    lines.push(`tailEnabled: <em>${s.tailOn}</em>`);
+    if (id === 'thought') {
+      const angle = Math.atan2(s.ty-46, s.tx-50);
+      lines.push(`tailAngle: <em>${Math.round(angle*180/Math.PI)}°</em>`);
+    } else if (s.tx !== undefined) {
+      lines.push(`tailX: <em>${Math.round(s.tx)}</em>  tailY: <em>${Math.round(s.ty)}</em>`);
+      lines.push(`tailBaseWidth: <em>${s.hw}</em>  tailCurve: <em>${s.curve ?? 0}</em>`);
+    }
+  }
+  b.extraControls.forEach(ctrl => {
+    if (ctrl.type !== 'select' && ctrl.type !== 'toggle') {
+      lines.push(`${ctrl.id}: <em>${s[ctrl.id]}</em>`);
+    } else if (ctrl.type === 'toggle') {
+      lines.push(`${ctrl.id}: <em>${s[ctrl.id]}</em>`);
+    } else {
+      const opt = ctrl.options[ctrl.values.indexOf(s[ctrl.id])];
+      lines.push(`${ctrl.id}: <em>${opt}</em>`);
+    }
+  });
+  box.innerHTML = lines.join('<br>');
+}
+
+function bindControls(b) {
+  const id = b.id;
+  const s = state[id];
+
+  function refresh() { renderPage(id); updateSummary(id); }
+
+  // Tail toggle
+  const tailToggle = document.getElementById('tail-toggle-' + id);
+  if (tailToggle) {
+    tailToggle.addEventListener('click', () => {
+      s.tailOn = !s.tailOn;
+      tailToggle.textContent = s.tailOn ? '✓ Queue activée' : '✗ Queue désactivée';
+      tailToggle.className = 'toggle-btn' + (s.tailOn ? '' : ' off');
+      refresh();
+    });
+  }
+
+  // XY sliders
+  ['tx','ty','hw','curve'].forEach(key => {
+    const el = document.getElementById(key + '-' + id);
+    if (!el) return;
+    el.addEventListener('input', () => {
+      s[key] = parseFloat(el.value);
+      document.getElementById(key + '-val-' + id).textContent =
+        key === 'hw' ? s[key] + ' px' : s[key];
+      // sync handle
+      if (key === 'tx') {
+        document.getElementById('handle-'+id)?.setAttribute('cx', s[key]);
+        document.getElementById('dot-'+id)?.setAttribute('cx', s[key]);
+      }
+      if (key === 'ty') {
+        document.getElementById('handle-'+id)?.setAttribute('cy', s[key]);
+        document.getElementById('dot-'+id)?.setAttribute('cy', s[key]);
+      }
+      refresh();
+    });
+  });
+
+  // Extra controls
+  b.extraControls.forEach(ctrl => {
+    const el = document.getElementById('ec-' + id + '-' + ctrl.id);
+    if (!el) return;
+    if (ctrl.type === 'toggle') {
+      el.addEventListener('click', () => {
+        s[ctrl.id] = !s[ctrl.id];
+        el.textContent = s[ctrl.id] ? '✓ ' + ctrl.onLabel : '✗ ' + ctrl.offLabel;
+        el.className = 'toggle-btn' + (s[ctrl.id] ? '' : ' off');
+        refresh();
+      });
+    } else if (ctrl.type === 'select') {
+      el.addEventListener('change', () => {
+        s[ctrl.id] = parseInt(el.value);
+        refresh();
+      });
+    } else {
+      el.addEventListener('input', () => {
+        s[ctrl.id] = parseFloat(el.value);
+        const displayVal = ctrl.scale <= 0.01 ? el.value : el.value;
+        document.getElementById('ec-val-' + id + '-' + ctrl.id).textContent =
+          displayVal + (ctrl.scale <= 0.01 ? '' : (ctrl.unit || ''));
+        refresh();
+      });
+    }
+  });
+
+  // Colors
+  ['fill','stroke'].forEach(key => {
+    const el = document.getElementById(key + '-' + id);
+    if (!el) return;
+    el.addEventListener('input', () => {
+      s[key] = el.value;
+      document.getElementById(key + '-val-' + id).textContent = el.value;
+      refresh();
+    });
+  });
+  const swEl = document.getElementById('sw-' + id);
+  if (swEl) {
+    swEl.addEventListener('input', () => {
+      s.sw = parseFloat(swEl.value);
+      document.getElementById('sw-val-' + id).textContent = s.sw + ' px';
+      refresh();
+    });
+  }
+
+  // Draggable tail handle
+  const svg = document.getElementById('svg-' + id);
+  const handle = document.getElementById('handle-' + id);
+  const dot = document.getElementById('dot-' + id);
+  if (!svg || !handle) return;
+
+  let dragging = false;
+  const CX = id === 'thought' ? 50 : 50;
+  const CY = id === 'thought' ? 46 : 46;
+
+  function toSVGCoords(e) {
+    const pt = svg.createSVGPoint();
+    const src = e.touches ? e.touches[0] : e;
+    pt.x = src.clientX; pt.y = src.clientY;
+    return pt.matrixTransform(svg.getScreenCTM().inverse());
+  }
+  function isInsideBody(x, y) {
+    // rough center guard
+    return Math.hypot(x - CX, y - CY) < 28;
+  }
+
+  handle.addEventListener('mousedown', e => {
+    if (!s.tailOn) return;
+    dragging = true;
+    handle.style.cursor = 'grabbing';
+    e.preventDefault();
+    e.stopPropagation();
+  });
+  window.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    const p = toSVGCoords(e);
+    if (isInsideBody(p.x, p.y)) return;
+    const cx = Math.max(0, Math.min(100, p.x));
+    const cy = Math.max(0, Math.min(b.hasTail ? 120 : 100, p.y));
+    s.tx = cx; s.ty = cy;
+    handle.setAttribute('cx', cx); handle.setAttribute('cy', cy);
+    if (dot) { dot.setAttribute('cx', cx); dot.setAttribute('cy', cy); }
+    // sync sliders
+    const txEl = document.getElementById('tx-'+id);
+    const tyEl = document.getElementById('ty-'+id);
+    if (txEl) { txEl.value = cx; document.getElementById('tx-val-'+id).textContent = Math.round(cx); }
+    if (tyEl) { tyEl.value = cy; document.getElementById('ty-val-'+id).textContent = Math.round(cy); }
+    refresh();
+  });
+  window.addEventListener('mouseup', () => {
+    dragging = false;
+    if (handle) handle.style.cursor = 'grab';
+  });
+}
+
+// ── Navigation ──
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  document.querySelector(`nav button[data-id="${id}"]`).classList.add('active');
+}
+
+// Build nav + pages
+BUBBLES.forEach(b => {
+  const btn = document.createElement('button');
+  btn.dataset.id = b.id;
+  btn.textContent = b.emoji + ' ' + b.label;
+  btn.addEventListener('click', () => showPage(b.id));
+  nav.appendChild(btn);
+  buildPage(b);
+});
+
+showPage('speech');
+</script>
+</body>
+</html>

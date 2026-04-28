@@ -6,10 +6,10 @@ import { useDragBlock } from "@/hooks/useDragBlock";
 import { useResizeBlock } from "@/hooks/useResizeBlock";
 import type { ResizingState } from "@/hooks/useResizeBlock";
 import { SpeechBubbleShape, SPEECH_BUBBLE_TAIL_H, SPEECH_BUBBLE_VIEWBOX_WITH_TAIL, SPEECH_BUBBLE_VIEWBOX_NARRATION } from "./SpeechBubbleShape";
-import { getTailHitPath, TAIL_ELLIPSE as BUBBLE_TAIL_ELLIPSE, buildUnifiedTailPath } from "./speechBubbleTail";
+import { getTailHitPath, TAIL_ELLIPSE as BUBBLE_TAIL_ELLIPSE, buildUnifiedTailPath, buildTailOnlyPath } from "./speechBubbleTail";
 
 // Types qui ont une queue draggable via handle
-const DRAGGABLE_TAIL_TYPES = new Set(["speech", "whisper", "cloud", "wavy", "sadness", "anger"]);
+const DRAGGABLE_TAIL_TYPES = new Set(["speech", "whisper", "cloud", "wavy", "sadness", "anger", "shout"]);
 
 // Bounds du corps visible de la bulle dans le viewBox "0 0 100 120" (ou "0 0 100 100" pour no-tail).
 // topFrac / heightFrac × totalH donnent la zone où centrer le texte.
@@ -181,9 +181,14 @@ export function BubbleLayer({
     const bubble = speechBubbles.find((b) => b.id === live.bubbleId);
     if (!bubble) return;
     const e = BUBBLE_TAIL_ELLIPSE[bubble.type];
-    if (!e) return;
-    const newPath = buildUnifiedTailPath(e.cx, e.cy, e.rx, e.ry, live.vbX, live.vbY, live.hw, live.curve);
-    svgEl.querySelector("path")?.setAttribute("d", newPath);
+    let newPath: string | null = null;
+    if (e) {
+      newPath = buildUnifiedTailPath(e.cx, e.cy, e.rx, e.ry, live.vbX, live.vbY, live.hw, live.curve);
+    } else if (bubble.type === "shout") {
+      const vr = Math.max(14, 30 * (1 - 0.5 * 0.5));
+      newPath = buildTailOnlyPath(50, 46, vr, vr, live.vbX, live.vbY, live.hw, live.curve) ?? null;
+    }
+    if (newPath) svgEl.querySelector("path")?.setAttribute("d", newPath);
     const handleEl = bubbleHandleRefs.current.get(live.bubbleId);
     if (handleEl) {
       const bw = bubble.width ?? DEFAULT_SPEECH_BUBBLE_WIDTH;
@@ -246,7 +251,7 @@ export function BubbleLayer({
         const richTextClass = "[&_u]:underline [&_s]:line-through [&_strike]:line-through [&_b]:font-bold [&_strong]:font-bold [&_i]:italic [&_em]:italic";
 
         // Coordonnées de la pointe de queue dans le repère viewBox
-        const hasDraggableTail = DRAGGABLE_TAIL_TYPES.has(bubble.type);
+        const hasDraggableTail = DRAGGABLE_TAIL_TYPES.has(bubble.type) && (bubble.type !== "shout" || bubble.tailOn === true);
         const defaultTailX = bubble.tailFlip ? 85 : 15;
         const defaultTailY = 115;
         const resolvedTailX = bubble.tailX ?? defaultTailX;
@@ -313,6 +318,7 @@ export function BubbleLayer({
                   tailY={bubble.tailY}
                   tailBaseWidth={bubble.tailBaseWidth}
                   tailCurve={bubble.tailCurve}
+                  tailOn={bubble.tailOn}
                 />
               </svg>
             )}
@@ -375,7 +381,9 @@ export function BubbleLayer({
 
                   // Capture stable values for the drag closure
                   const capturedId = bubble.id;
+                  const capturedBubbleType = bubble.type;
                   const capturedEllipse = ellipseParams;
+                  const capturedVr = capturedBubbleType === "shout" ? Math.max(14, 30 * (1 - 0.5 * 0.5)) : 0;
                   const capturedHw = (bubble.tailBaseWidth ?? 28) / 2;
                   const capturedCurve = bubble.tailCurve ?? 0;
                   const capturedGeomW = geom.width;
@@ -393,20 +401,25 @@ export function BubbleLayer({
                     if (capturedEllipse) {
                       const { cx, cy, rx, ry } = capturedEllipse;
                       if (Math.pow((vbX - cx) / rx, 2) + Math.pow((vbY - cy) / ry, 2) < 1.15 * 1.15) return;
+                    } else if (capturedBubbleType === "shout") {
+                      if (Math.hypot(vbX - 50, vbY - 46) < capturedVr * 1.5) return;
                     }
 
                     latestPos.vbX = Math.round(vbX * 10) / 10;
                     latestPos.vbY = Math.round(vbY * 10) / 10;
 
-                    // Met à jour la ref "live" — le useLayoutEffect corrigera le DOM
-                    // si un re-render React externe survient pendant ce drag.
                     liveTailRef.current = { bubbleId: capturedId, vbX, vbY, hw: capturedHw, curve: capturedCurve };
 
                     // Direct DOM update — réponse immédiate, sans attendre un re-render
-                    if (svgEl && capturedEllipse) {
-                      const { cx, cy, rx, ry } = capturedEllipse;
-                      const newPath = buildUnifiedTailPath(cx, cy, rx, ry, vbX, vbY, capturedHw, capturedCurve);
-                      svgEl.querySelector("path")?.setAttribute("d", newPath);
+                    if (svgEl) {
+                      let newPath: string | null = null;
+                      if (capturedEllipse) {
+                        const { cx, cy, rx, ry } = capturedEllipse;
+                        newPath = buildUnifiedTailPath(cx, cy, rx, ry, vbX, vbY, capturedHw, capturedCurve);
+                      } else if (capturedBubbleType === "shout") {
+                        newPath = buildTailOnlyPath(50, 46, capturedVr, capturedVr, vbX, vbY, capturedHw, capturedCurve) ?? null;
+                      }
+                      if (newPath) svgEl.querySelector("path")?.setAttribute("d", newPath);
                     }
                     if (handleEl) {
                       handleEl.style.left = `${(vbX / 100) * capturedGeomW}px`;

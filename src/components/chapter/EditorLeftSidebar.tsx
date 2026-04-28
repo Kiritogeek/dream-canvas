@@ -5,8 +5,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { BubblePreview } from "@/components/chapter/SpeechBubbleShape";
 import { ImageWithFallback } from "@/components/ui/ImageWithFallback";
 import { getDetectedAssets } from "@/components/project/ScenarioTextHighlighter";
-import { BLOCK_PRESETS, DEFAULT_SPEECH_BUBBLE_WIDTH, DEFAULT_SPEECH_BUBBLE_HEIGHT, getPanelHeight } from "@/services/panels";
-import { SPEECH_BUBBLE_TYPE_LABELS } from "@/types";
+import { BLOCK_PRESETS, getPanelHeight } from "@/services/panels";
+import { SPEECH_BUBBLE_TYPE_LABELS, DEFAULT_SPEECH_BUBBLE_WIDTH, DEFAULT_SPEECH_BUBBLE_HEIGHT } from "@/types";
 import type { Panel, PanelBlock, ColorBlock, ColorBlockFill, SpeechBubbleType, Asset } from "@/types";
 
 const PANEL_WIDTH = 800;

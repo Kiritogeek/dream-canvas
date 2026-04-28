@@ -129,7 +129,7 @@ export function SpeechBubbleShape({ type, fill, stroke, tailFlip, strokeWidth, t
     return (
       <>
         <path d={d} fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" vectorEffect={NNS} />
-        <ellipse cx={e.cx} cy={e.cy} rx={e.rx} ry={e.ry} fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
+        <ellipse cx={e.cx} cy={e.cy} rx={e.rx} ry={e.ry} fill={fill} stroke="none" vectorEffect={NNS} />
       </>
     );
   }

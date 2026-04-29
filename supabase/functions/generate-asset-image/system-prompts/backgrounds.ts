@@ -11,24 +11,25 @@ export const buildBackgroundPrompt = (
   styleImageUrls?: string[],
   plan: "free" | "pro" = "pro"
 ) => {
+  const FULLBLEED =
+    `Full-bleed illustration — every pixel of all four edges is scene content. ` +
+    `Zero white borders, zero margins, zero frames, zero letterbox, zero empty corners. ` +
+    `Background extends to all edges, no canvas padding, no passe-partout.`;
+
   if (plan === "free") {
-    let prompt = `Manga background illustration, full frame, no characters, edge to edge.
+    let prompt = styleText
+      ? `Background illustration. ${FULLBLEED}\n\nSTYLE ARTISTIQUE :\n${styleText}\n\nDESCRIPTION :\n${userDescription}`
+      : `Background illustration, full frame, edge to edge. ${FULLBLEED}\n\n${userDescription}`;
 
-${userDescription}`;
-
-    if (styleText) {
-      prompt += `\n\n${styleText}`;
-    }
-
-    prompt += `\n\nHigh quality, detailed, clean lines, manga style, clear depth.`;
+    prompt += `\n\nEnvironnement uniquement — aucun personnage, aucune créature. Composition lisible, profondeur de champ, lumière bien définie.`;
 
     return prompt;
   }
 
   // Pro — prompt riche FLUX.2 Pro
-  let prompt = `Full bleed, edge-to-edge illustration, fills entire canvas 100%, no white borders, no margins, no padding, no letterbox, no empty space. masterpiece, best quality, ultra-detailed, cinematic composition, atmospheric depth, professional background art.
+  let prompt = `${FULLBLEED} masterpiece, best quality, ultra-detailed, cinematic composition, atmospheric depth, professional background art.
 
-Crée un décor illustré (manga, manhwa ou manhua selon le STYLE ARTISTIQUE ci-dessous).
+Crée un décor illustré (style selon STYLE ARTISTIQUE ci-dessous).
 
 DESCRIPTION DU DÉCOR :
 ${userDescription}
@@ -42,9 +43,9 @@ CADRAGE ET COMPOSITION (OBLIGATOIRE) :
 - Lumière claire et bien définie`;
 
   if (styleText) {
-    prompt += `\n\nSTYLE ARTISTIQUE :
+    prompt += `\n\nSTYLE ARTISTIQUE (PRIORITAIRE — appliquer avant tout autre critère) :
 ${styleText}
-Applique ce style à 100% : traits, ombrage, palette (N&B ou couleur selon le style imposé), textures, rendu.`;
+Applique ce style à 100% : traits, ombrage, palette (N&B ou couleur selon le style imposé), textures, rendu. Ne jamais s'en éloigner.`;
   }
 
   if (styleImageUrls && styleImageUrls.length > 0) {
@@ -74,15 +75,11 @@ export const buildBackgroundSheetPrompt = (
   plan: "free" | "pro" = "pro"
 ) => {
   if (plan === "free") {
-    let prompt = `Background reference sheet, 2x2 grid, same location shown from 4 angles: wide shot, side angle, close foreground, elevated view. No characters.
+    let prompt = styleText
+      ? `Background reference sheet, 2x2 grid, 4 angles of the same location (wide shot, side angle, close foreground, elevated view). No characters.\n\nSTYLE ARTISTIQUE :\n${styleText}\n\nDESCRIPTION :\n${userDescription}`
+      : `Background reference sheet, 2x2 grid, 4 angles of the same location. No characters.\n\n${userDescription}`;
 
-${userDescription}`;
-
-    if (styleText) {
-      prompt += `\n\n${styleText}`;
-    }
-
-    prompt += `\n\nHigh quality, detailed, manga style, consistent palette across all panels.`;
+    prompt += `\n\nHigh quality, detailed, consistent palette and style across all 4 panels. No white borders, no empty space between panels.`;
 
     return prompt;
   }

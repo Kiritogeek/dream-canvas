@@ -26,6 +26,14 @@ const FAL_IMAGE_EDIT = "https://fal.run/fal-ai/flux-2-pro/edit"; // Pro + refs
 const BUCKET = "dreamweave";
 const FAL_TIMEOUT_MS = 100_000; // 100 secondes max par appel FAL
 
+const NO_BORDER_NEGATIVE_PROMPT =
+  "white border, white bars, white margin, white edge, white padding, white corners, white frame, " +
+  "blank area, blank margin, empty space, empty area, empty corners, " +
+  "border, frame, inner border, outer border, thin border, thick border, " +
+  "letterbox, pillarbox, passe-partout, vignette, white vignette, " +
+  "postcard, poster frame, image frame, canvas frame, image inside image, " +
+  "collage, grid, reference sheet, contact sheet, color chart";
+
 // ── Limites par tier ──────────────────────────────────────────
 type UserPlan = "free" | "pro";
 
@@ -247,6 +255,7 @@ async function generateTextToImage(
 ): Promise<{ url: string } | { error: string }> {
   const payload = {
     prompt,
+    negative_prompt: NO_BORDER_NEGATIVE_PROMPT,
     image_size: { width, height },
     num_images: 1,
     output_format: "png",
@@ -329,6 +338,7 @@ async function generateWithReferences(
 ): Promise<{ url: string } | { error: string }> {
   const payload = {
     prompt,
+    negative_prompt: NO_BORDER_NEGATIVE_PROMPT,
     image_urls: referenceImageUrls,
     image_size: { width, height },
     num_images: 1,
@@ -413,6 +423,7 @@ async function generateSchnell(
 ): Promise<{ url: string } | { error: string }> {
   const payload = {
     prompt,
+    negative_prompt: NO_BORDER_NEGATIVE_PROMPT,
     image_size: { width, height },
     num_images: 1,
     num_inference_steps: 4,

@@ -435,7 +435,9 @@ export function BubbleLayer({
 
                   const rect = bubbleDiv.getBoundingClientRect();
                   const clickOffX = (e.clientX - rect.left) / (rect.width / 100) - resolvedTailX;
-                  const clickOffY = (e.clientY - rect.top)  / (svgH / 120) - resolvedTailY;
+                  // rect.height est en pixels écran (getBoundingClientRect = post-zoom).
+                  // Le container = 100 unités viewBox → rect.height / 100 = px-écran / unité, zoom-correct.
+                  const clickOffY = (e.clientY - rect.top)  / (rect.height / 100) - resolvedTailY;
 
                   // Capture stable values for the drag closure
                   const capturedId = bubble.id;
@@ -457,7 +459,7 @@ export function BubbleLayer({
                   const onMove = (ev: PointerEvent) => {
                     const r = bubbleDiv.getBoundingClientRect();
                     const vbX = (ev.clientX - r.left) / (r.width  / 100) - clickOffX;
-                    const vbY = (ev.clientY - r.top)  / (capturedSvgH / 120) - clickOffY;
+                    const vbY = (ev.clientY - r.top)  / (r.height  / 100) - clickOffY;
 
                     if (capturedEllipse) {
                       const { cx, cy, rx, ry } = capturedEllipse;

@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { Trash2 } from "lucide-react";
-import type { Panel, ColorBlock } from "@/types";
+import type { Panel, ColorBlock, ColorBlockFill } from "@/types";
 import { getPanelHeight } from "@/services/panels";
 import { useDragBlock } from "@/hooks/useDragBlock";
 import { useResizeBlock } from "@/hooks/useResizeBlock";
@@ -17,6 +17,7 @@ interface ColorBlockLayerProps {
   onMoveCommit: (panelId: string, colorBlockId: string, x: number, y: number) => void;
   onResizeCommit: (panelId: string, colorBlockId: string, draft: { x: number; y: number; width: number; height: number }) => void;
   onDelete: (colorBlock: ColorBlock) => void;
+  onColorChange: (colorBlock: ColorBlock, fill: ColorBlockFill) => void;
 }
 
 type ColorBlockResizingState = ResizingState & { colorBlockId: string };
@@ -32,6 +33,7 @@ export function ColorBlockLayer({
   onMoveCommit,
   onResizeCommit,
   onDelete,
+  onColorChange: _onColorChange,
 }: ColorBlockLayerProps) {
   const ghostRefByPanel = useRef<Record<string, HTMLDivElement | null>>({});
   const isResizingColorBlockRef = useRef(false);

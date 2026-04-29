@@ -21,6 +21,7 @@ interface ImageBlockLayerProps {
   onDelete: (block: PanelBlock) => void;
   onAddBlock: (x?: number, y?: number) => void;
   isUpdating: boolean;
+  generatingBlockId?: string | null;
 }
 
 type ImageBlockResizingState = ResizingState & { blockId: string };
@@ -38,6 +39,7 @@ export function ImageBlockLayer({
   onDelete,
   onAddBlock,
   isUpdating,
+  generatingBlockId,
 }: ImageBlockLayerProps) {
   const ghostRefByPanel = useRef<Record<string, HTMLDivElement | null>>({});
   const isResizingRef = useRef(false);
@@ -100,6 +102,7 @@ export function ImageBlockLayer({
           const rawGeom = useResizeDraft ? resizeDraft : { x: block.x, y: block.y, width: block.width, height: block.height };
           const geom = { x: Math.round(rawGeom.x), y: Math.round(rawGeom.y), width: Math.round(rawGeom.width), height: Math.round(rawGeom.height) };
           const isSelected = selectedBlockId === block.id;
+          const isGenerating = generatingBlockId === block.id;
           return (
             <div
               key={block.id}
@@ -124,9 +127,36 @@ export function ImageBlockLayer({
                 {block.image_url ? (
                   <ImageWithFallback src={block.image_url} alt="" className="w-full h-full object-fill" />
                 ) : (
-                  <div className="w-full h-full flex flex-col items-center justify-center text-xs text-muted-foreground p-2 text-center bg-muted/50 gap-1">
-                    <div>{block.prompt ? "Prompt défini" : "Saisir le prompt…"}</div>
-                    <div className="text-[10px] opacity-70">{Math.round(geom.width)} × {Math.round(geom.height)}</div>
+                  <div className="w-full h-full bg-muted/50 relative">
+                    <div className="absolute top-1.5 right-1.5 text-[10px] text-muted-foreground/40 tabular-nums">
+                      {Math.round(geom.width)} × {Math.round(geom.height)}
+                    </div>
+                  </div>
+                )}
+                {/* Overlay DreamWeave loader pendant la génération */}
+                {isGenerating && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm z-30">
+                    <div className="flex flex-col items-center gap-2">
+                      <div className="relative w-10 h-10">
+                        {/* Anneau tournant */}
+                        <svg className="animate-spin absolute inset-0" viewBox="0 0 40 40" fill="none">
+                          <circle cx="20" cy="20" r="16" stroke="url(#dw-spin-grad)" strokeWidth="3" strokeLinecap="round" strokeDasharray="60 40" />
+                          <defs>
+                            <linearGradient id="dw-spin-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                              <stop offset="0%" stopColor="hsl(var(--primary))" />
+                              <stop offset="100%" stopColor="hsl(var(--primary) / 0.2)" />
+                            </linearGradient>
+                          </defs>
+                        </svg>
+                        {/* Logo DreamWeave centré */}
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                            <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z" fill="hsl(var(--primary))" strokeWidth="0" />
+                          </svg>
+                        </div>
+                      </div>
+                      <span className="text-[11px] font-medium text-primary/80 tracking-wide">Génération…</span>
+                    </div>
                   </div>
                 )}
               </div>

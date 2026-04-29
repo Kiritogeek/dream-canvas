@@ -18,6 +18,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { BubbleToolbar } from "@/components/chapter/BubbleToolbar";
+import { BlockToolbar } from "@/components/chapter/BlockToolbar";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -176,7 +177,7 @@ export default function ChapterDetail() {
   const [blockPromptDrafts, setBlockPromptDrafts] = useState<Record<string, string>>({});
   const [blockNameDrafts, setBlockNameDrafts] = useState<Record<string, string>>({});
   /** Blocs en train de générer une suggestion IA de prompt (clé = `${panelId}-${blockId}`). */
-  const [suggestingBlockKeys, setSuggestingBlockKeys] = useState<Set<string>>(() => new Set());
+  const [_suggestingBlockKeys, setSuggestingBlockKeys] = useState<Set<string>>(() => new Set());
   /** Hauteur live pendant le drag de la poignée bas-du-canvas ; null = pas de drag en cours */
   const [panelHeightDragDraft, setPanelHeightDragDraft] = useState<number | null>(null);
   const panelHeightDragRef = useRef<{ startY: number; startH: number } | null>(null);
@@ -1055,35 +1056,14 @@ export default function ChapterDetail() {
           panel={panel}
           activeSidebarTab={activeSidebarTab}
           onTabChange={setActiveSidebarTab}
-          selectedBlock={selectedBlock ?? null}
-          selectedColorBlock={selectedColorBlock ?? null}
-          onSelectBlock={(id) => setSelectedBlockIdInModal(id ? { panelId: panel.id, blockId: id } : null)}
-          onSelectColorBlock={(id) => setSelectedColorBlockIdInModal(id ? { panelId: panel.id, colorBlockId: id } : null)}
           assets={assets}
           project={project}
-          blockNameDrafts={blockNameDrafts}
-          onBlockNameChange={(key, value) => setBlockNameDrafts((prev) => ({ ...prev, [key]: value }))}
-          blockPromptDrafts={blockPromptDrafts}
-          onBlockPromptChange={(key, value, silent) => {
-            setBlockPromptDrafts((prev) => ({ ...prev, [key]: value }));
-            const b = blocks.find((bl) => `${panel.id}-${bl.id}` === key);
-            if (b) handleSaveBlockPrompt(b, value, { silent });
-          }}
-          suggestingBlockKeys={suggestingBlockKeys}
-          scenarioChapter={scenarioChapter}
           isUpdating={updatePanelMutation.isPending}
-          isGenerating={generatePanelImage.isPending && generatePanelImage.variables?.panel?.id === panel.id}
           newBlockDragGhostRef={newBlockDragGhostRef}
           onSliceOpen={() => setSliceModalOpen(true)}
           onAddBlock={handleAddBlock}
           onAddColorBlock={handleAddColorBlock}
           onAddSpeechBubble={handleAddSpeechBubble}
-          onDeleteBlock={handleDeleteBlock}
-          onDeleteColorBlock={handleDeleteColorBlock}
-          onSaveBlockName={handleSaveBlockName}
-          onSuggestBlockPrompt={handleSuggestBlockPrompt}
-          onGenerateBlock={handleGenerateBlock}
-          onColorBlockFillChange={handleColorBlockFillChange}
         />
         {/* Centre : panel 800px de large exactement, zoomable via contrôles header ou Ctrl+Scroll */}
         <div
@@ -1112,6 +1092,46 @@ export default function ChapterDetail() {
                   tailContext={tailContextBubbleId === selectedSpeechBubble.id}
                   onTailContextChange={(v) => setTailContextBubbleId(v ? selectedSpeechBubble.id : null)}
                 />
+              </div>
+            </div>
+          )}
+          {/* Toolbar bloc image / couleur — sticky, même pattern que BubbleToolbar */}
+          {(selectedBlock || selectedColorBlock) && (
+            <div className="sticky top-1 z-50 self-center pointer-events-none" style={{ height: 0, overflow: "visible" }}>
+              <div className="pointer-events-auto" onClick={(e) => e.stopPropagation()}>
+                {selectedBlock && (() => {
+                  const blockKey = `${panel.id}-${selectedBlock.id}`;
+                  const nameDraft = blockNameDrafts[blockKey] ?? selectedBlock.name ?? "";
+                  const promptDraft = blockPromptDrafts[blockKey] ?? selectedBlock.prompt ?? "";
+                  const isBlockGenerating = generatePanelImage.isPending && generatePanelImage.variables?.panel?.id === panel.id;
+                  return (
+                    <BlockToolbar
+                      type="image"
+                      block={selectedBlock}
+                      blockKey={blockKey}
+                      nameDraft={nameDraft}
+                      promptDraft={promptDraft}
+                      isGenerating={isBlockGenerating}
+                      canSuggest={!!scenarioChapter?.content?.trim()}
+                      canGenerate={!!(promptDraft.trim() && project?.style_template)}
+                      assets={assets}
+                      onNameChange={(value) => setBlockNameDrafts((prev) => ({ ...prev, [blockKey]: value }))}
+                      onNameSave={() => { if (nameDraft.trim() !== (selectedBlock.name ?? "")) handleSaveBlockName(selectedBlock, nameDraft); }}
+                      onPromptChange={(value) => setBlockPromptDrafts((prev) => ({ ...prev, [blockKey]: value }))}
+                      onSuggestPrompt={() => handleSuggestBlockPrompt(selectedBlock)}
+                      onGenerate={() => handleGenerateBlock(selectedBlock)}
+                      onDelete={() => handleDeleteBlock(selectedBlock)}
+                    />
+                  );
+                })()}
+                {selectedColorBlock && (
+                  <BlockToolbar
+                    type="color"
+                    colorBlock={selectedColorBlock}
+                    onColorChange={(fill) => handleColorBlockFillChange(selectedColorBlock, fill)}
+                    onDelete={() => handleDeleteColorBlock(selectedColorBlock)}
+                  />
+                )}
               </div>
             </div>
           )}
@@ -1173,6 +1193,7 @@ export default function ChapterDetail() {
                         onMoveCommit={handleColorBlockMoveCommit}
                         onResizeCommit={handleColorBlockResizeCommit}
                         onDelete={handleDeleteColorBlock}
+                        onColorChange={handleColorBlockFillChange}
                       />
                       <ImageBlockLayer
                         panel={panel}
@@ -1196,6 +1217,11 @@ export default function ChapterDetail() {
                         onDelete={handleDeleteBlock}
                         onAddBlock={handleAddBlock}
                         isUpdating={updatePanelMutation.isPending}
+                        generatingBlockId={
+                          generatePanelImage.isPending && generatePanelImage.variables?.panel?.id === panel.id
+                            ? generatePanelImage.variables.block.id
+                            : null
+                        }
                       />
                       <BubbleLayer
                         panel={panel}

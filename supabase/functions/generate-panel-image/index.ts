@@ -710,7 +710,7 @@ Deno.serve(async (req) => {
 
     // Vérifier que le panel appartient à l'utilisateur et récupérer chapter_id
     const panelRes = await fetch(
-      `${supabaseUrl}/rest/v1/panels?id=eq.${encodeURIComponent(panel_id)}&select=id,user_id,chapter_id`,
+      `${supabaseUrl}/rest/v1/chapter_canvases?id=eq.${encodeURIComponent(panel_id)}&select=id,user_id,chapter_id`,
       {
         headers: {
           apikey: serviceKey,
@@ -720,12 +720,12 @@ Deno.serve(async (req) => {
       }
     );
     if (!panelRes.ok) {
-      return jsonResponse({ error: "Erreur lecture panel" }, 502);
+      return jsonResponse({ error: "Erreur lecture canvas" }, 502);
     }
     const panels = (await panelRes.json()) as { id: string; user_id: string; chapter_id: string }[];
     const panel = panels?.[0];
     if (!panel || panel.user_id !== userId) {
-      return jsonResponse({ error: "Panel introuvable ou accès refusé" }, 403);
+      return jsonResponse({ error: "Canvas introuvable ou accès refusé" }, 403);
     }
 
     // Récupérer project_id pour le chemin de stockage

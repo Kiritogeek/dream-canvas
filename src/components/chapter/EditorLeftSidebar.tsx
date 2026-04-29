@@ -1,5 +1,5 @@
-import React from "react";
-import { LayoutPanelTop, Palette, MessageCircle, X, Square, Download, Sparkles, Loader2, Trash2 } from "lucide-react";
+import React, { useState } from "react";
+import { LayoutPanelTop, Palette, MessageCircle, X, Download, Sparkles, Loader2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { BubblePreview } from "@/components/chapter/SpeechBubbleShape";
@@ -10,6 +10,15 @@ import { SPEECH_BUBBLE_TYPE_LABELS, DEFAULT_SPEECH_BUBBLE_WIDTH, DEFAULT_SPEECH_
 import type { Panel, PanelBlock, ColorBlock, ColorBlockFill, SpeechBubbleType, Asset } from "@/types";
 
 const PANEL_WIDTH = 800;
+
+const COLOR_PRESETS_SIDEBAR = [
+  { label: "Blanc",  color: "#ffffff" },
+  { label: "Noir",   color: "#000000" },
+  { label: "Rouge",  color: "#ef4444" },
+  { label: "Bleu",   color: "#3b82f6" },
+  { label: "Vert",   color: "#22c55e" },
+  { label: "Jaune",  color: "#fbbf24" },
+] as const;
 
 function getAssetReferenceImageUrl(asset: Asset): string | null {
   if (asset.asset_type === "character") {
@@ -93,6 +102,8 @@ export function EditorLeftSidebar({
   onGenerateBlock,
   onColorBlockFillChange,
 }: EditorLeftSidebarProps) {
+  const [draggingKey, setDraggingKey] = useState<string | null>(null);
+
   return (
     <aside className="relative w-[76px] shrink-0 border-r border-border bg-background z-30">
 
@@ -138,46 +149,108 @@ export function EditorLeftSidebar({
         </div>
         <div className="flex-1 overflow-y-auto p-3 space-y-3 min-h-0">
           {activeSidebarTab === "blocs" && (
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               <p className="text-[11px] text-muted-foreground">Clic ou glisser sur le canvas</p>
               <div className="flex flex-col gap-1.5">
-                {BLOCK_PRESETS.map((preset) => (
-                  <div
-                    key={preset.label}
-                    draggable
-                    onDragStart={(e) => {
-                      e.dataTransfer.setData("application/json", JSON.stringify({ type: "new-block", width: preset.width, height: preset.height }));
-                      e.dataTransfer.effectAllowed = "copy";
-                      const ghost = newBlockDragGhostRef.current;
-                      if (ghost) e.dataTransfer.setDragImage(ghost, Math.min(250, preset.width / 2), Math.min(250, preset.height / 2));
-                    }}
-                    onClick={() => onAddBlock(undefined, undefined, preset.width, preset.height)}
-                    className="cursor-grab active:cursor-grabbing rounded-lg border border-border/60 bg-background px-3 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors flex items-center justify-between"
-                  >
-                    <span>{preset.label}</span>
-                    <LayoutPanelTop className="h-3 w-3 opacity-40" />
-                  </div>
-                ))}
+                {BLOCK_PRESETS.map((preset) => {
+                  const MAX_W = 56, MAX_H = 44;
+                  const scale = Math.min(MAX_W / preset.width, MAX_H / preset.height);
+                  const thumbW = Math.round(preset.width * scale);
+                  const thumbH = Math.round(preset.height * scale);
+                  const orientation = preset.width > preset.height ? "Paysage" : preset.width < preset.height ? "Portrait" : "Carré";
+                  return (
+                    <div
+                      key={preset.label}
+                      draggable
+                      onDragStart={(e) => {
+                        setDraggingKey(preset.label);
+                        e.dataTransfer.setData("application/json", JSON.stringify({ type: "new-block", width: preset.width, height: preset.height }));
+                        e.dataTransfer.effectAllowed = "copy";
+                        const ghost = newBlockDragGhostRef.current;
+                        if (ghost) {
+                          const MAX = 90;
+                          const s = Math.min(MAX / preset.width, MAX / preset.height);
+                          const gw = Math.max(52, Math.round(preset.width * s));
+                          const gh = Math.max(36, Math.round(preset.height * s));
+                          ghost.style.width = `${gw}px`;
+                          ghost.style.height = `${gh}px`;
+                          ghost.textContent = `${preset.width}×${preset.height}`;
+                          e.dataTransfer.setDragImage(ghost, gw / 2, gh / 2);
+                        }
+                      }}
+                      onDragEnd={() => setDraggingKey(null)}
+                      onClick={() => onAddBlock(undefined, undefined, preset.width, preset.height)}
+                      className={`cursor-grab active:cursor-grabbing active:scale-[0.98] rounded-xl border bg-card px-3 py-2.5 transition-all duration-150 flex items-center gap-3 select-none hover:-translate-y-0.5 hover:shadow-md hover:border-border ${draggingKey === preset.label ? "opacity-50 scale-[0.98] border-border" : "border-border/60"}`}
+                    >
+                      <div className="shrink-0 flex items-center justify-center" style={{ width: MAX_W, height: MAX_H }}>
+                        <div
+                          className="rounded border-2 border-dashed border-muted-foreground/25 bg-muted/50 flex items-center justify-center"
+                          style={{ width: thumbW, height: thumbH }}
+                        >
+                          <LayoutPanelTop className="opacity-25" style={{ width: Math.max(9, Math.min(14, thumbW * 0.28)), height: Math.max(9, Math.min(14, thumbW * 0.28)) }} />
+                        </div>
+                      </div>
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-xs font-semibold text-foreground">{preset.label}</span>
+                        <span className="text-[10px] text-muted-foreground">{orientation}</span>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
           {activeSidebarTab === "couleurs" && (
-            <div
-              draggable
-              onDragStart={(e) => {
-                e.dataTransfer.setData("application/json", JSON.stringify({ type: "new-color-block", width: 300, height: 300, fill: { type: "solid", color: "#ffffff" } }));
-                e.dataTransfer.effectAllowed = "copy";
-              }}
-              onClick={() => {
-                const ph = getPanelHeight(panel);
-                const x = Math.round((PANEL_WIDTH - 300) / 2);
-                const y = Math.round((ph - 300) / 2);
-                onAddColorBlock(x, y, 300, 300);
-              }}
-              className="cursor-grab active:cursor-grabbing rounded-lg border border-border/80 bg-white shadow-sm px-4 py-3 text-sm text-muted-foreground hover:text-foreground hover:shadow-md transition-all flex items-center justify-center gap-2"
-            >
-              <Square className="h-4 w-4 shrink-0" />
-              <span>Bloc de couleur</span>
+            <div className="space-y-2">
+              <p className="text-[11px] text-muted-foreground">Clic ou glisser sur le canvas</p>
+              <div className="grid grid-cols-2 gap-2">
+                {COLOR_PRESETS_SIDEBAR.map((preset) => (
+                  <div
+                    key={preset.color}
+                    draggable
+                    onDragStart={(e) => {
+                      setDraggingKey(preset.color);
+                      e.dataTransfer.setData("application/json", JSON.stringify({ type: "new-color-block", width: 300, height: 300, fill: { type: "solid", color: preset.color } }));
+                      e.dataTransfer.effectAllowed = "copy";
+                      const ghost = newBlockDragGhostRef.current;
+                      if (ghost) {
+                        ghost.style.width = "72px";
+                        ghost.style.height = "72px";
+                        ghost.style.background = preset.color;
+                        ghost.style.border = preset.color === "#ffffff" ? "2px solid #cbd5e1" : "none";
+                        ghost.textContent = preset.label;
+                        ghost.style.color = preset.color === "#ffffff" ? "#0f172a" : "#ffffff";
+                        e.dataTransfer.setDragImage(ghost, 36, 36);
+                      }
+                    }}
+                    onDragEnd={() => {
+                      setDraggingKey(null);
+                      const ghost = newBlockDragGhostRef.current;
+                      if (ghost) {
+                        ghost.style.background = "";
+                        ghost.style.border = "";
+                        ghost.style.color = "";
+                      }
+                    }}
+                    onClick={() => {
+                      const ph = getPanelHeight(panel);
+                      const x = Math.round((PANEL_WIDTH - 300) / 2);
+                      const y = Math.round((ph - 300) / 2);
+                      onAddColorBlock(x, y, 300, 300, { type: "solid", color: preset.color });
+                    }}
+                    className={`cursor-grab active:cursor-grabbing active:scale-[0.98] rounded-xl border transition-all duration-150 overflow-hidden select-none hover:-translate-y-0.5 hover:shadow-md hover:border-border ${draggingKey === preset.color ? "opacity-50 scale-[0.98] border-border" : "border-border/60"}`}
+                  >
+                    <div
+                      className="h-14 w-full"
+                      style={{ backgroundColor: preset.color, boxShadow: preset.color === "#ffffff" ? "inset 0 0 0 1px #e2e8f0" : undefined }}
+                    />
+                    <div className="px-2 py-1.5 bg-card flex items-center justify-between gap-1">
+                      <span className="text-[10px] font-medium text-foreground">{preset.label}</span>
+                      <span className="text-[9px] text-muted-foreground font-mono uppercase">{preset.color}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
           {activeSidebarTab === "dialogue" && (
@@ -187,16 +260,18 @@ export function EditorLeftSidebar({
                 type="button"
                 draggable
                 onDragStart={(e) => {
+                  setDraggingKey("text");
                   e.dataTransfer.setData("application/json", JSON.stringify({ type: "speech-bubble", bubbleType: "text" }));
                   e.dataTransfer.effectAllowed = "copy";
                 }}
+                onDragEnd={() => setDraggingKey(null)}
                 onClick={() => {
                   const ph = getPanelHeight(panel);
                   const cx = Math.round((PANEL_WIDTH - DEFAULT_SPEECH_BUBBLE_WIDTH) / 2);
                   const cy = Math.round((ph - DEFAULT_SPEECH_BUBBLE_HEIGHT) / 2);
                   onAddSpeechBubble("text", cx, cy);
                 }}
-                className="w-full cursor-pointer rounded-lg border border-border/60 bg-background hover:border-primary/50 hover:bg-muted/40 transition-colors flex flex-col items-center pb-1.5 overflow-hidden"
+                className={`w-full cursor-grab active:cursor-grabbing active:scale-[0.98] rounded-xl border bg-background transition-all duration-150 flex flex-col items-center pb-1.5 overflow-hidden hover:-translate-y-0.5 hover:shadow-md hover:border-primary/50 hover:bg-muted/40 ${draggingKey === "text" ? "opacity-50 scale-[0.98] border-border" : "border-border/60"}`}
               >
                 <BubblePreview type="text" />
                 <span className="text-[10px] font-medium text-muted-foreground">Texte libre / Onomatopée</span>
@@ -210,16 +285,18 @@ export function EditorLeftSidebar({
                     type="button"
                     draggable
                     onDragStart={(e) => {
+                      setDraggingKey(type);
                       e.dataTransfer.setData("application/json", JSON.stringify({ type: "speech-bubble", bubbleType: type }));
                       e.dataTransfer.effectAllowed = "copy";
                     }}
+                    onDragEnd={() => setDraggingKey(null)}
                     onClick={() => {
                       const ph = getPanelHeight(panel);
                       const cx = Math.round((PANEL_WIDTH - DEFAULT_SPEECH_BUBBLE_WIDTH) / 2);
                       const cy = Math.round((ph - DEFAULT_SPEECH_BUBBLE_HEIGHT) / 2);
                       onAddSpeechBubble(type, cx, cy);
                     }}
-                    className="cursor-pointer rounded-lg border border-border/60 bg-background hover:border-primary/50 hover:bg-muted/40 transition-colors flex flex-col items-center pb-1.5 overflow-hidden"
+                    className={`cursor-grab active:cursor-grabbing active:scale-[0.98] rounded-xl border bg-background transition-all duration-150 flex flex-col items-center pb-1.5 overflow-hidden hover:-translate-y-0.5 hover:shadow-md hover:border-primary/50 hover:bg-muted/40 ${draggingKey === type ? "opacity-50 scale-[0.98] border-border" : "border-border/60"}`}
                   >
                     <BubblePreview type={type} />
                     <span className="text-[10px] font-medium text-muted-foreground">{label}</span>

@@ -111,9 +111,11 @@ export function buildTailOnlyPath(
   const cp_dy = eb2y - (t2y / t2l) * cpLBase;
 
   const f = (n: number) => n.toFixed(1);
+  // Pas de Z : on trace uniquement les deux côtés de la queue (sans corde de base).
+  // Le fill SVG fonctionne sans Z ; la corde n'est ainsi jamais visible en mode stroke.
   return `M ${f(eb1x)} ${f(eb1y)} ` +
     `C ${f(cp_ax)} ${f(cp_ay)}, ${f(cp_bx)} ${f(cp_by)}, ${f(tx)} ${f(ty)} ` +
-    `C ${f(cp_cx)} ${f(cp_cy)}, ${f(cp_dx)} ${f(cp_dy)}, ${f(eb2x)} ${f(eb2y)} Z`;
+    `C ${f(cp_cx)} ${f(cp_cy)}, ${f(cp_dx)} ${f(cp_dy)}, ${f(eb2x)} ${f(eb2y)}`;
 }
 
 // Arc du corps de la bulle uniquement (eb2 → eb1 sens long), sans les côtés de la queue.

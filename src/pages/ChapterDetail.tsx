@@ -190,6 +190,9 @@ export default function ChapterDetail() {
   const newBlockDragGhostRef = useRef<HTMLDivElement | null>(null);
   /** Drop move-block traité sur le canvas : ne pas nettoyer le preview dans onDragEnd pour éviter le saut visuel */
   const moveDropHandledRef = useRef(false);
+  /** Panel sur lequel un élément de la sidebar est en train d'être survolé (drag-over) */
+  const [isDragOverCanvasId, setIsDragOverCanvasId] = useState<string | null>(null);
+  const dragOverCounterRef = useRef<Record<string, number>>({});
   /** Panel ouvert en modale « Edition » (id ou null) */
   const [expandedPanelId, setExpandedPanelId] = useState<string | null>(null);
   /** Outil à droite dans la modale d'édition — null = panel rétracté. */
@@ -649,9 +652,22 @@ export default function ChapterDetail() {
       }
     };
 
+    const handleCanvasDragEnter = (e: React.DragEvent) => {
+      e.preventDefault();
+      dragOverCounterRef.current[panel.id] = (dragOverCounterRef.current[panel.id] ?? 0) + 1;
+      if (!draggingBlock) setIsDragOverCanvasId(panel.id);
+    };
+
+    const handleCanvasDragLeave = (_e: React.DragEvent) => {
+      dragOverCounterRef.current[panel.id] = Math.max(0, (dragOverCounterRef.current[panel.id] ?? 1) - 1);
+      if (dragOverCounterRef.current[panel.id] === 0) setIsDragOverCanvasId(null);
+    };
+
     const handleCanvasDrop = (e: React.DragEvent) => {
       e.preventDefault();
       e.stopPropagation();
+      dragOverCounterRef.current[panel.id] = 0;
+      setIsDragOverCanvasId(null);
       const raw = e.dataTransfer.getData("application/json");
       if (!raw) return;
       const canvasEl = canvasRefByPanel.current[panel.id];
@@ -1123,8 +1139,20 @@ export default function ChapterDetail() {
                           backgroundColor: "hsl(var(--background))",
                         }}
                         onDragOver={handleCanvasDragOver}
+                        onDragEnter={handleCanvasDragEnter}
+                        onDragLeave={handleCanvasDragLeave}
                         onDrop={handleCanvasDrop}
                       >
+                      {isDragOverCanvasId === panel.id && !draggingBlock && (
+                        <div className="absolute inset-0 z-[300] pointer-events-none">
+                          <div className="absolute inset-3 rounded-xl border-2 border-dashed border-primary/60 bg-primary/[0.04] flex items-center justify-center transition-opacity">
+                            <div className="bg-background/95 backdrop-blur-sm px-3 py-1.5 rounded-full shadow-sm border border-primary/30 text-xs font-semibold text-primary flex items-center gap-1.5">
+                              <Plus className="h-3 w-3" />
+                              Déposer ici
+                            </div>
+                          </div>
+                        </div>
+                      )}
                       <ColorBlockLayer
                         panel={panel}
                         panels={panels}
@@ -1648,14 +1676,13 @@ export default function ChapterDetail() {
         </DialogContent>
       </Dialog>
 
-      {/* Ghost pour le drag « nouveau bloc » — 500×500 comme le bloc réel, hors écran, utilisé par setDragImage */}
+      {/* Ghost pour le drag — hors écran, mis à jour dynamiquement avant setDragImage */}
       <div
         ref={newBlockDragGhostRef}
-        className="pointer-events-none fixed left-[-9999px] top-0 z-[9999] flex w-[500px] h-[500px] shrink-0 items-center justify-center rounded-lg border-2 border-dashed border-primary bg-primary/10 text-sm font-medium text-foreground"
+        className="pointer-events-none fixed left-[-9999px] top-0 z-[9999] flex shrink-0 items-center justify-center rounded-lg border-2 border-dashed border-primary bg-primary/10 text-[11px] font-semibold text-foreground"
+        style={{ width: 80, height: 60 }}
         aria-hidden
-      >
-        500×500
-      </div>
+      />
 
       {/* Modal découpage & export ZIP */}
       <Dialog open={sliceModalOpen} onOpenChange={setSliceModalOpen}>

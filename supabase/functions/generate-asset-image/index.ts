@@ -830,11 +830,24 @@ Deno.serve(async (req) => {
     }
 
     const MANGA_RENDER_LOCK =
-      "\n\n[CONTRAINTE RENDU MANGA] Sortie STRICTEMENT monochrome noir et blanc (encre, trames / screentone). " +
-      "Interdit : couleurs, peau coloree, degrades peints type webtoon, digital painting full-color, rendu 3D lisse. " +
-      "Ne pas produire un style webtoon coreen colore.";
+      " Sortie STRICTEMENT monochrome noir et blanc (encre, trames / screentone). " +
+      "Interdit : couleurs, peau coloree, degrades peints type webtoon, digital painting full-color, rendu 3D lisse.";
 
-    let userStyleText = dbText;
+    // Convertit le format STYLE_SYSTEM_V1 en résumé compact lisible par FLUX (modèle de diffusion)
+    function summarizeStyle(raw: string): string {
+      const text = raw.trim();
+      if (!text) return "";
+      if (!text.includes("STYLE_SYSTEM_V1")) return text.slice(0, 900);
+      const styleKey = text.match(/style_key:\s*(.+)/i)?.[1]?.trim() ?? "";
+      const stylePrincipal = text.match(/style_principal:\s*(.+)/i)?.[1]?.trim() ?? "";
+      const description = text.match(/description_style:\s*(.+)/i)?.[1]?.trim() ?? "";
+      const extra = text.match(/Contraintes additionnelles du projet:\s*([\s\S]*)$/i)?.[1]?.trim() ?? "";
+      let summary = [styleKey, stylePrincipal, description].filter(Boolean).join(", ");
+      if (extra) summary += `. ${extra}`;
+      return summary.slice(0, 900);
+    }
+
+    let userStyleText = summarizeStyle(dbText);
     if (mergedStyleKey === "manga") {
       userStyleText += MANGA_RENDER_LOCK;
     }

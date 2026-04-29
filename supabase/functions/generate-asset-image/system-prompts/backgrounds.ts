@@ -12,40 +12,42 @@ export const buildBackgroundPrompt = (
   plan: "free" | "pro" = "pro"
 ) => {
   const FULLBLEED =
-    `Full-bleed illustration — every pixel of all four edges is scene content. ` +
-    `Zero white borders, zero margins, zero frames, zero letterbox, zero empty corners. ` +
-    `Background extends to all edges, no canvas padding, no passe-partout.`;
+    `Full-bleed illustration, edge-to-edge, fills 100% of canvas. ` +
+    `NO white border, NO white margin, NO frame, NO letterbox, NO empty corners. ` +
+    `Scene content bleeds to every pixel of all four edges.`;
+
+  const FULLBLEED_CLOSE =
+    `\n\nSTRICT: zero white border, zero margin, zero frame — every pixel on all 4 edges must be scene content.`;
 
   if (plan === "free") {
     let prompt = styleText
-      ? `Background illustration. ${FULLBLEED}\n\nSTYLE ARTISTIQUE :\n${styleText}\n\nDESCRIPTION :\n${userDescription}`
-      : `Background illustration, full frame, edge to edge. ${FULLBLEED}\n\n${userDescription}`;
+      ? `${FULLBLEED}\n\nSTYLE ARTISTIQUE (prioritaire) : ${styleText}\n\nDESCRIPTION : ${userDescription}`
+      : `${FULLBLEED}\n\nBackground illustration, full frame.\n\n${userDescription}`;
 
     prompt += `\n\nEnvironnement uniquement — aucun personnage, aucune créature. Composition lisible, profondeur de champ, lumière bien définie.`;
+    prompt += FULLBLEED_CLOSE;
 
     return prompt;
   }
 
   // Pro — prompt riche FLUX.2 Pro
-  let prompt = `${FULLBLEED} masterpiece, best quality, ultra-detailed, cinematic composition, atmospheric depth, professional background art.
+  let prompt = styleText
+    ? `STYLE ARTISTIQUE (PRIORITAIRE) : ${styleText}\n\n`
+    : "";
 
-Crée un décor illustré (style selon STYLE ARTISTIQUE ci-dessous).
+  prompt += `${FULLBLEED} masterpiece, best quality, ultra-detailed, cinematic composition, atmospheric depth, professional background art.
 
 DESCRIPTION DU DÉCOR :
 ${userDescription}
 
-CADRAGE ET COMPOSITION (OBLIGATOIRE) :
-- Environnement, lieu ou paysage uniquement
-- AUCUN personnage ni créature visible
-- REMPLISSAGE TOTAL : chaque pixel de l'image fait partie du décor, bord à bord, aucun espace vide, aucune zone blanche, aucune marge
-- Débordement de la scène jusqu'aux quatre bords exacts de l'image — rien ne s'arrête avant le bord
-- Composition lisible avec profondeur de champ
-- Lumière claire et bien définie`;
+CADRAGE (OBLIGATOIRE) :
+- Environnement, lieu ou paysage uniquement — AUCUN personnage ni créature
+- REMPLISSAGE TOTAL bord à bord : aucun espace vide, aucune zone blanche, aucune marge
+- Scène qui déborde jusqu'aux quatre bords exacts — rien ne s'arrête avant le bord
+- Composition lisible, profondeur de champ, lumière claire`;
 
   if (styleText) {
-    prompt += `\n\nSTYLE ARTISTIQUE (PRIORITAIRE — appliquer avant tout autre critère) :
-${styleText}
-Applique ce style à 100% : traits, ombrage, palette (N&B ou couleur selon le style imposé), textures, rendu. Ne jamais s'en éloigner.`;
+    prompt += `\n\nRAPPEL STYLE : ${styleText.slice(0, 300)}`; // rappel final pour ancrer le style
   }
 
   if (styleImageUrls && styleImageUrls.length > 0) {

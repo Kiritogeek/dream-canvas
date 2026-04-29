@@ -119,7 +119,7 @@ export default function ChapterDetail() {
 
   const { data: chapter, isLoading: loadingChapter } = useChapter(chapterId);
   const { data: project } = useProject(projectId);
-  const { plan, usageInfo } = useUserPlan();
+  const { plan, usageInfo, goToCheckout } = useUserPlan();
   const navigate = useNavigate();
   const isPro = plan === "pro";
   const { data: scenarioChapters = [] } = useScenarioChapters(projectId);
@@ -132,6 +132,7 @@ export default function ChapterDetail() {
   const deletePanelMutation = useDeletePanel(chapterId ?? "");
   /** Panel dont la suppression est en attente de confirmation */
   const [panelToDeleteId, setPanelToDeleteId] = useState<string | null>(null);
+  const [showQuotaModal, setShowQuotaModal] = useState(false);
   const generatePanelImage = useGeneratePanelImage(chapterId ?? "");
   const panelsQueryKey = useMemo(() => ["panels", chapterId] as const, [chapterId]);
   const preloadedImagesRef = useRef<HTMLImageElement[]>([]);
@@ -981,6 +982,10 @@ export default function ChapterDetail() {
     };
 
     const handleGenerateBlock = (block: PanelBlock) => {
+      if (usageInfo.count >= usageInfo.limit) {
+        setShowQuotaModal(true);
+        return;
+      }
       const promptToUse = (blockPromptDrafts[`${panel.id}-${block.id}`] ?? block.prompt ?? "").trim();
       if (!project) return;
       const hasSavedStyleText = (project.style_template?.trim()?.length ?? 0) > 0;
@@ -1773,6 +1778,32 @@ export default function ChapterDetail() {
                 <><Download className="h-4 w-4" /> Télécharger le ZIP</>
               )}
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal quota dépassé */}
+      <Dialog open={showQuotaModal} onOpenChange={setShowQuotaModal}>
+        <DialogContent className="max-w-sm text-center">
+          <DialogHeader>
+            <DialogTitle className="text-lg">Quota mensuel atteint</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-5 py-2">
+            <p className="text-muted-foreground text-sm leading-relaxed">
+              Tu as utilisé <span className="font-semibold text-foreground">{usageInfo.count} / {usageInfo.limit}</span> générations ce mois-ci.
+              <br />Passe au plan Pro pour continuer à créer sans limite.
+            </p>
+            <div className="flex flex-col gap-2">
+              <Button
+                className="w-full gradient-primary text-primary-foreground gap-2"
+                onClick={() => { setShowQuotaModal(false); goToCheckout(); }}
+              >
+                Passer au plan Pro →
+              </Button>
+              <Button variant="ghost" className="w-full text-sm" asChild>
+                <Link to="/dashboard/plans">Voir les plans</Link>
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

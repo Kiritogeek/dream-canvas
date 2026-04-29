@@ -496,6 +496,53 @@ async function generateSchnell(
   return { url: imageUrl };
 }
 
+async function cropWhiteBorders(buffer: ArrayBuffer): Promise<ArrayBuffer> {
+  try {
+    // @ts-expect-error -- import npm résolu par Deno Deploy au runtime
+    const { PNG } = await import("npm:pngjs@7.0.0");
+    const { Buffer } = await import("node:buffer");
+    const src = PNG.sync.read(Buffer.from(buffer)) as {
+      width: number; height: number; data: Buffer;
+    };
+    const { width, height, data } = src;
+    const WHITE = 238;
+    const isRowWhite = (y: number): boolean => {
+      const base = y * width * 4;
+      for (let x = 0; x < width; x++) {
+        const i = base + x * 4;
+        if (data[i] < WHITE || data[i + 1] < WHITE || data[i + 2] < WHITE) return false;
+      }
+      return true;
+    };
+    const isColWhite = (x: number, y0: number, y1: number): boolean => {
+      for (let y = y0; y <= y1; y++) {
+        const i = (y * width + x) * 4;
+        if (data[i] < WHITE || data[i + 1] < WHITE || data[i + 2] < WHITE) return false;
+      }
+      return true;
+    };
+    let top = 0; while (top < height && isRowWhite(top)) top++;
+    let bottom = height - 1; while (bottom > top && isRowWhite(bottom)) bottom--;
+    let left = 0; while (left < width && isColWhite(left, top, bottom)) left++;
+    let right = width - 1; while (right > left && isColWhite(right, top, bottom)) right--;
+    // Ne rogner que si les marges sont significatives (> 2px)
+    if (top <= 2 && (height - 1 - bottom) <= 2 && left <= 2 && (width - 1 - right) <= 2) return buffer;
+    const cropW = right - left + 1;
+    const cropH = bottom - top + 1;
+    if (cropW < 64 || cropH < 64) return buffer;
+    const dst = new PNG({ width: cropW, height: cropH, filterType: -1 });
+    for (let y = 0; y < cropH; y++) {
+      const srcOff = ((top + y) * width + left) * 4;
+      const dstOff = y * cropW * 4;
+      (data as Buffer).copy(dst.data, dstOff, srcOff, srcOff + cropW * 4);
+    }
+    const encoded: Buffer = PNG.sync.write(dst);
+    return encoded.buffer.slice(encoded.byteOffset, encoded.byteOffset + encoded.byteLength);
+  } catch {
+    return buffer;
+  }
+}
+
 async function downloadAndUploadToStorage(
   imageUrl: string,
   storagePath: string,
@@ -514,7 +561,8 @@ async function downloadAndUploadToStorage(
         });
         continue;
       }
-      const imageArrayBuffer = await downloadRes.arrayBuffer();
+      const rawBuffer = await downloadRes.arrayBuffer();
+      const imageArrayBuffer = await cropWhiteBorders(rawBuffer);
 
       let uploadRes = await fetch(
         `${supabaseUrl}/storage/v1/object/${BUCKET}/${storagePath}`,

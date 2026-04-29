@@ -178,7 +178,6 @@ export default function ChapterDetail() {
   const [blockPromptDrafts, setBlockPromptDrafts] = useState<Record<string, string>>({});
   const [blockNameDrafts, setBlockNameDrafts] = useState<Record<string, string>>({});
   /** Blocs en train de générer une suggestion IA de prompt (clé = `${panelId}-${blockId}`). */
-  const [_suggestingBlockKeys, setSuggestingBlockKeys] = useState<Set<string>>(() => new Set());
   /** Hauteur live pendant le drag de la poignée bas-du-canvas ; null = pas de drag en cours */
   const [panelHeightDragDraft, setPanelHeightDragDraft] = useState<number | null>(null);
   const panelHeightDragRef = useRef<{ startY: number; startH: number } | null>(null);
@@ -935,12 +934,6 @@ export default function ChapterDetail() {
       const blockIndex = blocks.findIndex((b) => b.id === block.id);
       if (blockIndex < 0) return;
 
-      setSuggestingBlockKeys((prev) => {
-        const next = new Set(prev);
-        next.add(blockKey);
-        return next;
-      });
-
       try {
         const previousPrompts = blocks
           .slice(0, blockIndex)
@@ -971,12 +964,6 @@ export default function ChapterDetail() {
           title: "Erreur",
           description: err instanceof Error ? err.message : String(err),
           variant: "destructive",
-        });
-      } finally {
-        setSuggestingBlockKeys((prev) => {
-          const next = new Set(prev);
-          next.delete(blockKey);
-          return next;
         });
       }
     };

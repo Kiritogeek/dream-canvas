@@ -50,21 +50,13 @@ export interface SuggestBlockPromptRequest {
   previous_prompts?: string[];
 }
 
-export interface NarraMindAIRequest {
-  mode: "narramind";
-  prompt?: string;
-  project_id: string;
-  chapter_number?: number;
-}
-
 export type AIRequest =
   | ScenarioAIRequest
   | ChapterAIRequest
   | PanelsAIRequest
   | DetectBlocksRequest
   | AiSummaryRequest
-  | SuggestBlockPromptRequest
-  | NarraMindAIRequest;
+  | SuggestBlockPromptRequest;
 
 export interface AIResponse {
   text: string;
@@ -247,9 +239,3 @@ export async function triggerNarraMindUpdate(
   return body as NarraMindUpdateResponse;
 }
 
-/** @deprecated Utilisez triggerNarraMindUpdate directement. */
-export async function callNarraMindUpdate(
-  payload: NarraMindUpdateRequest
-): Promise<NarraMindUpdateResponse> {
-  return triggerNarraMindUpdate(payload.project_id, payload.chapter_id);
-}

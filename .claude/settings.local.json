@@ -86,7 +86,9 @@
       "Bash(grep -v \"^\\\\s*//\")",
       "Bash(grep -v \"^[[:space:]]*//\")",
       "Bash(npm test *)",
-      "Bash(npx vite *)"
+      "Bash(npx vite *)",
+      "Bash(supabase --version)",
+      "Bash(supabase status *)"
     ]
   },
   "hooks": {

@@ -156,10 +156,12 @@ export function SpeechBubbleShape({ type, fill, stroke, tailFlip, strokeWidth, t
     const defaultTx = tailFlip ? 85 : 15;
     const { tx, ty, hw, curve } = resolveTailCoords(defaultTx);
     const d = buildUnifiedTailPath(e.cx, e.cy, e.rx, e.ry, tx, ty, hw, curve);
+    const tailOnly = buildTailOnlyPath(e.cx, e.cy, e.rx, e.ry, tx, ty, hw, curve);
     const arcD = buildBodyArcPath(e.cx, e.cy, e.rx, e.ry, tx, ty, hw, curve);
     return (
       <>
         <path d={d} fill={fill} stroke="none" />
+        {tailOnly && <path d={tailOnly} fill="none" stroke={stroke} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round" vectorEffect={NNS} />}
         <path d={arcD} fill="none" stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
       </>
     );
@@ -178,6 +180,7 @@ export function SpeechBubbleShape({ type, fill, stroke, tailFlip, strokeWidth, t
     const perim = Math.PI * (3 * (RX + RY) - Math.sqrt((3 * RX + RY) * (RX + 3 * RY)));
     const N = Math.max(3, Math.round(perim / (2 * bumpR + Math.max(-bumpR * 1.5, gap))));
 
+    const tailDotsStroke: JSX.Element[] = [];
     const tailDots: JSX.Element[] = [];
     if (tailOn !== false) {
       const tx = tailX ?? 15;
@@ -219,14 +222,26 @@ export function SpeechBubbleShape({ type, fill, stroke, tailFlip, strokeWidth, t
         TAPER.forEach((rel, idx) => {
           const r = Math.max(0.3, baseR * rel);
           const [dx, dy] = bezier(tAtDist(step * (idx + 1)));
+          const ex = parseFloat(dx.toFixed(1));
+          const ey = parseFloat(dy.toFixed(1));
+          const erx = parseFloat((dotRx(r) * (tailDotAspectRatio ?? 1)).toFixed(1));
+          const ery = parseFloat(dotRy(r).toFixed(1));
+          tailDotsStroke.push(
+            <ellipse
+              key={`tds-${idx}`}
+              className="thought-tail-dot-stroke"
+              cx={ex} cy={ey} rx={erx} ry={ery}
+              fill="none"
+              stroke={stroke}
+              strokeWidth={sw}
+              vectorEffect={NNS}
+            />
+          );
           tailDots.push(
             <ellipse
               key={`td-${idx}`}
               className="thought-tail-dot"
-              cx={parseFloat(dx.toFixed(1))}
-              cy={parseFloat(dy.toFixed(1))}
-              rx={parseFloat((dotRx(r) * (tailDotAspectRatio ?? 1)).toFixed(1))}
-              ry={parseFloat(dotRy(r).toFixed(1))}
+              cx={ex} cy={ey} rx={erx} ry={ery}
               fill={fill}
               stroke="none"
             />
@@ -250,6 +265,7 @@ export function SpeechBubbleShape({ type, fill, stroke, tailFlip, strokeWidth, t
     // 2. Remplissage (fill only) par-dessus — couvre les chevauchements internes de contours.
     return (
       <>
+        {tailDotsStroke}
         {tailDots}
         {bumpCenters.map(({ cx, cy }, k) => (
           <circle key={`bcs-${k}`} cx={cx} cy={cy} r={bumpR}
@@ -284,11 +300,13 @@ export function SpeechBubbleShape({ type, fill, stroke, tailFlip, strokeWidth, t
     const defaultTx = tailFlip ? 85 : 15;
     const { tx, ty, hw, curve } = resolveTailCoords(defaultTx);
     const tailPath = buildUnifiedTailPath(e.cx, e.cy, e.rx, e.ry, tx, ty, hw, curve);
+    const tailOnly = buildTailOnlyPath(e.cx, e.cy, e.rx, e.ry, tx, ty, hw, curve);
     return (
       <>
         {HAND_DRAWN_DEFS}
         <g filter="url(#hd)">
           <path d={tailPath} fill={fill} stroke="none" />
+          {tailOnly && <path d={tailOnly} fill="none" stroke={stroke} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round" vectorEffect={NNS} />}
           <ellipse cx={50} cy={47} rx={44} ry={36} fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
           <circle cx={20} cy={43} r={12} fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
           <circle cx={80} cy={43} r={12} fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
@@ -323,7 +341,7 @@ export function SpeechBubbleShape({ type, fill, stroke, tailFlip, strokeWidth, t
     return (
       <>
         {tailPath && (
-          <path d={tailPath} fill={fill} stroke="none" />
+          <path d={tailPath} fill={fill} stroke={stroke} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round" vectorEffect={NNS} />
         )}
         <path d={body} fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" vectorEffect={NNS} />
       </>
@@ -346,11 +364,13 @@ export function SpeechBubbleShape({ type, fill, stroke, tailFlip, strokeWidth, t
     const defaultTx = tailFlip ? 85 : 15;
     const { tx, ty, hw, curve } = resolveTailCoords(defaultTx);
     const tailPath = buildUnifiedTailPath(e.cx, e.cy, e.rx, e.ry, tx, ty, hw, curve);
+    const tailOnly = buildTailOnlyPath(e.cx, e.cy, e.rx, e.ry, tx, ty, hw, curve);
     return (
       <>
         {HAND_DRAWN_DEFS}
         <g filter="url(#hd)">
           <path d={tailPath} fill={fill} stroke="none" />
+          {tailOnly && <path d={tailOnly} fill="none" stroke={stroke} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round" vectorEffect={NNS} />}
           <ellipse cx={50} cy={46} rx={47} ry={42}
             fill={fill} stroke={stroke} strokeWidth={sw} strokeDasharray="6 3" vectorEffect={NNS} />
         </g>
@@ -375,11 +395,13 @@ export function SpeechBubbleShape({ type, fill, stroke, tailFlip, strokeWidth, t
     const defaultTx = tailFlip ? 85 : 15;
     const { tx, ty, hw, curve } = resolveTailCoords(defaultTx);
     const tailPath = buildUnifiedTailPath(e.cx, e.cy, e.rx, e.ry, tx, ty, hw, curve);
+    const tailOnly = buildTailOnlyPath(e.cx, e.cy, e.rx, e.ry, tx, ty, hw, curve);
     return (
       <>
         {HAND_DRAWN_DEFS}
         <g filter="url(#hd)">
           <path d={tailPath} fill={fill} stroke="none" />
+          {tailOnly && <path d={tailOnly} fill="none" stroke={stroke} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round" vectorEffect={NNS} />}
           <path d={body} fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" vectorEffect={NNS} />
         </g>
       </>
@@ -406,11 +428,13 @@ export function SpeechBubbleShape({ type, fill, stroke, tailFlip, strokeWidth, t
     const defaultTx = tailFlip ? 85 : 15;
     const { tx, ty, hw, curve } = resolveTailCoords(defaultTx);
     const tailPath = buildUnifiedTailPath(e.cx, e.cy, e.rx, e.ry, tx, ty, hw, curve);
+    const tailOnly = buildTailOnlyPath(e.cx, e.cy, e.rx, e.ry, tx, ty, hw, curve);
     return (
       <>
         {HAND_DRAWN_DEFS}
         <g filter="url(#hd)">
           <path d={tailPath} fill={fill} stroke="none" />
+          {tailOnly && <path d={tailOnly} fill="none" stroke={stroke} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round" vectorEffect={NNS} />}
           <ellipse cx={50} cy={44} rx={47} ry={40}
             fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
           <ellipse cx={28} cy={91} rx={4} ry={6.5} fill={stroke} />
@@ -488,11 +512,13 @@ export function SpeechBubbleShape({ type, fill, stroke, tailFlip, strokeWidth, t
     const defaultTx = tailFlip ? 85 : 15;
     const { tx, ty, hw, curve } = resolveTailCoords(defaultTx);
     const tailPath = buildUnifiedTailPath(e.cx, e.cy, e.rx, e.ry, tx, ty, hw, curve);
+    const tailOnly = buildTailOnlyPath(e.cx, e.cy, e.rx, e.ry, tx, ty, hw, curve);
     return (
       <>
         {HAND_DRAWN_DEFS}
         <g filter="url(#hd)">
           <path d={tailPath} fill={fill} stroke="none" />
+          {tailOnly && <path d={tailOnly} fill="none" stroke={stroke} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round" vectorEffect={NNS} />}
           <path d={body} fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
         </g>
       </>

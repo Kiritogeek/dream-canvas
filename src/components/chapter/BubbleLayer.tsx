@@ -14,24 +14,29 @@ const DRAGGABLE_TAIL_TYPES = new Set(["speech", "whisper", "cloud", "wavy", "sad
 // Bounds du corps visible de la bulle dans le viewBox "0 0 100 120" (ou "0 0 100 100" pour no-tail).
 // topFrac / heightFrac × totalH donnent la zone où centrer le texte.
 // Dérivé des formes SVG réelles dans SpeechBubbleShape.tsx.
-const BODY_BOUNDS_FRAC: Partial<Record<string, { topFrac: number; heightFrac: number }>> = {
-  // Ellipses (cy, ry depuis TAIL_ELLIPSE — viewBox height = 120)
-  speech:     { topFrac:  3 / 120, heightFrac: 86 / 120 }, // cy=46 ry=43
-  whisper:    { topFrac:  4 / 120, heightFrac: 84 / 120 }, // cy=46 ry=42
-  cloud:      { topFrac: 11 / 120, heightFrac: 72 / 120 }, // cy=47 ry=36
-  wavy:       { topFrac:  5 / 120, heightFrac: 82 / 120 }, // cy=46 ry=41
-  sadness:    { topFrac:  4 / 120, heightFrac: 80 / 120 }, // cy=44 ry=40
-  anger:      { topFrac:  8 / 120, heightFrac: 76 / 120 }, // cy=46 ry=38
-  // Ellipse pensée (cx=50, cy=46, rx=24, ry=18) + bumps bumpR≈10
-  thought:    { topFrac: 28 / 120, heightFrac: 36 / 120 },
-  // Étoile irrégulière centrée (50,50) innerR≈37
-  shout:      { topFrac: 13 / 120, heightFrac: 74 / 120 },
-  // Octogone radio : y=14→88
-  radio:      { topFrac: 14 / 120, heightFrac: 74 / 120 },
-  // Hexagone électronique : y=8→92
-  electronic: { topFrac:  8 / 120, heightFrac: 76 / 120 },
-  // Étoile explosion centrée (50,50) innerR≈28
-  explosion:  { topFrac: 20 / 120, heightFrac: 60 / 120 },
+// topFrac/heightFrac : fractions de la hauteur viewBox (120)
+// leftFrac/widthFrac : fractions de la largeur viewBox (100)
+const BODY_BOUNDS_FRAC: Partial<Record<string, {
+  topFrac: number; heightFrac: number;
+  leftFrac?: number; widthFrac?: number;
+}>> = {
+  // Ellipses (cy, ry depuis TAIL_ELLIPSE — viewBox height=120, width=100)
+  speech:     { topFrac:  3/120, heightFrac: 86/120, leftFrac:  3/100, widthFrac: 94/100 }, // rx=47
+  whisper:    { topFrac:  4/120, heightFrac: 84/120, leftFrac:  3/100, widthFrac: 94/100 }, // rx=47
+  cloud:      { topFrac: 11/120, heightFrac: 72/120, leftFrac: 10/100, widthFrac: 80/100 }, // rx=44 + bumps
+  wavy:       { topFrac:  5/120, heightFrac: 82/120, leftFrac:  4/100, widthFrac: 92/100 }, // rx=46
+  sadness:    { topFrac:  4/120, heightFrac: 80/120, leftFrac:  3/100, widthFrac: 94/100 }, // rx=47
+  anger:      { topFrac:  8/120, heightFrac: 76/120, leftFrac:  7/100, widthFrac: 86/100 }, // rx=43
+  // Pensée : ellipse interne cx=50 rx=24 — zone de texte = l'ellipse intérieure
+  thought:    { topFrac: 28/120, heightFrac: 36/120, leftFrac: 26/100, widthFrac: 48/100 },
+  // Cri : étoile, innerR≈18 → zone sûre ≈ 50±20
+  shout:      { topFrac: 13/120, heightFrac: 74/120, leftFrac: 20/100, widthFrac: 60/100 },
+  // Octogone radio : x=4→96
+  radio:      { topFrac: 14/120, heightFrac: 74/120, leftFrac: 10/100, widthFrac: 80/100 },
+  // Hexagone électronique : x=6→94
+  electronic: { topFrac:  8/120, heightFrac: 76/120, leftFrac: 10/100, widthFrac: 80/100 },
+  // Explosion : innerR=28 → zone sûre ≈ 50±20
+  explosion:  { topFrac: 20/120, heightFrac: 60/120, leftFrac: 22/100, widthFrac: 56/100 },
 };
 
 interface BubbleLayerProps {
@@ -53,14 +58,6 @@ interface BubbleLayerProps {
 
 type BubbleResizingState = ResizingState & { bubbleId: string };
 
-function recenterEditable(el: HTMLElement, areaH: number) {
-  el.style.height = "0px";
-  el.style.paddingTop = "0px";
-  const contentH = el.scrollHeight;
-  el.style.height = `${areaH}px`;
-  const pt = Math.max(8, Math.round((areaH - contentH) / 2));
-  el.style.paddingTop = `${pt}px`;
-}
 
 // Whitelist HTML : on ne garde que les balises de formatage propres.
 // Tout le reste (<font>, <span>, <div>, attributs, styles inline, classes…) est strippé.
@@ -115,7 +112,7 @@ export function BubbleLayer({
 
   // Ref to the currently active contenteditable div (uncontrolled)
   const editingDivRef = useRef<HTMLDivElement | null>(null);
-  const textAreaHRef = useRef<number>(0);
+
   const editingBubbleTextRef = useRef<string>("");
   const committedCurrentEditRef = useRef<boolean>(false);
 
@@ -123,12 +120,16 @@ export function BubbleLayer({
   const editingDivCallback = useCallback((el: HTMLDivElement | null) => {
     if (el) {
       el.innerHTML = sanitizeBubbleHtml(editingBubbleTextRef.current);
-      recenterEditable(el, textAreaHRef.current);
       el.focus({ preventScroll: true });
-      const r = document.createRange();
-      r.selectNodeContents(el);
-      window.getSelection()?.removeAllRanges();
-      window.getSelection()?.addRange(r);
+      // Sélectionne tout le texte existant pour permettre un remplacement immédiat.
+      // Sur une bulle vide, on laisse le navigateur placer le curseur naturellement
+      // (text-align: center → centre visuel) — évite le curseur "collé à droite".
+      if (el.textContent?.trim()) {
+        const r = document.createRange();
+        r.selectNodeContents(el);
+        window.getSelection()?.removeAllRanges();
+        window.getSelection()?.addRange(r);
+      }
       editingDivRef.current = el;
     } else {
       editingDivRef.current = null;
@@ -200,18 +201,23 @@ export function BubbleLayer({
       const tGap3=bubble.thoughtTailGap??3;
       const step3=aL3/(TAPER3.length+1)+tGap3;
       const dots3=svgEl.querySelectorAll(".thought-tail-dot");
+      const dotsStroke3=svgEl.querySelectorAll(".thought-tail-dot-stroke");
       const bw3 = bubble.width ?? DEFAULT_SPEECH_BUBBLE_WIDTH;
       const bh3 = bubble.height ?? DEFAULT_SPEECH_BUBBLE_HEIGHT;
-      const bSvgH3 = bh3 * 1.2;
+      const bSvgH3 = bh3 * 1.5;
       const corr3 = (bSvgH3 / 120) / (bw3 / 100);
       if (aL3 > 3) {
         TAPER3.forEach((rel,idx)=>{
-          const el3=dots3[idx]as SVGElement|undefined;if(!el3)return;
+          const el3=dots3[idx]as SVGElement|undefined;
+          const els3=dotsStroke3[idx]as SVGElement|undefined;
+          if(!el3)return;
           const[dx3,dy3]=bez3(tD3(step3*(idx+1)));
           const ry3=Math.max(0.3,baseR3*rel);
+          const rx3=(ry3*corr3).toFixed(1);
           el3.setAttribute("cx",dx3.toFixed(1));el3.setAttribute("cy",dy3.toFixed(1));
-          el3.setAttribute("rx",(ry3*corr3).toFixed(1));
-          el3.setAttribute("ry",ry3.toFixed(1));
+          el3.setAttribute("rx",rx3);el3.setAttribute("ry",ry3.toFixed(1));
+          if(els3){els3.setAttribute("cx",dx3.toFixed(1));els3.setAttribute("cy",dy3.toFixed(1));
+            els3.setAttribute("rx",rx3);els3.setAttribute("ry",ry3.toFixed(1));}
         });
       }
     } else {
@@ -224,19 +230,27 @@ export function BubbleLayer({
         newPath = buildTailOnlyPath(50, 46, vr, vr, live.vbX, live.vbY, live.hw, live.curve) ?? null;
       }
       if (newPath) svgEl.querySelector("path")?.setAttribute("d", newPath);
-      if (bubble.type === "speech" && e) {
-        const arcPath = buildBodyArcPath(e.cx, e.cy, e.rx, e.ry, live.vbX, live.vbY, live.hw, live.curve);
-        const paths = svgEl.querySelectorAll("path");
-        if (paths[1]) paths[1].setAttribute("d", arcPath);
+      if (e) {
+        const tailOnlyPath = buildTailOnlyPath(e.cx, e.cy, e.rx, e.ry, live.vbX, live.vbY, live.hw, live.curve);
+        const svgPaths = svgEl.querySelectorAll("path");
+        if (tailOnlyPath && svgPaths[1]) svgPaths[1].setAttribute("d", tailOnlyPath);
+        if (bubble.type === "speech") {
+          const arcPath = buildBodyArcPath(e.cx, e.cy, e.rx, e.ry, live.vbX, live.vbY, live.hw, live.curve);
+          if (svgPaths[2]) svgPaths[2].setAttribute("d", arcPath);
+        }
       }
     }
     const handleEl = bubbleHandleRefs.current.get(live.bubbleId);
     if (handleEl) {
       const bw = bubble.width ?? DEFAULT_SPEECH_BUBBLE_WIDTH;
       const bh = bubble.height ?? DEFAULT_SPEECH_BUBBLE_HEIGHT;
-      const bSvgH = bh * 1.2;
+      const bSvgH = bubble.type === "thought" ? bh * 1.5 : bh * 1.2;
+      const bBodyCY = (bubble.type === "thought" || bubble.type === "shout")
+        ? 46
+        : (BUBBLE_TAIL_ELLIPSE[bubble.type]?.cy ?? 46);
+      const bSvgTopOffset = (bh / 2) - (bBodyCY / 120) * bSvgH;
       handleEl.style.left = `${(live.vbX / 100) * bw}px`;
-      handleEl.style.top = `${(live.vbY / 120) * bSvgH}px`;
+      handleEl.style.top = `${(live.vbY / 120) * bSvgH + bSvgTopOffset}px`;
     }
   });
 
@@ -267,7 +281,18 @@ export function BubbleLayer({
         const effectiveViewBox = noTailType
           ? SPEECH_BUBBLE_VIEWBOX_NARRATION
           : SPEECH_BUBBLE_VIEWBOX_WITH_TAIL;
-        const svgH = noTailType ? geom.height : geom.height * 1.2;
+        // thought : svgH = geom.height * 1.5 → le container = 80 unités viewBox (120/1.5)
+        // → le nuage (y≈18-74) occupe ~70% du container au lieu de 56% avec * 1.2.
+        const svgH = noTailType ? geom.height : bubble.type === "thought" ? geom.height * 1.5 : geom.height * 1.2;
+        // Centrer le corps visible dans la zone de sélection (container div).
+        // Formule générale : svgTopOffset = container_center − body_center_in_svgH
+        //                                 = h/2 − (bodyCY/120) × svgH
+        // thought & shout ont leur corps centré à cy=46 en viewBox (TAIL_ELLIPSE ne les contient pas).
+        // Les autres types (speech, whisper, cloud…) lisent bodyCY depuis TAIL_ELLIPSE.
+        const bodyCY = (bubble.type === "thought" || bubble.type === "shout")
+          ? 46
+          : (BUBBLE_TAIL_ELLIPSE[bubble.type]?.cy ?? 46);
+        const svgTopOffset = noTailType ? 0 : (geom.height / 2) - (bodyCY / 120) * svgH;
         const vbParts = effectiveViewBox.split(" ").map(Number);
         const vbY = vbParts[1];
         const vbH = vbParts[3];
@@ -275,11 +300,17 @@ export function BubbleLayer({
         // Zone de texte centrée sur le corps visible — fractions normalisées au vbH réel
         const bodyBounds = noTailType ? null : BODY_BOUNDS_FRAC[bubble.type];
         const textAreaTop = bodyBounds ? ((bodyBounds.topFrac * 120 - vbY) / vbH) * svgH : 0;
+        // Le SVG est décalé de svgTopOffset pour centrer le corps : le textAreaTop suit.
+        const adjustedTextAreaTop = textAreaTop + svgTopOffset;
         const textAreaH = noTailType
           ? geom.height
           : bodyBounds
             ? (bodyBounds.heightFrac * 120 / vbH) * svgH
             : (svgH * 100) / vbH;
+        // Bornes horizontales : leftFrac/widthFrac normalisés sur la largeur viewBox (100)
+        // → convertis en px en multipliant par geom.width (scale = geom.width/100)
+        const textAreaLeft = bodyBounds?.leftFrac != null ? bodyBounds.leftFrac * geom.width : null;
+        const textAreaWidth = bodyBounds?.widthFrac != null ? bodyBounds.widthFrac * geom.width : null;
         const fillOpacity = 1 - (bubble.bgTransparency ?? 0) / 100;
 
         const sharedTextStyle: React.CSSProperties = {
@@ -292,6 +323,9 @@ export function BubbleLayer({
           textAlign,
           textTransform,
           lineHeight: "1.4",
+          wordBreak: "break-word",
+          overflowWrap: "break-word",
+          whiteSpace: "pre-wrap",
         };
 
         // Tailwind preflight efface text-decoration/font-weight/font-style des balises HTML.
@@ -329,7 +363,6 @@ export function BubbleLayer({
               }
               if (isSelected) {
                 editingBubbleTextRef.current = bubble.text;
-                textAreaHRef.current = textAreaH;
                 committedCurrentEditRef.current = false;
                 setEditingBubbleId(bubble.id);
               } else {
@@ -340,7 +373,6 @@ export function BubbleLayer({
               e.stopPropagation();
               if (!isEditing) {
                 editingBubbleTextRef.current = bubble.text;
-                textAreaHRef.current = textAreaH;
                 onSelectBubble(bubble.id);
                 committedCurrentEditRef.current = false;
                 setEditingBubbleId(bubble.id);
@@ -352,7 +384,7 @@ export function BubbleLayer({
                 ref={(el) => { if (el) bubbleSvgRefs.current.set(bubble.id, el); else bubbleSvgRefs.current.delete(bubble.id); }}
                 viewBox={effectiveViewBox}
                 className="absolute pointer-events-none"
-                style={{ top: 0, left: 0, width: "100%", height: svgH }}
+                style={{ top: svgTopOffset, left: 0, width: "100%", height: svgH }}
                 preserveAspectRatio="none"
                 fillOpacity={fillOpacity}
                 overflow="visible"
@@ -383,7 +415,7 @@ export function BubbleLayer({
               <svg
                 viewBox={SPEECH_BUBBLE_VIEWBOX_WITH_TAIL}
                 className="absolute"
-                style={{ top: 0, left: 0, width: "100%", height: svgH, pointerEvents: "none" }}
+                style={{ top: svgTopOffset, left: 0, width: "100%", height: svgH, pointerEvents: "none" }}
                 preserveAspectRatio="none"
                 overflow="visible"
               >
@@ -409,7 +441,7 @@ export function BubbleLayer({
                 style={{
                   position: "absolute",
                   left: (resolvedTailX / 100) * geom.width,
-                  top: (resolvedTailY / 120) * svgH,
+                  top: (resolvedTailY / 120) * svgH + svgTopOffset,
                   width: 26,
                   height: 26,
                   borderRadius: "50%",
@@ -435,9 +467,10 @@ export function BubbleLayer({
 
                   const rect = bubbleDiv.getBoundingClientRect();
                   const clickOffX = (e.clientX - rect.left) / (rect.width / 100) - resolvedTailX;
-                  // rect.height est en pixels écran (getBoundingClientRect = post-zoom).
-                  // Le container = 100 unités viewBox → rect.height / 100 = px-écran / unité, zoom-correct.
-                  const clickOffY = (e.clientY - rect.top)  / (rect.height / 100) - resolvedTailY;
+                  // Unités viewBox contenues dans le container : 120/svgRatio (zoom-correct via rect.height).
+                  // thought=80 (svgH=1.5×h), tous les autres=100 (svgH=1.2×h).
+                  const tailVbBodyH = bubble.type === "thought" ? 80 : 100;
+                  const clickOffY = (e.clientY - rect.top)  / (rect.height / tailVbBodyH) - resolvedTailY;
 
                   // Capture stable values for the drag closure
                   const capturedId = bubble.id;
@@ -451,6 +484,7 @@ export function BubbleLayer({
                   const capturedThoughtTailDotSize = bubble.thoughtTailDotSize ?? 1;
                   const capturedGeomW = geom.width;
                   const capturedSvgH = svgH;
+                  const capturedSvgTopOffset = svgTopOffset;
                   const svgEl = bubbleSvgRefs.current.get(capturedId);
                   const handleEl = bubbleHandleRefs.current.get(capturedId);
                   // Track latest position for single commit on pointerup
@@ -459,7 +493,7 @@ export function BubbleLayer({
                   const onMove = (ev: PointerEvent) => {
                     const r = bubbleDiv.getBoundingClientRect();
                     const vbX = (ev.clientX - r.left) / (r.width  / 100) - clickOffX;
-                    const vbY = (ev.clientY - r.top)  / (r.height  / 100) - clickOffY;
+                    const vbY = (ev.clientY - r.top)  / (r.height  / tailVbBodyH) - clickOffY;
 
                     if (capturedEllipse) {
                       const { cx, cy, rx, ry } = capturedEllipse;
@@ -508,16 +542,22 @@ export function BubbleLayer({
                         const baseR2 = Math.min(aL * 0.14, 9) * capturedThoughtTailDotSize;
                         const step2 = aL / (TAPER2.length + 1) + capturedThoughtTailGap;
                         const dots = svgEl.querySelectorAll(".thought-tail-dot");
+                        const dotsStroke = svgEl.querySelectorAll(".thought-tail-dot-stroke");
                         const dotCorr = (capturedSvgH / 120) / (capturedGeomW / 100);
                         if (aL > 3) {
                           TAPER2.forEach((rel, idx) => {
                             const el = dots[idx] as SVGElement | undefined;
+                            const els = dotsStroke[idx] as SVGElement | undefined;
                             if (!el) return;
                             const [dx2, dy2] = bez(tD(step2 * (idx + 1)));
                             const ry2 = Math.max(0.3, baseR2 * rel);
+                            const rx2 = (ry2 * dotCorr).toFixed(1);
                             el.setAttribute("cx", dx2.toFixed(1)); el.setAttribute("cy", dy2.toFixed(1));
-                            el.setAttribute("rx", (ry2 * dotCorr).toFixed(1));
-                            el.setAttribute("ry", ry2.toFixed(1));
+                            el.setAttribute("rx", rx2); el.setAttribute("ry", ry2.toFixed(1));
+                            if (els) {
+                              els.setAttribute("cx", dx2.toFixed(1)); els.setAttribute("cy", dy2.toFixed(1));
+                              els.setAttribute("rx", rx2); els.setAttribute("ry", ry2.toFixed(1));
+                            }
                           });
                         }
                       } else {
@@ -529,17 +569,21 @@ export function BubbleLayer({
                           newPath = buildTailOnlyPath(50, 46, capturedVr, capturedVr, vbX, vbY, capturedHw, capturedCurve) ?? null;
                         }
                         if (newPath) svgEl.querySelector("path")?.setAttribute("d", newPath);
-                        if (capturedBubbleType === "speech" && capturedEllipse) {
+                        if (capturedEllipse) {
                           const { cx, cy, rx, ry } = capturedEllipse;
-                          const arcPath = buildBodyArcPath(cx, cy, rx, ry, vbX, vbY, capturedHw, capturedCurve);
-                          const paths = svgEl.querySelectorAll("path");
-                          if (paths[1]) paths[1].setAttribute("d", arcPath);
+                          const tailOnlyPath = buildTailOnlyPath(cx, cy, rx, ry, vbX, vbY, capturedHw, capturedCurve);
+                          const svgPaths = svgEl.querySelectorAll("path");
+                          if (tailOnlyPath && svgPaths[1]) svgPaths[1].setAttribute("d", tailOnlyPath);
+                          if (capturedBubbleType === "speech") {
+                            const arcPath = buildBodyArcPath(cx, cy, rx, ry, vbX, vbY, capturedHw, capturedCurve);
+                            if (svgPaths[2]) svgPaths[2].setAttribute("d", arcPath);
+                          }
                         }
                       }
                     }
                     if (handleEl) {
                       handleEl.style.left = `${(vbX / 100) * capturedGeomW}px`;
-                      handleEl.style.top  = `${(vbY / 120) * capturedSvgH}px`;
+                      handleEl.style.top  = `${(vbY / 120) * capturedSvgH + capturedSvgTopOffset}px`;
                     }
                   };
 
@@ -570,42 +614,54 @@ export function BubbleLayer({
             {isEditing ? (
               <div
                 key="bubble-editor"
-                ref={editingDivCallback}
-                contentEditable
-                suppressContentEditableWarning
-                onInput={(e) => recenterEditable(e.currentTarget as HTMLDivElement, textAreaH)}
-                onBlur={(e) => {
-                  if (committedCurrentEditRef.current) return;
-                  committedCurrentEditRef.current = true;
-                  const html = sanitizeBubbleHtml(e.currentTarget.innerHTML);
-                  setEditingBubbleId(null);
-                  if (html !== bubble.text) {
-                    onTextCommit(bubble.id, html);
-                  }
+                className={`absolute flex flex-col justify-center z-30 ${textAreaLeft == null ? "inset-x-0 px-3" : "px-2"}`}
+                style={{
+                  top: adjustedTextAreaTop,
+                  minHeight: textAreaH,
+                  ...(textAreaLeft != null ? { left: textAreaLeft, width: textAreaWidth ?? undefined } : {}),
                 }}
-                onKeyDown={(e) => {
-                  if (e.key === "Escape") {
+              >
+                <div
+                  ref={editingDivCallback}
+                  contentEditable
+                  suppressContentEditableWarning
+                  onBlur={(e) => {
+                    if (committedCurrentEditRef.current) return;
                     committedCurrentEditRef.current = true;
-                    e.currentTarget.innerHTML = sanitizeBubbleHtml(bubble.text);
+                    const html = sanitizeBubbleHtml(e.currentTarget.innerHTML);
                     setEditingBubbleId(null);
-                  }
-                }}
-                onPaste={(e) => {
-                  e.preventDefault();
-                  const text = e.clipboardData.getData("text/plain");
-                  document.execCommand("insertText", false, text);
-                }}
-                className={`absolute inset-x-0 bg-transparent border-none outline-none w-full px-3 z-30 overflow-y-hidden ${richTextClass}`}
-                style={{ top: textAreaTop, height: textAreaH, boxSizing: "border-box", ...sharedTextStyle }}
-              />
+                    if (html !== bubble.text) {
+                      onTextCommit(bubble.id, html);
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Escape") {
+                      committedCurrentEditRef.current = true;
+                      e.currentTarget.innerHTML = sanitizeBubbleHtml(bubble.text);
+                      setEditingBubbleId(null);
+                    }
+                  }}
+                  onPaste={(e) => {
+                    e.preventDefault();
+                    const text = e.clipboardData.getData("text/plain");
+                    document.execCommand("insertText", false, text);
+                  }}
+                  className={`w-full bg-transparent border-none outline-none ${richTextClass}`}
+                  style={sharedTextStyle}
+                />
+              </div>
             ) : (
               <div
                 key="bubble-readonly"
-                className="absolute inset-x-0 flex items-center justify-center px-3 pointer-events-none overflow-hidden"
-                style={{ top: textAreaTop, height: textAreaH }}
+                className={`absolute flex flex-col justify-center pointer-events-none ${textAreaLeft == null ? "inset-x-0 px-3" : "px-2"}`}
+                style={{
+                  top: adjustedTextAreaTop,
+                  minHeight: textAreaH,
+                  ...(textAreaLeft != null ? { left: textAreaLeft, width: textAreaWidth ?? undefined } : {}),
+                }}
               >
                 <div
-                  className={`break-words w-full text-center ${richTextClass}`}
+                  className={`w-full ${richTextClass}`}
                   style={sharedTextStyle}
                   dangerouslySetInnerHTML={{ __html: sanitizeBubbleHtml(bubble.text) || "…" }}
                 />

@@ -824,8 +824,8 @@ export default function ChapterDetail() {
     };
 
     const handleAddSpeechBubble = (bubbleType: SpeechBubble["type"], x: number, y: number) => {
-      const w = DEFAULT_SPEECH_BUBBLE_WIDTH;
-      const h = DEFAULT_SPEECH_BUBBLE_HEIGHT;
+      const w = (bubbleType === "thought" || bubbleType === "shout") ? 380 : DEFAULT_SPEECH_BUBBLE_WIDTH;
+      const h = (bubbleType === "thought" || bubbleType === "shout") ? 200 : DEFAULT_SPEECH_BUBBLE_HEIGHT;
       const clampedX = Math.max(0, Math.min(PANEL_WIDTH - w, x));
       const clampedY = Math.max(0, Math.min(panelHeight - h, y));
       const defaultStyle = SPEECH_BUBBLE_DEFAULT_STYLE[bubbleType];
@@ -836,6 +836,7 @@ export default function ChapterDetail() {
         position: { x: clampedX, y: clampedY },
         width: w,
         height: h,
+        tailOn: false,
         style: {
           font: "inherit",
           size: 14,

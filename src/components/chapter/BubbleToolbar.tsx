@@ -121,8 +121,56 @@ export function BubbleToolbar({ bubble, speechBubbles, onUpdate, onDuplicate, on
 
   // ── Mode queue : toolbar dédiée ──────────────────────────────────────────
   if (tailContext && !hasNoTail) {
-    const tailBaseWidth = bubble.tailBaseWidth ?? 28;
     const tailCurve = bubble.tailCurve ?? 0;
+
+    if (bubble.type === "thought") {
+      const thoughtTailDotSize = bubble.thoughtTailDotSize ?? 1;
+      const thoughtTailGap = bubble.thoughtTailGap ?? 3;
+      return (
+        <div className="relative inline-block">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-background border border-border rounded-xl shadow-lg z-50">
+            <button
+              type="button"
+              onClick={() => onTailContextChange?.(false)}
+              className="h-7 flex items-center gap-1 px-2 rounded-md border border-border/60 bg-background text-muted-foreground hover:bg-muted/50 transition-colors text-xs shrink-0"
+              title="Retour aux options de la bulle"
+            >
+              <ChevronLeft className="h-3 w-3" />
+              Bulle
+            </button>
+            {sep}
+            <span className="text-xs text-muted-foreground shrink-0">Courbure</span>
+            <input
+              type="range" min={-30} max={30} value={tailCurve}
+              onChange={(e) => { const n = parseInt(e.target.value, 10); if (!Number.isNaN(n)) patch({ tailCurve: n }); }}
+              className="w-20 accent-primary"
+              title={`Courbure : ${tailCurve}`}
+            />
+            <span className="text-xs tabular-nums text-foreground w-6 text-right shrink-0">{tailCurve > 0 ? `+${tailCurve}` : tailCurve}</span>
+            {sep}
+            <span className="text-xs text-muted-foreground shrink-0">Ronds</span>
+            <input
+              type="range" min={3} max={25} step={1} value={Math.round(thoughtTailDotSize * 10)}
+              onChange={(e) => { const n = parseInt(e.target.value, 10); if (!Number.isNaN(n)) patch({ thoughtTailDotSize: n / 10 }); }}
+              className="w-20 accent-primary"
+              title={`Taille ronds queue : ×${thoughtTailDotSize.toFixed(1)}`}
+            />
+            <span className="text-xs tabular-nums text-foreground w-8 text-right shrink-0">×{thoughtTailDotSize.toFixed(1)}</span>
+            {sep}
+            <span className="text-xs text-muted-foreground shrink-0">Espace</span>
+            <input
+              type="range" min={-4} max={12} step={1} value={thoughtTailGap}
+              onChange={(e) => { const n = parseInt(e.target.value, 10); if (!Number.isNaN(n)) patch({ thoughtTailGap: n }); }}
+              className="w-16 accent-primary"
+              title={`Espace ronds queue : ${thoughtTailGap}`}
+            />
+            <span className="text-xs tabular-nums text-foreground w-5 text-right shrink-0">{thoughtTailGap}</span>
+          </div>
+        </div>
+      );
+    }
+
+    const tailBaseWidth = bubble.tailBaseWidth ?? 28;
     return (
       <div className="relative inline-block">
         <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-background border border-border rounded-xl shadow-lg z-50">
@@ -342,11 +390,12 @@ export function BubbleToolbar({ bubble, speechBubbles, onUpdate, onDuplicate, on
               <Blend className="h-3.5 w-3.5" />
             </button>
 
-            {/* Queue : toggle pour la bulle Cri (opt-in) */}
-            {bubble.type === "shout" && (
-              <button type="button" onClick={() => patch({ tailOn: !bubble.tailOn })}
-                className={btnCls(!!bubble.tailOn)}
-                title={bubble.tailOn ? "Supprimer la queue" : "Ajouter une queue"}>
+            {/* Queue : toggle pour toutes les bulles avec queue draggable */}
+            {!hasNoTail && !["radio", "electronic", "explosion"].includes(bubble.type) && !isText && (
+              <button type="button"
+                onClick={() => patch({ tailOn: bubble.tailOn !== false ? false : true })}
+                className={btnCls(bubble.tailOn !== false)}
+                title={bubble.tailOn !== false ? "Supprimer la queue" : "Ajouter une queue"}>
                 <MessageCircle className="h-3.5 w-3.5" />
               </button>
             )}

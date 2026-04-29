@@ -204,7 +204,7 @@ export function EditorLeftSidebar({
               {/* Seuls les types validés dans bubble-proposals.html sont exposés.
                   Ajouter ici au fur et à mesure des validations. */}
               <div className="grid grid-cols-2 gap-2">
-                {(Object.entries(SPEECH_BUBBLE_TYPE_LABELS) as [SpeechBubbleType, string][]).filter(([type]) => ["speech", "shout"].includes(type)).map(([type, label]) => (
+                {(Object.entries(SPEECH_BUBBLE_TYPE_LABELS) as [SpeechBubbleType, string][]).filter(([type]) => ["speech", "shout", "thought"].includes(type)).map(([type, label]) => (
                   <button
                     key={type}
                     type="button"

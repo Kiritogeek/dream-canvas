@@ -208,6 +208,11 @@ export interface SpeechBubble {
   textStyle?: SpeechBubbleTextStyle;
   spikes?: number;
   connected?: SpeechBubbleConnected | null;
+  thoughtBumpR?: number;
+  thoughtGap?: number;
+  thoughtTailGap?: number;
+  thoughtTailOval?: number;
+  thoughtTailDotSize?: number;
 }
 
 /** Libellés UI des types de bulles (alignés Edition_Panel_Blocs_Bulles.md § 7.1). */
@@ -245,7 +250,7 @@ export const SPEECH_BUBBLE_DEFAULT_STYLE: Record<SpeechBubbleType, { fill: strin
 };
 
 /** Types de bulles sans queue ni hauteur de queue (tailH = 0). */
-export const SPEECH_BUBBLE_NO_TAIL_TYPES = new Set<SpeechBubbleType>(["narration", "text", "thought"] as const);
+export const SPEECH_BUBBLE_NO_TAIL_TYPES = new Set<SpeechBubbleType>(["narration", "text"] as const);
 
 /** Retourne fill et stroke pour le rendu d'une bulle (étendu puis style minimal puis défaut par type). */
 export function getSpeechBubbleFillStroke(bubble: SpeechBubble): { fill: string; stroke: string } {

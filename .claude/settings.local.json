@@ -78,7 +78,15 @@
       "Bash(mv \"C:\\\\Users\\\\kirit\\\\OneDrive\\\\Bureau\\\\DreamWeave\\\\.claude\\\\worktrees\\\\agent-a3e36e0f98dc63328\\\\replace_section.js\" \"C:\\\\Users\\\\kirit\\\\OneDrive\\\\Bureau\\\\DreamWeave\\\\.claude\\\\worktrees\\\\agent-a3e36e0f98dc63328\\\\replace_section.cjs\")",
       "Bash(node replace_section.cjs)",
       "Bash(echo \"Exit code: $?\")",
-      "Bash(echo \"EXIT:$?\")"
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(rd /s /q \"C:\\\\Users\\\\kirit\\\\OneDrive\\\\Bureau\\\\DreamWeave\\\\.claude\\\\worktrees\\\\agent-a205b822091e721fa\")",
+      "Bash(rd /s /q \"C:\\\\Users\\\\kirit\\\\OneDrive\\\\Bureau\\\\DreamWeave\\\\.claude\\\\worktrees\\\\agent-a9936ce09e01adeda\")",
+      "Bash(grep -E \"\\\\.\\(tsx?|jsx?\\)$\")",
+      "Bash(awk -F: '{print $1}')",
+      "Bash(grep -v \"^\\\\s*//\")",
+      "Bash(grep -v \"^[[:space:]]*//\")",
+      "Bash(npm test *)",
+      "Bash(npx vite *)"
     ]
   },
   "hooks": {

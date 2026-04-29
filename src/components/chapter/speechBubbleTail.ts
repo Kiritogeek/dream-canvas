@@ -116,16 +116,48 @@ export function buildTailOnlyPath(
     `C ${f(cp_cx)} ${f(cp_cy)}, ${f(cp_dx)} ${f(cp_dy)}, ${f(eb2x)} ${f(eb2y)} Z`;
 }
 
+// Arc du corps de la bulle uniquement (eb2 → eb1 sens long), sans les côtés de la queue.
+// Utilisé comme stroke du corps pour que la jonction avec la queue reste ouverte visuellement.
+export function buildBodyArcPath(
+  cx: number, cy: number, rx: number, ry: number,
+  tx: number, ty: number,
+  hw: number,
+  _curve: number
+): string {
+  const angle = Math.atan2(ty - cy, tx - cx);
+  const r = (rx * ry) / Math.sqrt(
+    Math.pow(ry * Math.cos(angle), 2) + Math.pow(rx * Math.sin(angle), 2)
+  );
+  const px = cx + r * Math.cos(angle);
+  const py = cy + r * Math.sin(angle);
+  const rawDist = Math.hypot(tx - px, ty - py);
+  if (rawDist < hw * 1.5) {
+    return `M ${cx - rx} ${cy} A ${rx} ${ry} 0 1 0 ${cx + rx} ${cy} A ${rx} ${ry} 0 1 0 ${cx - rx} ${cy}`;
+  }
+  const perp = angle + Math.PI / 2;
+  const a1 = Math.atan2((py + hw * Math.sin(perp) - cy) / ry, (px + hw * Math.cos(perp) - cx) / rx);
+  const a2 = Math.atan2((py - hw * Math.sin(perp) - cy) / ry, (px - hw * Math.cos(perp) - cx) / rx);
+  const eb1x = cx + rx * Math.cos(a1), eb1y = cy + ry * Math.sin(a1);
+  const eb2x = cx + rx * Math.cos(a2), eb2y = cy + ry * Math.sin(a2);
+  const f = (n: number) => n.toFixed(1);
+  return `M ${f(eb2x)} ${f(eb2y)} A ${rx} ${ry} 0 1 0 ${f(eb1x)} ${f(eb1y)}`;
+}
+
 export function getTailHitPath(
   type: SpeechBubbleType,
   tailX?: number, tailY?: number, tailFlip?: boolean, tailBaseWidth?: number, tailCurve?: number
 ): string | null {
-  // Shout : ellipse virtuelle interne (r≈22.5 pour conc=0.5)
   if (type === "shout") {
     const tx = tailX ?? (tailFlip ? 85 : 15);
     const ty = tailY ?? 115;
     const hw = (tailBaseWidth ?? 28) / 2;
     return buildTailOnlyPath(50, 46, 22.5, 22.5, tx, ty, hw, tailCurve ?? 0);
+  }
+  // Thought : zone de hit triangulaire le long du trajet de la queue
+  if (type === "thought") {
+    const tx = tailX ?? (tailFlip ? 85 : 15);
+    const ty = tailY ?? 115;
+    return buildTailOnlyPath(50, 46, 34, 28, tx, ty, 9, tailCurve ?? 0);
   }
   if (!UNIFIED_TAIL_TYPES.has(type)) return null;
   const e = TAIL_ELLIPSE[type];

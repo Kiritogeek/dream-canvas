@@ -1,6 +1,6 @@
 import type { SpeechBubble, SpeechBubbleType } from "@/types";
 import { SPEECH_BUBBLE_DEFAULT_STYLE, SPEECH_BUBBLE_NO_TAIL_TYPES } from "@/types";
-import { buildUnifiedTailPath, buildTailOnlyPath, TAIL_ELLIPSE } from "./speechBubbleTail";
+import { buildUnifiedTailPath, buildTailOnlyPath, buildBodyArcPath, TAIL_ELLIPSE } from "./speechBubbleTail";
 
 export const SPEECH_BUBBLE_TAIL_H = 14;
 export const SPEECH_BUBBLE_VIEWBOX_WITH_TAIL = "0 0 100 120";
@@ -95,6 +95,12 @@ function concaveIrregularSpikePath(
   return d + "Z";
 }
 
+function thoughtBodyRadius(rx: number, ry: number, bumpR: number, angle: number): number {
+  const ex = (rx + bumpR) * Math.cos(angle);
+  const ey = (ry + bumpR) * Math.sin(angle);
+  return Math.sqrt(ex * ex + ey * ey);
+}
+
 const SHOUT_OUTER = [52, 47, 55, 46, 53, 49, 56, 48, 52, 45, 54, 47];
 const SHOUT_NOISE = [0, 1.5, -1, 2, -1.5, 1, -2, 2, -1, 1.5, -1.5, 1];
 
@@ -109,7 +115,7 @@ const NNS = "non-scaling-stroke" as const;
  * Les points de base de la queue sont volontairement placés à l'intérieur du corps
  * pour garantir que le fill du corps les couvre totalement.
  */
-export function SpeechBubbleShape({ type, fill, stroke, tailFlip, strokeWidth, tailX, tailY, tailBaseWidth, tailCurve, tailOn }: {
+export function SpeechBubbleShape({ type, fill, stroke, tailFlip, strokeWidth, tailX, tailY, tailBaseWidth, tailCurve, tailOn, thoughtBumpR, thoughtGap, thoughtTailGap, thoughtTailOval, thoughtTailDotSize, tailDotAspectRatio }: {
   type: SpeechBubble["type"];
   fill: string;
   stroke: string;
@@ -120,6 +126,12 @@ export function SpeechBubbleShape({ type, fill, stroke, tailFlip, strokeWidth, t
   tailBaseWidth?: number;
   tailCurve?: number;
   tailOn?: boolean;
+  thoughtBumpR?: number;
+  thoughtGap?: number;
+  thoughtTailGap?: number;
+  thoughtTailOval?: number;
+  thoughtTailDotSize?: number;
+  tailDotAspectRatio?: number;
 }) {
   const sw = strokeWidth ?? 2;
   const tf = tailFlip ? TAIL_FLIP : undefined;
@@ -138,38 +150,136 @@ export function SpeechBubbleShape({ type, fill, stroke, tailFlip, strokeWidth, t
   // ce qui stabilise le body quand tailBaseWidth / tailCurve changent.
   if (type === "speech") {
     const e = TAIL_ELLIPSE.speech;
+    if (tailOn === false) {
+      return <ellipse cx={e.cx} cy={e.cy} rx={e.rx} ry={e.ry} fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />;
+    }
     const defaultTx = tailFlip ? 85 : 15;
     const { tx, ty, hw, curve } = resolveTailCoords(defaultTx);
     const d = buildUnifiedTailPath(e.cx, e.cy, e.rx, e.ry, tx, ty, hw, curve);
+    const arcD = buildBodyArcPath(e.cx, e.cy, e.rx, e.ry, tx, ty, hw, curve);
     return (
       <>
-        <path d={d} fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" vectorEffect={NNS} />
-        <ellipse cx={e.cx} cy={e.cy} rx={e.rx} ry={e.ry} fill={fill} stroke="none" vectorEffect={NNS} />
+        <path d={d} fill={fill} stroke="none" />
+        <path d={arcD} fill="none" stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
       </>
     );
   }
 
   // ── Pensée : nuage de cercles + queue de bulles décroissantes ─────────────
   if (type === "thought") {
+    const bumpR = thoughtBumpR ?? 10;
+    const gap = thoughtGap ?? -5;
+    const tGap = thoughtTailGap ?? 3;
+    const tOval = thoughtTailOval ?? 0;
+    const tDotSize = thoughtTailDotSize ?? 1;
+    const curve = tailCurve ?? 0;
+    const CX = 50, CY = 46, RX = 24, RY = 18;
+
+    const perim = Math.PI * (3 * (RX + RY) - Math.sqrt((3 * RX + RY) * (RX + 3 * RY)));
+    const N = Math.max(3, Math.round(perim / (2 * bumpR + Math.max(-bumpR * 1.5, gap))));
+
+    const tailDots: JSX.Element[] = [];
+    if (tailOn !== false) {
+      const tx = tailX ?? 15;
+      const ty = tailY ?? 115;
+      const angle = Math.atan2(ty - CY, tx - CX);
+      const bodyR = thoughtBodyRadius(RX, RY, bumpR, angle);
+      const p0x = CX + bodyR * Math.cos(angle), p0y = CY + bodyR * Math.sin(angle);
+      const mx = (p0x + tx) / 2, my = (p0y + ty) / 2;
+      const cpx = mx - Math.sin(angle) * curve, cpy = my + Math.cos(angle) * curve;
+      const bezier = (t: number): [number, number] => {
+        const u = 1 - t;
+        return [u * u * p0x + 2 * u * t * cpx + t * t * tx, u * u * p0y + 2 * u * t * cpy + t * t * ty];
+      };
+      const SAMPLES = 120;
+      const cumLen = [0];
+      let prevPt = bezier(0);
+      for (let i = 1; i <= SAMPLES; i++) {
+        const pt = bezier(i / SAMPLES);
+        cumLen.push(cumLen[i - 1] + Math.hypot(pt[0] - prevPt[0], pt[1] - prevPt[1]));
+        prevPt = pt;
+      }
+      const arcLen = cumLen[SAMPLES];
+      const tAtDist = (d: number) => {
+        for (let i = 1; i <= SAMPLES; i++) {
+          if (cumLen[i] >= d) return (i - 1 + (d - cumLen[i - 1]) / (cumLen[i] - cumLen[i - 1])) / SAMPLES;
+        }
+        return 1;
+      };
+      // 5 cercles toujours distribués sur toute la longueur de l'arc — même principe que la bulle dialogue.
+      // Les tailles s'adaptent à la distance : queue courte → petits cercles, queue longue → grands cercles.
+      const N_DOTS = 5;
+      const TAPER = [1, 0.72, 0.52, 0.37, 0.26];
+      const baseR = Math.min(arcLen * 0.14, 9) * tDotSize;
+      const step = arcLen / (N_DOTS + 1) + tGap;
+      const stretch = 1 + Math.abs(tOval) * 0.2;
+      const dotRx = (r: number) => tOval >= 0 ? r * stretch : r / stretch;
+      const dotRy = (r: number) => tOval >= 0 ? r / stretch : r * stretch;
+      if (arcLen > 3) {
+        TAPER.forEach((rel, idx) => {
+          const r = Math.max(0.3, baseR * rel);
+          const [dx, dy] = bezier(tAtDist(step * (idx + 1)));
+          tailDots.push(
+            <ellipse
+              key={`td-${idx}`}
+              className="thought-tail-dot"
+              cx={parseFloat(dx.toFixed(1))}
+              cy={parseFloat(dy.toFixed(1))}
+              rx={parseFloat((dotRx(r) * (tailDotAspectRatio ?? 1)).toFixed(1))}
+              ry={parseFloat(dotRy(r).toFixed(1))}
+              fill={fill}
+              stroke="none"
+            />
+          );
+        });
+      }
+    }
+
+    // Calcul des centres des bosses une seule fois (utilisés pour les deux passes).
+    const bumpCenters: { cx: number; cy: number }[] = [];
+    for (let k = 0; k < N; k++) {
+      const a = (k / N) * 2 * Math.PI;
+      bumpCenters.push({
+        cx: parseFloat((CX + RX * Math.cos(a)).toFixed(1)),
+        cy: parseFloat((CY + RY * Math.sin(a)).toFixed(1)),
+      });
+    }
+
+    // Rendu en deux passes (identique aux autres bulles) :
+    // 1. Anneaux de contour (stroke only) — vectorEffect NNS = pixels écran, pas unités SVG.
+    // 2. Remplissage (fill only) par-dessus — couvre les chevauchements internes de contours.
     return (
       <>
-        <g transform={tf}>
-          <circle cx={34} cy={80} r={7} fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
-          <circle cx={25} cy={95} r={4.5} fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
-          <circle cx={18} cy={108} r={2.5} fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
-        </g>
-        <circle cx={50} cy={46} r={29} fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
-        <circle cx={24} cy={53} r={17} fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
-        <circle cx={76} cy={53} r={17} fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
-        <circle cx={34} cy={32} r={14} fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
-        <circle cx={66} cy={32} r={14} fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
-        <circle cx={50} cy={23} r={12} fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
+        {tailDots}
+        {bumpCenters.map(({ cx, cy }, k) => (
+          <circle key={`bcs-${k}`} cx={cx} cy={cy} r={bumpR}
+            fill="none" stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
+        ))}
+        <ellipse cx={CX} cy={CY} rx={RX} ry={RY}
+          fill="none" stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
+        {bumpCenters.map(({ cx, cy }, k) => (
+          <circle key={`bcf-${k}`} cx={cx} cy={cy} r={bumpR} fill={fill} stroke="none" />
+        ))}
+        <ellipse cx={CX} cy={CY} rx={RX} ry={RY} fill={fill} stroke="none" />
       </>
     );
   }
 
   // ── Pensée nuage : queue unifiée + filtre hd + corps nuage ──────────────
   if (type === "cloud") {
+    const cloudBody = (
+      <>
+        {HAND_DRAWN_DEFS}
+        <g filter="url(#hd)">
+          <ellipse cx={50} cy={47} rx={44} ry={36} fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
+          <circle cx={20} cy={43} r={12} fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
+          <circle cx={80} cy={43} r={12} fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
+          <circle cx={32} cy={18} r={9.5} fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
+          <circle cx={68} cy={18} r={9.5} fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
+        </g>
+      </>
+    );
+    if (tailOn === false) return cloudBody;
     const e = TAIL_ELLIPSE.cloud;
     const defaultTx = tailFlip ? 85 : 15;
     const { tx, ty, hw, curve } = resolveTailCoords(defaultTx);
@@ -178,7 +288,7 @@ export function SpeechBubbleShape({ type, fill, stroke, tailFlip, strokeWidth, t
       <>
         {HAND_DRAWN_DEFS}
         <g filter="url(#hd)">
-          <path d={tailPath} fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" vectorEffect={NNS} />
+          <path d={tailPath} fill={fill} stroke="none" />
           <ellipse cx={50} cy={47} rx={44} ry={36} fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
           <circle cx={20} cy={43} r={12} fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
           <circle cx={80} cy={43} r={12} fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
@@ -213,7 +323,7 @@ export function SpeechBubbleShape({ type, fill, stroke, tailFlip, strokeWidth, t
     return (
       <>
         {tailPath && (
-          <path d={tailPath} fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" vectorEffect={NNS} />
+          <path d={tailPath} fill={fill} stroke="none" />
         )}
         <path d={body} fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" vectorEffect={NNS} />
       </>
@@ -222,6 +332,16 @@ export function SpeechBubbleShape({ type, fill, stroke, tailFlip, strokeWidth, t
 
   // ── Chuchotement : queue unifiée + ovale tirets + filtre hd ─────────────
   if (type === "whisper") {
+    const whisperBody = (
+      <>
+        {HAND_DRAWN_DEFS}
+        <g filter="url(#hd)">
+          <ellipse cx={50} cy={46} rx={47} ry={42}
+            fill={fill} stroke={stroke} strokeWidth={sw} strokeDasharray="6 3" vectorEffect={NNS} />
+        </g>
+      </>
+    );
+    if (tailOn === false) return whisperBody;
     const e = TAIL_ELLIPSE.whisper;
     const defaultTx = tailFlip ? 85 : 15;
     const { tx, ty, hw, curve } = resolveTailCoords(defaultTx);
@@ -230,9 +350,7 @@ export function SpeechBubbleShape({ type, fill, stroke, tailFlip, strokeWidth, t
       <>
         {HAND_DRAWN_DEFS}
         <g filter="url(#hd)">
-          {/* Queue unifiée dessinée EN PREMIER */}
-          <path d={tailPath} fill={fill} stroke={stroke} strokeWidth={sw} strokeDasharray="5 4" strokeLinejoin="round" vectorEffect={NNS} />
-          {/* Corps PAR-DESSUS — couvre la base de la queue */}
+          <path d={tailPath} fill={fill} stroke="none" />
           <ellipse cx={50} cy={46} rx={47} ry={42}
             fill={fill} stroke={stroke} strokeWidth={sw} strokeDasharray="6 3" vectorEffect={NNS} />
         </g>
@@ -243,6 +361,16 @@ export function SpeechBubbleShape({ type, fill, stroke, tailFlip, strokeWidth, t
   // ── Colère : queue unifiée + ovale avec pointes + filtre hd ──────────────
   if (type === "anger") {
     const body = angryOvalPath(50, 46, 43, 38, 8, 10);
+    if (tailOn === false) {
+      return (
+        <>
+          {HAND_DRAWN_DEFS}
+          <g filter="url(#hd)">
+            <path d={body} fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" vectorEffect={NNS} />
+          </g>
+        </>
+      );
+    }
     const e = TAIL_ELLIPSE.anger;
     const defaultTx = tailFlip ? 85 : 15;
     const { tx, ty, hw, curve } = resolveTailCoords(defaultTx);
@@ -251,7 +379,7 @@ export function SpeechBubbleShape({ type, fill, stroke, tailFlip, strokeWidth, t
       <>
         {HAND_DRAWN_DEFS}
         <g filter="url(#hd)">
-          <path d={tailPath} fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" vectorEffect={NNS} />
+          <path d={tailPath} fill={fill} stroke="none" />
           <path d={body} fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" vectorEffect={NNS} />
         </g>
       </>
@@ -260,6 +388,20 @@ export function SpeechBubbleShape({ type, fill, stroke, tailFlip, strokeWidth, t
 
   // ── Tristesse : queue unifiée + ovale + larmes + filtre hd ───────────────
   if (type === "sadness") {
+    if (tailOn === false) {
+      return (
+        <>
+          {HAND_DRAWN_DEFS}
+          <g filter="url(#hd)">
+            <ellipse cx={50} cy={44} rx={47} ry={40}
+              fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
+            <ellipse cx={28} cy={91} rx={4} ry={6.5} fill={stroke} />
+            <ellipse cx={40} cy={94} rx={3} ry={5} fill={stroke} />
+            <ellipse cx={52} cy={93} rx={3.5} ry={5.5} fill={stroke} />
+          </g>
+        </>
+      );
+    }
     const e = TAIL_ELLIPSE.sadness;
     const defaultTx = tailFlip ? 85 : 15;
     const { tx, ty, hw, curve } = resolveTailCoords(defaultTx);
@@ -268,7 +410,7 @@ export function SpeechBubbleShape({ type, fill, stroke, tailFlip, strokeWidth, t
       <>
         {HAND_DRAWN_DEFS}
         <g filter="url(#hd)">
-          <path d={tailPath} fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" vectorEffect={NNS} />
+          <path d={tailPath} fill={fill} stroke="none" />
           <ellipse cx={50} cy={44} rx={47} ry={40}
             fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
           <ellipse cx={28} cy={91} rx={4} ry={6.5} fill={stroke} />
@@ -332,6 +474,16 @@ export function SpeechBubbleShape({ type, fill, stroke, tailFlip, strokeWidth, t
   // ── Tremblant : queue unifiée + ovale amplitude variable + filtre hd ─────
   if (type === "wavy") {
     const body = wavyEllipsePath(50, 46, 46, 41, 3, 7);
+    if (tailOn === false) {
+      return (
+        <>
+          {HAND_DRAWN_DEFS}
+          <g filter="url(#hd)">
+            <path d={body} fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
+          </g>
+        </>
+      );
+    }
     const e = TAIL_ELLIPSE.wavy;
     const defaultTx = tailFlip ? 85 : 15;
     const { tx, ty, hw, curve } = resolveTailCoords(defaultTx);
@@ -340,7 +492,7 @@ export function SpeechBubbleShape({ type, fill, stroke, tailFlip, strokeWidth, t
       <>
         {HAND_DRAWN_DEFS}
         <g filter="url(#hd)">
-          <path d={tailPath} fill={fill} stroke={stroke} strokeWidth={sw} strokeDasharray="5 2" strokeLinejoin="round" vectorEffect={NNS} />
+          <path d={tailPath} fill={fill} stroke="none" />
           <path d={body} fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect={NNS} />
         </g>
       </>

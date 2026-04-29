@@ -56,16 +56,16 @@ const features: FeatureRow[] = [
     pro: "2 images",
   },
   {
-    label: "Vues multiples (profil, dos)",
+    label: "Sheet System 4 angles",
     icon: Eye,
-    free: false,
+    free: true,
     pro: true,
   },
   {
     label: "Résolution",
     icon: Image,
-    free: "1024×1024",
-    pro: "1024×1024",
+    free: "1280×1024",
+    pro: "1280×1024",
   },
 ];
 

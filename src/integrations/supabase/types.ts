@@ -126,6 +126,7 @@ export type Database = {
       }
       chapter_canvases: {
         Row: {
+          background_style: Json | null
           chapter_id: string
           color_blocks: Json | null
           created_at: string
@@ -136,6 +137,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          background_style?: Json | null
           chapter_id: string
           color_blocks?: Json | null
           created_at?: string
@@ -146,6 +148,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          background_style?: Json | null
           chapter_id?: string
           color_blocks?: Json | null
           created_at?: string
@@ -165,13 +168,176 @@ export type Database = {
           },
         ]
       }
+      memory_entities: {
+        Row: {
+          asset_id: string | null
+          created_at: string
+          entity_type: string
+          first_seen_chapter: number | null
+          id: string
+          last_seen_chapter: number | null
+          lore_summary: string | null
+          name: string
+          project_id: string
+          relations: Json
+          token_estimate: number
+          traits: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          asset_id?: string | null
+          created_at?: string
+          entity_type: string
+          first_seen_chapter?: number | null
+          id?: string
+          last_seen_chapter?: number | null
+          lore_summary?: string | null
+          name: string
+          project_id: string
+          relations?: Json
+          token_estimate?: number
+          traits?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          asset_id?: string | null
+          created_at?: string
+          entity_type?: string
+          first_seen_chapter?: number | null
+          id?: string
+          last_seen_chapter?: number | null
+          lore_summary?: string | null
+          name?: string
+          project_id?: string
+          relations?: Json
+          token_estimate?: number
+          traits?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "memory_entities_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "memory_entities_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      memory_summaries: {
+        Row: {
+          chapter_id: string | null
+          chapter_number: number
+          created_at: string
+          id: string
+          project_id: string
+          summary: string
+          token_estimate: number
+          user_id: string
+        }
+        Insert: {
+          chapter_id?: string | null
+          chapter_number: number
+          created_at?: string
+          id?: string
+          project_id: string
+          summary: string
+          token_estimate?: number
+          user_id: string
+        }
+        Update: {
+          chapter_id?: string | null
+          chapter_number?: number
+          created_at?: string
+          id?: string
+          project_id?: string
+          summary?: string
+          token_estimate?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "memory_summaries_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "memory_summaries_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "scenario_chapters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      narramind_metrics: {
+        Row: {
+          anomalies_detected: number
+          chapters_in_context: number | null
+          chapter_number: number | null
+          context_tokens: number | null
+          created_at: string
+          duration_ms: number | null
+          id: string
+          mode: string
+          project_id: string
+          response_tokens: number | null
+        }
+        Insert: {
+          anomalies_detected?: number
+          chapters_in_context?: number | null
+          chapter_number?: number | null
+          context_tokens?: number | null
+          created_at?: string
+          duration_ms?: number | null
+          id?: string
+          mode: string
+          project_id: string
+          response_tokens?: number | null
+        }
+        Update: {
+          anomalies_detected?: number
+          chapters_in_context?: number | null
+          chapter_number?: number | null
+          context_tokens?: number | null
+          created_at?: string
+          duration_ms?: number | null
+          id?: string
+          mode?: string
+          project_id?: string
+          response_tokens?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "narramind_metrics_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
           created_at: string
           display_name: string | null
+          email: string | null
           id: string
           plan: string
+          stripe_customer_id: string | null
           updated_at: string
           user_id: string
         }
@@ -179,8 +345,10 @@ export type Database = {
           avatar_url?: string | null
           created_at?: string
           display_name?: string | null
+          email?: string | null
           id?: string
           plan?: string
+          stripe_customer_id?: string | null
           updated_at?: string
           user_id: string
         }
@@ -188,8 +356,10 @@ export type Database = {
           avatar_url?: string | null
           created_at?: string
           display_name?: string | null
+          email?: string | null
           id?: string
           plan?: string
+          stripe_customer_id?: string | null
           updated_at?: string
           user_id?: string
         }

@@ -204,8 +204,8 @@ export function BubbleLayer({
       const dotsStroke3=svgEl.querySelectorAll(".thought-tail-dot-stroke");
       const bw3 = bubble.width ?? DEFAULT_SPEECH_BUBBLE_WIDTH;
       const bh3 = bubble.height ?? DEFAULT_SPEECH_BUBBLE_HEIGHT;
-      const bSvgH3 = bh3 * 1.5;
-      const corr3 = (bSvgH3 / 120) / (bw3 / 100);
+      const bSvgH3 = bh3;
+      const corr3 = (bSvgH3 / 92) / (bw3 / 100);
       if (aL3 > 3) {
         TAPER3.forEach((rel,idx)=>{
           const el3=dots3[idx]as SVGElement|undefined;
@@ -244,13 +244,14 @@ export function BubbleLayer({
     if (handleEl) {
       const bw = bubble.width ?? DEFAULT_SPEECH_BUBBLE_WIDTH;
       const bh = bubble.height ?? DEFAULT_SPEECH_BUBBLE_HEIGHT;
-      const bSvgH = bubble.type === "thought" ? bh * 1.5 : bh * 1.2;
+      const bSvgH = bubble.type === "thought" ? bh : bh * 1.2;
+      const bVbH = bubble.type === "thought" ? 92 : 120;
       const bBodyCY = (bubble.type === "thought" || bubble.type === "shout")
         ? 46
         : (BUBBLE_TAIL_ELLIPSE[bubble.type]?.cy ?? 46);
-      const bSvgTopOffset = (bh / 2) - (bBodyCY / 120) * bSvgH;
+      const bSvgTopOffset = (bh / 2) - (bBodyCY / bVbH) * bSvgH;
       handleEl.style.left = `${(live.vbX / 100) * bw}px`;
-      handleEl.style.top = `${(live.vbY / 120) * bSvgH + bSvgTopOffset}px`;
+      handleEl.style.top = `${(live.vbY / bVbH) * bSvgH + bSvgTopOffset}px`;
     }
   });
 
@@ -280,22 +281,22 @@ export function BubbleLayer({
         // La queue apparaît/disparaît comme contenu SVG sans changer les dimensions.
         const effectiveViewBox = noTailType
           ? SPEECH_BUBBLE_VIEWBOX_NARRATION
-          : SPEECH_BUBBLE_VIEWBOX_WITH_TAIL;
-        // thought : svgH = geom.height * 1.5 → le container = 80 unités viewBox (120/1.5)
-        // → le nuage (y≈18-74) occupe ~70% du container au lieu de 56% avec * 1.2.
-        const svgH = noTailType ? geom.height : bubble.type === "thought" ? geom.height * 1.5 : geom.height * 1.2;
-        // Centrer le corps visible dans la zone de sélection (container div).
-        // Formule générale : svgTopOffset = container_center − body_center_in_svgH
-        //                                 = h/2 − (bodyCY/120) × svgH
-        // thought & shout ont leur corps centré à cy=46 en viewBox (TAIL_ELLIPSE ne les contient pas).
-        // Les autres types (speech, whisper, cloud…) lisent bodyCY depuis TAIL_ELLIPSE.
-        const bodyCY = (bubble.type === "thought" || bubble.type === "shout")
-          ? 46
-          : (BUBBLE_TAIL_ELLIPSE[bubble.type]?.cy ?? 46);
-        const svgTopOffset = noTailType ? 0 : (geom.height / 2) - (bodyCY / 120) * svgH;
+          : bubble.type === "thought"
+            ? "0 0 100 92"
+            : SPEECH_BUBBLE_VIEWBOX_WITH_TAIL;
+        // thought : viewBox "0 0 100 92" + svgH = geom.height → nuage (cy=46 = 50% de 92)
+        // centré exactement dans le container. Queue (y=115) déborde via overflow="visible".
+        const svgH = noTailType ? geom.height : bubble.type === "thought" ? geom.height : geom.height * 1.2;
         const vbParts = effectiveViewBox.split(" ").map(Number);
         const vbY = vbParts[1];
         const vbH = vbParts[3];
+        // Centrer le corps visible dans la zone de sélection (container div).
+        // Formule générale : svgTopOffset = container_center − body_center_in_svgH
+        //                                 = h/2 − (bodyCY/vbH) × svgH
+        const bodyCY = (bubble.type === "thought" || bubble.type === "shout")
+          ? 46
+          : (BUBBLE_TAIL_ELLIPSE[bubble.type]?.cy ?? 46);
+        const svgTopOffset = noTailType ? 0 : (geom.height / 2) - (bodyCY / vbH) * svgH;
 
         // Zone de texte centrée sur le corps visible — fractions normalisées au vbH réel
         const bodyBounds = noTailType ? null : BODY_BOUNDS_FRAC[bubble.type];
@@ -413,7 +414,7 @@ export function BubbleLayer({
             {/* SVG overlay pour la zone de hit de la queue — triangle seulement */}
             {hitPath && (
               <svg
-                viewBox={SPEECH_BUBBLE_VIEWBOX_WITH_TAIL}
+                viewBox={effectiveViewBox}
                 className="absolute"
                 style={{ top: svgTopOffset, left: 0, width: "100%", height: svgH, pointerEvents: "none" }}
                 preserveAspectRatio="none"
@@ -441,7 +442,7 @@ export function BubbleLayer({
                 style={{
                   position: "absolute",
                   left: (resolvedTailX / 100) * geom.width,
-                  top: (resolvedTailY / 120) * svgH + svgTopOffset,
+                  top: (resolvedTailY / vbH) * svgH + svgTopOffset,
                   width: 26,
                   height: 26,
                   borderRadius: "50%",
@@ -469,7 +470,7 @@ export function BubbleLayer({
                   const clickOffX = (e.clientX - rect.left) / (rect.width / 100) - resolvedTailX;
                   // Unités viewBox contenues dans le container : 120/svgRatio (zoom-correct via rect.height).
                   // thought=80 (svgH=1.5×h), tous les autres=100 (svgH=1.2×h).
-                  const tailVbBodyH = bubble.type === "thought" ? 80 : 100;
+                  const tailVbBodyH = bubble.type === "thought" ? 92 : 100;
                   const clickOffY = (e.clientY - rect.top)  / (rect.height / tailVbBodyH) - resolvedTailY;
 
                   // Capture stable values for the drag closure
@@ -484,6 +485,7 @@ export function BubbleLayer({
                   const capturedThoughtTailDotSize = bubble.thoughtTailDotSize ?? 1;
                   const capturedGeomW = geom.width;
                   const capturedSvgH = svgH;
+                  const capturedVbH = vbH;
                   const capturedSvgTopOffset = svgTopOffset;
                   const svgEl = bubbleSvgRefs.current.get(capturedId);
                   const handleEl = bubbleHandleRefs.current.get(capturedId);
@@ -543,7 +545,7 @@ export function BubbleLayer({
                         const step2 = aL / (TAPER2.length + 1) + capturedThoughtTailGap;
                         const dots = svgEl.querySelectorAll(".thought-tail-dot");
                         const dotsStroke = svgEl.querySelectorAll(".thought-tail-dot-stroke");
-                        const dotCorr = (capturedSvgH / 120) / (capturedGeomW / 100);
+                        const dotCorr = (capturedSvgH / capturedVbH) / (capturedGeomW / 100);
                         if (aL > 3) {
                           TAPER2.forEach((rel, idx) => {
                             const el = dots[idx] as SVGElement | undefined;
@@ -583,7 +585,7 @@ export function BubbleLayer({
                     }
                     if (handleEl) {
                       handleEl.style.left = `${(vbX / 100) * capturedGeomW}px`;
-                      handleEl.style.top  = `${(vbY / 120) * capturedSvgH + capturedSvgTopOffset}px`;
+                      handleEl.style.top  = `${(vbY / capturedVbH) * capturedSvgH + capturedSvgTopOffset}px`;
                     }
                   };
 

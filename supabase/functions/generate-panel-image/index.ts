@@ -821,6 +821,18 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "Échec transfert vers Storage" }, 502);
     }
 
+    // Log usage — fire-and-forget, n'échoue pas la génération si l'insert échoue.
+    fetch(`${supabaseUrl}/rest/v1/usage`, {
+      method: "POST",
+      headers: {
+        apikey: serviceKey,
+        Authorization: `Bearer ${serviceKey}`,
+        "Content-Type": "application/json",
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify({ user_id: userId, action: "image_generation" }),
+    }).catch(() => {});
+
     return jsonResponse({ image_url: publicUrl, request_id: requestId }, 200);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);

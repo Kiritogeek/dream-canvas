@@ -641,8 +641,8 @@ export function AssetLibrary({
         onOpenChange={(open) => !open && setEditTarget(null)}
       >
         <DialogContent
-          className="glass sm:max-w-lg"
-          style={{ display: "flex", flexDirection: "column", maxHeight: "min(80vh, 580px)" }}
+          className="glass sm:max-w-xl"
+          style={{ display: "flex", flexDirection: "column", maxHeight: "min(90vh, 680px)", overflow: "hidden" }}
         >
           <DialogHeader className="flex-shrink-0">
             <DialogTitle className="font-display">
@@ -654,51 +654,20 @@ export function AssetLibrary({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex-1 min-h-0 overflow-y-auto space-y-4 py-2 [scrollbar-gutter:stable]">
-            {/* Preview image actuelle */}
-            {editTarget?.image_url && (
-              <div className="flex gap-4 items-start">
+          <div className="flex-1 min-h-0 overflow-y-auto space-y-3 py-1 [scrollbar-gutter:stable]">
+            {/* Image + Nom + Prompt */}
+            <div className="flex gap-3 items-start">
+              {editTarget?.image_url && (
                 <img
                   src={editTarget.image_url}
                   alt={editTarget.name}
-                  className="w-24 h-32 object-cover rounded-lg flex-shrink-0"
+                  className="w-20 h-20 object-cover rounded-lg flex-shrink-0"
                   loading="lazy"
                   decoding="async"
                 />
-                <div className="flex-1 space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="edit-name">Nom</Label>
-                    <Input
-                      id="edit-name"
-                      value={editName}
-                      onChange={(e) => setEditName(e.target.value)}
-                      placeholder="Nom de l'asset"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="edit-prompt">Prompt / Description</Label>
-                    <Textarea
-                      id="edit-prompt"
-                      value={editPrompt}
-                      onChange={(e) => setEditPrompt(e.target.value)}
-                      placeholder="Décrivez l'asset pour la génération IA..."
-                      rows={3}
-                    />
-                    {promptChanged && (
-                      <p className="text-xs text-amber-600 dark:text-amber-400">
-                        Le prompt a été modifié — vous pourrez choisir de régénérer l'image ou sauvegarder sans régénérer.
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Pas d'image existante — layout simple */}
-            {!editTarget?.image_url && (
-              <>
-                <div className="space-y-2">
+              )}
+              <div className="flex-1 space-y-3">
+                <div className="space-y-1.5">
                   <Label htmlFor="edit-name">Nom</Label>
                   <Input
                     id="edit-name"
@@ -707,27 +676,26 @@ export function AssetLibrary({
                     placeholder="Nom de l'asset"
                   />
                 </div>
-
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   <Label htmlFor="edit-prompt">Prompt / Description</Label>
                   <Textarea
                     id="edit-prompt"
                     value={editPrompt}
                     onChange={(e) => setEditPrompt(e.target.value)}
                     placeholder="Décrivez l'asset pour la génération IA..."
-                    rows={4}
+                    rows={3}
                   />
                   {promptChanged && (
                     <p className="text-xs text-amber-600 dark:text-amber-400">
-                      Le prompt a été modifié — vous pourrez choisir de régénérer l'image ou sauvegarder sans régénérer.
+                      Le prompt a été modifié — choisissez comment sauvegarder ci-dessous.
                     </p>
                   )}
                 </div>
-              </>
-            )}
+              </div>
+            </div>
 
-            {/* Champ LORE — commun aux deux layouts */}
-            <div className="space-y-2">
+            {/* Champ LORE */}
+            <div className="space-y-1.5">
               <Label htmlFor="edit-lore" className="flex items-center gap-2">
                 LORE
                 <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/25">
@@ -744,7 +712,7 @@ export function AssetLibrary({
             </div>
           </div>
 
-          <DialogFooter className="flex-shrink-0 flex flex-col gap-2 sm:flex-row">
+          <DialogFooter className="flex-shrink-0 flex flex-col gap-2 sm:flex-row pt-2">
             {!promptChanged && (
               <Button
                 onClick={handleSaveNameOnly}

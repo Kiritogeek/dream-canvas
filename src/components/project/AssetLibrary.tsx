@@ -640,7 +640,7 @@ export function AssetLibrary({
         open={!!editTarget}
         onOpenChange={(open) => !open && setEditTarget(null)}
       >
-        <DialogContent className="glass sm:max-w-lg flex flex-col max-h-[90vh]">
+        <DialogContent className="glass sm:max-w-lg flex flex-col max-h-[90vh] overflow-hidden">
           <DialogHeader className="flex-shrink-0">
             <DialogTitle className="font-display">
               Modifier l'asset
@@ -651,7 +651,7 @@ export function AssetLibrary({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-2 overflow-y-auto flex-1 pr-1">
+          <div className="space-y-4 py-2 overflow-y-auto flex-1 min-h-0 pr-1">
             {/* Preview image actuelle */}
             {editTarget?.image_url && (
               <div className="flex gap-4 items-start">

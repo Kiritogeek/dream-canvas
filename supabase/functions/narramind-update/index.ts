@@ -20,6 +20,22 @@ const PREV_SUMMARY_MAX_CHARS = 420;
 /** Limite de lignes candidates (les plus récents avant le chapitre courant). */
 const PREV_SUMMARIES_FETCH_CAP = 24;
 
+/** Phase 2 — garde-fous prompt (gros projets). */
+const UNIVERSE_LORE_MAX_CHARS = 14_000;
+const ASSETS_CONTEXT_TOKEN_BUDGET = 7_000;
+const ASSET_PROMPT_MAX_CHARS = 320;
+const ASSET_LORE_MAX_CHARS = 520;
+const ENTITIES_CONTEXT_TOKEN_BUDGET = 5_000;
+const ENTITY_LORE_SUMMARY_MAX_CHARS = 900;
+
+/** Phase 3 — mémoire longue (méga-résumé + compression résumés). */
+const NARRA_SUMMARY_STORE_MAX_CHARS = 24_000;
+const NARRA_SUMMARY_PROMPT_MAX_CHARS = 5_500;
+const NARRA_COMPRESSION_SUMMARY_TOKENS_THRESHOLD = 4_000;
+const NARRA_COMPRESSION_BATCH = 8;
+const NARRA_COMPRESSION_MIN_ROWS = 4;
+const GEMINI_PLAIN_TIMEOUT_MS = 45_000;
+
 function getCorsHeaders(): Record<string, string> {
   const allowedOrigin = Deno.env.get("ALLOWED_ORIGIN")?.trim();
   return {
@@ -195,6 +211,275 @@ function buildPreviousSummariesContextForPrompt(
     included: lines.length,
     estimatedTokens: estimateTokens(text),
   };
+}
+
+function capUniverseLoreForPrompt(
+  raw: string | null | undefined,
+  maxChars: number
+): { text: string | null; truncated: boolean; originalChars: number } {
+  if (raw == null) return { text: null, truncated: false, originalChars: 0 };
+  const t = raw.replace(/\r\n/g, "\n").trim();
+  if (!t) return { text: null, truncated: false, originalChars: 0 };
+  if (t.length <= maxChars) {
+    return { text: t, truncated: false, originalChars: t.length };
+  }
+  const tail = t.slice(-maxChars);
+  const omitted = t.length - maxChars;
+  return {
+    text:
+      `… [Lore monde : ${omitted} caractères non inclus en tête — extrait des ${maxChars} derniers caractères sur ${t.length}]\n` +
+      tail,
+    truncated: true,
+    originalChars: t.length,
+  };
+}
+
+type AssetRow = {
+  id: string;
+  name: string;
+  asset_type: string;
+  prompt: string | null;
+  lore: string | null;
+};
+
+function buildAssetsContextForPrompt(
+  assets: AssetRow[],
+  tokenBudget: number
+): {
+  text: string;
+  includedCount: number;
+  totalCount: number;
+  capped: boolean;
+  estimatedTokens: number;
+} {
+  const sorted = [...assets].sort((a, b) => {
+    const la = ((a.lore ?? "").trim().length > 0 ? 1 : 0);
+    const lb = ((b.lore ?? "").trim().length > 0 ? 1 : 0);
+    if (lb !== la) return lb - la;
+    return a.name.localeCompare(b.name, "fr", { sensitivity: "base" });
+  });
+
+  const lines: string[] = [];
+  let budgetLeft = tokenBudget;
+
+  for (const a of sorted) {
+    let promptPart = (a.prompt ?? "(sans description)").replace(/\s+/g, " ").trim();
+    if (promptPart.length > ASSET_PROMPT_MAX_CHARS) {
+      promptPart = `${promptPart.slice(0, ASSET_PROMPT_MAX_CHARS - 1)}…`;
+    }
+    let lorePart = (a.lore ?? "").replace(/\s+/g, " ").trim();
+    if (lorePart.length > ASSET_LORE_MAX_CHARS) {
+      lorePart = `${lorePart.slice(0, ASSET_LORE_MAX_CHARS - 1)}…`;
+    }
+    const base = `- ${a.name} (${a.asset_type}) : ${promptPart}`;
+    const line = lorePart.length > 0 ? `${base}\n  LORE: ${lorePart}` : base;
+    const cost = estimateTokens(`${line}\n`);
+    if (cost > budgetLeft) continue;
+    lines.push(line);
+    budgetLeft -= cost;
+  }
+
+  const capped = sorted.length > 0 && lines.length < sorted.length;
+  const text =
+    lines.length > 0
+      ? lines.join("\n")
+      : sorted.length === 0
+        ? "(aucun asset)"
+        : "(aucun asset inclus : budget prompt dépassé — priorité LORE non vide puis nom)";
+  return {
+    text,
+    includedCount: lines.length,
+    totalCount: sorted.length,
+    capped,
+    estimatedTokens: estimateTokens(text),
+  };
+}
+
+function slimMemoryEntityForPrompt(e: Record<string, unknown>): Record<string, unknown> {
+  const loreRaw = typeof e.lore_summary === "string" ? e.lore_summary : "";
+  let loreOut = loreRaw.replace(/\s+/g, " ").trim();
+  if (loreOut.length > ENTITY_LORE_SUMMARY_MAX_CHARS) {
+    loreOut = `${loreOut.slice(0, ENTITY_LORE_SUMMARY_MAX_CHARS - 1)}…`;
+  }
+  return {
+    name: e.name,
+    entity_type: e.entity_type,
+    traits: e.traits,
+    relations: e.relations,
+    lore_summary: loreOut.length > 0 ? loreOut : null,
+    last_seen_chapter: e.last_seen_chapter,
+    first_seen_chapter: e.first_seen_chapter,
+  };
+}
+
+function buildMemoryEntitiesContextForPrompt(
+  entitiesRaw: unknown[],
+  currentChapterNumber: number,
+  tokenBudget: number
+): {
+  json: string;
+  included: number;
+  total: number;
+  capped: boolean;
+  estimatedTokens: number;
+} {
+  const slimmed: Record<string, unknown>[] = [];
+  for (const x of entitiesRaw) {
+    if (x != null && typeof x === "object" && !Array.isArray(x)) {
+      slimmed.push(slimMemoryEntityForPrompt(x as Record<string, unknown>));
+    }
+  }
+
+  slimmed.sort((a, b) => {
+    const la = typeof a.last_seen_chapter === "number" ? a.last_seen_chapter : -9999;
+    const lb = typeof b.last_seen_chapter === "number" ? b.last_seen_chapter : -9999;
+    const da = Math.abs(la - currentChapterNumber);
+    const db = Math.abs(lb - currentChapterNumber);
+    if (da !== db) return da - db;
+    const na = typeof a.name === "string" ? a.name : "";
+    const nb = typeof b.name === "string" ? b.name : "";
+    return na.localeCompare(nb, "fr", { sensitivity: "base" });
+  });
+
+  const picked: Record<string, unknown>[] = [];
+  for (const e of slimmed) {
+    const candidate = [...picked, e];
+    const s = JSON.stringify(candidate);
+    const tok = estimateTokens(s);
+    if (tok > tokenBudget) break;
+    picked.push(e);
+  }
+
+  const json = JSON.stringify(picked);
+  return {
+    json,
+    included: picked.length,
+    total: slimmed.length,
+    capped: picked.length < slimmed.length,
+    estimatedTokens: estimateTokens(json),
+  };
+}
+
+function trimNarraSummaryStore(raw: string, maxChars: number): string {
+  const t = raw.replace(/\r\n/g, "\n").trim();
+  if (t.length <= maxChars) return t;
+  const head = Math.floor(maxChars * 0.42);
+  const tail = maxChars - head - 100;
+  if (tail < 800) return t.slice(-maxChars + 60) + "\n…";
+  return `${t.slice(0, head)}\n\n… [troncature — milieu omis]\n\n${t.slice(-tail)}`;
+}
+
+function capNarraSummaryForPrompt(
+  raw: string | null | undefined,
+  maxChars: number
+): { text: string | null; truncated: boolean } {
+  if (raw == null) return { text: null, truncated: false };
+  const t = raw.replace(/\r\n/g, "\n").trim();
+  if (!t) return { text: null, truncated: false };
+  if (t.length <= maxChars) return { text: t, truncated: false };
+  const head = 2_400;
+  const tail = maxChars - head - 90;
+  if (tail < 600) {
+    return { text: `${t.slice(0, maxChars - 3)}…`, truncated: true };
+  }
+  return {
+    text: `${t.slice(0, head)}\n\n… [méga-résumé : milieu non envoyé, ${t.length - head - tail} caractères]\n\n${t.slice(-tail)}`,
+    truncated: true,
+  };
+}
+
+async function geminiPlainTextFromPrompt(
+  geminiKey: string,
+  userPrompt: string,
+  signal: AbortSignal
+): Promise<string | null> {
+  const body = (model: string) =>
+    JSON.stringify({
+      model,
+      messages: [{ role: "user", content: userPrompt }],
+      temperature: 0.15,
+      max_tokens: 2048,
+    });
+  let res = await fetch(AI_API_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${geminiKey}`,
+    },
+    body: body(AI_MODEL),
+    signal,
+  });
+  if (res.status === 503 || res.status === 429) {
+    res = await fetch(AI_API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${geminiKey}`,
+      },
+      body: body(AI_FALLBACK_MODEL),
+      signal,
+    });
+  }
+  if (!res.ok) return null;
+  const aiJson = await res.json() as {
+    choices?: Array<{ message?: { content?: unknown } }>;
+  };
+  const rawText = getOpenAIMessageContent(aiJson.choices?.[0]?.message) || null;
+  return rawText?.trim() ? rawText.trim() : null;
+}
+
+async function tryFuseAndDeleteOldestSummaries(
+  supabaseUrl: string,
+  dbHeaders: Record<string, string>,
+  geminiKey: string,
+  projectId: string
+): Promise<{ arcText: string; deletedCount: number; chapterFrom: number; chapterTo: number } | null> {
+  const listRes = await fetch(
+    `${supabaseUrl}/rest/v1/memory_summaries?project_id=eq.${projectId}` +
+      `&select=id,chapter_number,summary&order=chapter_number.asc&limit=${NARRA_COMPRESSION_BATCH}`,
+    { headers: dbHeaders }
+  );
+  if (!listRes.ok) return null;
+  const rows = await listRes.json() as Array<{
+    id: string;
+    chapter_number: number;
+    summary: string | null;
+  }>;
+  const valid = rows.filter((r) => (r.summary ?? "").trim().length > 0);
+  if (valid.length < NARRA_COMPRESSION_MIN_ROWS) return null;
+
+  const fusePrompt =
+    `Tu fusionnes des résumés de chapitres d'une fiction en UN SEUL texte dense pour la **mémoire narrative** : faits stables, personnages et lieux importants, règles du monde, twists déjà révélés. ` +
+    `Pas de liste scène par scène. Français. Maximum environ 900 mots. ` +
+    `Ne cite pas de numéros de chapitre dans le corps. Pas de JSON.\n\n` +
+    valid
+      .map((r) => `--- Résumé source (ch. ${r.chapter_number}) ---\n${(r.summary ?? "").trim()}`)
+      .join("\n\n");
+
+  const ctrl = new AbortController();
+  const to = setTimeout(() => ctrl.abort(), GEMINI_PLAIN_TIMEOUT_MS);
+  let arcText: string | null = null;
+  try {
+    arcText = await geminiPlainTextFromPrompt(geminiKey, fusePrompt, ctrl.signal);
+  } catch {
+    arcText = null;
+  }
+  clearTimeout(to);
+  if (!arcText?.trim()) return null;
+
+  const idList = valid.map((r) => r.id).join(",");
+  const delRes = await fetch(
+    `${supabaseUrl}/rest/v1/memory_summaries?id=in.(${idList})`,
+    { method: "DELETE", headers: { ...dbHeaders, Prefer: "return=minimal" } }
+  );
+  if (!delRes.ok) {
+    console.error("narramind-update: compression DELETE failed", await delRes.text());
+    return null;
+  }
+  const chNums = valid.map((r) => r.chapter_number);
+  const chapterFrom = Math.min(...chNums);
+  const chapterTo = Math.max(...chNums);
+  return { arcText: arcText.trim(), deletedCount: valid.length, chapterFrom, chapterTo };
 }
 
 function normalizeAnomaliesInput(raw: unknown[]): NormalizedAnomaly[] {
@@ -434,7 +719,7 @@ Deno.serve(async (req) => {
         { headers: dbHeaders }
       ),
       fetch(
-        `${supabaseUrl}/rest/v1/projects?id=eq.${project_id}&select=universe_lore`,
+        `${supabaseUrl}/rest/v1/projects?id=eq.${project_id}&select=universe_lore,narra_summary,narra_summary_updated_at`,
         { headers: dbHeaders }
       ),
     ]);
@@ -463,9 +748,15 @@ Deno.serve(async (req) => {
       );
     }
     const projects = projectRes.ok
-      ? (await projectRes.json() as Array<{ universe_lore: string | null }>)
+      ? (await projectRes.json() as Array<{
+          universe_lore: string | null;
+          narra_summary: string | null;
+          narra_summary_updated_at: string | null;
+        }>)
       : [];
-    const universeLore = projects[0]?.universe_lore ?? null;
+    const projectRow = projects[0];
+    const universeLore = projectRow?.universe_lore ?? null;
+    const initialNarraSummary = projectRow?.narra_summary ?? null;
 
     const prevChapterNum = chapter.chapter_number;
     const summariesListUrl =
@@ -504,21 +795,41 @@ Deno.serve(async (req) => {
       chapter.chapter_number
     );
 
+    const loreCap = capUniverseLoreForPrompt(universeLore, UNIVERSE_LORE_MAX_CHARS);
+    const narraCap = capNarraSummaryForPrompt(initialNarraSummary, NARRA_SUMMARY_PROMPT_MAX_CHARS);
+    const assetsCtx = buildAssetsContextForPrompt(assets, ASSETS_CONTEXT_TOKEN_BUDGET);
+    const entitiesCtx = buildMemoryEntitiesContextForPrompt(
+      Array.isArray(existingEntities) ? existingEntities : [],
+      chapter.chapter_number,
+      ENTITIES_CONTEXT_TOKEN_BUDGET
+    );
+
+    console.log("[narramind-update] prompt budgets (phase2)", {
+      universe_lore_truncated: loreCap.truncated,
+      universe_lore_original_chars: loreCap.originalChars,
+      universe_lore_sent_chars: loreCap.text?.length ?? 0,
+      narra_summary_truncated: narraCap.truncated,
+      narra_summary_sent_chars: narraCap.text?.length ?? 0,
+      assets_included: assetsCtx.includedCount,
+      assets_total: assetsCtx.totalCount,
+      assets_capped: assetsCtx.capped,
+      assets_estimated_tokens: assetsCtx.estimatedTokens,
+      entities_included: entitiesCtx.included,
+      entities_total: entitiesCtx.total,
+      entities_capped: entitiesCtx.capped,
+      entities_estimated_tokens: entitiesCtx.estimatedTokens,
+    });
+
     // 4. Construire les prompts
-    const assetsContext = assets
-      .map((a) => {
-        const base = `- ${a.name} (${a.asset_type}) : ${a.prompt ?? "(sans description)"}`;
-        return a.lore ? `${base}\n  LORE: ${a.lore}` : base;
-      })
-      .join("\n") || "(aucun asset)";
+    const assetsContext = assetsCtx.text;
 
     const systemPrompt = `Tu es NarraMind, un système de mémoire narrative.
-${universeLore ? `\nLORE DU MONDE :\n${universeLore}\n` : ""}${prevSummariesCtx.text ? `\n${prevSummariesCtx.text}\n` : ""}
+${loreCap.text ? `\nLORE DU MONDE :\n${loreCap.text}\n` : ""}${narraCap.text ? `\nRÉSUMÉ LONG DU PROJET (NarraMind — mémoire consolidée sur les chapitres passés ; un détail absent ici ne constitue pas une anomalie si le mystère ou l'ellipse restent légitimes) :\n${narraCap.text}\n` : ""}${prevSummariesCtx.text ? `\n${prevSummariesCtx.text}\n` : ""}
 ASSETS DU PROJET (avec leur LORE) :
 ${assetsContext}
 
 FICHES ENTITÉS EXISTANTES :
-${JSON.stringify(existingEntities)}
+${entitiesCtx.json}
 
 NOUVEAU CHAPITRE ${chapter.chapter_number} — ${chapter.title} :
 ${chapter.content ?? "(vide)"}
@@ -527,7 +838,7 @@ ${chapter.content ?? "(vide)"}
 TÂCHE : Retourne un JSON avec :
 1. "entities_to_update": liste des fiches entités à créer ou mettre à jour
 2. "chapter_summary": résumé du chapitre en 60-80 tokens maximum
-3. "anomalies": uniquement les CONTRADICTIONS EXPLICITES avec le LORE DU MONDE, les LORE des assets, les faits des FICHES ENTITÉS, ou les faits posés dans les RÉSUMÉS CHAPITRES PRÉCÉDENTS ci-dessus lorsqu'ils sont présents (résumés partiels et fenêtre récente : ne pas exiger qu'un détail absent des résumés soit une anomalie). Préfère un tableau d'objets avec titre et explication ; tu peux utiliser une chaîne courte seulement si une seule phrase suffit. Si aucune contradiction : [].
+3. "anomalies": uniquement les CONTRADICTIONS EXPLICITES avec le LORE DU MONDE, le RÉSUMÉ LONG DU PROJET éventuel, les LORE des assets, les faits des FICHES ENTITÉS, ou les faits posés dans les RÉSUMÉS CHAPITRES PRÉCÉDENTS ci-dessus lorsqu'ils sont présents (résumés partiels et fenêtre récente : ne pas exiger qu'un détail absent des résumés soit une anomalie). Préfère un tableau d'objets avec titre et explication ; tu peux utiliser une chaîne courte seulement si une seule phrase suffit. Si aucune contradiction : [].
 
 RÈGLES STRICTES POUR "anomalies" (légitime = ne PAS alerter) :
 - Mystère, suspense, révélation différée, ellipses, éléments « étranges » ou nouveaux dans le chapitre tant que le texte ne les présente pas comme déjà fixés ailleurs : ce n'est PAS une anomalie. Ex. un lieu ou un objet que le POV découvre soudainement sans explication immédiate, si rien dans le lore interdit cette découverte.
@@ -812,7 +1123,55 @@ Format JSON STRICT :
     const contextTokensToLog = totalContextTokens > 0
       ? totalContextTokens
       : totalSummaryTokensNew + totalEntityTokensNew;
-    const needsCompression = totalSummaryTokens > 800;
+    const needsCompression =
+      totalSummaryTokens > NARRA_COMPRESSION_SUMMARY_TOKENS_THRESHOLD;
+
+    let summariesCompressed = 0;
+    let narraBase = (initialNarraSummary ?? "").trim();
+    if (needsCompression) {
+      const fused = await tryFuseAndDeleteOldestSummaries(
+        supabaseUrl,
+        dbHeaders,
+        geminiKey,
+        project_id
+      );
+      if (fused) {
+        summariesCompressed = fused.deletedCount;
+        narraBase =
+          `[Arc comprimé (chapitres ${fused.chapterFrom}–${fused.chapterTo})]\n${fused.arcText}\n\n${narraBase}`
+            .trim();
+        console.log("[narramind-update] phase3 compression", {
+          deleted_summaries: fused.deletedCount,
+          chapter_from: fused.chapterFrom,
+          chapter_to: fused.chapterTo,
+        });
+      }
+    }
+
+    const chapterNarraLine =
+      `Chapitre ${chapter.chapter_number} : ${chapterSummary.replace(/\s+/g, " ").trim()}`;
+    const narraFinal = trimNarraSummaryStore(
+      narraBase ? `${narraBase}\n\n${chapterNarraLine}` : chapterNarraLine,
+      NARRA_SUMMARY_STORE_MAX_CHARS
+    );
+
+    const narraPatchRes = await fetch(
+      `${supabaseUrl}/rest/v1/projects?id=eq.${project_id}&user_id=eq.${userId}`,
+      {
+        method: "PATCH",
+        headers: { ...dbHeaders, Prefer: "return=minimal" },
+        body: JSON.stringify({
+          narra_summary: narraFinal,
+          narra_summary_updated_at: new Date().toISOString(),
+        }),
+      }
+    );
+    if (!narraPatchRes.ok) {
+      console.error(
+        "narramind-update: PATCH projects narra_summary failed",
+        await narraPatchRes.text()
+      );
+    }
 
     // 9. Log métriques (fire-and-forget)
     fetch(`${supabaseUrl}/rest/v1/narramind_metrics`, {
@@ -863,6 +1222,7 @@ Format JSON STRICT :
         narramind_checked_at: checkedAt,
         total_context_tokens: totalContextTokens,
         needs_compression: needsCompression,
+        memory_summaries_compressed: summariesCompressed,
       },
       200
     );

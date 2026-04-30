@@ -2,7 +2,7 @@
 
 > Objectif : système **utilisable** pour petits et gros projets, aligné sur `Produit/NarraMind.md` §10–§11. Ce document est la **checklist de code** ; la vision produit reste dans `NarraMind.md`.
 >
-> **Phases numérotées 0 → 6** (7 blocs au total). **Prochaine livraison cible : Phase 2 / 7** — garde-fous prompt (gros projets).  
+> **Phases numérotées 0 → 6** (7 blocs au total). **Prochaine livraison cible : Phase 4 / 7** — UI Ariane.  
 > **Branche Git `feat/narramind-persist-alertes`** : isole la **phase 1** (persistance `narramind_alerts` + EF + client) pour **PR / merge** sans mélanger d’autres chantiers ; à merger avant l’UI Ariane (phase 4) qui consomme la table.
 
 ---
@@ -27,33 +27,33 @@
 
 ---
 
-## Phase 2 / 7 — Garde-fous prompt (gros projets) — **prochaine**
+## Phase 2 / 7 — Garde-fous prompt (gros projets) ✅
 
 | # | Tâche | Détail |
 |---|--------|--------|
-| 2.1 | Budget **assets** | Troncature / tri : par ex. cap caractères total ; priorité assets avec lore non vide ou récemment modifiés (si métadonnée dispo) ou ordre alphabétique stable. |
-| 2.2 | Budget **memory_entities** | Idem : cap + priorité `last_seen_chapter` proche du chapitre courant. |
-| 2.3 | **universe_lore** | Cap doux (ex. derniers N caractères ou sections) + log si tronqué (métrique). |
-| 2.4 | Tests manuels | Projet avec ~100 assets : pas de 502 / JSON invalide. |
+| 2.1 | Budget **assets** | ✅ `ASSETS_CONTEXT_TOKEN_BUDGET` (7k tok estimés) ; troncature `prompt` / `lore` par asset ; tri **lore non vide d’abord**, puis nom (locale `fr`). |
+| 2.2 | Budget **memory_entities** | ✅ `ENTITIES_CONTEXT_TOKEN_BUDGET` (5k tok) ; entités **allégées** (champs utiles + `lore_summary` plafonné) ; tri **proximité** `last_seen_chapter` vs chapitre courant, puis nom. |
+| 2.3 | **universe_lore** | ✅ Suffixe des **14 derniers k caractères** si dépassement ; log **`[narramind-update] prompt budgets (phase2)`** (`universe_lore_truncated`, compteurs assets/entités). |
+| 2.4 | Tests manuels | À faire : projet ~100 assets — pas de 502 / JSON invalide (validation Louis). |
 
 **Définition de done** : EF reste stable avec contexte **large**.
 
 ---
 
-## Phase 3 / 7 — Mémoire longue (qualité détection)
+## Phase 3 / 7 — Mémoire longue (qualité détection) ✅
 
 | # | Tâche | Détail |
 |---|--------|--------|
-| 3.1 | **Méga-résumé projet** | Nouveau champ `projects.narra_summary` ou table `project_narra_digest` (texte + `updated_at`). |
-| 3.2 | Mise à jour digest | Soit dans `narramind-update` tous les N chapitres, soit EF / job dédié `narramind-compress` déclenché quand `needs_compression`. |
-| 3.3 | Prompt | Injecter le méga-résumé **avant** la fenêtre des résumés chapitre. |
-| 3.4 | Compression **memory_summaries** | Fusion des plus anciens en résumés « arc » ou liste d’**invariants** (texte court) pour libérer du volume tout en gardant les faits contradictoires critiques. |
+| 3.1 | **Méga-résumé projet** | ✅ `projects.narra_summary` + `narra_summary_updated_at` — migration `20260430200000_projects_narra_summary.sql`. |
+| 3.2 | Mise à jour digest | ✅ Après chaque run : append `Chapitre N : …` du `chapter_summary` + troncature stockage (`NARRA_SUMMARY_STORE_MAX_CHARS`). Si `needs_compression` : second appel Gemini **texte libre** pour fusionner les **8** plus vieux `memory_summaries`, puis DELETE de ces lignes et préfixe dans `narra_summary`. Seuil somme tokens résumés : `NARRA_COMPRESSION_SUMMARY_TOKENS_THRESHOLD` (4000). |
+| 3.3 | Prompt | ✅ Bloc « RÉSUMÉ LONG DU PROJET » **après** lore monde, **avant** résumés chapitres récents (`capNarraSummaryForPrompt`, 5,5k car.). |
+| 3.4 | Compression **memory_summaries** | ✅ Fusion LLM des plus anciens (batch 8, min 4) ; échec LLM ou DELETE → pas de suppression. |
 
 **Définition de done** : sur un projet **long**, faux négatifs réduits sur des faits **anciens mais stables** (à valider sur scénario test).
 
 ---
 
-## Phase 4 / 7 — UI Ariane (personnage + bulles)
+## Phase 4 / 7 — UI Ariane (personnage + bulles) — **prochaine**
 
 | # | Tâche | Détail |
 |---|--------|--------|

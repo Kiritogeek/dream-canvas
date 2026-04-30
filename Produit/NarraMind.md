@@ -88,6 +88,10 @@ Résumé : `memory_entities`, `memory_summaries`, `narramind_metrics` — RLS pa
 
 Persistance des incohérences pour l’UI future (Ariane) : `project_id`, `chapter_id`, `severity`, `title`, `explanation`, `anchor` (JSONB), `status` (`active` \| `dismissed` \| `resolved`), `dedupe_key`, horodatages. Migration : `20260430140000_narramind_alerts.sql`. Lecture / mise à jour statut côté client : `src/services/narramindAlerts.ts`, hook `useNarramindAlerts`.
 
+### Projet — **`narra_summary`** (mémoire longue)
+
+Texte consolidé (append par chapitre + blocs « arc comprimé »), alimenté uniquement par l’EF `narramind-update`. Colonnes `narra_summary`, `narra_summary_updated_at` — migration `20260430200000_projects_narra_summary.sql`. Pas d’édition obligatoire côté UI pour la phase 3.
+
 ### `scenario_chapters` — champs NarraMind
 
 | Colonne | Type | Rôle (état actuel) |
@@ -150,9 +154,9 @@ Prérequis alertes : **persistance hors** `scenario_chapters.narramind_anomalies
 | Snapshot `narramind_anomalies` sur le chapitre (technique / utilitaires) | ✅ |
 | Pas de persistance « produit » uniquement via JSON chapitre | ✅ |
 | Déclenchement auto uniquement + throttle 12 min / 80 mots (éditeur) | ✅ |
-| UI alertes / guide personnage | 🔜 (affichage à définir) |
-| Compression résumés / mémoire longue (§11.1) | 🔜 |
-| Plafonds prompt assets + entités (grands projets) | 🔜 |
+| UI alertes / guide personnage | 🔜 (Phase 4 / 7) |
+| Mémoire longue : `narra_summary` + fusion batch `memory_summaries` | ✅ (phase 3) |
+| Plafonds prompt assets + entités + lore monde (`narramind-update`) | ✅ (phase 2 — budgets + logs) |
 
 ---
 
@@ -162,7 +166,7 @@ Prérequis alertes : **persistance hors** `scenario_chapters.narramind_anomalies
 |---------|------|
 | `supabase/functions/narramind-update/index.ts` | Edge Function |
 | `supabase/migrations/20260430120000_scenario_chapters_narramind_anomalies.sql` | Colonnes `narramind_*` sur chapitres |
-| `supabase/migrations/20260430140000_narramind_alerts.sql` | Table alertes cohérence |
+| `supabase/migrations/20260430200000_projects_narra_summary.sql` | Méga-résumé projet (`narra_summary`) |
 | `src/services/narramindAlerts.ts` | Lecture + résoudre / ignorer |
 | `src/hooks/useNarramindAlerts.ts` | React Query |
 | `src/services/scenarioAI.ts` | `triggerNarraMindUpdate` |
@@ -175,9 +179,10 @@ Prérequis alertes : **persistance hors** `scenario_chapters.narramind_anomalies
 ## 10. Suite priorisée — Q2 2026
 
 1. ~~**Persistance des alertes**~~ : livré sur branche `feat/narramind-persist-alertes` (`narramind_alerts`, EF, service, hook).
-2. **Garde-fous prompt (gros projets)** : caps / troncature assets, entités, `universe_lore` — voir `Plan-NarraMind-Implementation.md` **Phase 2 / 7**.
-3. **UI Ariane** : bandeau ou panneau scénario — liste, filtres sévérité, traiter / ignorer, scroll vers `anchor` ; pas le nom NarraMind en titre (cf. §7).
-4. **Mémoire longue** (§11.1) puis **quotas** texte par plan.
+2. ~~**Garde-fous prompt**~~ : caps assets / entités / `universe_lore` + logs `prompt budgets (phase2)` dans l’EF — voir `Plan-NarraMind-Implementation.md` **Phase 2 / 7** ✅.
+3. ~~**Mémoire longue**~~ : `projects.narra_summary` + compression batch `memory_summaries` quand seuil tokens — **Phase 3 / 7** ✅ (migration `20260430200000_projects_narra_summary.sql`).
+4. **UI Ariane** : bandeau ou panneau scénario — liste, filtres sévérité, traiter / ignorer, scroll vers `anchor` ; pas le nom NarraMind en titre (cf. §7) — **Phase 4 / 7**.
+5. **Quotas** texte par plan.
 
 ---
 
@@ -186,7 +191,7 @@ Prérequis alertes : **persistance hors** `scenario_chapters.narramind_anomalies
 ### Déjà en place (MVP technique)
 
 - Déclenchement auto + throttle, EF sécurisée, upsert **entités** + **résumés** par chapitre, métriques, retour **anomalies** dans le corps HTTP.
-- Contexte prompt : lore monde, **texte intégral du chapitre courant**, **tous les assets** (prompt + lore), **toutes les `memory_entities`**, fenêtre de **résumés** chapitres précédents (budget borné).
+- Contexte prompt : lore monde (**tronqué** au-delà de 14k caractères, suffixe), **méga-résumé** `narra_summary` (troncature prompt + stockage élargi), **assets** et **`memory_entities`** soumis à **budgets tokens**, **texte intégral du chapitre courant**, fenêtre de **résumés** chapitres précédents (budget borné), **fusion périodique** des plus vieux résumés chapitre si seuil tokens.
 
 ### Manques pour être « complet et utilisable »
 
@@ -194,9 +199,9 @@ Prérequis alertes : **persistance hors** `scenario_chapters.narramind_anomalies
 |---|--------|---------------------|-------------------|
 | 1 | **Persistance des alertes** (table dédiée + upsert EF) | Même sans gros volume, sinon **aucune trace** exploitable côté app après le run. | Idem + besoin d’**idempotence** et pagination liste. |
 | 2 | **UI Ariane** (personnage + bulle + liste / filtres / acquitter) | Sans ça, le système reste **invisible** pour l’auteur. | Charge UX plus forte (beaucoup d’alertes possibles). |
-| 3 | **Mémoire longue fiable** (voir proposition §11.1) | Peu critique si peu de chapitres. | Sans ça, **faits des vieux chapitres** hors fenêtre de résumés → **faux négatifs** sur les incohérences. |
-| 4 | **Budgets / troncature assets & entités** dans l’EF | Risque limité. | Prompt **explosif**, timeouts ou JSON tronqué → **runs instables**. |
-| 5 | **Compression résumés** (ou fusion niveaux) quand `needs_compression` | Cosmétique tôt. | **Nécessaire** pour garder des résumés utilisables sans exploser tokens cumulés. |
+| 3 | **Mémoire longue fiable** (voir proposition §11.1) | Partiellement couvert (`narra_summary` + compression). | **Mitigé** (phase 3) : anciens faits dans le méga-résumé ; valider sur corpus long. |
+| 4 | **Budgets / troncature assets & entités** dans l’EF | Risque limité. | **Mitigé** (phase 2) : caps + logs ; chapitre courant toujours en entier. |
+| 5 | **Compression résumés** (ou fusion niveaux) quand `needs_compression` | MVP présent via l’EF. | **Mitigé** (phase 3) : batch 8 + LLM ; ajuster seuils si besoin. |
 | 6 | **Qualité contrôlée** (optionnel avancé) | Nice-to-have. | Regroupement d’alertes, **gravité** cohérente, dédoublonnage, tests sur corpus long. |
 | 7 | **Coûts / quotas** texte NarraMind par plan | Faible volume. | À verrouiller pour **gros manuscrits** (fréquence, taille contexte). |
 
@@ -218,10 +223,10 @@ Prérequis alertes : **persistance hors** `scenario_chapters.narramind_anomalies
 4. **Plafonds techniques**  
    Limite de caractères ou de tokens pour le bloc **ASSETS** et **FICHES ENTITÉS** (priorité : entités les plus **récentes** + celles **mentionnées** dans le chapitre courant si détection simple côté serveur).
 
-Ordre d’implémentation suggéré : **1 (persistance alertes) ✅ → 4 (plafonds) → 2 (UI Ariane) → 11.1 (méga-résumé + compression) → 7 (quotas)**.
+Ordre d’implémentation suggéré : **1 (persistance alertes) ✅ → 4 (plafonds) ✅ → 11.1 partiel (méga-résumé + compression) ✅ → 2 (UI Ariane) → 7 (quotas)**.
 
 **Checklist de code** : [`Plan-NarraMind-Implementation.md`](./Plan-NarraMind-Implementation.md).
 
 ---
 
-*Dernière mise à jour : 30 avril 2026 — persistance `narramind_alerts` + branche `feat/narramind-persist-alertes` ; **Ariane** = interface ; §11.1 mémoire longue.*
+*Dernière mise à jour : 30 avril 2026 — phases 1–3 NarraMind (alertes, plafonds, `narra_summary` + compression) ; branche `feat/narramind-persist-alertes` ; **Ariane** = interface.*

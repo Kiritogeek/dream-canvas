@@ -559,6 +559,8 @@ export type Database = {
           created_at: string
           description: string | null
           id: string
+          narra_summary: string | null
+          narra_summary_updated_at: string | null
           panels_target_per_chapter: number | null
           style_image_urls: string[]
           style_template: string | null
@@ -572,6 +574,8 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          narra_summary?: string | null
+          narra_summary_updated_at?: string | null
           panels_target_per_chapter?: number | null
           style_image_urls?: string[]
           style_template?: string | null
@@ -585,6 +589,8 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          narra_summary?: string | null
+          narra_summary_updated_at?: string | null
           panels_target_per_chapter?: number | null
           style_image_urls?: string[]
           style_template?: string | null

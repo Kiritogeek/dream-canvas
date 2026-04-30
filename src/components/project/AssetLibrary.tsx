@@ -640,8 +640,11 @@ export function AssetLibrary({
         open={!!editTarget}
         onOpenChange={(open) => !open && setEditTarget(null)}
       >
-        <DialogContent className="glass sm:max-w-lg">
-          <DialogHeader>
+        <DialogContent
+          className="glass sm:max-w-lg"
+          style={{ display: "flex", flexDirection: "column", maxHeight: "min(80vh, 580px)" }}
+        >
+          <DialogHeader className="flex-shrink-0">
             <DialogTitle className="font-display">
               Modifier l'asset
             </DialogTitle>
@@ -651,7 +654,7 @@ export function AssetLibrary({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-2 overflow-y-auto max-h-[55vh]">
+          <div className="flex-1 min-h-0 overflow-y-auto space-y-4 py-2 [scrollbar-gutter:stable]">
             {/* Preview image actuelle */}
             {editTarget?.image_url && (
               <div className="flex gap-4 items-start">
@@ -741,7 +744,7 @@ export function AssetLibrary({
             </div>
           </div>
 
-          <DialogFooter className="flex flex-col gap-2 sm:flex-row">
+          <DialogFooter className="flex-shrink-0 flex flex-col gap-2 sm:flex-row">
             {!promptChanged && (
               <Button
                 onClick={handleSaveNameOnly}

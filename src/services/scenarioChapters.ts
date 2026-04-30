@@ -113,19 +113,15 @@ export async function deleteScenarioChapter(id: string): Promise<void> {
   if (error) throw error;
 }
 
-/** Réordonne les chapitres (met à jour chapter_number pour chaque id) */
+/** Réordonne les chapitres scénario (upsert batch — 1 requête au lieu de N) */
 export async function reorderScenarioChapters(
   chapters: { id: string; chapter_number: number }[]
 ): Promise<void> {
-  // Exécution séquentielle pour garantir l'ordre
-  for (const ch of chapters) {
-    const { error } = await supabase
-      .from("scenario_chapters")
-      .update({ chapter_number: ch.chapter_number })
-      .eq("id", ch.id);
+  const { error } = await supabase
+    .from("scenario_chapters")
+    .upsert(chapters, { onConflict: "id" });
 
-    if (error) throw error;
-  }
+  if (error) throw error;
 }
 
 // ── Scenario versions ────────────────────────────────────────

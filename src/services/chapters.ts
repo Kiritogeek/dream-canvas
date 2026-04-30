@@ -64,16 +64,13 @@ export async function deleteChapter(id: string): Promise<void> {
   if (error) throw error;
 }
 
-/** Réordonne les chapitres (met à jour chapter_number pour chaque id) */
+/** Réordonne les chapitres (upsert batch — 1 requête au lieu de N) */
 export async function reorderChapters(
   chapters: { id: string; chapter_number: number }[]
 ): Promise<void> {
-  for (const ch of chapters) {
-    const { error } = await supabase
-      .from("chapters")
-      .update({ chapter_number: ch.chapter_number })
-      .eq("id", ch.id);
+  const { error } = await supabase
+    .from("chapters")
+    .upsert(chapters, { onConflict: "id" });
 
-    if (error) throw error;
-  }
+  if (error) throw error;
 }

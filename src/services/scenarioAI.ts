@@ -34,6 +34,10 @@ export interface DetectBlocksRequest {
   chapter_title?: string;
   chapter_number?: number;
   target_panel_count?: number;
+  /** Contexte assets du projet (nom + type) pour que l'IA utilise les noms exacts dans les descriptions */
+  assets_context?: string;
+  /** Lore de l'univers pour la cohérence narrative */
+  universe_lore?: string;
 }
 
 export interface AiSummaryRequest {

@@ -44,6 +44,7 @@
 | 09 | [Spécifications API](./09_Specifications_API.md) | API REST (PostgREST), Edge Functions, API FAL.ai, Storage API, SDK usage |
 | 10 | [Sécurité & Infrastructure](./10_Securite_Infrastructure.md) | Couches de sécurité, RLS, secrets, RGPD, infrastructure, CI/CD, monitoring, DRP |
 | 11 | [Rapport Chapitres — Flux, blocs, scénario](./11_Rapport_Chapitres_Flux_Blocs_Scenario.md) | Deux flux (Automatique / Structuré), images pleines dans des blocs, synopsis vs scénario, proposition de mise en place |
+| — | [**NarraMind — Mémoire Narrative**](./NarraMind.md) | **Système de mémoire narrative IA** : architecture, tables BDD, Edge Function, déclenchement auto, vision UI, évolutions prévues |
 
 ---
 
@@ -109,7 +110,8 @@ Produit/
 ├── 08_Modele_de_Donnees.md           ← Schéma BDD & Storage
 ├── 09_Specifications_API.md          ← Documentation API
 ├── 10_Securite_Infrastructure.md     ← Sécurité, infra & monitoring
-└── 11_Rapport_Chapitres_Flux_Blocs_Scenario.md  ← Flux chapitres, blocs, scénario
+├── 11_Rapport_Chapitres_Flux_Blocs_Scenario.md  ← Flux chapitres, blocs, scénario
+└── NarraMind.md                              ← Système mémoire narrative IA (NarraMind)
 ```
 
 ---

@@ -1,8 +1,9 @@
-import React, { useState } from "react";
-import { LayoutPanelTop, Palette, MessageCircle, X, Download } from "lucide-react";
+import React, { useState, useMemo } from "react";
+import { LayoutPanelTop, Palette, MessageCircle, X, Download, Package } from "lucide-react";
 import { BubblePreview } from "@/components/chapter/SpeechBubbleShape";
 import { BLOCK_PRESETS, getPanelHeight } from "@/services/panels";
 import { SPEECH_BUBBLE_TYPE_LABELS, DEFAULT_SPEECH_BUBBLE_WIDTH, DEFAULT_SPEECH_BUBBLE_HEIGHT } from "@/types";
+import { getDetectedAssets } from "@/components/project/ScenarioTextHighlighter";
 import type { Panel, ColorBlockFill, SpeechBubbleType, Asset } from "@/types";
 
 const PANEL_WIDTH = 800;
@@ -16,11 +17,39 @@ const COLOR_PRESETS_SIDEBAR = [
   { label: "Jaune",  color: "#fbbf24" },
 ] as const;
 
+export type SidebarTab = "blocs" | "couleurs" | "dialogue" | "assets";
+
+const ASSET_TYPE_LABELS: Record<string, string> = {
+  character: "Personnage",
+  background: "Décor",
+  object: "Objet",
+};
+
+const ASSET_TYPE_COLORS: Record<string, string> = {
+  character: "hsl(var(--lavender) / 0.25)",
+  background: "hsl(var(--mint) / 0.2)",
+  object: "hsl(230 55% 88% / 0.25)",
+};
+
+const ASSET_TYPE_BORDER: Record<string, string> = {
+  character: "hsl(var(--lavender) / 0.5)",
+  background: "hsl(var(--mint) / 0.5)",
+  object: "hsl(230 50% 55% / 0.4)",
+};
+
+function getAssetThumbnail(asset: Asset): string | null {
+  if (asset.asset_type === "character") {
+    return asset.image_url ?? asset.image_url_profile_left ?? asset.image_url_profile_right ?? null;
+  }
+  return asset.image_url ?? null;
+}
+
 interface EditorLeftSidebarProps {
   panel: Panel;
-  activeSidebarTab: "blocs" | "couleurs" | "dialogue" | null;
-  onTabChange: (tab: "blocs" | "couleurs" | "dialogue" | null) => void;
+  activeSidebarTab: SidebarTab | null;
+  onTabChange: (tab: SidebarTab | null) => void;
   assets: Asset[];
+  scenarioContent?: string | null;
   project: { style_template?: string | null; title?: string | null } | undefined;
   isUpdating: boolean;
   newBlockDragGhostRef: React.RefObject<HTMLDivElement | null>;
@@ -34,6 +63,8 @@ export function EditorLeftSidebar({
   panel,
   activeSidebarTab,
   onTabChange,
+  assets,
+  scenarioContent,
   isUpdating: _isUpdating,
   newBlockDragGhostRef,
   onSliceOpen,
@@ -42,6 +73,22 @@ export function EditorLeftSidebar({
   onAddSpeechBubble,
 }: EditorLeftSidebarProps) {
   const [draggingKey, setDraggingKey] = useState<string | null>(null);
+
+  // Assets détectés dans le chapitre scénario lié (ou tous si pas de contenu)
+  const detectedAssets = useMemo(() => {
+    if (!scenarioContent?.trim()) return assets;
+    const detected = getDetectedAssets(scenarioContent, assets);
+    return detected.length > 0 ? detected : assets;
+  }, [scenarioContent, assets]);
+
+  const assetsByType = useMemo(() => {
+    const groups: Record<string, Asset[]> = { character: [], background: [], object: [] };
+    for (const a of detectedAssets) {
+      const t = a.asset_type in groups ? a.asset_type : "object";
+      groups[t].push(a);
+    }
+    return groups;
+  }, [detectedAssets]);
 
   return (
     <aside className="relative w-[76px] shrink-0 border-r border-border bg-background z-30">
@@ -52,15 +99,26 @@ export function EditorLeftSidebar({
           { id: "blocs" as const, icon: LayoutPanelTop, label: "Blocs" },
           { id: "couleurs" as const, icon: Palette, label: "Couleurs" },
           { id: "dialogue" as const, icon: MessageCircle, label: "Dialogue" },
-        ] as const).map(({ id, icon: Icon, label }) => (
+          {
+            id: "assets" as const,
+            icon: Package,
+            label: "Assets",
+            badge: detectedAssets.length > 0 ? detectedAssets.length : undefined,
+          },
+        ] as const).map(({ id, icon: Icon, label, badge }) => (
           <button
             key={id}
             type="button"
             title={label}
             onClick={() => onTabChange(activeSidebarTab === id ? null : id)}
-            className={`w-full h-12 rounded-xl border flex items-center justify-center transition-colors ${activeSidebarTab === id ? "border-primary/70 bg-primary/15 text-primary shadow-sm" : "border-border/70 bg-background text-muted-foreground hover:text-foreground hover:bg-muted/50"}`}
+            className={`relative w-full h-12 rounded-xl border flex items-center justify-center transition-colors ${activeSidebarTab === id ? "border-primary/70 bg-primary/15 text-primary shadow-sm" : "border-border/70 bg-background text-muted-foreground hover:text-foreground hover:bg-muted/50"}`}
           >
             <Icon className="h-5 w-5" />
+            {"badge" in { badge } && badge !== undefined && (
+              <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-[hsl(var(--lavender))] text-white text-[9px] font-bold flex items-center justify-center leading-none">
+                {badge}
+              </span>
+            )}
           </button>
         ))}
         <div className="flex-1" />
@@ -81,6 +139,16 @@ export function EditorLeftSidebar({
             {activeSidebarTab === "blocs" && <><span>Blocs image</span> <kbd className="text-[9px] font-mono bg-muted text-muted-foreground border border-border px-1 rounded">B</kbd></>}
             {activeSidebarTab === "couleurs" && <><span>Couleurs</span> <kbd className="text-[9px] font-mono bg-muted text-muted-foreground border border-border px-1 rounded">C</kbd></>}
             {activeSidebarTab === "dialogue" && <><span>Dialogue</span> <kbd className="text-[9px] font-mono bg-muted text-muted-foreground border border-border px-1 rounded">D</kbd></>}
+            {activeSidebarTab === "assets" && (
+              <span className="flex items-center gap-1.5">
+                Assets
+                {detectedAssets.length > 0 && (
+                  <span className="text-[10px] bg-[hsl(var(--lavender)/0.15)] text-[hsl(275,45%,55%)] border border-[hsl(var(--lavender)/0.3)] px-1.5 py-0.5 rounded-full font-medium">
+                    {detectedAssets.length}
+                  </span>
+                )}
+              </span>
+            )}
           </span>
           <button type="button" onClick={() => onTabChange(null)} className="h-6 w-6 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors" aria-label="Fermer">
             <X className="h-3.5 w-3.5" />
@@ -192,6 +260,74 @@ export function EditorLeftSidebar({
               </div>
             </div>
           )}
+          {activeSidebarTab === "assets" && (
+            <div className="space-y-3">
+              {detectedAssets.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-10 text-center gap-2">
+                  <Package className="h-7 w-7 text-muted-foreground/20" />
+                  <p className="text-xs text-muted-foreground">Aucun asset dans ce projet.</p>
+                </div>
+              ) : (
+                <>
+                  {scenarioContent?.trim() && (
+                    <p className="text-[11px] text-muted-foreground">
+                      Assets détectés dans le chapitre scénario lié
+                    </p>
+                  )}
+                  {(["character", "background", "object"] as const).map((type) => {
+                    const group = assetsByType[type];
+                    if (!group || group.length === 0) return null;
+                    const label = ASSET_TYPE_LABELS[type] ?? type;
+                    return (
+                      <div key={type} className="space-y-1.5">
+                        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide px-0.5">
+                          {label}{group.length > 1 ? "s" : ""} ({group.length})
+                        </p>
+                        <div className="flex flex-col gap-1.5">
+                          {group.map((asset) => {
+                            const thumb = getAssetThumbnail(asset);
+                            const bg = ASSET_TYPE_COLORS[type] ?? "hsl(var(--muted)/0.3)";
+                            const border = ASSET_TYPE_BORDER[type] ?? "hsl(var(--border))";
+                            return (
+                              <div
+                                key={asset.id}
+                                className="flex items-center gap-2.5 rounded-xl border p-2 transition-colors hover:bg-muted/30"
+                                style={{ borderColor: border, backgroundColor: bg }}
+                              >
+                                <div className="shrink-0 w-10 h-10 rounded-lg overflow-hidden bg-muted/50 border border-border/40 flex items-center justify-center">
+                                  {thumb ? (
+                                    <img
+                                      src={thumb}
+                                      alt={asset.name}
+                                      className="w-full h-full object-cover"
+                                      loading="lazy"
+                                    />
+                                  ) : (
+                                    <Package className="h-4 w-4 text-muted-foreground/30" />
+                                  )}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-xs font-semibold text-foreground truncate leading-tight">
+                                    {asset.name}
+                                  </p>
+                                  {asset.prompt && (
+                                    <p className="text-[10px] text-muted-foreground leading-tight line-clamp-2 mt-0.5">
+                                      {asset.prompt.slice(0, 60)}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </>
+              )}
+            </div>
+          )}
+
           {activeSidebarTab === "dialogue" && (
             <div className="space-y-2">
               <p className="text-[11px] text-muted-foreground">Clic pour ajouter au centre du canvas</p>

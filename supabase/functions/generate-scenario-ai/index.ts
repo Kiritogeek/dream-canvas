@@ -488,6 +488,8 @@ Deno.serve(async (req) => {
         chapterContent: safeContent,
         chapterNumber: body.chapter_number,
         targetPanelCount: body.target_panel_count,
+        assetsContext: typeof body.assets_context === "string" ? body.assets_context : undefined,
+        universeLore: typeof body.universe_lore === "string" ? body.universe_lore : undefined,
       });
     } else if (mode === "ai_summary") {
       if (!body.chapter_content?.trim()) {

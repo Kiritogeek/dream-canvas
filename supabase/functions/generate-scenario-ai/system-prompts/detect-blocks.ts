@@ -43,14 +43,28 @@ export function buildDetectBlocksPrompt(opts: {
   chapterContent: string;
   chapterNumber?: number;
   targetPanelCount?: number;
+  assetsContext?: string;
+  universeLore?: string;
 }): string {
   let prompt = "";
+
+  if (opts.universeLore?.trim()) {
+    prompt += `LORE DE L'UNIVERS :\n${opts.universeLore.trim().slice(0, 600)}\n\n`;
+  }
+
+  if (opts.assetsContext?.trim()) {
+    prompt +=
+      `ASSETS DU PROJET (utilise ces noms exacts dans les descriptions de cases) :\n` +
+      `${opts.assetsContext.trim()}\n\n`;
+  }
+
   if (opts.chapterNumber) {
     prompt += `Chapitre ${opts.chapterNumber} : ${opts.chapterTitle}\n\n`;
   }
   if (opts.targetPanelCount) {
     prompt += `CIBLE : générer environ ${opts.targetPanelCount} cases au total.\n\n`;
   }
+
   prompt += `TEXTE DU CHAPITRE :\n${opts.chapterContent}\n\n`;
   prompt +=
     "Découpe ce chapitre en cases et génère un prompt d'image en français pour chaque case. " +

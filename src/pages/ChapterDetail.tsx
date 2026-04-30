@@ -49,7 +49,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ScenarioTextHighlighter, getDetectedAssets } from "@/components/project/ScenarioTextHighlighter";
+import { getDetectedAssets } from "@/components/project/ScenarioTextHighlighter";
+import { ScenarioFormattedPreview } from "@/components/project/ScenarioFormattedPreview";
 import { useChapter, useUpdateChapter } from "@/hooks/useChapters";
 import { useScenarioChapters, useScenarioChapter } from "@/hooks/useScenarioChapters";
 import { useAssets } from "@/hooks/useAssets";
@@ -211,7 +212,7 @@ export default function ChapterDetail() {
   const [zoomLevel, setZoomLevel] = useState(0.5);
   const zoomRef = useRef(0.5);
   /** Onglet actif de la sidebar bibliothèque (null = fermée) */
-  const [activeSidebarTab, setActiveSidebarTab] = useState<"blocs" | "couleurs" | "dialogue" | null>(null);
+  const [activeSidebarTab, setActiveSidebarTab] = useState<"blocs" | "couleurs" | "dialogue" | "assets" | null>(null);
 
   // Réduit la duplication des resets d'état de l'éditeur panel.
   const resetPanelEditorUiState = useCallback(() => {
@@ -439,9 +440,10 @@ export default function ChapterDetail() {
     const handleWheel = (e: WheelEvent) => {
       if (!e.ctrlKey) return;
       e.preventDefault();
+      const step = 0.05;
       setZoomLevel((prev) => {
-        const delta = e.deltaY > 0 ? -0.1 : 0.1;
-        const next = Math.min(2, Math.max(0.1, Math.round((prev + delta) * 10) / 10));
+        const delta = e.deltaY > 0 ? -step : step;
+        const next = Math.min(2, Math.max(0.1, Math.round((prev + delta) * 100) / 100));
         zoomRef.current = next;
         return next;
       });
@@ -713,6 +715,32 @@ export default function ChapterDetail() {
         if (data.type === "speech-bubble" && data.bubbleType) {
           const { x, y } = getCanvasDropPosition(e, canvasEl, DEFAULT_SPEECH_BUBBLE_WIDTH, DEFAULT_SPEECH_BUBBLE_HEIGHT);
           handleAddSpeechBubble(data.bubbleType, x, y);
+          setDraggingBlock(null);
+          setDragPreview(null);
+          return;
+        }
+        if (data.type === "case-block" && typeof data.description === "string" && data.description.trim()) {
+          const w = DEFAULT_BLOCK_WIDTH;
+          const h = DEFAULT_BLOCK_HEIGHT;
+          const { x, y } = getCanvasDropPosition(e, canvasEl, w, h);
+          const newBlock: PanelBlock = {
+            id: crypto.randomUUID(),
+            x, y, width: w, height: h,
+            name: `Case ${(data as { caseNumber?: number }).caseNumber ?? ""}`.trim(),
+            prompt: data.description.trim(),
+            image_url: null,
+          };
+          const newLayout: PanelLayout = { ...layout, blocks: [...layout.blocks, newBlock] };
+          updatePanelMutation.mutate(
+            { id: panel.id, updates: { layout: newLayout as unknown as Json } },
+            {
+              onSuccess: () => {
+                setSelectedBlockIdInModal({ panelId: panel.id, blockId: newBlock.id });
+                toast({ title: "Bloc créé", description: "Prompt pré-rempli depuis la case." });
+              },
+              onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }),
+            }
+          );
           setDraggingBlock(null);
           setDragPreview(null);
           return;
@@ -1019,27 +1047,6 @@ export default function ChapterDetail() {
         .map((b, idx) => ({ ...b, caseNumber: idx + 1 }));
     })();
 
-    const handleAddBlockFromCase = (caseDescription: string) => {
-      const newBlock: PanelBlock = {
-        id: crypto.randomUUID(),
-        x: 0, y: 0,
-        width: DEFAULT_BLOCK_WIDTH,
-        height: DEFAULT_BLOCK_HEIGHT,
-        name: `Case`,
-        prompt: caseDescription,
-        image_url: null,
-      };
-      const newLayout: PanelLayout = { ...layout, blocks: [...layout.blocks, newBlock] };
-      updatePanelMutation.mutate(
-        { id: panel.id, updates: { layout: newLayout as unknown as Json } },
-        {
-          onSuccess: () => {
-            toast({ title: "Bloc créé", description: "Le prompt de la case a été pré-rempli." });
-          },
-          onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }),
-        }
-      );
-    };
 
     return (
       <div className="relative flex flex-1 min-h-0 overflow-hidden bg-gradient-to-b from-background via-background to-muted/20">
@@ -1048,6 +1055,7 @@ export default function ChapterDetail() {
           activeSidebarTab={activeSidebarTab}
           onTabChange={setActiveSidebarTab}
           assets={assets}
+          scenarioContent={scenarioChapter?.content}
           project={project}
           isUpdating={updatePanelMutation.isPending}
           newBlockDragGhostRef={newBlockDragGhostRef}
@@ -1305,7 +1313,7 @@ export default function ChapterDetail() {
           existingBlockPrompts={layout.blocks.map((b) => b.prompt ?? "")}
           isUpdating={updatePanelMutation.isPending}
           isPro={isPro}
-          onAddBlockFromCase={handleAddBlockFromCase}
+          newBlockDragGhostRef={newBlockDragGhostRef}
           onNavigateToPlans={() => navigate("/dashboard/plans")}
         />
       </div>
@@ -1480,9 +1488,8 @@ export default function ChapterDetail() {
                           </div>
                         ) : scenarioChapter?.content ? (
                           <div className="rounded-lg border border-border bg-background/80 p-4 min-h-[120px] max-h-[40vh] overflow-y-auto">
-                            <ScenarioTextHighlighter
+                            <ScenarioFormattedPreview
                               text={scenarioChapter.content}
-                              assets={assets}
                             />
                           </div>
                         ) : (

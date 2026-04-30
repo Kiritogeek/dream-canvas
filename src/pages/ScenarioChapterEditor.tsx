@@ -469,11 +469,27 @@ export default function ScenarioChapterEditor() {
     if (!chapter || !content.trim()) return;
     setIsDetecting(true);
     try {
+      // Construire le contexte assets : nom + type (limité à 80 chars/asset, max 20 assets)
+      const assetsContext = assets.length > 0
+        ? assets
+            .slice(0, 20)
+            .map((a) => {
+              const typeLabel = a.asset_type === "character" ? "personnage"
+                : a.asset_type === "background" ? "décor" : "objet";
+              const desc = a.prompt?.trim().slice(0, 60) ?? "";
+              return `- ${a.name} (${typeLabel})${desc ? ` : ${desc}` : ""}`;
+            })
+            .join("\n")
+        : undefined;
+
       const result = await callDetectBlocks({
         mode: "detect_blocks",
         chapter_content: content,
         chapter_title: chapter.title,
         chapter_number: chapter.chapter_number,
+        target_panel_count: project?.panels_target_per_chapter ?? undefined,
+        assets_context: assetsContext,
+        universe_lore: project?.universe_lore?.trim() || undefined,
       });
       setDetectedBlocks(result.blocks);
       if (result.blocks.length === 0) {

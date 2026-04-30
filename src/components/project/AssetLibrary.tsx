@@ -651,7 +651,7 @@ export function AssetLibrary({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-2 max-h-[58vh] overflow-y-auto">
+          <div className="space-y-4 py-2 overflow-y-auto max-h-[55vh]">
             {/* Preview image actuelle */}
             {editTarget?.image_url && (
               <div className="flex gap-4 items-start">

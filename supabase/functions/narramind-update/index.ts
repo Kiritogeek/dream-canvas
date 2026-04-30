@@ -259,6 +259,94 @@ function normalizeAnomaliesInput(raw: unknown[]): NormalizedAnomaly[] {
   return out;
 }
 
+async function sha256HexUtf8(text: string): Promise<string> {
+  const data = new TextEncoder().encode(text);
+  const digest = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+async function dedupeKeyForAnomaly(a: NormalizedAnomaly): Promise<string> {
+  const canonical = JSON.stringify({
+    t: a.title,
+    e: a.explanation,
+    s: a.severity ?? null,
+    k: a.anchor ?? null,
+  });
+  return sha256HexUtf8(canonical);
+}
+
+async function persistNarramindAlerts(
+  supabaseUrl: string,
+  dbHeaders: Record<string, string>,
+  params: {
+    userId: string;
+    projectId: string;
+    chapterId: string;
+    anomalies: NormalizedAnomaly[];
+  }
+): Promise<void> {
+  const { userId, projectId, chapterId, anomalies } = params;
+  const now = new Date().toISOString();
+  const dedupeKeys: string[] = [];
+  const rows: Array<Record<string, unknown>> = [];
+
+  for (const a of anomalies) {
+    const dk = await dedupeKeyForAnomaly(a);
+    dedupeKeys.push(dk);
+    rows.push({
+      user_id: userId,
+      project_id: projectId,
+      chapter_id: chapterId,
+      severity: a.severity ?? null,
+      title: a.title,
+      explanation: a.explanation,
+      anchor: a.anchor ?? null,
+      status: "active",
+      dedupe_key: dk,
+      updated_at: now,
+    });
+  }
+
+  const patchResolvedBody = JSON.stringify({ status: "resolved", updated_at: now });
+  const baseFilter =
+    `${supabaseUrl}/rest/v1/narramind_alerts?chapter_id=eq.${chapterId}&status=eq.active`;
+
+  if (dedupeKeys.length === 0) {
+    const r0 = await fetch(baseFilter, {
+      method: "PATCH",
+      headers: { ...dbHeaders, Prefer: "return=minimal" },
+      body: patchResolvedBody,
+    });
+    if (!r0.ok) console.error("narramind-update: resolve alerts", await r0.text());
+    return;
+  }
+
+  const notIn = `(${dedupeKeys.join(",")})`;
+  const r1 = await fetch(`${baseFilter}&dedupe_key=not.in.${notIn}`, {
+    method: "PATCH",
+    headers: { ...dbHeaders, Prefer: "return=minimal" },
+    body: patchResolvedBody,
+  });
+  if (!r1.ok) console.error("narramind-update: resolve stale alerts", await r1.text());
+
+  const upsertRes = await fetch(
+    `${supabaseUrl}/rest/v1/narramind_alerts?on_conflict=project_id,chapter_id,dedupe_key`,
+    {
+      method: "POST",
+      headers: {
+        ...dbHeaders,
+        Prefer: "resolution=merge-duplicates,return=minimal",
+      },
+      body: JSON.stringify(rows),
+    }
+  );
+  if (!upsertRes.ok) {
+    console.error("narramind-update: upsert alerts", await upsertRes.text());
+  }
+}
+
 async function verifyUserFromToken(
   authHeader: string,
   supabaseUrl: string,
@@ -647,6 +735,13 @@ Format JSON STRICT :
     const rawAnomalies = Array.isArray(aiResult.anomalies) ? aiResult.anomalies : [];
     const anomalies = normalizeAnomaliesInput(rawAnomalies);
 
+    await persistNarramindAlerts(supabaseUrl, dbHeaders, {
+      userId,
+      projectId: project_id,
+      chapterId: chapter_id,
+      anomalies,
+    });
+
     // 6. Upsert des entités
     for (const entity of entitiesToUpdate) {
       const tokenEstimate = estimateTokens(JSON.stringify(entity));
@@ -736,13 +831,20 @@ Format JSON STRICT :
     }).catch(() => {});
 
     const checkedAt = new Date().toISOString();
+    const narramindAnomaliesSnapshot = anomalies.map((a) => ({
+      id: a.id,
+      title: a.title,
+      explanation: a.explanation,
+      ...(a.severity ? { severity: a.severity } : {}),
+      ...(a.anchor ? { anchor: a.anchor } : {}),
+    }));
     const patchRes = await fetch(
       `${supabaseUrl}/rest/v1/scenario_chapters?id=eq.${chapter_id}&user_id=eq.${userId}`,
       {
         method: "PATCH",
         headers: { ...dbHeaders, Prefer: "return=minimal" },
         body: JSON.stringify({
-          narramind_anomalies: [],
+          narramind_anomalies: narramindAnomaliesSnapshot,
           narramind_checked_at: checkedAt,
         }),
       }

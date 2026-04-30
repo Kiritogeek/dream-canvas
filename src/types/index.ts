@@ -66,7 +66,7 @@ export type NarrativeAlertSeverity = "info" | "warning" | "critical";
 /** Phase 2 : repère un passage du chapitre pour scroll / surlignage. */
 export type NarrativeAlertAnchor = { type: "excerpt"; text: string };
 
-/** Structure d'alerte (réponse API / futur affichage) — non persistée sur `scenario_chapters`. */
+/** Alerte cohérence (NarraMind) — API, colonne JSON `narramind_anomalies` ou table `narramind_alerts`. */
 export interface NarrativeCoherenceAlert {
   id: string;
   title: string;
@@ -74,6 +74,19 @@ export interface NarrativeCoherenceAlert {
   severity?: NarrativeAlertSeverity;
   anchor?: NarrativeAlertAnchor;
 }
+
+export type NarraMindAlertStatus = "active" | "dismissed" | "resolved";
+
+export type NarraMindAlertRow = Tables<"narramind_alerts">;
+
+export type NarraMindAlertView = NarrativeCoherenceAlert & {
+  dedupeKey: string;
+  status: NarraMindAlertStatus;
+  projectId: string;
+  chapterId: string;
+  createdAt: string;
+  updatedAt: string;
+};
 
 /** Résultat d'une génération d'image via l'Edge Function. */
 export interface GenerationResult {

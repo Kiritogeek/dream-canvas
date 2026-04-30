@@ -1,8 +1,8 @@
 # NarraMind — Système de mémoire narrative
 
-> NarraMind est le moteur de cohérence narrative de DreamWeave. Il analyse le texte **en arrière-plan** pendant l’écriture, extrait des fiches d’entités (personnages, décors, objets), génère des résumés compacts par chapitre, et calcule des **anomalies** (incohérences vs lore) pour usage **interne** (réponse HTTP, métriques). **Aucune liste d’incohérences n’est conservée pour l’affichage utilisateur** sur `scenario_chapters` : la colonne `narramind_anomalies` est **vidée** (`[]`) après chaque passage pour ne pas en faire le support produit.
+> NarraMind est le moteur de cohérence narrative de DreamWeave. Il analyse le texte **en arrière-plan** pendant l’écriture, extrait des fiches d’entités (personnages, décors, objets), génère des résumés compacts par chapitre, et calcule des **anomalies** (incohérences vs lore). Les alertes **affichables** sont persistées dans la table **`narramind_alerts`** (statuts actif / ignoré / résolu). La colonne `scenario_chapters.narramind_anomalies` sert de **snapshot JSON** du dernier run (compat utilitaires), pas de source unique produit — voir §3.
 
-**Principe produit (validé avril 2026)** : tout ce que NarraMind **enregistre** en base (entités, résumés, métriques, horodatages) reste **invisible** pour l’utilisateur. **L’endroit où afficher les incohérences** est **à définir** ; pas de bouton « Vérifier / Revérifier ce chapitre » — uniquement un **déclenchement automatique** avec **garde-fous tokens** (intervalle minimum entre deux appels, seuil de mots). Pas de marque « NarraMind » dans l’UI grand public tant que la couche « personnage guide » n’est pas livrée.
+**Principe produit (validé avril 2026, mis à jour nom interface)** : entités, résumés et métriques restent **non exposés** comme écrans de données brutes. Les **incohérences utilisateur** passent par **`narramind_alerts`** et, en **interface**, par le personnage **Ariane** (jalons §7–§10). Pas de bouton « Vérifier / Revérifier ce chapitre » — uniquement un **déclenchement automatique** avec **garde-fous tokens**. Le libellé **NarraMind** reste **documentation / code / métriques**, pas titre d’écran grand public.
 
 ---
 
@@ -18,7 +18,7 @@ NarraMind maintient un **contexte narratif compressé** :
 
 - Chapitres passés → **résumés courts** (`memory_summaries`)
 - Entités récurrentes → **fiches** (`memory_entities`)
-- **Anomalies** : produites par le LLM, renvoyées dans le **corps de la réponse** de l’Edge Function et comptabilisées dans `narramind_metrics.anomalies_detected` ; **pas** stockées comme liste utilisateur sur le chapitre scénario
+- **Anomalies** : produites par le LLM ; persistées dans **`narramind_alerts`**, renvoyées dans le **corps HTTP** de l’EF et comptées dans `narramind_metrics.anomalies_detected`
 
 ---
 
@@ -62,12 +62,17 @@ triggerNarraMindUpdate(projectId, chapterId)
       │
       ▼
 6. Upsert memory_entities, insert memory_summaries
-7. PATCH scenario_chapters : narramind_anomalies = [], narramind_checked_at = now
-8. Insert narramind_metrics (dont anomalies_detected = length(anomalies))
+7. Upsert **narramind_alerts** (clé `dedupe_key` ; les alertes actives absentes du run courant passent en `resolved`)
+8. PATCH scenario_chapters : narramind_anomalies = snapshot, narramind_checked_at = now
+9. Insert narramind_metrics (dont anomalies_detected = length(anomalies))
       │
       ▼
 [Réponse HTTP] { success, summary, entities_updated, anomalies, … }
 ```
+
+### Branche Git **feat/narramind-persist-alertes**
+
+Branche **dédiée au chantier NarraMind — phase 1 (persistance des alertes)** : migration `narramind_alerts`, écriture depuis l’EF `narramind-update`, types Supabase, service + hook React Query. Sert à **isoler la revue et le merge** de cette brique sans embarquer d’autres évolutions produit ; base avant l’**UI Ariane** (liste / résoudre / ignorer) qui consommera `narramind_alerts`.
 
 ---
 
@@ -79,11 +84,15 @@ Voir migrations `20260423120000_add_narramind_tables.sql`, `20260423100000_add_n
 
 Résumé : `memory_entities`, `memory_summaries`, `narramind_metrics` — RLS par utilisateur / projet.
 
+### Table **`narramind_alerts`** (alertes cohérence)
+
+Persistance des incohérences pour l’UI future (Ariane) : `project_id`, `chapter_id`, `severity`, `title`, `explanation`, `anchor` (JSONB), `status` (`active` \| `dismissed` \| `resolved`), `dedupe_key`, horodatages. Migration : `20260430140000_narramind_alerts.sql`. Lecture / mise à jour statut côté client : `src/services/narramindAlerts.ts`, hook `useNarramindAlerts`.
+
 ### `scenario_chapters` — champs NarraMind
 
 | Colonne | Type | Rôle (état actuel) |
 |---------|------|---------------------|
-| `narramind_anomalies` | JSONB | Toujours **réinitialisée à `[]`** après un run réussi — **pas** le support des incohérences utilisateur |
+| `narramind_anomalies` | JSONB | **Snapshot** du dernier run (objets normalisés : titre, explication, sévérité, ancre) — **pas** la source de vérité pour l’UI produit |
 | `narramind_checked_at` | TIMESTAMPTZ | Horodatage du dernier run (technique) |
 
 ---
@@ -97,8 +106,9 @@ JWT vérifié dans l’Edge Function ; tables mémoire avec politiques classique
 ## 5. UI actuelle
 
 - **Pas** de bandeau d’alertes dans l’éditeur scénario, **pas** de bouton de vérification manuelle.
-- **Univers / Assets** : copy orientée « cohérence » / « lore », sans badge « NarraMind ».
+- **Univers / Assets** : copy orientée « cohérence » / « lore » ; pas d’étiquette technique « NarraMind » pour l’utilisateur.
 - **Navigation** : pas de pastille « anomalies » sur l’entrée Scénario (données non exposées sur les chapitres).
+- **Décision produit** : l’assistance (et l’**onboarding**) seront portées par le personnage **Ariane** — voir [`NarraMind-Guide-Personnage.md`](./NarraMind-Guide-Personnage.md). L’implémentation onboarding / panneau continuité suit les jalons §8–§10.
 
 ---
 
@@ -110,16 +120,23 @@ Les **explications affichables plus tard** devront rester en **langage histoire*
 
 ---
 
-## 7. Vision UX — guide NarraMind (personnage + fil d’Ariane)
+## 7. Vision UX — **Ariane** (guide + onboarding)
 
-> Idée produit validée par Louis : lorsqu’une incohérence sera **utile** à traiter dans l’UI, un **personnage guide** pourra accompagner la navigation jusqu’au passage concerné.
+> **Nom interface retenu : Ariane** — même personnage pour (1) l’**onboarding** du site et (2) l’**assistance continuité** (moteur interne NarraMind). Fil d’Ariane comme métaphore du **fil du récit**.
 
-Prérequis : **persistance ou source de vérité** des alertes **hors** `scenario_chapters.narramind_anomalies` (ex. table dédiée, ou autre), à trancher lors du jalon d’affichage.
+### Continuité / alertes (jalon futur)
 
-### Principes (inchangés à haut niveau)
-
-- Le guide n’apparaît **que** lorsqu’il existe au moins une **anomalie active** pertinente.
+- Le guide d’**alertes** n’apparaît **que** lorsqu’il existe au moins une **anomalie active** pertinente (après persistance, cf. §10).
 - Le parcours **réutilise la navigation existante**.
+
+### Onboarding
+
+- **Ariane** peut accompagner **dès la première visite** — indépendant des anomalies.
+- Ton **accueil** et **pédagogique produit** (vouvoiement), sans jargon NarraMind.
+
+Prérequis alertes : **persistance hors** `scenario_chapters.narramind_anomalies` (table dédiée).
+
+**Identité visuelle & microcopy** : [`NarraMind-Guide-Personnage.md`](./NarraMind-Guide-Personnage.md).
 
 ---
 
@@ -129,10 +146,13 @@ Prérequis : **persistance ou source de vérité** des alertes **hors** `scenari
 |---------|--------|
 | Tables `memory_*`, métriques, EF `narramind-update` | ✅ |
 | Contexte résumés chapitres précédents (budget tokens) | ✅ |
-| Pas de persistance anomalies sur chapitre pour l’UI | ✅ (liste vidée à chaque run) |
+| Persistance alertes (`narramind_alerts` + EF upsert) | ✅ (branche `feat/narramind-persist-alertes`) |
+| Snapshot `narramind_anomalies` sur le chapitre (technique / utilitaires) | ✅ |
+| Pas de persistance « produit » uniquement via JSON chapitre | ✅ |
 | Déclenchement auto uniquement + throttle 12 min / 80 mots (éditeur) | ✅ |
 | UI alertes / guide personnage | 🔜 (affichage à définir) |
-| Compression résumés si `needs_compression` | 🔜 |
+| Compression résumés / mémoire longue (§11.1) | 🔜 |
+| Plafonds prompt assets + entités (grands projets) | 🔜 |
 
 ---
 
@@ -142,6 +162,9 @@ Prérequis : **persistance ou source de vérité** des alertes **hors** `scenari
 |---------|------|
 | `supabase/functions/narramind-update/index.ts` | Edge Function |
 | `supabase/migrations/20260430120000_scenario_chapters_narramind_anomalies.sql` | Colonnes `narramind_*` sur chapitres |
+| `supabase/migrations/20260430140000_narramind_alerts.sql` | Table alertes cohérence |
+| `src/services/narramindAlerts.ts` | Lecture + résoudre / ignorer |
+| `src/hooks/useNarramindAlerts.ts` | React Query |
 | `src/services/scenarioAI.ts` | `triggerNarraMindUpdate` |
 | `src/services/scenarioChapters.ts` | `parseNarrativeCoherenceAlerts` (utilitaire si réintroduction d’affichage) |
 | `src/pages/ScenarioChapterEditor.tsx` | Déclenchement auto-save |
@@ -149,13 +172,56 @@ Prérequis : **persistance ou source de vérité** des alertes **hors** `scenari
 
 ---
 
-## 10. Prochaine phase (priorisée — Q2 2026)
+## 10. Suite priorisée — Q2 2026
 
-1. **Persistance des alertes** : table dédiée (ex. `narramind_alerts` ou équivalent) — `project_id`, `chapter_id` optionnel, `severity`, `title`, `explanation`, `anchor`, statut (active / acquittée / ignorée), `created_at`. Ne pas réutiliser `scenario_chapters.narramind_anomalies` comme support produit.
-2. **EF** : après analyse, upsert des lignes d’alerte (idempotence par hash ou par clé `(chapter_id, titre_normalisé)` selon choix produit) au lieu de s’appuyer sur la réponse HTTP seule.
-3. **UI** : bandeau ou panneau dans l’éditeur scénario — liste filtrable par sévérité ; actions « Marquer comme traité » / « Ignorer » ; pas de marque « NarraMind » grand public tant que le personnage guide n’est pas prêt (cf. §7).
-4. **Ensuite** : compression résumés si `needs_compression` ; personnage guide pointant vers les passages (prérequis = alertes persistées).
+1. ~~**Persistance des alertes**~~ : livré sur branche `feat/narramind-persist-alertes` (`narramind_alerts`, EF, service, hook).
+2. **Garde-fous prompt (gros projets)** : caps / troncature assets, entités, `universe_lore` — voir `Plan-NarraMind-Implementation.md` **Phase 2 / 7**.
+3. **UI Ariane** : bandeau ou panneau scénario — liste, filtres sévérité, traiter / ignorer, scroll vers `anchor` ; pas le nom NarraMind en titre (cf. §7).
+4. **Mémoire longue** (§11.1) puis **quotas** texte par plan.
 
 ---
 
-*Dernière mise à jour : 30 avril 2026 — §10 prochaine phase ; retrait affichage/stockage anomalies sur chapitres, pas de bouton manuel, throttle auto, consignes langage « histoire » pour les explications, docs alignées.*
+## 11. Complétude du système — petits vs grands projets
+
+### Déjà en place (MVP technique)
+
+- Déclenchement auto + throttle, EF sécurisée, upsert **entités** + **résumés** par chapitre, métriques, retour **anomalies** dans le corps HTTP.
+- Contexte prompt : lore monde, **texte intégral du chapitre courant**, **tous les assets** (prompt + lore), **toutes les `memory_entities`**, fenêtre de **résumés** chapitres précédents (budget borné).
+
+### Manques pour être « complet et utilisable »
+
+| # | Manque | Impact petit projet | Impact gros projet |
+|---|--------|---------------------|-------------------|
+| 1 | **Persistance des alertes** (table dédiée + upsert EF) | Même sans gros volume, sinon **aucune trace** exploitable côté app après le run. | Idem + besoin d’**idempotence** et pagination liste. |
+| 2 | **UI Ariane** (personnage + bulle + liste / filtres / acquitter) | Sans ça, le système reste **invisible** pour l’auteur. | Charge UX plus forte (beaucoup d’alertes possibles). |
+| 3 | **Mémoire longue fiable** (voir proposition §11.1) | Peu critique si peu de chapitres. | Sans ça, **faits des vieux chapitres** hors fenêtre de résumés → **faux négatifs** sur les incohérences. |
+| 4 | **Budgets / troncature assets & entités** dans l’EF | Risque limité. | Prompt **explosif**, timeouts ou JSON tronqué → **runs instables**. |
+| 5 | **Compression résumés** (ou fusion niveaux) quand `needs_compression` | Cosmétique tôt. | **Nécessaire** pour garder des résumés utilisables sans exploser tokens cumulés. |
+| 6 | **Qualité contrôlée** (optionnel avancé) | Nice-to-have. | Regroupement d’alertes, **gravité** cohérente, dédoublonnage, tests sur corpus long. |
+| 7 | **Coûts / quotas** texte NarraMind par plan | Faible volume. | À verrouiller pour **gros manuscrits** (fréquence, taille contexte). |
+
+### 11.1 Proposition — mémoire longue (réponse au point « gros projets »)
+
+**Objectif** : réduire les faux négatifs sans envoyer tout le roman à chaque appel.
+
+1. **Résumé à deux niveaux (recommandé)**  
+   - Niveau **chapitre** (déjà là).  
+   - Niveau **arc / projet** : méga-résumé (ex. 400–800 tokens) mis à jour **périodiquement** (tous les N chapitres ou quand `needs_compression`) — *faits stables, personnages, règles du monde, twists déjà révélés*.  
+   - Le prompt NarraMind inclut : **méga-résumé** + fenêtre récente des résumés chapitre + chapitre courant.
+
+2. **Pass de compression explicite**  
+   Quand `needs_compression` : job (même EF ou fonction dédiée) qui **fusionne / compresse** les plus vieux `memory_summaries` en conservant une trace « faits non négociables » pour la cohérence (liste courte de **invariants** extraits par LLM ou règles).
+
+3. **Récupération ciblée (phase ultérieure)**  
+   Si une alerte est borderline : second appel **léger** avec extraits de **chapitres complets** sélectionnés (IDs dérivés des entités / mots-clés) — hors MVP mais pour **très** gros textes.
+
+4. **Plafonds techniques**  
+   Limite de caractères ou de tokens pour le bloc **ASSETS** et **FICHES ENTITÉS** (priorité : entités les plus **récentes** + celles **mentionnées** dans le chapitre courant si détection simple côté serveur).
+
+Ordre d’implémentation suggéré : **1 (persistance alertes) ✅ → 4 (plafonds) → 2 (UI Ariane) → 11.1 (méga-résumé + compression) → 7 (quotas)**.
+
+**Checklist de code** : [`Plan-NarraMind-Implementation.md`](./Plan-NarraMind-Implementation.md).
+
+---
+
+*Dernière mise à jour : 30 avril 2026 — persistance `narramind_alerts` + branche `feat/narramind-persist-alertes` ; **Ariane** = interface ; §11.1 mémoire longue.*

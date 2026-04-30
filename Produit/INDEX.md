@@ -31,7 +31,9 @@
 | — | [Plan Scénario](./Plan_Action_Developpement_Scénario.md) | Scénario : réalisé + chantier 1 + **TextHighlighter** (§5) |
 | — | [**Édition de l’œuvre**](./Edition-Oeuvre.md) | **Document unique** : Phase 2 édition, flux Auto/Structuré, blocs/bulles, refonte Option B/A |
 | — | [Guide styles](./Guide_Maintenance_Styles.md) | Évolution des styles (UI + EF) |
-| — | [**NarraMind**](./NarraMind.md) | Mémoire narrative, EF, métriques |
+| — | [**NarraMind**](./NarraMind.md) | Mémoire narrative, EF, métriques ; persistance alertes sur branche **`feat/narramind-persist-alertes`** (PR dédiée) |
+| — | [**Ariane** — guide & identité](./NarraMind-Guide-Personnage.md) | Assistance (NarraMind) + onboarding : nom, pictogramme, vouvoiement |
+| — | [Plan implémentation NarraMind](./Plan-NarraMind-Implementation.md) | Phases code : alertes, caps prompt, mémoire longue, UI Ariane, 3ᵉ plan |
 | — | [IA — Mesure & scalabilité](./IA-Mesure-et-Scalabilite.md) | Fournisseurs, `usage`, `narramind_metrics`, leviers charge |
 
 ### Architecture technique
@@ -103,6 +105,8 @@ Produit/
 │                           roadmap, données, API, sécurité
 ├── Edition-Oeuvre.md      # Fusion documentation édition (avr. 2026)
 ├── NarraMind.md
+├── NarraMind-Guide-Personnage.md
+├── Plan-NarraMind-Implementation.md
 ├── IA-Mesure-et-Scalabilite.md
 ├── Plan_Action_Developpement_Scénario.md
 ├── Guide_Maintenance_Styles.md

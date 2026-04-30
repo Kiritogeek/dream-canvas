@@ -282,6 +282,66 @@ export type Database = {
           },
         ]
       }
+      narramind_alerts: {
+        Row: {
+          id: string
+          user_id: string
+          project_id: string
+          chapter_id: string
+          severity: string | null
+          title: string
+          explanation: string
+          anchor: Json | null
+          status: string
+          dedupe_key: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          project_id: string
+          chapter_id: string
+          severity?: string | null
+          title: string
+          explanation?: string
+          anchor?: Json | null
+          status?: string
+          dedupe_key: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          project_id?: string
+          chapter_id?: string
+          severity?: string | null
+          title?: string
+          explanation?: string
+          anchor?: Json | null
+          status?: string
+          dedupe_key?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "narramind_alerts_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "narramind_alerts_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "scenario_chapters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       narramind_metrics: {
         Row: {
           anomalies_detected: number

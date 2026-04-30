@@ -641,145 +641,152 @@ export function AssetLibrary({
         open={!!editTarget}
         onOpenChange={(open) => !open && setEditTarget(null)}
       >
-        <DialogContent className="glass sm:max-w-lg flex flex-col max-h-[90vh]">
-          <DialogHeader className="flex-shrink-0">
-            <DialogTitle className="font-display">
-              Modifier l'asset
-            </DialogTitle>
-            <DialogDescription>
-              Modifiez le nom ou le prompt de <strong>{editTarget?.name}</strong>.
-              Si le prompt change, vous pourrez choisir de régénérer l'image.
-            </DialogDescription>
-          </DialogHeader>
+        <DialogContent className="glass sm:max-w-lg p-0 gap-0 overflow-hidden">
+          <div className="flex flex-col max-h-[90vh]">
+            {/* Header fixe */}
+            <div className="px-6 pt-6 pb-4 flex-shrink-0">
+              <DialogHeader>
+                <DialogTitle className="font-display">
+                  Modifier l'asset
+                </DialogTitle>
+                <DialogDescription>
+                  Modifiez le nom ou le prompt de <strong>{editTarget?.name}</strong>.
+                  Si le prompt change, vous pourrez choisir de régénérer l'image.
+                </DialogDescription>
+              </DialogHeader>
+            </div>
 
-          <ScrollArea className="flex-1 min-h-0">
-          <div className="space-y-4 py-2 pr-4">
-            {/* Preview image actuelle */}
-            {editTarget?.image_url && (
-              <div className="flex gap-4 items-start">
-                <img
-                  src={editTarget.image_url}
-                  alt={editTarget.name}
-                  className="w-24 h-32 object-cover rounded-lg flex-shrink-0"
-                  loading="lazy"
-                  decoding="async"
-                />
-                <div className="flex-1 space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="edit-name">Nom</Label>
-                    <Input
-                      id="edit-name"
-                      value={editName}
-                      onChange={(e) => setEditName(e.target.value)}
-                      placeholder="Nom de l'asset"
+            {/* Contenu scrollable */}
+            <ScrollArea className="flex-1 min-h-0 px-6">
+              <div className="space-y-4 pb-4">
+                {/* Preview image actuelle */}
+                {editTarget?.image_url && (
+                  <div className="flex gap-4 items-start">
+                    <img
+                      src={editTarget.image_url}
+                      alt={editTarget.name}
+                      className="w-24 h-32 object-cover rounded-lg flex-shrink-0"
+                      loading="lazy"
+                      decoding="async"
                     />
-                  </div>
+                    <div className="flex-1 space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="edit-name">Nom</Label>
+                        <Input
+                          id="edit-name"
+                          value={editName}
+                          onChange={(e) => setEditName(e.target.value)}
+                          placeholder="Nom de l'asset"
+                        />
+                      </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="edit-prompt">Prompt / Description</Label>
-                    <Textarea
-                      id="edit-prompt"
-                      value={editPrompt}
-                      onChange={(e) => setEditPrompt(e.target.value)}
-                      placeholder="Décrivez l'asset pour la génération IA..."
-                      rows={3}
-                    />
-                    {promptChanged && (
-                      <p className="text-xs text-amber-600 dark:text-amber-400">
-                        Le prompt a été modifié — vous pourrez choisir de régénérer l'image ou sauvegarder sans régénérer.
-                      </p>
-                    )}
+                      <div className="space-y-2">
+                        <Label htmlFor="edit-prompt">Prompt / Description</Label>
+                        <Textarea
+                          id="edit-prompt"
+                          value={editPrompt}
+                          onChange={(e) => setEditPrompt(e.target.value)}
+                          placeholder="Décrivez l'asset pour la génération IA..."
+                          rows={3}
+                        />
+                        {promptChanged && (
+                          <p className="text-xs text-amber-600 dark:text-amber-400">
+                            Le prompt a été modifié — vous pourrez choisir de régénérer l'image ou sauvegarder sans régénérer.
+                          </p>
+                        )}
+                      </div>
+                    </div>
                   </div>
+                )}
+
+                {/* Pas d'image existante — layout simple */}
+                {!editTarget?.image_url && (
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-name">Nom</Label>
+                      <Input
+                        id="edit-name"
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        placeholder="Nom de l'asset"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-prompt">Prompt / Description</Label>
+                      <Textarea
+                        id="edit-prompt"
+                        value={editPrompt}
+                        onChange={(e) => setEditPrompt(e.target.value)}
+                        placeholder="Décrivez l'asset pour la génération IA..."
+                        rows={4}
+                      />
+                      {promptChanged && (
+                        <p className="text-xs text-amber-600 dark:text-amber-400">
+                          Le prompt a été modifié — vous pourrez choisir de régénérer l'image ou sauvegarder sans régénérer.
+                        </p>
+                      )}
+                    </div>
+                  </>
+                )}
+
+                {/* Champ LORE — commun aux deux layouts */}
+                <div className="space-y-2">
+                  <Label htmlFor="edit-lore" className="flex items-center gap-2">
+                    LORE
+                    <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/25">
+                      NarraMind
+                    </span>
+                  </Label>
+                  <Textarea
+                    id="edit-lore"
+                    value={editLore}
+                    onChange={(e) => setEditLore(e.target.value)}
+                    placeholder="Histoire, règles, pouvoirs ou limites de cet élément…"
+                    rows={2}
+                  />
                 </div>
               </div>
-            )}
+            </ScrollArea>
 
-            {/* Pas d'image existante — layout simple */}
-            {!editTarget?.image_url && (
-              <>
-                <div className="space-y-2">
-                  <Label htmlFor="edit-name">Nom</Label>
-                  <Input
-                    id="edit-name"
-                    value={editName}
-                    onChange={(e) => setEditName(e.target.value)}
-                    placeholder="Nom de l'asset"
-                  />
-                </div>
+            {/* Footer fixe */}
+            <div className="px-6 py-4 flex-shrink-0 border-t border-border/40">
+              <DialogFooter className="flex flex-col gap-2 sm:flex-row">
+                {!promptChanged && (
+                  <Button
+                    onClick={handleSaveNameOnly}
+                    disabled={!hasChanges || !editName.trim() || updateAssetMutation.isPending}
+                    className="gradient-primary text-primary-foreground w-full sm:w-auto"
+                  >
+                    <Save className="h-4 w-4 mr-1.5" />
+                    {updateAssetMutation.isPending ? "Sauvegarde…" : "Sauvegarder"}
+                  </Button>
+                )}
 
-                <div className="space-y-2">
-                  <Label htmlFor="edit-prompt">Prompt / Description</Label>
-                  <Textarea
-                    id="edit-prompt"
-                    value={editPrompt}
-                    onChange={(e) => setEditPrompt(e.target.value)}
-                    placeholder="Décrivez l'asset pour la génération IA..."
-                    rows={4}
-                  />
-                  {promptChanged && (
-                    <p className="text-xs text-amber-600 dark:text-amber-400">
-                      Le prompt a été modifié — vous pourrez choisir de régénérer l'image ou sauvegarder sans régénérer.
-                    </p>
-                  )}
-                </div>
-              </>
-            )}
-
-            {/* Champ LORE — commun aux deux layouts */}
-            <div className="space-y-2">
-              <Label htmlFor="edit-lore" className="flex items-center gap-2">
-                LORE
-                <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/25">
-                  NarraMind
-                </span>
-              </Label>
-              <Textarea
-                id="edit-lore"
-                value={editLore}
-                onChange={(e) => setEditLore(e.target.value)}
-                placeholder="Histoire, règles, pouvoirs ou limites de cet élément…"
-                rows={2}
-              />
+                {promptChanged && (
+                  <>
+                    <Button
+                      variant="outline"
+                      onClick={handleSaveNameOnly}
+                      disabled={!editName.trim() || updateAssetMutation.isPending}
+                      className="w-full sm:w-auto"
+                    >
+                      <Save className="h-4 w-4 mr-1.5" />
+                      Sauvegarder sans régénérer
+                    </Button>
+                    <Button
+                      onClick={handleSaveAndRegenerate}
+                      disabled={!editName.trim() || !editPrompt.trim() || updateAssetMutation.isPending}
+                      className="gradient-primary text-primary-foreground w-full sm:w-auto"
+                    >
+                      <RefreshCw className="h-4 w-4 mr-1.5" />
+                      Sauvegarder et régénérer
+                    </Button>
+                  </>
+                )}
+              </DialogFooter>
             </div>
           </div>
-          </ScrollArea>
-
-          <DialogFooter className="flex flex-col gap-2 sm:flex-row flex-shrink-0 pt-2">
-            {/* Cas 1 : Seul le nom a changé → un seul bouton "Sauvegarder" */}
-            {!promptChanged && (
-              <Button
-                onClick={handleSaveNameOnly}
-                disabled={!hasChanges || !editName.trim() || updateAssetMutation.isPending}
-                className="gradient-primary text-primary-foreground w-full sm:w-auto"
-              >
-                <Save className="h-4 w-4 mr-1.5" />
-                {updateAssetMutation.isPending ? "Sauvegarde…" : "Sauvegarder"}
-              </Button>
-            )}
-
-            {/* Cas 2 : Le prompt a changé → deux boutons */}
-            {promptChanged && (
-              <>
-                <Button
-                  variant="outline"
-                  onClick={handleSaveNameOnly}
-                  disabled={!editName.trim() || updateAssetMutation.isPending}
-                  className="w-full sm:w-auto"
-                >
-                  <Save className="h-4 w-4 mr-1.5" />
-                  Sauvegarder sans régénérer
-                </Button>
-                <Button
-                  onClick={handleSaveAndRegenerate}
-                  disabled={!editName.trim() || !editPrompt.trim() || updateAssetMutation.isPending}
-                  className="gradient-primary text-primary-foreground w-full sm:w-auto"
-                >
-                  <RefreshCw className="h-4 w-4 mr-1.5" />
-                  Sauvegarder et régénérer
-                </Button>
-              </>
-            )}
-          </DialogFooter>
         </DialogContent>
       </Dialog>
 

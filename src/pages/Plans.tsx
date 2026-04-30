@@ -88,7 +88,7 @@ export default function Plans() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [isTogglingPlan, setIsTogglingPlan] = useState(false);
-  const isAdmin = user?.email === "kiritogeek@gmail.com";
+  const isAdmin = !!import.meta.env.VITE_ADMIN_EMAIL && user?.email === import.meta.env.VITE_ADMIN_EMAIL;
 
   const handleAdminTogglePlan = async () => {
     setIsTogglingPlan(true);

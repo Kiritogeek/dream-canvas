@@ -14,9 +14,9 @@
 | E4 | **Bibliothèque d'assets** | Gérer les personnages, décors, objets | P0 |
 | E5 | **Génération IA** | Générer des images via l'IA | P0 |
 | E5b | **Section Scénario** | Écrire/importer le scénario, créer des chapitres de scénario (texte) | P0 |
-| E6 | **Chapitres (œuvre)** | Organiser l'œuvre visuelle en chapitres et panels (Édition de l'œuvre) | P0 |
-| E7 | **Panels** | Créer et gérer les panels ; édition avec visualisation scénario + assets | P1 |
-| E8 | **Dialogues** | Ajouter des bulles et narration aux panels | P1 |
+| E6 | **Chapitres (œuvre)** | Organiser l'œuvre visuelle en chapitres et cases (Édition de l'œuvre) | P0 |
+| E7 | **Cases** | Créer et gérer les cases ; édition avec visualisation scénario + assets | P1 |
+| E8 | **Dialogues** | Ajouter des bulles et narration aux cases | P1 |
 | E9 | **Export** | Exporter en PDF, images, format plateforme | P2 |
 | E10 | **Collaboration** | Partage, édition multi-utilisateurs | P2 |
 | E11 | **Dashboard** | Vue d'ensemble et statistiques | P1 |

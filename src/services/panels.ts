@@ -9,7 +9,7 @@ import type { Project } from "@/types";
 export const PANEL_WIDTH = 800;
 export const PANEL_HEIGHT_DEFAULT = 5000;
 export const PANEL_HEIGHT_MIN = 1200;
-export const PANEL_HEIGHT_MAX = 7000;
+export const PANEL_HEIGHT_MAX = 100_000;
 
 /** Hauteur du panel (layout.panelHeight clampé ou défaut). */
 export function getPanelHeight(panel: Panel | null | undefined): number {

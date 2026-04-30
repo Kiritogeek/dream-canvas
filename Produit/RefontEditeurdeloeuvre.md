@@ -142,7 +142,7 @@ useCanvasSelection()          — sélection simple + multi
 | Undo/redo ? | Phase 5 uniquement | Scope trop large pour Option B |
 | Drag depuis sidebar | HTML5 drag API | Déjà utilisé pour blocs |
 | Multi-sélection ? | Option A Phase 4 | Pas dans Option B |
-| Layers panel ? | Optionnel | Utile si > 15 blocs par panel |
+| Layers panel ? | Optionnel | Utile si > 15 blocs par case |
 
 ---
 

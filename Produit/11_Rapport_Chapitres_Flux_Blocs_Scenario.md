@@ -1,6 +1,6 @@
 # Rapport — Chapitres : flux Structuré / Automatique, blocs et place du scénario
 
-> Deux flux (Automatique / Structuré), images pleines dans des blocs, place du scénario. Liberté de création des panels ; suggestion Chapitre → Panels **optionnelle**.
+> Deux flux (Automatique / Structuré), images pleines dans des blocs, place du scénario. Liberté de création des cases ; suggestion Chapitre → Cases **optionnelle**.
 
 ---
 
@@ -8,12 +8,12 @@
 
 | Décision | Choix |
 |----------|--------|
-| **Flux** | Deux modes : **Automatique** (suggestion IA → panels **optionnelle**, génération **panel par panel**) et **Structuré** (chapitre vide → blocs → texte + assets → génération). L'utilisateur crée librement le nombre de panels. |
+| **Flux** | Deux modes : **Automatique** (suggestion IA → cases **optionnelle**, génération **case par case**) et **Structuré** (chapitre vide → blocs → texte + assets → génération). L'utilisateur crée librement le nombre de cases. |
 | **Images** | Chaque image générée est une **illustration pleine** (pas de “cases” ou blocs dessinés dans l’image). Les blocs sont des **zones de mise en page** dans l’app : on y affiche une image par bloc. |
 | **Blocs** | En mode Structuré : l’utilisateur définit des blocs (position, taille, forme rectangle en v1). Chaque bloc a un contenu texte (prompt) et des refs assets. À la génération : **1 image par bloc** → l’image est ensuite affichée **dans** ce bloc. **OBLIGATOIRE** : l'image générée utilise les dimensions du bloc concerné (largeur × hauteur) pour l'espace de l'image. |
 | **Scénario** | **Section à part entière** : écrire son histoire. **IA Scénario** : **un prompt = un chapitre** généré ; l'utilisateur construit son histoire chapitre par chapitre, accepter crée le chapitre. **IA Chapitre** : par chapitre existant, IA qui n'intervient que sur ce chapitre ; même flux accepter/rejeter. Détection assets (surbrillance + hover) et éléments non créés. Jamais le scénario dans le prompt d'image. Voir section 3. |
-| **Prompts d'image** | Uniquement **assets sélectionnés** + éventuellement **courte description par panel** (issue du découpage ou saisie). Le scénario/synopsis **n'est pas** injecté dans le prompt. |
-| **Génération panel par panel** | Mode Automatique : génération **au minimum panel par panel**. Impossible de générer un chapitre entier sans erreurs ou limites (quota, timeouts, API). |
+| **Prompts d'image** | Uniquement **assets sélectionnés** + éventuellement **courte description par case** (issue du découpage ou saisie). Le scénario/synopsis **n'est pas** injecté dans le prompt. |
+| **Génération case par case** | Mode Automatique : génération **au minimum case par case**. Impossible de générer un chapitre entier sans erreurs ou limites (quota, timeouts, API). |
 | **Assets — impératif (les 2 flux)** | **La génération doit impérativement s'appuyer sur les assets que l'utilisateur sélectionne.** Ces assets cadrent la scène et permettent à l'IA de comprendre quels éléments (personnages, décors, objets) doivent figurer dans le chapitre. Sans sélection d'assets par l'utilisateur, la génération n'est pas cadrée et la cohérence narrative n'est pas garantie. |
 
 ---

@@ -2,14 +2,14 @@
 
 ## Projet
 
-**DreamWeave** est un outil web de création de webtoons/mangas assisté par IA. Les utilisateurs créent des projets, génèrent des assets visuels (personnages, décors, objets) avec une cohérence de style, écrivent leur scénario, découpent en chapitres/panels, puis composent chaque panel avec des blocs d'image, de couleur et des bulles de dialogue.
+**DreamWeave** est un outil web de création de webtoons/mangas assisté par IA. Les utilisateurs créent des projets, génèrent des assets visuels (personnages, décors, objets) avec une cohérence de style, écrivent leur scénario, découpent en chapitres/cases, puis composent chaque case avec des blocs d'image, de couleur et des bulles de dialogue.
 
 **Valeur principale** : générer des visuels cohérents en secondes, sans compétences en illustration.
 
 **Tiers** :
 - Free : 20 crédits/mois — même modèle FLUX.2 Pro que le Pro (logique Spotify : même qualité, quantité différente)
-- Pro : 300 crédits/mois, 14,99 €/mois — Scénario IA Pro (Découpage → Panels), priorité traitement
-- 1 crédit = 1 génération (asset, sheet, bloc panel — unifié)
+- Pro : 300 crédits/mois, 14,99 €/mois — Scénario IA Pro (Découpage → Cases), priorité traitement
+- 1 crédit = 1 génération (asset, sheet, bloc case — unifié)
 - Multi-vues remplacés par **Sheet System** : fiche composite 4 angles, disponible Free ET Pro
 
 ---
@@ -50,7 +50,7 @@ Règle : ne jamais hardcoder des couleurs — utiliser les tokens HSL ou les cla
 | `projects` | user_id, title, description, style_template, style_image_urls (JSONB), cover_url, panels_target_per_chapter |
 | `assets` | project_id, name, asset_type, prompt, image_url, image_url_profile_left/right/back, image_url_sheet |
 | `chapters` | project_id, chapter_number, title, synopsis, linked_scenario_chapter_id |
-| `panels` | chapter_id, panel_number, prompt, image_url, layout (JSONB), speech_bubbles (JSONB), color_blocks (JSONB) |
+| `chapter_canvases` | chapter_id, panel_number, prompt, image_url, layout (JSONB), speech_bubbles (JSONB), color_blocks (JSONB) |
 | `scenario_chapters` | project_id, chapter_number, title, content, panels_outline (JSONB) |
 | `usage` | user_id, action ('image_generation'), created_at — comptage mensuel |
 
@@ -63,8 +63,8 @@ Règle : ne jamais hardcoder des couleurs — utiliser les tokens HSL ou les cla
 | Fonction | Rôle |
 |----------|------|
 | `generate-asset-image` | Génère image asset via FAL.ai, upload Storage, update asset, log usage |
-| `generate-panel-image` | Génère image panel/bloc, dimensions = bloc (800px max width) |
-| `generate-scenario-ai` | Génère scénario / chapitre / découpage panels via Groq (Llama 3.3 70B) |
+| `generate-panel-image` | Génère image case/bloc, dimensions = bloc (800px max width) |
+| `generate-scenario-ai` | Génère scénario / chapitre / découpage cases via Google Gemini Flash (+ fallback Groq) |
 | `generate-style-template-images` | Génère images de prévisualisation du style |
 | `generate-landing-showcase` | Images hero pour la landing page |
 
@@ -77,26 +77,26 @@ Les Edge Functions reçoivent le JWT utilisateur en `Authorization: Bearer`, uti
 ```
 src/
   App.tsx                         # Router, providers, lazy loading
-  types/index.ts                  # Tous les types métier (Asset, Panel, SpeechBubble, etc.)
+  types/index.ts                  # Tous les types métier (Asset, Case, SpeechBubble, etc.)
   pages/
     ProjectDetail.tsx             # Éditeur projet (Style / Assets / Scénario / Édition)
-    ChapterDetail.tsx             # Éditeur chapitre (panels, blocs, bulles, dialogue)
+    ChapterDetail.tsx             # Éditeur chapitre (cases, blocs, bulles, dialogue)
   hooks/
     useAuth.tsx                   # Auth context (signUp, signIn, signOut, reset)
     useUserPlan.ts                # Plan + usage mensuel + limites tier
     useAssetGeneration.ts         # Logique génération asset (validation, FAL.ai, usage)
     useAssets.ts                  # CRUD assets (React Query)
     useProjects.ts                # CRUD projets (React Query)
-    usePanels.ts                  # Panels + layout (React Query)
+    useCases.ts                   # Cases + layout (React Query)
   services/
     assets.ts                     # Service assets + appel generate-asset-image
-    panels.ts                     # Constantes panels, blocs, helpers layout
+    cases.ts                      # Constantes cases, blocs, helpers layout
     scenarioAI.ts                 # Appel generate-scenario-ai
   components/project/
     AssetLibrary.tsx              # Bibliothèque d'assets du projet
     StyleManager.tsx              # Gestion style template + images de référence
-    ScenarioSection.tsx           # Scénario + génération IA + découpage panels
-    EditionSection.tsx            # Section édition (chapters → panels)
+    ScenarioSection.tsx           # Scénario + génération IA + découpage cases
+    EditionSection.tsx            # Section édition (chapters → cases)
   integrations/supabase/
     client.ts                     # Client Supabase
     types.ts                      # Types générés auto depuis DB schema
@@ -221,7 +221,7 @@ Implémenter du bas vers le haut : `types/index.ts` → `integrations/supabase/`
 ### Git
 
 - Branches : `feat/`, `fix/`, `refactor/`, `chore/`
-- Commits : impératif présent, **français** (`Ajoute le redimensionnement des panels`, `Corrige la vérification quota tier Free`)
+- Commits : impératif présent, **français** (`Ajoute le redimensionnement des cases`, `Corrige la vérification quota tier Free`)
 - Ne jamais force-push sur `main`
 - PR : titre court (< 70 chars), body avec contexte de la décision
 

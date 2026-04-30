@@ -1,7 +1,7 @@
-// Edge Function: génération d'image par bloc de panel (Étape 5)
-// Body: panel_id, block_id, width, height, prompt, context_chapter?, block_asset_*
+// Edge Function: génération d'image par bloc de case (Étape 5)
+// Body: panel_id (id de la case), block_id, width, height, prompt, context_chapter?, block_asset_*
 // Style : uniquement `projects.style_template` en BDD (pas le corps de requête).
-// Stockage: {user_id}/projects/{project_id}/panels/{panel_id}/blocks/{block_id}.png
+// Stockage: {user_id}/projects/{project_id}/cases/{panel_id}/blocks/{block_id}.png
 // Secrets: FAL_API_KEY
 
 declare const Deno: {

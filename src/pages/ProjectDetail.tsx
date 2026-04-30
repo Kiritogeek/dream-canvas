@@ -23,7 +23,10 @@ export default function ProjectDetail() {
   const [searchParams, setSearchParams] = useSearchParams();
   const rawTab = searchParams.get("tab");
   const activeTab =
-    rawTab === "assets" || rawTab === "scenario" || rawTab === "universe" || rawTab === "edition"
+    rawTab === "assets" ||
+    rawTab === "scenario" ||
+    rawTab === "universe" ||
+    rawTab === "edition"
       ? rawTab
       : "style";
 

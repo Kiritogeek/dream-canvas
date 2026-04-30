@@ -239,8 +239,8 @@ Onglet Assets : Renommage d’un asset
 | User stories détaillées | [04_User_Stories_Parcours.md](./04_User_Stories_Parcours.md) |
 | Roadmap et phases | [07_Roadmap_Produit.md](./07_Roadmap_Produit.md) |
 | Section Scénario (réalisé + à prévoir) | [Plan_Action_Developpement_Scénario.md](./Plan_Action_Developpement_Scénario.md) |
-| Détection éléments non créés | [Plan_Action_TextHighligh_No_Assets.md](./Plan_Action_TextHighligh_No_Assets.md) |
-| Flux panels / blocs / scénario | [11_Rapport_Chapitres_Flux_Blocs_Scenario.md](./11_Rapport_Chapitres_Flux_Blocs_Scenario.md) |
+| Détection éléments non créés | [Plan Scénario §5](./Plan_Action_Developpement_Scénario.md) |
+| Flux panels / blocs / scénario | [Edition-Oeuvre](./Edition-Oeuvre.md) |
 | Vue produit complète | [Product.md](./Product.md) |
 | Index documentation | [INDEX.md](./INDEX.md) |
 

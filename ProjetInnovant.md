@@ -3,6 +3,20 @@
 > Système de mémoire globale pour l'IA scénariste de DreamWeave.
 > NarraMind maintient la cohérence de l'univers narratif (LORE + histoire) et détecte les anomalies.
 
+**Synthèse — état réel du dépôt (avril 2026)**
+
+| Bloc | Statut | Détail court |
+|------|--------|----------------|
+| `narramind_metrics` + modes `baseline` / `narramind` dans `generate-scenario-ai` | ✅ | Logging ; modes utilisables via l’EF (pas de bouton « Tester baseline » dans le **frontend actuel**) |
+| `assets.lore` + champ LORE dans `AssetLibrary` | ✅ | Badges « LORE » neutres (pas de marque NarraMind en UI) |
+| `memory_entities`, `memory_summaries`, RLS | ✅ | Migrations `202604231*` |
+| `narramind-update` | ✅ | **Gemini** Flash (primaire + fallback) puis Groq ; JWT user ; vérif propriété chapitre/projet ; **ne persiste pas** la liste d’anomalies sur le chapitre pour l’UI (`narramind_anomalies` vidée à `[]` ; métriques + corps de réponse conservent le détail technique) |
+| Déclenchement client | ✅ | **Auto-save** éditeur scénario (**≥ 80 mots**, throttle **12 min**) ; sauvegarde **lore monde** + **LORE assets** (`UniverseSection`) sur le dernier chapitre — pas de bouton « Vérifier / Revérifier » |
+| UI mémoire (fiches / résumés / onglet Mémoire) | ❌ Retiré | Mémoire **invisible** pour l’utilisateur ; pas de `NarraMindPanel` |
+| `narramind-chat`, `narramind-compress` | ❌ | Non créés |
+| Alertes incohérences dans l’éditeur | ❌ Retrait volontaire | Affichage **à définir** ; pas de bandeau sur les chapitres scénario dans l’état actuel |
+| Spec vision UX « guide » + anomalies structurées | 📋 | Documentée dans `Produit/NarraMind.md` ; implémentation à venir |
+
 ---
 
 ## Contexte
@@ -18,36 +32,25 @@ Il n'est pas une feature de génération — c'est une couche de mémoire et de 
 
 ---
 
-## Vue d'ensemble de NarraMind
+## Vue d'ensemble de NarraMind (alignée prod)
 
 ```
-ASSET créé/modifié
-    │
-    ▼
-[Champ LORE sur assets]
-    │  description narrative libre (backstory, pouvoirs, règles, limites)
-    │
-    ▼
-[narramind-update] ← déclenché après chaque chapitre accepté
-    │  lit le chapitre + les assets impliqués + leur LORE
-    │  met à jour memory_entities (fiches JSON)
-    │  génère/met à jour memory_summaries (résumé 50-80 tokens)
-    │  compresse si total > 800 tokens
-    │
-    ▼
-[Contexte NarraMind ~1400 tokens]
-    ├── Fiches entités avec LORE       ~600 tokens
-    ├── Résumé glissant                ~600 tokens
-    └── Prompt utilisateur             ~200 tokens
-    │
-    ▼
-[narramind-chat] ← chatbot conversationnel
-    ├── Répond aux questions sur l'univers
-    ├── Détecte les anomalies proactives
-    └── Génère du LORE automatiquement depuis le contexte
-```
+ASSET + LORE + universe_lore
+         │
+         ▼
+[narramind-update] ← auto-save chapitre (≥80 mots, throttle 12 min) + sauvegarde Univers
+    │  lit chapitre + assets + lore monde + memory_entities + résumés fenêtre (budget tokens)
+    │  LLM → entities_to_update, chapter_summary, anomalies
+    │  upsert memory_entities, insert memory_summaries, metrics (anomalies_detected)
+    │  PATCH scenario_chapters : narramind_anomalies = [], narramind_checked_at
+         │
+         ▼
+Mémoire compressée : invisible côté UI (sert le contexte futur / cohérence)
 
----
+Liste d’incohérences pour l’utilisateur : **non** stockée sur `scenario_chapters` ; affichage **à venir** (cf. `Produit/NarraMind.md`)
+
+(Futur — non livré) narramind-compress, narramind-chat, guide personnage sur la navigation
+```
 
 ## ITÉRATION 1 — Baseline : LLM branché sans mémoire
 
@@ -139,7 +142,9 @@ Maintenant, écris le chapitre suivant en respectant les personnages, décors et
 
 ### Mesures relevées (Itération 1) — 23 avril 2026
 
-Mesure effectuée via le bouton **🔬 Tester Baseline** intégré dans la section Scénario.
+> **Note avril 2026 :** ces mesures ont été faites lorsqu’un flux UI (ex. bouton de test baseline) appelait encore l’EF. Le **frontend actuel** n’expose plus ce bouton ; le mode `baseline` reste disponible **côté `generate-scenario-ai`** pour des tests outillés.
+
+Mesure effectuée via le bouton **🔬 Tester Baseline** intégré dans la section Scénario *(historique ; non présent dans le UI courant)*.
 Deux appels loggués dans `narramind_metrics`.
 
 | Métrique | Chap. 6 (5 chap. contexte) | Chap. 7 (6 chap. contexte) |
@@ -246,6 +251,8 @@ CREATE INDEX idx_memory_summaries_chapter ON memory_summaries(chapter_number);
 ```
 
 #### 2.3 Créer l'Edge Function `narramind-update`
+
+> **Implémenté** sous `supabase/functions/narramind-update/index.ts`. Le code effectif utilise l’API **Gemini** (OpenAI-compatible) en primaire, pas uniquement Groq comme dans l’extrait historique ci-dessous. Conserver ce bloc comme référence d’**intention** (entities + summary + anomalies).
 
 Créer `supabase/functions/narramind-update/index.ts` :
 
@@ -456,6 +463,8 @@ RÈGLES ABSOLUES :
 
 #### 2.6 Déclencher `narramind-update` après acceptation d'un chapitre
 
+> **Écart prod :** le déclenchement réel est dans `ScenarioChapterEditor` (auto-save) et `UniverseSection` (lore), via `triggerNarraMindUpdate` dans `scenarioAI.ts`, pas sur `scenario_versions.status = 'accepted'`.
+
 Dans `src/services/scenarioChapters.ts` ou dans le hook d'acceptation :
 
 ```typescript
@@ -487,7 +496,19 @@ const triggerNarraMind = async (projectId: string, chapterId: string, userId: st
 
 ---
 
+---
+
+### Supplément livré (hors spec initial + avril 2026)
+
+- Migration `20260430120000_scenario_chapters_narramind_anomalies.sql` : colonnes `narramind_anomalies`, `narramind_checked_at` (anomalies **vidées** après chaque run ; pas de bandeau éditeur).
+- `parseNarrativeCoherenceAlerts` : utilitaire TypeScript si réintroduction d’un affichage.
+- Suppression onglet / menu **Mémoire** et des composants de lecture `memory_*` côté UI.
+
+---
+
 ## ITÉRATION 3 — NarraMind V2 : Compression + Chatbot
+
+> **Statut : non entamé dans le dépôt.** La feuille de route produit a **priorisé** la mémoire technique + métriques ; l’affichage des incohérences pour l’auteur est **reporté**. Les items ci-dessous restent valables comme **backlog technique**.
 
 ### Objectif
 
@@ -712,32 +733,92 @@ Démontrer que le budget tokens reste stable à ~1 400 tokens même au chapitre 
 
 ---
 
-## Récapitulatif — Fichiers à créer / modifier
+## Récapitulatif — Fichiers (réalité dépôt, avril 2026)
 
-### Nouvelles migrations BDD
-- `supabase/migrations/..._add_narramind_metrics.sql`
-- `supabase/migrations/..._add_lore_to_assets.sql`
-- `supabase/migrations/..._add_narramind_tables.sql`
+### Migrations NarraMind / lore (existantes)
 
-### Nouvelles Edge Functions
-- `supabase/functions/narramind-update/index.ts`
-- `supabase/functions/narramind-compress/index.ts`
-- `supabase/functions/narramind-chat/index.ts`
+- `20260423100000_add_narramind_metrics.sql`
+- `20260423110000_add_lore_to_assets.sql`
+- `20260423120000_add_narramind_tables.sql`
+- `20260423200000_fix_narramind_fk.sql`
+- `20260423210000_add_universe_lore.sql` (lore monde projet)
+- `20260430120000_scenario_chapters_narramind_anomalies.sql`
 
-### Modifications Edge Functions existantes
-- `supabase/functions/generate-scenario-ai/index.ts` — ajout modes `baseline` et `narramind`
+### Edge Functions
 
-### Nouveaux composants / hooks frontend
-- `src/components/project/NarraMindPanel.tsx`
-- `src/hooks/useNarraMind.ts`
+- `supabase/functions/narramind-update/index.ts` — **livré** (Gemini + fallbacks, PATCH vidage anomalies chapitre, métriques)
+- `supabase/functions/generate-scenario-ai/index.ts` — modes `baseline`, `narramind`, logging métriques
+- `narramind-compress`, `narramind-chat` — **absents**
 
-### Modifications composants existants
-- `src/components/project/AssetLibrary.tsx` — ajout champ LORE + badge
-- `src/services/scenarioChapters.ts` — déclenchement `narramind-update` post-acceptation
+### Frontend
 
-### Variables d'environnement à vérifier
-- `GROQ_API_KEY` — déjà présent dans les Edge Functions
-- `SUPABASE_SERVICE_ROLE_KEY` — déjà présent
+- `src/services/scenarioAI.ts` — `triggerNarraMindUpdate`
+- `src/services/scenarioChapters.ts` — `parseNarraMindAnomalies`
+- `src/pages/ScenarioChapterEditor.tsx` — déclenchement auto-save (throttle 12 min, ≥80 mots)
+- `src/components/project/UniverseSection.tsx`, `AssetLibrary.tsx` — lore, déclenchement optionnel
+- **Retirés / jamais livrés en prod :** `NarraMindPanel`, `useNarraMindMemory`, onglet Mémoire ; **composant bandeau alertes supprimé** (avril 2026)
+
+### Variables d'environnement (Edge)
+
+- `GEMINI_API_KEY`, `GROQ_API_KEY`, `SUPABASE_*`, `ALLOWED_ORIGIN` pour `narramind-update`
+
+---
+
+## Marche à suivre recommandée
+
+1. **Court terme — qualité & persistance des alertes pour un futur écran**  
+   - Conserver le **format d’anomalies structurées** côté LLM ; consignes **langage histoire** (sans vocabulaire technique « Assets », champs JSON, etc.).  
+   - **Source de vérité** utilisateur : **hors** `scenario_chapters.narramind_anomalies` (table dédiée ou autre) — à trancher avec le jalon d’affichage.
+
+2. **Moyen terme — compression**  
+   - Fonction `narramind-compress` (ou logique dans `narramind-update` quand `needs_compression`) pour respecter le budget résumés.
+
+3. **Décision produit — chat / panneau**  
+   - Si besoin d’un **chat** lore : reprendre le spec `narramind-chat` **sans** réintroduire un onglet « mémoire brute » ; cibler questions ponctuelles ou power users.
+
+4. **UX « guide NarraMind »**  
+   - État navigation + personnage sur fil d’Ariane (cf. `Produit/NarraMind.md` §7) après stabilisation des données d’ancrage.
+
+5. **Intégration génération scénario**  
+   - Vérifier que les usages **réels** de `generate-scenario-ai` en mode `narramind` couvrent les flux éditeur souhaités ; ajuster prompts si besoin.
+
+6. **Qualité / observabilité**  
+   - Rejouer des mesures type Itération 1–2 (tokens / latence) après changements majeurs ; exploiter `narramind_metrics`.
+
+---
+
+## Comment tester tout ce qui a été fait jusqu’ici
+
+### Prérequis
+
+- Projet Supabase à jour : **toutes les migrations** ci-dessus appliquées (dont `narramind_anomalies` sur `scenario_chapters`).
+- Edge Function **`narramind-update`** déployée avec les secrets requis (`GEMINI_API_KEY`, etc.).
+- Frontend : `npm install` ; `.env` avec `VITE_SUPABASE_URL` et clé anon.
+
+### Tests manuels — pipeline invisible (sans bandeau chapitre)
+
+1. **Lore & univers**  
+   - Créer un asset avec un **LORE** très explicite (ex. « Ne peut pas voler »).  
+   - Renseigner le **lore du monde** dans **Univers**.  
+   - Sauvegarder : le déclenchement sur le dernier chapitre est **silencieux** (pas de toast NarraMind).
+
+2. **Éditeur de chapitre**  
+   - Ouvrir un chapitre de **≥ 80 mots** ; modifier le texte.  
+   - Attendre **auto-save** (≈2 s) puis **≥ 12 min** et une nouvelle sauvegarde si besoin pour le prochain appel auto **ou** déclencher via **Univers** (sauvegarde lore).  
+   - **Pas de bandeau** dans l’éditeur : vérifier les effets via **métriques** / logs / réponse `narramind-update` si besoin.
+
+3. **Persistance**  
+   - Après un run : `scenario_chapters.narramind_anomalies` doit rester **`[]`** ; `narramind_checked_at` mis à jour ; `narramind_metrics.anomalies_detected` reflète le nombre signalé par le LLM.
+
+4. **Mémoire technique**  
+   - Tables `memory_entities` / `memory_summaries` : constater des lignes après analyses (pas d’UI dédié).
+
+5. **Régression**  
+   - `npx tsc --noEmit` ; `npm test -- --run`.
+
+### Tests serveur — modes `generate-scenario-ai` (sans UI)
+
+- Appel HTTP direct (curl / Postman) à `generate-scenario-ai` avec `mode: "baseline"` ou `"narramind"` et `project_id` valides + JWT user ; vérifier réponse et lignes dans `narramind_metrics` (`mode` `baseline_raw` ou `narramind`).
 
 ---
 
@@ -757,4 +838,4 @@ Maintenir un contexte LLM **stable à ~1 400 tokens** quel que soit le nombre de
 
 ---
 
-*Dernière mise à jour : 23 avril 2026*
+*Dernière mise à jour : 30 avril 2026 — alignement sur le dépôt, synthèse état, marche à suivre et plan de tests.*

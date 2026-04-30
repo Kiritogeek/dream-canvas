@@ -418,12 +418,7 @@ export function AssetLibrary({
                 )}
               </div>
               <div className="space-y-2">
-                <Label className="flex items-center gap-2">
-                  LORE
-                  <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/25">
-                    NarraMind
-                  </span>
-                </Label>
+                <Label>LORE</Label>
                 <Textarea
                   value={newAssetLore}
                   onChange={(e) => setNewAssetLore(e.target.value)}
@@ -535,7 +530,7 @@ export function AssetLibrary({
                 {assetWithLore.lore && (
                   <span
                     className="absolute top-2 left-2 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/25 pointer-events-none"
-                    title="Cet asset a un LORE NarraMind"
+                    title="LORE renseigné pour la cohérence scénario"
                   >
                     LORE
                   </span>
@@ -696,12 +691,7 @@ export function AssetLibrary({
 
             {/* Champ LORE */}
             <div className="space-y-1.5">
-              <Label htmlFor="edit-lore" className="flex items-center gap-2">
-                LORE
-                <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/25">
-                  NarraMind
-                </span>
-              </Label>
+              <Label htmlFor="edit-lore">LORE</Label>
               <Textarea
                 id="edit-lore"
                 value={editLore}

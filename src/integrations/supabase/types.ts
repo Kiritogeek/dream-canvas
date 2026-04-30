@@ -398,6 +398,8 @@ export type Database = {
           ai_summary: string | null
           locked_blocks: Json | null
           word_mappings: Json | null
+          narramind_anomalies: Json
+          narramind_checked_at: string | null
           created_at: string
           updated_at: string
         }
@@ -412,6 +414,8 @@ export type Database = {
           ai_summary?: string | null
           locked_blocks?: Json | null
           word_mappings?: Json | null
+          narramind_anomalies?: Json
+          narramind_checked_at?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -426,6 +430,8 @@ export type Database = {
           ai_summary?: string | null
           locked_blocks?: Json | null
           word_mappings?: Json | null
+          narramind_anomalies?: Json
+          narramind_checked_at?: string | null
           created_at?: string
           updated_at?: string
         }

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
@@ -35,7 +36,9 @@ import { ScenarioTextHighlighter } from "@/components/project/ScenarioTextHighli
 import { useToast } from "@/hooks/use-toast";
 import type { LockedBlock, DetectedBlock, AssetType } from "@/types";
 
-// ─── FormatCEditor ─────────────────────────────────────────────
+/** NarraMind : auto-save uniquement, pas d’appel manuel — garde-fous tokens. */
+const NARRAMIND_AUTOSAVE_MIN_WORDS = 80;
+const NARRAMIND_AUTOSAVE_MIN_INTERVAL_MS = 12 * 60 * 1000;
 
 const EDITOR_FONT_STYLE: React.CSSProperties = {
   fontFamily: "inherit",
@@ -48,47 +51,107 @@ const EDITOR_FONT_STYLE: React.CSSProperties = {
   margin: 0,
 };
 
+function segmentsForLine(
+  line: string,
+  lineStart: number,
+  hl: { start: number; end: number } | null
+): Array<{ text: string; mark: boolean }> {
+  if (!hl || hl.end <= lineStart || hl.start >= lineStart + line.length) {
+    return [{ text: line, mark: false }];
+  }
+  const rs = Math.max(0, hl.start - lineStart);
+  const re = Math.min(line.length, hl.end - lineStart);
+  const out: Array<{ text: string; mark: boolean }> = [];
+  if (rs > 0) out.push({ text: line.slice(0, rs), mark: false });
+  if (re > rs) out.push({ text: line.slice(rs, re), mark: true });
+  if (re < line.length) out.push({ text: line.slice(re), mark: false });
+  return out;
+}
+
+function renderLineSegments(
+  line: string,
+  lineStart: number,
+  hl: { start: number; end: number } | null,
+  style: React.CSSProperties
+): React.ReactNode {
+  const segs = segmentsForLine(line, lineStart, hl);
+  return segs.map((s, j) =>
+    s.mark ? (
+      <mark
+        key={j}
+        className="rounded-sm px-0.5"
+        style={{
+          ...style,
+          backgroundColor: "rgba(251, 191, 36, 0.42)",
+          boxDecorationBreak: "clone",
+          WebkitBoxDecorationBreak: "clone",
+        }}
+      >
+        {s.text}
+      </mark>
+    ) : (
+      <span key={j} style={style}>
+        {s.text}
+      </span>
+    )
+  );
+}
+
 function renderFormatCHighlight(text: string): React.ReactNode[] {
   const lines = text.split("\n");
   const nodes: React.ReactNode[] = [];
+  let offset = 0;
   lines.forEach((line, i) => {
-    let span: React.ReactNode;
-
+    const lineStart = offset;
     const scenePrefix = line.match(/^(###\s)/)?.[1];
     const blockquotePrefix = line.match(/^(>\s*)/)?.[1];
+    const wrapKey = `h-${i}`;
 
     if (scenePrefix) {
-      span = (
-        <span key={`h-${i}`} style={{ color: "hsl(275, 45%, 60%)", fontWeight: 700 }}>
-          {line.slice(scenePrefix.length)}
+      const rest = line.slice(scenePrefix.length);
+      const restStart = lineStart + scenePrefix.length;
+      const style = { color: "hsl(275, 45%, 60%)", fontWeight: 700 as const };
+      nodes.push(
+        <span key={wrapKey}>
+          <span style={style}>{scenePrefix}</span>
+          {renderLineSegments(rest, restStart, null, style)}
         </span>
       );
     } else if (blockquotePrefix) {
       const rest = line.slice(blockquotePrefix.length);
-      const color = /^Personnages\s*:/i.test(rest)
+      const restStart = lineStart + blockquotePrefix.length;
+      const restColor = /^Personnages\s*:/i.test(rest)
         ? "hsl(275, 38%, 55%)"
         : "hsl(170, 40%, 55%)";
-      span = <span key={`h-${i}`} style={{ color }}>{rest}</span>;
-    } else if (/^-{3,}\s*$/.test(line)) {
-      span = (
-        <span key={`h-${i}`} style={{ color: "hsl(0, 0%, 58%)" }}>
-          {line}
+      const style = { color: restColor };
+      nodes.push(
+        <span key={wrapKey}>
+          <span style={{ color: "hsl(0, 0%, 58%)" }}>{blockquotePrefix}</span>
+          {renderLineSegments(rest, restStart, null, style)}
         </span>
       );
+    } else if (/^-{3,}\s*$/.test(line)) {
+      nodes.push(
+        <span key={wrapKey}>{renderLineSegments(line, lineStart, null, { color: "hsl(0, 0%, 58%)" })}</span>
+      );
     } else if (/«/.test(line)) {
-      span = (
-        <span key={`h-${i}`} style={{ fontStyle: "italic", color: "hsl(275, 22%, 52%)" }}>
-          {line}
+      nodes.push(
+        <span key={wrapKey}>
+          {renderLineSegments(line, lineStart, null, {
+            fontStyle: "italic",
+            color: "hsl(275, 22%, 52%)",
+          })}
         </span>
       );
     } else {
-      span = (
-        <span key={`h-${i}`} style={{ color: "hsl(var(--foreground))" }}>
-          {line}
+      nodes.push(
+        <span key={wrapKey}>
+          {renderLineSegments(line, lineStart, null, { color: "hsl(var(--foreground))" })}
         </span>
       );
     }
-    nodes.push(span);
+
+    offset += line.length + (i < lines.length - 1 ? 1 : 0);
     if (i < lines.length - 1) nodes.push("\n");
   });
   return nodes;
@@ -101,20 +164,25 @@ interface FormatCEditorProps {
   placeholder?: string;
 }
 
-function FormatCEditor({ value, onChange, textareaRef, placeholder }: FormatCEditorProps) {
+function FormatCEditor({
+  value,
+  onChange,
+  textareaRef,
+  placeholder,
+}: FormatCEditorProps) {
   return (
     <div className="relative min-h-[300px]">
-      {/* Highlight layer — in-flow, drives container height */}
       <div
         aria-hidden="true"
         className="pointer-events-none select-none"
         style={{ ...EDITOR_FONT_STYLE, minHeight: 300 }}
       >
-        {value ? renderFormatCHighlight(value) : (
+        {value ? (
+          renderFormatCHighlight(value)
+        ) : (
           <span style={{ color: "transparent" }}>{placeholder ?? " "}</span>
         )}
       </div>
-      {/* Transparent textarea overlay */}
       <textarea
         ref={textareaRef}
         value={value}
@@ -170,6 +238,7 @@ export default function ScenarioChapterEditor() {
   }>();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   // Data
   const { data: chapter, isLoading: isLoadingChapter } =
@@ -251,6 +320,10 @@ export default function ScenarioChapterEditor() {
   // Throttle ai_summary : max 1 appel Groq toutes les 2 min pour économiser le budget TPM
   const lastAiSummaryCallRef = useRef<number>(0);
   const lastNarraMindCallRef = useRef<number>(0);
+
+  const handleContentChange = useCallback((next: string) => {
+    setContent(next);
+  }, []);
 
   // ── Sync content depuis la BDD (chargement initial) ──────────
 
@@ -382,9 +455,17 @@ export default function ScenarioChapterEditor() {
                 chapter_number: chapter.chapter_number,
               }).catch(() => {});
             }
-            if (words >= 50 && now - lastNarraMindCallRef.current > 300_000) {
+            if (
+              words >= NARRAMIND_AUTOSAVE_MIN_WORDS &&
+              now - lastNarraMindCallRef.current > NARRAMIND_AUTOSAVE_MIN_INTERVAL_MS
+            ) {
               lastNarraMindCallRef.current = now;
-              triggerNarraMindUpdate(projectId!, chapter.id).catch(() => {});
+              void triggerNarraMindUpdate(projectId!, chapter.id)
+                .then(() => {
+                  void queryClient.invalidateQueries({ queryKey: ["scenario-chapter", chapter.id] });
+                  void queryClient.invalidateQueries({ queryKey: ["scenario-chapters", projectId!] });
+                })
+                .catch(() => {});
             }
           },
           onError: () => setSaveState("dirty"),
@@ -1198,7 +1279,7 @@ export default function ScenarioChapterEditor() {
                 <>
                   <FormatCEditor
                     value={content}
-                    onChange={setContent}
+                    onChange={handleContentChange}
                     textareaRef={textareaRef}
                     placeholder="Commencez à écrire votre chapitre..."
                   />

@@ -65,7 +65,7 @@
 
 ## Phase 2 : Panels & Dialogues (Q2 2026) — 🔄 PARTIELLEMENT LIVRÉ
 
-> **Objectif** : (1) **Section Scénario** : écriture avec IA (un prompt = un chapitre généré, accepter/rejeter). (2) **Édition de l'œuvre** : chapitres visuels et panels (**deux flux** (Automatique et Structuré). Les images générées sont toujours des **illustrations pleines** ; elles sont affichées dans les panels ou dans des blocs (conteneurs de mise en page), sans « cases » dessinées dans l’image. Voir `11_Rapport_Chapitres_Flux_Blocs_Scenario.md`. **Règle impérative** : la génération doit s'appuyer sur les **assets sélectionnés par l'utilisateur** (chapitre en mode Auto, par bloc en mode Structuré) pour cadrer la scène et que l'IA comprenne les éléments à mettre dans le chapitre.
+> **Objectif** : (1) **Section Scénario** : écriture avec IA (un prompt = un chapitre généré, accepter/rejeter). (2) **Édition de l'œuvre** : chapitres visuels et panels (**deux flux** (Automatique et Structuré). Les images générées sont toujours des **illustrations pleines** ; elles sont affichées dans les panels ou dans des blocs (conteneurs de mise en page), sans « cases » dessinées dans l’image. Voir `Edition-Oeuvre.md` (Partie II). **Règle impérative** : la génération doit s'appuyer sur les **assets sélectionnés par l'utilisateur** (chapitre en mode Auto, par bloc en mode Structuré) pour cadrer la scène et que l'IA comprenne les éléments à mettre dans le chapitre.
 
 ### 2.1 Section Scénario (texte narratif — uniquement scénario)
 
@@ -86,7 +86,7 @@
 | **Détection assets** | Surbrillance des noms d’assets dans le texte (par type). **Hover** : image de l’asset (HoverCard responsive). **Clic** : popup agrandie (Dialog) avec image, nom, type. |
 | **Éléments non créés** | Détection noms mentionnés sans asset ; panneau « Personnages / éléments mentionnés non créés » ; surbrillance ambre. |
 | **Création depuis scénario** | Survol élément non créé ou **sélection de texte** → choix type (Personnage/Décor/Objet) → **navigation onglet Assets** avec dialog de création **pré-rempli** (nom + type), pas de création directe. |
-| **Précision détection** | Frontières de mots (pas « Jean » dans « Jean-Pierre », pas « ile » dans « silencieux »), stop-words (Acte, Merci, etc.). Voir `Plan_Action_TextHighligh_No_Assets.md` pour les règles (signal dialogue, répétition, liste limitée). |
+| **Précision détection** | Frontières de mots (pas « Jean » dans « Jean-Pierre », pas « ile » dans « silencieux »), stop-words (Acte, Merci, etc.). Voir `Plan_Action_Developpement_Scénario.md` §5 pour les règles (signal dialogue, répétition, liste limitée). |
 | **Option « Ne pas créer »** | Retirer un élément de la liste « non créés » pour la session (exclusion sans créer l'asset). |
 
 Voir `Plan_Action_Developpement_Scénario.md` pour le détail des phases A à G.
@@ -361,7 +361,7 @@ Jan     Fév     Mar     Avr     Mai     Juin    Jul     Aoû     Sep     Oct   
 ## Références
 
 - **UX et parcours** : `UX.md`, `04_User_Stories_Parcours.md`
-- **Scénario et flux** : `11_Rapport_Chapitres_Flux_Blocs_Scenario.md`, `Plan_Action_Developpement_Scénario.md`, `Plan_Action_TextHighligh_No_Assets.md`, `Plan_Phase2_Edition_Oeuvre.md`
+- **Scénario et flux** : `Edition-Oeuvre.md`, `Plan_Action_Developpement_Scénario.md` (dont §5 TextHighlighter)
 - **Index produit** : `INDEX.md`
 
 ---

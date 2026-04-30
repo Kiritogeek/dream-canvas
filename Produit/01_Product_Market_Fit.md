@@ -229,7 +229,7 @@ Des **millions de créateurs potentiels** (auteurs, scénaristes, conteurs, fans
   - **Mode Automatique** : découpage IA du scénario en panels → sélection des assets du chapitre → génération panel par panel (prompt = style + assets + description du panel).
   - **Mode Structuré** : chapitre visuel vide → panels et blocs (rectangles) → description + assets par bloc → génération 1 image pleine par bloc.
 - **Interface d'édition des panels** : pendant l'édition d'un panel, l'utilisateur dispose de **deux aides visuelles** :
-  - **Côté scénario** : visualisation du **chapitre de scénario** (texte) qu'il adapte en visuel — affiché **dès l'entrée** dans l'édition du chapitre visuel si un chapitre de scénario est associé (ou choisi via un sélecteur). Voir **11_Rapport_Chapitres_Flux_Blocs_Scenario.md** § 3.4.1 pour la projection détaillée (lien optionnel chapitre visuel ↔ chapitre de scénario, panneau toujours visible ou repliable).
+  - **Côté scénario** : visualisation du **chapitre de scénario** (texte) qu'il adapte en visuel — affiché **dès l'entrée** dans l'édition du chapitre visuel si un chapitre de scénario est associé (ou choisi via un sélecteur). Voir **`Edition-Oeuvre.md`** (Partie II — rapport flux) § 3.4.1 pour la projection détaillée (lien optionnel chapitre visuel ↔ chapitre de scénario, panneau toujours visible ou repliable).
   - **Côté visuel** : visualisation des **assets sélectionnés** pour le prompting du panel (personnages, décors, objets), pour cadrer la génération IA.
   - Règle : la génération s'appuie toujours sur les **assets sélectionnés** (chapitre ou bloc), jamais sur le texte du scénario dans le prompt d'image.
 

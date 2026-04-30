@@ -51,7 +51,7 @@ Règle : ne jamais hardcoder des couleurs — utiliser les tokens HSL ou les cla
 | `assets` | project_id, name, asset_type, prompt, image_url, image_url_profile_left/right/back, image_url_sheet |
 | `chapters` | project_id, chapter_number, title, synopsis, linked_scenario_chapter_id |
 | `chapter_canvases` | chapter_id, panel_number, prompt, image_url, layout (JSONB), speech_bubbles (JSONB), color_blocks (JSONB) |
-| `scenario_chapters` | project_id, chapter_number, title, content, panels_outline (JSONB) |
+| `scenario_chapters` | project_id, chapter_number, title, content, panels_outline (JSONB), narramind_anomalies (vidé après chaque run NarraMind), narramind_checked_at |
 | `usage` | user_id, action ('image_generation'), created_at — comptage mensuel |
 
 **RLS** : toutes les tables ont `auth.uid() = user_id`. Ne jamais contourner.
@@ -65,6 +65,7 @@ Règle : ne jamais hardcoder des couleurs — utiliser les tokens HSL ou les cla
 | `generate-asset-image` | Génère image asset via FAL.ai, upload Storage, update asset, log usage |
 | `generate-panel-image` | Génère image case/bloc, dimensions = bloc (800px max width) |
 | `generate-scenario-ai` | Génère scénario / chapitre / découpage cases via Google Gemini Flash (+ fallback Groq) |
+| `narramind-update` | Mémoire narrative (entités, résumés, détection anomalies) ; réponse HTTP contient les anomalies ; `scenario_chapters.narramind_anomalies` toujours `[]` après run (pas de stockage liste pour l’UI) |
 | `generate-style-template-images` | Génère images de prévisualisation du style |
 | `generate-landing-showcase` | Images hero pour la landing page |
 

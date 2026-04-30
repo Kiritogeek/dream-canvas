@@ -143,4 +143,33 @@ src/integrations/supabase/types.ts           — régénérer après migration
 
 ---
 
-*Dernière mise à jour : 18 avril 2026*
+## 5. Plan TextHighlighter — éléments « non créés » (fusion 30/04/2026)
+
+> Anciennement `Plan_Action_TextHighligh_No_Assets.md`. Objectif : surligner les vrais noms (personnages, décors, objets) sans maintenir une liste exhaustive de stop-words dans le TSX.
+
+**Problème** : candidats issus du dialogue, ALL CAPS, capitales initiales — filtrés par `STRUCTURAL` + grosse liste `STOP_WORDS` en dur → faux positifs (`Attends`, `Ombres`) et liste qui grossit sans fin.
+
+**Objectif** : réduire les faux positifs ; privilégier **répétition** et **signal dialogue** (aligné « asset récurrent ») ; type Personnage/Décor/Objet reste un choix utilisateur à la création.
+
+### Pistes (résumé)
+
+| Piste | Idée |
+|--------|------|
+| **Dialogue prioritaire** | Candidats `Nom :` / `Nom (` = haute confiance |
+| **ALL CAPS** | Longueur minimale ≥ 4 (évite OMBRE, ATTENDS) |
+| **Capitalized hors dialogue** | Exiger ≥ 2 occurrences du même lemme dans le texte |
+| **Liste externe** | `src/data/scenarioHighlighterStopWords.ts` par catégorie (~100–150 mots), import dans `ScenarioTextHighlighter` |
+
+### Plan d’action recommandé
+
+**Phase 1** : dialogue sans filtre répétition ; ALL CAPS length ≥ 4 ; capitalized hors dialogue = répétition + éventuellement longueur ≥ 4.
+
+**Phase 2** : extraire stop-words dans fichier TS dédié.
+
+**Phase 3** : jeux de test (Blackwood, Marcus vs Attends, Ombres) ; ajuster seuils si faux négatifs.
+
+**Fichiers** : `src/components/project/ScenarioTextHighlighter.tsx` ; `src/data/scenarioHighlighterStopWords.ts` (à créer).
+
+---
+
+*Dernière mise à jour : 30 avril 2026*

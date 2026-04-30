@@ -1,6 +1,7 @@
 // Service layer — Appels IA Scénario & IA Chapitre
 import { supabase } from "@/integrations/supabase/client";
 import { logGenerationFailure, logGenerationInfo } from "@/lib/generationLogger";
+import type { NarrativeCoherenceAlert } from "@/types";
 
 // ── Types ─────────────────────────────────────────────────────
 
@@ -214,7 +215,9 @@ export interface NarraMindUpdateResponse {
   success: boolean;
   summary: string;
   entities_updated: number;
-  anomalies: string[];
+  /** Détectées par le LLM — non persistées sur `scenario_chapters` (colonne vidée). */
+  anomalies: NarrativeCoherenceAlert[];
+  narramind_checked_at?: string;
   total_context_tokens: number;
   needs_compression: boolean;
 }
@@ -239,7 +242,12 @@ export async function triggerNarraMindUpdate(
     body: JSON.stringify({ project_id: projectId, chapter_id: chapterId }),
   });
   const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error((body as { error?: string })?.error ?? `Erreur ${res.status}`);
+  if (!res.ok) {
+    const b = body as { error?: string; details?: string; finish_reason?: string };
+    const parts = [b.error, b.details].filter((x): x is string => !!x?.trim());
+    if (b.finish_reason) parts.push(`Arrêt : ${b.finish_reason}`);
+    throw new Error(parts.join(" — ").trim() || `Erreur ${res.status}`);
+  }
   return body as NarraMindUpdateResponse;
 }
 

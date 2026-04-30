@@ -1,56 +1,50 @@
-# NarraMind — Système de Mémoire Narrative
+# NarraMind — Système de mémoire narrative
 
-> NarraMind est le cerveau mémoire de DreamWeave. Il analyse le texte en arrière-plan pendant l'écriture, extrait des fiches d'entités (personnages, décors, objets), génère des résumés compacts par chapitre, et détecte les incohérences avec le lore établi.
+> NarraMind est le moteur de cohérence narrative de DreamWeave. Il analyse le texte **en arrière-plan** pendant l’écriture, extrait des fiches d’entités (personnages, décors, objets), génère des résumés compacts par chapitre, et calcule des **anomalies** (incohérences vs lore) pour usage **interne** (réponse HTTP, métriques). **Aucune liste d’incohérences n’est conservée pour l’affichage utilisateur** sur `scenario_chapters` : la colonne `narramind_anomalies` est **vidée** (`[]`) après chaque passage pour ne pas en faire le support produit.
+
+**Principe produit (validé avril 2026)** : tout ce que NarraMind **enregistre** en base (entités, résumés, métriques, horodatages) reste **invisible** pour l’utilisateur. **L’endroit où afficher les incohérences** est **à définir** ; pas de bouton « Vérifier / Revérifier ce chapitre » — uniquement un **déclenchement automatique** avec **garde-fous tokens** (intervalle minimum entre deux appels, seuil de mots). Pas de marque « NarraMind » dans l’UI grand public tant que la couche « personnage guide » n’est pas livrée.
 
 ---
 
-## 1. Concept et philosophique
+## 1. Concept
 
 ### Problème résolu
 
-Lorsqu'un scénariste écrit plusieurs chapitres, l'IA scénariste (Gemini) perd la mémoire des chapitres précédents. Passer tous les textes en contexte serait prohibitif (des milliers de tokens, latence, coût).
+Lorsqu’un scénariste enchaîne les chapitres, le contexte IA complet serait trop lourd (tokens, latence, coût).
 
-### Solution NarraMind
+### Solution
 
 NarraMind maintient un **contexte narratif compressé** :
-- Les chapitres passés sont réduits à des **résumés de 60-80 tokens** (`memory_summaries`)
-- Les personnages, lieux et objets récurrents sont maintenus dans des **fiches entités** (`memory_entities`)
-- Quand l'IA scénariste génère du contenu, elle reçoit ces fiches et résumés au lieu des textes bruts
 
-Le résultat : une cohérence narrative sur toute la longueur de l'œuvre, à un coût token minimal.
+- Chapitres passés → **résumés courts** (`memory_summaries`)
+- Entités récurrentes → **fiches** (`memory_entities`)
+- **Anomalies** : produites par le LLM, renvoyées dans le **corps de la réponse** de l’Edge Function et comptabilisées dans `narramind_metrics.anomalies_detected` ; **pas** stockées comme liste utilisateur sur le chapitre scénario
 
 ---
 
 ## 2. Architecture technique
 
-### Déclenchement automatique
+### Déclenchement automatique (pas d’action manuelle)
 
-NarraMind s'active **en arrière-plan** (fire-and-forget, sans bloquer l'utilisateur) :
+NarraMind s’exécute **sans bloquer** l’utilisateur (pas de toast de succès). En cas d’erreur technique, le client peut afficher un toast d’erreur.
 
-| Source | Condition | Debounce |
-|--------|-----------|----------|
-| `ScenarioChapterEditor` | Auto-save réussi + ≥ 50 mots | 5 min entre deux appels |
-| `UniverseSection` | Sauvegarde du lore projet | À chaque sauvegarde |
+| Source | Condition | Fréquence |
+|--------|-----------|-----------|
+| `ScenarioChapterEditor` | Auto-save réussi + **≥ 80 mots** | **≥ 12 min** entre deux appels **pour ce flux** (même chapitre en session) |
+| `UniverseSection` | Sauvegarde du lore monde ou LORE asset | Après sauvegarde (chapitre le plus récent du projet) — événement peu fréquent |
 
 ```ts
 // src/services/scenarioAI.ts
-triggerNarraMindUpdate(projectId, chapterId).catch(() => {});
+triggerNarraMindUpdate(projectId, chapterId)
 ```
 
 ### Edge Function `narramind-update`
 
-**Secrets requis :**
-- `GEMINI_API_KEY`
-- `GROQ_API_KEY` (fallback)
-- `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`
-- `ALLOWED_ORIGIN`
+**Secrets** : `GEMINI_API_KEY`, `GROQ_API_KEY` (fallback), Supabase service role, `ALLOWED_ORIGIN`.
 
-**Modèles IA :**
-| Priorité | Modèle | Condition |
-|----------|--------|-----------|
-| 1 (primaire) | Gemini 2.0 Flash | Appel standard |
-| 2 (fallback) | Gemini 2.5 Flash | Si 429 ou 503 sur primaire |
-| 3 (urgence) | Groq Llama 3.3 70B | Si les deux Gemini indisponibles |
+**Modèles** : Gemini 2.0 Flash → 2.5 Flash (429/503) → Groq Llama 3.3 70B.
+
+**Prompt — texte « anomalies »** : `title` et `explanation` sont rédigés **comme pour un auteur**, uniquement en termes **d’histoire** (personnages, lieux, faits établis). **Interdit** dans ces champs : mots « asset », « entité », « fiche », noms de champs JSON (`first_seen_chapter`, etc.) ou tout artefact « code / base de données ».
 
 ### Flux de traitement
 
@@ -58,175 +52,110 @@ triggerNarraMindUpdate(projectId, chapterId).catch(() => {});
 [Déclenchement]
       │
       ▼
-1. Récupère chapitre + universe_lore
-2. Récupère assets du projet (name, type, prompt, lore)
-3. Récupère entités existantes (memory_entities)
+1. Chapitre + universe_lore (+ vérif propriété user / project)
+2. Résumés chapitres précédents (fenêtre bornée en tokens)
+3. Assets (nom, type, prompt, lore)
+4. Entités existantes (memory_entities)
       │
       ▼
-4. Appel Gemini (avec fallbacks)
-   Prompt : système NarraMind + lore + assets + entités + chapitre
-   Réponse JSON :
-     - entities_to_update[]
-     - chapter_summary
-     - anomalies[]
+5. Appel LLM → JSON { entities_to_update[], chapter_summary, anomalies[] }
       │
       ▼
-5. Upsert memory_entities (résolution par {project_id, name})
-6. Insert memory_summaries (résumé du chapitre)
-7. Insert narramind_metrics (métriques, fire-and-forget)
+6. Upsert memory_entities, insert memory_summaries
+7. PATCH scenario_chapters : narramind_anomalies = [], narramind_checked_at = now
+8. Insert narramind_metrics (dont anomalies_detected = length(anomalies))
       │
       ▼
-[Retour] { success, summary, entities_updated, anomalies, total_context_tokens, needs_compression }
+[Réponse HTTP] { success, summary, entities_updated, anomalies, … }
 ```
 
 ---
 
 ## 3. Modèle de données
 
-### `memory_entities`
+### Tables mémoire (invisibles côté UI)
 
-Fiches d'entités narratives — une fiche par entité unique par projet.
+Voir migrations `20260423120000_add_narramind_tables.sql`, `20260423100000_add_narramind_metrics.sql`.
 
-| Colonne | Type | Description |
-|---------|------|-------------|
-| `id` | UUID | Clé primaire |
-| `project_id` | UUID | Projet parent |
-| `user_id` | UUID | Propriétaire |
-| `asset_id` | UUID? | Lien optionnel vers `assets` |
-| `name` | TEXT | Nom de l'entité (unique par projet) |
-| `entity_type` | TEXT | `character` / `background` / `object` |
-| `traits` | JSONB `[]` | Liste de traits caractéristiques |
-| `relations` | JSONB `[]` | `[{ with: string, type: string }]` |
-| `lore_summary` | TEXT | Résumé narratif de l'entité |
-| `last_seen_chapter` | INTEGER | Dernier chapitre mentionné |
-| `first_seen_chapter` | INTEGER | Premier chapitre d'apparition |
-| `token_estimate` | INTEGER | Estimation tokens (pour budget contexte) |
-| `updated_at` | TIMESTAMPTZ | Dernière mise à jour |
+Résumé : `memory_entities`, `memory_summaries`, `narramind_metrics` — RLS par utilisateur / projet.
 
-**Contrainte :** `UNIQUE(project_id, name)` → upsert par `resolution=merge-duplicates`.
+### `scenario_chapters` — champs NarraMind
 
-### `memory_summaries`
-
-Résumés compacts par chapitre — utilisés comme contexte pour l'IA.
-
-| Colonne | Type | Description |
-|---------|------|-------------|
-| `id` | UUID | Clé primaire |
-| `project_id` | UUID | Projet parent |
-| `user_id` | UUID | Propriétaire |
-| `chapter_id` | UUID? | Lien vers `scenario_chapters` |
-| `chapter_number` | INTEGER | Numéro du chapitre |
-| `summary` | TEXT | Résumé 60-80 tokens |
-| `token_estimate` | INTEGER | Taille estimée du résumé |
-
-### `narramind_metrics`
-
-Métriques d'exécution pour monitoring et optimisation.
-
-| Colonne | Type | Description |
-|---------|------|-------------|
-| `project_id` | UUID | Projet |
-| `chapter_number` | INTEGER | Chapitre traité |
-| `mode` | TEXT | `narramind_v1` |
-| `context_tokens` | INTEGER | Total tokens contexte envoyés |
-| `response_tokens` | INTEGER | Total tokens réponse reçue |
-| `chapters_in_context` | INTEGER | Nombre de résumés en contexte |
-| `duration_ms` | INTEGER | Temps d'exécution Gemini |
+| Colonne | Type | Rôle (état actuel) |
+|---------|------|---------------------|
+| `narramind_anomalies` | JSONB | Toujours **réinitialisée à `[]`** après un run réussi — **pas** le support des incohérences utilisateur |
+| `narramind_checked_at` | TIMESTAMPTZ | Horodatage du dernier run (technique) |
 
 ---
 
 ## 4. Sécurité (RLS)
 
-| Table | Politique |
-|-------|-----------|
-| `memory_entities` | ALL pour `auth.uid() = user_id` |
-| `memory_summaries` | ALL pour `auth.uid() = user_id` |
-| `narramind_metrics` | SELECT + INSERT filtrés par `project_id IN (SELECT id FROM projects WHERE user_id = auth.uid())` |
-
-JWT vérifié dans l'Edge Function avant tout traitement.
+JWT vérifié dans l’Edge Function ; tables mémoire avec politiques classiques `auth.uid() = user_id` (ou via projet). Le PATCH chapitre est effectué côté serveur après validation du propriétaire du chapitre.
 
 ---
 
-## 5. Gestion du budget contexte
+## 5. UI actuelle
 
-```
-Budget total = Σ token_estimate (memory_summaries) + Σ token_estimate (memory_entities)
-```
-
-- Seuil d'alerte : `total_summary_tokens > 800` → `needs_compression: true`
-- La compression automatique des anciens résumés **n'est pas encore implémentée**
-- Actuellement : accumulation sans limite (pas de problème pratique avant ~30 chapitres)
+- **Pas** de bandeau d’alertes dans l’éditeur scénario, **pas** de bouton de vérification manuelle.
+- **Univers / Assets** : copy orientée « cohérence » / « lore », sans badge « NarraMind ».
+- **Navigation** : pas de pastille « anomalies » sur l’entrée Scénario (données non exposées sur les chapitres).
 
 ---
 
-## 6. État actuel et manques
+## 6. Anomalies : format côté LLM (évolution / futur affichage)
 
-### Fonctionnel ✅
-- Tables BDD créées et sécurisées (migrations `20260423*`)
-- Edge Function `narramind-update` opérationnelle (Gemini + fallbacks)
-- Déclenchement auto depuis `ScenarioChapterEditor` (5 min + ≥ 50 mots)
-- Déclenchement depuis `UniverseSection` (sauvegarde lore)
-- Métriques loguées dans `narramind_metrics` (avec `duration_ms` depuis Phase 11)
-- Service client `triggerNarraMindUpdate` dans `scenarioAI.ts`
+Le JSON renvoyé par le modèle peut inclure des objets `anomalies` avec `title`, `explanation`, `severity`, `anchor` (ex. extrait). La normalisation côté serveur reste compatible avec des chaînes simples.
 
-### À faire 🔴
-
-| Priorité | Fonctionnalité | Description |
-|----------|----------------|-------------|
-| P1 | **Types TS** | `memory_entities`, `memory_summaries`, `narramind_metrics` absents de `supabase/types.ts` — régénérer |
-| P1 | **Frontend de visualisation** | Aucun composant pour voir les entités mémorisées (onglet Univers ou panneau dédié) |
-| P2 | **Compression des résumés** | Quand `needs_compression: true`, fusionner les vieux résumés en un méga-résumé |
-| P2 | **Lien assets ↔ entités** | Connecter `memory_entities.asset_id` aux assets correspondants |
-| P3 | **Alertes anomalies** | Afficher les incohérences détectées à l'utilisateur dans l'éditeur scénario |
-| P3 | **NarraMind dans prompts image** | Injecter les fiches entités dans les prompts de génération de panels pour cohérence visuelle |
+Les **explications affichables plus tard** devront rester en **langage histoire** (cf. §2 prompt).
 
 ---
 
-## 7. Vision produit
+## 7. Vision UX — guide NarraMind (personnage + fil d’Ariane)
 
-### Interface utilisateur cible
+> Idée produit validée par Louis : lorsqu’une incohérence sera **utile** à traiter dans l’UI, un **personnage guide** pourra accompagner la navigation jusqu’au passage concerné.
 
-Un onglet **"Mémoire"** (ou section dans "Univers") dans le détail projet, accessible depuis `ProjectDetail`, montrant :
+Prérequis : **persistance ou source de vérité** des alertes **hors** `scenario_chapters.narramind_anomalies` (ex. table dédiée, ou autre), à trancher lors du jalon d’affichage.
 
-```
-┌─────────────────────────────────────────────────────┐
-│  🧠 Mémoire NarraMind                               │
-│                                                     │
-│  PERSONNAGES (4)                                    │
-│  ┌─────────────────────────────────────────────┐   │
-│  │ Clara  Ch.1 → Ch.3  "enceinte, maladroite"  │   │
-│  │ Marc   Ch.1 → Ch.3  "mari, distrait"        │   │
-│  └─────────────────────────────────────────────┘   │
-│                                                     │
-│  RÉSUMÉS (3 chapitres)                              │
-│  Ch.1 : Clara chute dans les escaliers,             │
-│         Marc appelle le 15...                       │
-│                                                     │
-│  ⚠️ 1 anomalie détectée (Ch.2)                      │
-└─────────────────────────────────────────────────────┘
-```
+### Principes (inchangés à haut niveau)
 
-### Utilisation future dans la génération IA
-
-Les fiches `memory_entities` servent de **contexte structuré persistant** pour :
-1. La génération de nouveaux chapitres (personnages connus → cohérence narrative)
-2. La génération de prompts d'images (traits et lore → cohérence visuelle entre panels)
-3. La détection d'anomalies en temps réel pendant l'écriture
+- Le guide n’apparaît **que** lorsqu’il existe au moins une **anomalie active** pertinente.
+- Le parcours **réutilise la navigation existante**.
 
 ---
 
-## 8. Fichiers clés
+## 8. État d’avancement
+
+| Élément | Statut |
+|---------|--------|
+| Tables `memory_*`, métriques, EF `narramind-update` | ✅ |
+| Contexte résumés chapitres précédents (budget tokens) | ✅ |
+| Pas de persistance anomalies sur chapitre pour l’UI | ✅ (liste vidée à chaque run) |
+| Déclenchement auto uniquement + throttle 12 min / 80 mots (éditeur) | ✅ |
+| UI alertes / guide personnage | 🔜 (affichage à définir) |
+| Compression résumés si `needs_compression` | 🔜 |
+
+---
+
+## 9. Fichiers clés
 
 | Fichier | Rôle |
 |---------|------|
-| `supabase/functions/narramind-update/index.ts` | Edge Function principale |
-| `src/services/scenarioAI.ts` | Client `triggerNarraMindUpdate()` |
-| `src/pages/ScenarioChapterEditor.tsx` | Déclenchement auto (5 min) |
-| `src/components/project/UniverseSection.tsx` | Déclenchement sur lore save |
-| `supabase/migrations/20260423120000_add_narramind_tables.sql` | Tables `memory_entities` + `memory_summaries` |
-| `supabase/migrations/20260423100000_add_narramind_metrics.sql` | Table `narramind_metrics` |
-| `supabase/migrations/20260423200000_fix_narramind_fk.sql` | Fix FK `user_id → auth.users` |
+| `supabase/functions/narramind-update/index.ts` | Edge Function |
+| `supabase/migrations/20260430120000_scenario_chapters_narramind_anomalies.sql` | Colonnes `narramind_*` sur chapitres |
+| `src/services/scenarioAI.ts` | `triggerNarraMindUpdate` |
+| `src/services/scenarioChapters.ts` | `parseNarrativeCoherenceAlerts` (utilitaire si réintroduction d’affichage) |
+| `src/pages/ScenarioChapterEditor.tsx` | Déclenchement auto-save |
+| `src/components/project/UniverseSection.tsx` | Déclenchement lore |
 
 ---
 
-*Dernière mise à jour : 30 avril 2026*
+## 10. Prochaine phase (priorisée — Q2 2026)
+
+1. **Persistance des alertes** : table dédiée (ex. `narramind_alerts` ou équivalent) — `project_id`, `chapter_id` optionnel, `severity`, `title`, `explanation`, `anchor`, statut (active / acquittée / ignorée), `created_at`. Ne pas réutiliser `scenario_chapters.narramind_anomalies` comme support produit.
+2. **EF** : après analyse, upsert des lignes d’alerte (idempotence par hash ou par clé `(chapter_id, titre_normalisé)` selon choix produit) au lieu de s’appuyer sur la réponse HTTP seule.
+3. **UI** : bandeau ou panneau dans l’éditeur scénario — liste filtrable par sévérité ; actions « Marquer comme traité » / « Ignorer » ; pas de marque « NarraMind » grand public tant que le personnage guide n’est pas prêt (cf. §7).
+4. **Ensuite** : compression résumés si `needs_compression` ; personnage guide pointant vers les passages (prérequis = alertes persistées).
+
+---
+
+*Dernière mise à jour : 30 avril 2026 — §10 prochaine phase ; retrait affichage/stockage anomalies sur chapitres, pas de bouton manuel, throttle auto, consignes langage « histoire » pour les explications, docs alignées.*

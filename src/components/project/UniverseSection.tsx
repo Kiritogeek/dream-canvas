@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Globe, Users, MapPin, Box, Save, Loader2, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -83,8 +84,8 @@ function AssetLoreCard({ asset, onLoreSaved }: { asset: Asset; onLoreSaved?: () 
       {open && (
         <div className="px-4 pb-4 space-y-3 border-t border-white/10">
           <p className="text-xs text-muted-foreground pt-3">
-            Décris ce personnage/lieu/objet : apparence, histoire, rôle dans l'univers.
-            NarraMind utilisera ce contexte pour maintenir la cohérence narrative.
+            Décris ce personnage/lieu/objet : apparence, histoire, rôle dans l&apos;univers. Ce texte
+            aide à garder vos chapitres alignés avec le lore du projet.
           </p>
           <Textarea
             value={lore}
@@ -116,6 +117,7 @@ function AssetLoreCard({ asset, onLoreSaved }: { asset: Asset; onLoreSaved?: () 
 }
 
 export function UniverseSection({ project, assets }: Props) {
+  const queryClient = useQueryClient();
   const { toast } = useToast();
   const updateProject = useUpdateProject();
   const { data: scenarioChapters = [] } = useScenarioChapters(project.id);
@@ -128,8 +130,13 @@ export function UniverseSection({ project, assets }: Props) {
   const triggerNarraMindOnLatestChapter = useCallback(() => {
     const latest = [...scenarioChapters].sort((a, b) => b.chapter_number - a.chapter_number)[0];
     if (!latest) return;
-    triggerNarraMindUpdate(project.id, latest.id).catch(() => {});
-  }, [project.id, scenarioChapters]);
+    void triggerNarraMindUpdate(project.id, latest.id)
+      .then(() => {
+        void queryClient.invalidateQueries({ queryKey: ["scenario-chapter", latest.id] });
+        void queryClient.invalidateQueries({ queryKey: ["scenario-chapters", project.id] });
+      })
+      .catch(() => {});
+  }, [project.id, scenarioChapters, queryClient]);
 
   const handleSaveLore = useCallback(async () => {
     setSavingLore(true);
@@ -181,7 +188,8 @@ export function UniverseSection({ project, assets }: Props) {
           <div>
             <h3 className="font-display font-semibold text-lg">Lore du monde</h3>
             <p className="text-sm text-muted-foreground mt-1">
-              Décris les règles, l'histoire et l'atmosphère de ton univers. NarraMind injectera ce contexte dans chaque analyse de chapitre pour maintenir la cohérence.
+              Décris les règles, l&apos;histoire et l&apos;atmosphère de ton univers. Ce contexte est
+              pris en compte pour repérer d&apos;éventuelles incohérences dans le scénario.
             </p>
           </div>
           <Textarea

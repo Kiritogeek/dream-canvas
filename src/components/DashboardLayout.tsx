@@ -34,9 +34,12 @@ const projectSteps = [
 function ProjectStepsSection({ projectId, onLinkClick }: { projectId: string; onLinkClick?: () => void }) {
   const location = useLocation();
   const isInChapter = location.pathname.includes("/chapter/");
+  const isScenarioEditor = /\/projects\/[^/]+\/scenario\//.test(location.pathname);
   const activeTab = isInChapter
     ? "edition"
-    : new URLSearchParams(location.search).get("tab") || "style";
+    : isScenarioEditor
+      ? "scenario"
+      : new URLSearchParams(location.search).get("tab") || "style";
   const { data: project } = useProject(projectId);
   const updateProject = useUpdateProject();
   const { toast } = useToast();
@@ -115,7 +118,7 @@ function ProjectStepsSection({ projectId, onLinkClick }: { projectId: string; on
               }`}
             >
               <Icon className={`h-4 w-4 flex-shrink-0 transition-colors ${isActive ? "text-primary" : ""}`} />
-              {step.label}
+              <span className="flex-1 truncate">{step.label}</span>
             </Link>
           );
         })}
@@ -214,7 +217,12 @@ function SidebarContextSection({ onLinkClick }: { onLinkClick?: () => void }) {
   const projectMatch = useMatch("/dashboard/projects/:id");
   const chapterMatch = useMatch("/dashboard/projects/:id/chapter/:chapterId");
   const editionMatch = useMatch("/dashboard/projects/:id/edition");
-  const projectId = projectMatch?.params?.id ?? chapterMatch?.params?.id ?? editionMatch?.params?.id;
+  const scenarioEditorMatch = useMatch("/dashboard/projects/:id/scenario/:chapterId");
+  const projectId =
+    projectMatch?.params?.id ??
+    chapterMatch?.params?.id ??
+    editionMatch?.params?.id ??
+    scenarioEditorMatch?.params?.id;
   const animKey = projectId ?? "list";
 
   return (

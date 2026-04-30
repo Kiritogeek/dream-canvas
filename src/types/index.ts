@@ -59,7 +59,21 @@ export type PanelUpdate = TablesUpdate<"chapter_canvases">;
 export type ScenarioChapterUpdate = TablesUpdate<"scenario_chapters">;
 export type ScenarioVersionUpdate = TablesUpdate<"scenario_versions">;
 
-// ── Types métier ─────────────────────────────────────────────────
+// ── Types métier — cohérence narrative (alertes chapitre) ─────────
+
+export type NarrativeAlertSeverity = "info" | "warning" | "critical";
+
+/** Phase 2 : repère un passage du chapitre pour scroll / surlignage. */
+export type NarrativeAlertAnchor = { type: "excerpt"; text: string };
+
+/** Structure d'alerte (réponse API / futur affichage) — non persistée sur `scenario_chapters`. */
+export interface NarrativeCoherenceAlert {
+  id: string;
+  title: string;
+  explanation: string;
+  severity?: NarrativeAlertSeverity;
+  anchor?: NarrativeAlertAnchor;
+}
 
 /** Résultat d'une génération d'image via l'Edge Function. */
 export interface GenerationResult {
@@ -189,7 +203,7 @@ export interface SpeechBubble {
   /** Style minimal (compatible écran chapitre). */
   style?: { font?: string; size?: number; color?: string; stroke?: string; fill?: string; bold?: boolean; italic?: boolean; underline?: boolean; strikethrough?: boolean; textAlign?: "left" | "center" | "right"; textTransform?: "none" | "uppercase" };
   character?: string;
-  // ── Format étendu (Edition_Panel_Blocs_Bulles.md, 08_Modele_de_Donnees.md)
+  // ── Format étendu (Edition-Oeuvre.md Partie III, 08_Modele_de_Donnees.md)
   /** Retourne la queue de la bulle du côté opposé (droite au lieu de gauche). */
   tailFlip?: boolean;
   borderRadius?: number;
@@ -215,7 +229,7 @@ export interface SpeechBubble {
   thoughtTailDotSize?: number;
 }
 
-/** Libellés UI des types de bulles (alignés Edition_Panel_Blocs_Bulles.md § 7.1). */
+/** Libellés UI des types de bulles (alignés Edition-Oeuvre.md § 7.1). */
 export const SPEECH_BUBBLE_TYPE_LABELS: Record<SpeechBubbleType, string> = {
   text: "Texte libre",
   speech: "Dialogue",

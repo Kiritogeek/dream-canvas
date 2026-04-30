@@ -99,7 +99,7 @@
 
 ### E7 — Panels & Édition de l'œuvre (à implémenter)
 
-**Principe** : les images générées sont des **illustrations pleines** (pas de cases dessinées dans l’image) ; en mode Structuré, elles sont affichées **dans** des blocs (conteneurs de mise en page). Voir `11_Rapport_Chapitres_Flux_Blocs_Scenario.md`.
+**Principe** : les images générées sont des **illustrations pleines** (pas de cases dessinées dans l’image) ; en mode Structuré, elles sont affichées **dans** des blocs (conteneurs de mise en page). Voir `Edition-Oeuvre.md` (Partie II — flux et blocs).
 
 **Édition de l'œuvre** : lors de l'édition d'un panel, l'utilisateur dispose de **deux visualisations** pour s'aider :
 - **Côté scénario** : le chapitre de scénario (ou le passage) qu'il adapte en visuel, affiché pendant l'édition.

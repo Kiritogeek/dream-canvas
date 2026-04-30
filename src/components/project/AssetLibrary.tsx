@@ -12,6 +12,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -640,7 +641,7 @@ export function AssetLibrary({
         open={!!editTarget}
         onOpenChange={(open) => !open && setEditTarget(null)}
       >
-        <DialogContent className="glass sm:max-w-lg flex flex-col max-h-[90vh] overflow-hidden">
+        <DialogContent className="glass sm:max-w-lg flex flex-col max-h-[90vh]">
           <DialogHeader className="flex-shrink-0">
             <DialogTitle className="font-display">
               Modifier l'asset
@@ -651,7 +652,8 @@ export function AssetLibrary({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-2 overflow-y-auto flex-1 min-h-0 pr-1">
+          <ScrollArea className="flex-1 min-h-0">
+          <div className="space-y-4 py-2 pr-4">
             {/* Preview image actuelle */}
             {editTarget?.image_url && (
               <div className="flex gap-4 items-start">
@@ -740,6 +742,7 @@ export function AssetLibrary({
               />
             </div>
           </div>
+          </ScrollArea>
 
           <DialogFooter className="flex flex-col gap-2 sm:flex-row flex-shrink-0 pt-2">
             {/* Cas 1 : Seul le nom a changé → un seul bouton "Sauvegarder" */}

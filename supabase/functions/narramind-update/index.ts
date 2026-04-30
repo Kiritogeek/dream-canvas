@@ -240,6 +240,7 @@ Format JSON STRICT :
       });
 
     let rawText: string | null = null;
+    const aiStart = Date.now();
 
     try {
       let aiRes = await fetch(AI_API_URL, {
@@ -339,6 +340,8 @@ Format JSON STRICT :
       );
     }
 
+    const aiDuration = Date.now() - aiStart;
+
     const entitiesToUpdate = Array.isArray(aiResult.entities_to_update)
       ? aiResult.entities_to_update
       : [];
@@ -428,7 +431,7 @@ Format JSON STRICT :
         context_tokens: contextTokensToLog,
         response_tokens: estimateTokens(JSON.stringify(aiResult)),
         chapters_in_context: allSummaries.length,
-        duration_ms: 0,
+        duration_ms: aiDuration,
       }),
     }).catch(() => {});
 

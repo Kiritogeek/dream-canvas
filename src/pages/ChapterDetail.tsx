@@ -75,7 +75,6 @@ import {
   PANEL_HEIGHT_MAX,
 } from "@/services/panels";
 import { callSuggestBlockPrompt } from "@/services/scenarioAI";
-import { exportChapterAsZip } from "@/services/exportPanel";
 import { ColorBlockLayer } from "@/components/chapter/ColorBlockLayer";
 import { ImageBlockLayer } from "@/components/chapter/ImageBlockLayer";
 import { BubbleLayer } from "@/components/chapter/BubbleLayer";
@@ -1744,6 +1743,7 @@ export default function ChapterDetail() {
                 }
                 setExportingChapter(true);
                 try {
+                  const { exportChapterAsZip } = await import("@/services/exportPanel");
                   await exportChapterAsZip(
                     el,
                     project.title ?? "Projet",

@@ -15,8 +15,10 @@ import { useAuth } from "@/hooks/useAuth";
 import { useUserPlan } from "@/hooks/useUserPlan";
 import { planDisplayName } from "@/types";
 import { useProject, useProjects, useUpdateProject } from "@/hooks/useProjects";
+import { useProgressiveMenuSidebarState } from "@/hooks/useProgressiveMenuGate";
 import { useToast } from "@/hooks/use-toast";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { ArianeOnboardingCard } from "@/components/ariane";
 
 const navLinks = [
   { to: "/dashboard",         icon: LayoutDashboard, label: "Tableau de bord" },
@@ -42,6 +44,10 @@ function ProjectStepsSection({ projectId, onLinkClick }: { projectId: string; on
       ? "scenario"
       : new URLSearchParams(location.search).get("tab") || "style";
   const { data: project } = useProject(projectId);
+  const { isResolved, appliesProgressiveFlow, accessible, showNew } = useProgressiveMenuSidebarState(
+    projectId,
+    activeTab
+  );
   const updateProject = useUpdateProject();
   const { toast } = useToast();
 
@@ -80,6 +86,15 @@ function ProjectStepsSection({ projectId, onLinkClick }: { projectId: string; on
     );
   };
 
+  const sidebarSteps =
+    appliesProgressiveFlow
+      ? projectSteps.filter((step) => {
+          if (step.key === "style") return true;
+          if (!isResolved) return false;
+          return accessible[step.key as keyof typeof accessible];
+        })
+      : projectSteps;
+
   return (
     <div className="mt-3">
       {project && (
@@ -101,25 +116,39 @@ function ProjectStepsSection({ projectId, onLinkClick }: { projectId: string; on
       )}
 
       <nav className="border-l border-border/30 ml-4">
-        {projectSteps.map((step) => {
+        {sidebarSteps.map((step) => {
           const Icon = step.icon;
           const isActive = activeTab === step.key;
           const to = "path" in step
             ? `/dashboard/projects/${projectId}/${step.path}`
             : `/dashboard/projects/${projectId}?tab=${step.key}`;
+          const className = `flex items-center gap-3 pl-4 pr-3 py-2.5 text-sm font-medium transition-colors duration-150 border-l-2 -ml-px ${
+            isActive
+              ? "border-primary text-foreground bg-primary/8"
+              : "border-transparent text-muted-foreground hover:text-foreground hover:border-border hover:bg-muted/20"
+          }`;
+          const newBadge =
+            showNew[step.key as keyof typeof showNew] &&
+            step.key !== "style" ? (
+              <span className="shrink-0 rounded-full bg-mint px-1.5 py-0 text-[10px] font-bold uppercase tracking-wide text-white">
+                New
+              </span>
+            ) : null;
+          const label = (
+            <>
+              <Icon className={`h-4 w-4 flex-shrink-0 transition-colors ${isActive ? "text-primary" : ""}`} />
+              <span className="flex-1 truncate">{step.label}</span>
+              {newBadge}
+            </>
+          );
           return (
             <Link
               key={step.key}
               to={to}
               onClick={onLinkClick}
-              className={`flex items-center gap-3 pl-4 pr-3 py-2.5 text-sm font-medium transition-colors duration-150 border-l-2 -ml-px ${
-                isActive
-                  ? "border-primary text-foreground bg-primary/8"
-                  : "border-transparent text-muted-foreground hover:text-foreground hover:border-border hover:bg-muted/20"
-              }`}
+              className={className}
             >
-              <Icon className={`h-4 w-4 flex-shrink-0 transition-colors ${isActive ? "text-primary" : ""}`} />
-              <span className="flex-1 truncate">{step.label}</span>
+              {label}
             </Link>
           );
         })}
@@ -407,6 +436,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           </div>
         </main>
       </div>
+      <ArianeOnboardingCard />
     </div>
   );
 }

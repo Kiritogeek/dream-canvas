@@ -1,9 +1,15 @@
 # Ariane — règles de mise en page (référence onboarding)
 
-Ce document décrit **comment les éléments sont agencés** pour les écrans plein viewport de type **Ariane**, en prenant pour référence le **premier onboarding** (`ArianeOnboardingCard`). Le **contenu textuel** (titres, paragraphes, libellé du bouton) est volontairement **hors scope** : il peut changer d’un écran à l’autre ; les **positions, empilements, contraintes de taille et comportements** ci-dessous restent la charte de layout.
+Ce document décrit **comment les éléments sont agencés** pour les écrans plein viewport de type **Ariane**, en prenant pour référence l’onboarding **`ArianeOnboardingCard`** et l’onboarding Style **`ArianeStyleOnboardingCard`**. Le **contenu textuel** (titres, paragraphes, libellé du bouton) est volontairement **hors scope** : il peut changer d’un écran à l’autre ; les **positions, empilements, contraintes de taille et comportements** ci-dessous restent la charte de layout.
 
-**Implémentation de référence :** `src/components/ariane/ArianeOnboardingCard.tsx`  
-**Forme de bulle alignée éditeur :** `layoutSpeechBubbleWithTailTextRect` dans `src/components/chapter/speechBubbleTextAreaLayout.ts`, SVG `SpeechBubbleShape` / `SPEECH_BUBBLE_VIEWBOX_WITH_TAIL`.
+**Implémentations de référence :**
+
+- `src/components/ariane/ArianeOnboardingCard.tsx` (tableau de bord)
+- `src/components/ariane/ArianeStyleOnboardingCard.tsx` (premier projet → Style)
+
+**Forme de bulle (onboarding uniquement) :** ellipse de type **dialogue** **sans queue** — `SpeechBubbleShape` avec `type="speech"` et **`tailOn={false}`**, `viewBox` **`SPEECH_BUBBLE_VIEWBOX_NARRATION`** (`0 0 100 100`). Géométrie associée : **`layoutSpeechBubbleNoTailTextRect`** dans `src/components/chapter/speechBubbleTextAreaLayout.ts`.
+
+> L’éditeur de cases conserve des bulles **avec queue** (`layoutSpeechBubbleWithTailTextRect`, `SPEECH_BUBBLE_VIEWBOX_WITH_TAIL`) ; ce fichier ne couvre que les overlays Ariane.
 
 ---
 
@@ -75,21 +81,22 @@ Ce bloc est **indépendant** de la bulle : il reste ancré au viewport pour la r
 
 - **`relative`**, **`mx-auto`**, **`w-full`**, **`max-w-[min(100%, 63rem)]`** (plafond largeur **enveloppe** ; le texte peut rester plus étroit, voir §7).
 - **Décalage vers la droite** : `translate-x-3` → `md:translate-x-7` → `lg:translate-x-10` pour séparer visuellement du personnage.
-- **`overflow-visible`** pour ne pas couper le trait ni la **queue** du SVG.
+- **`overflow-visible`** pour ne pas couper le **trait** du pourtour de l’ellipse.
 
-### 6.2 SVG bulle
+### 6.2 SVG bulle (sans queue)
 
-- **Deux instances** : une **mobile** (`md:hidden`), une **desktop** (`hidden md:block`) pour ajuster **queue** (`tailX`, `tailY`, courbure).
-- **`absolute left-0 w-full`**, position verticale et hauteur via **`layoutSpeechBubbleWithTailTextRect`** (voir §8).
+- **Une seule instance** SVG (plus de variante mobile/desktop pour une queue).
+- **`absolute left-0 w-full`**, position verticale et hauteur via **`layoutSpeechBubbleNoTailTextRect`** (voir §8).
+- **`viewBox`** : **`SPEECH_BUBBLE_VIEWBOX_NARRATION`** (`0 0 100 100`).
 - **`preserveAspectRatio="none"`**, **`overflow="visible"`**.
-- **Remplissage / contour** : tokens **`hsl(var(--card))`**, **`hsl(var(--lavender))`**, pas de couleurs arbitraires hors design system.
+- **`SpeechBubbleShape`** : `type="speech"`, **`tailOn={false}`** — rendu **ellipse** uniquement, alignée sur le même modèle corps qu’en éditeur mais **sans queue**.
 
 ### 6.3 Zone scroll interne (hauteur bulle « au contenu »)
 
 - **`flex`**, **`items-center justify-center`** pour **centrer** le bloc de contenu quand il est plus petit que l’enveloppe.
 - **Bornes** (à ajuster ensemble si la spec bulle change) :
-  - **`min-h`** : `min(25.5rem, 51dvh)` — plancher pour le centrage vertical.
-  - **`max-h`** : `min(191.25dvh, 94.5rem)` — plafond avant **scroll vertical interne**.
+  - **`min-h`** : `min(25.5rem, 51dvh)` pour l’onboarding dashboard ; variante plus haute possible pour Style si le média / copy est plus dense.
+  - **`max-h`** : plafond avant **scroll vertical interne** (valeur selon composant).
 - **Padding égal** sur les quatre côtés : **`p-10`** puis **`md:p-12`** (marges intérieures symétriques pour **centrage visuel** du corps).
 - **`overflow-x` hidden**, **`overflow-y` auto**, **`overscroll-contain`**.
 
@@ -100,7 +107,7 @@ Ce bloc est **indépendant** de la bulle : il reste ancré au viewport pour la r
 *Le copy change ; la grille typographique ci-dessous est la référence.*
 
 - **Conteneur principal** : **`flex flex-col`**, **`items-center`**, **`text-center`**, **`gap-5`** (`md:gap-6`).
-- **Largeurn du bloc texte (colonne de lecture)** : **`max-w-2xl`** (~42rem), **`w-full`**, **`min-w-0`** pour éviter les débordements flex — **indépendant** de la **`max-w`** de l’enveloppe (63rem) : la bulle peut être large, la **colonne de texte reste resserrée et centrée**.
+- **Largeur du bloc texte (colonne de lecture)** : **`max-w-2xl`** (~42rem), **`w-full`**, **`min-w-0`** pour éviter les débordements flex — **indépendant** de la **`max-w`** de l’enveloppe (63rem) : la bulle peut être large, la **colonne de texte reste resserrée et centrée**.
 - **Titre** : `font-display`, tailles **`text-lg` / `md:text-xl`**, **centré**, `id` unique pour **`aria-labelledby`**.
 - **Corps** : taille **`text-sm` / `md:text-[0.9375rem]`**, **`leading`** ~1.45, **`text-pretty`**, **`text-muted-foreground`**. Phrases en **blocs** (`display block`) + **`space-y`** pour sauts de ligne lisibles si besoin.
 - **Actions** : rangée **`justify-center`**, bouton principal **`gradient-primary`**, **`ref`** pour le focus ; **`pb`** minimal pour **safe-area bas** uniquement sur la rangée bouton.
@@ -110,18 +117,19 @@ Ce bloc est **indépendant** de la bulle : il reste ancré au viewport pour la r
 ## 8. Géométrie dynamique (ResizeObserver)
 
 - **`bubbleBoxRef`** enveloppe **SVG + zone scroll** ; sa **taille mesurée** alimente **`bubbleGeom`**.
-- **`layoutSpeechBubbleWithTailTextRect({ width, height })`** recalcule :
-  - **`svgTopOffset`**, **`svgH`** (SVG plus haut que la boîte pour inclure la queue),
-  - dimensions de zone texte historiques (pour l’éditeur ; en onboarding le texte est en **flux** dans la zone scroll, pas en position absolue figée sur ces hauteurs).
-- **Repli avant mesure** : largeur / hauteur par défaut (ex. **810 × 630** au moment de la rédaction) pour un premier rendu cohérent.
+- **`layoutSpeechBubbleNoTailTextRect({ width, height })`** recalcule :
+  - **`svgTopOffset`**, **`svgH`** (hauteur SVG **sans** coefficient 1,2 réservé à la queue éditeur),
+  - dimensions de zone texte dérivées des mêmes **fractions** que la bulle *avec queue*, réexprimées pour un **`viewBox`** en **100** unités de haut.
+- En onboarding, le texte est en **flux** dans la zone scroll, pas en position absolue figée sur ces hauteurs.
+- **Repli avant mesure** : largeur / hauteur par défaut (ex. **810 × 630** ou **810 × 720** selon l’écran) pour un premier rendu cohérent.
 
 ---
 
 ## 9. Résumé des invariants produit / design
 
 - **Trois piliers visuels** : backdrop → **personnage bas gauche/bande gauche** → **bulle centrée / décalée droite** + **signature Ariane haut gauche**.
-- **Bulle** : **sans clip-path** qui tronque queue ou boutons ; **padding égal** ; **contenu centré** ; **enveloppe** et **colonne texte** découplées (`max-w` bulle vs `max-w-2xl` contenu).
-- **Tokens** et ** français** dans l’UI ; accessibilité **dialog** + **focus** sur l’action principale.
+- **Bulle onboarding** : **ellipse type dialogue, sans queue** ; **sans clip-path** qui tronque les boutons ; **padding égal** ; **contenu centré** ; **enveloppe** et **colonne texte** découplées (`max-w` bulle vs `max-w-2xl` contenu).
+- **Tokens** et **français** dans l’UI ; accessibilité **dialog** + **focus** sur l’action principale.
 
 ---
 
@@ -131,3 +139,8 @@ Pour un **nouvel écran Ariane** (autre onboarding, tutoriel, etc.) :
 
 - Réutiliser cette **structure de calques** et les **bornes** bulle / personnage sauf décision produit contraire.
 - Remplacer uniquement le **slot contenu** (titres, textes, CTA, éventuellement plusieurs boutons) en gardant **`max-w-2xl`** et le centrage si la densité de lecture doit rester identique à l’onboarding de référence.
+- Conserver **sans queue** pour les overlays plein écran Ariane, sauf décision contraire.
+
+---
+
+*Ancien nom de fichier : `ArianeRules.md`.*

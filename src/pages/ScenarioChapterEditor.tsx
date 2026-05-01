@@ -30,6 +30,7 @@ import {
   useScenarioChapters,
 } from "@/hooks/useScenarioChapters";
 import { useProject, useUpdateProject } from "@/hooks/useProjects";
+import { getMaxAccessibleTab, useProgressiveMenuAccess } from "@/hooks/useProgressiveMenuGate";
 import { useAssets } from "@/hooks/useAssets";
 import { useScenarioAI } from "@/hooks/useScenarioAI";
 import { useUserPlan } from "@/hooks/useUserPlan";
@@ -250,6 +251,8 @@ export default function ScenarioChapterEditor() {
   const { data: chapter, isLoading: isLoadingChapter } =
     useScenarioChapter(chapterId);
   const { data: project } = useProject(projectId);
+  const { isResolved, appliesProgressiveFlow, accessible } = useProgressiveMenuAccess(projectId);
+  const progressiveRedirectRef = useRef(false);
   const { data: assets = [] } = useAssets(projectId);
   const { data: allChapters = [] } = useScenarioChapters(projectId);
   const { data: continuityAlerts = [] } = useNarraMindAlerts(projectId, {
@@ -331,6 +334,24 @@ export default function ScenarioChapterEditor() {
   // Throttle ai_summary : max 1 appel Groq toutes les 2 min pour économiser le budget TPM
   const lastAiSummaryCallRef = useRef<number>(0);
   const lastNarraMindCallRef = useRef<number>(0);
+
+  useEffect(() => {
+    progressiveRedirectRef.current = false;
+  }, [projectId]);
+
+  useEffect(() => {
+    if (!isResolved || !appliesProgressiveFlow || !projectId) return;
+    if (accessible.scenario) return;
+    if (progressiveRedirectRef.current) return;
+    progressiveRedirectRef.current = true;
+    const tab = getMaxAccessibleTab(accessible);
+    toast({
+      title: "Étape précédente requise",
+      description:
+        "Validez d’abord le style, puis enchaînez les étapes du parcours débutant avant le scénario.",
+    });
+    navigate(`/dashboard/projects/${projectId}?tab=${tab}`, { replace: true });
+  }, [isResolved, appliesProgressiveFlow, accessible, projectId, navigate, toast]);
 
   const handleContentChange = useCallback((next: string) => {
     setContent(next);

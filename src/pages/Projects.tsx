@@ -25,6 +25,11 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useProjects, useCreateProject, useDeleteProject } from "@/hooks/useProjects";
 import DashboardLayout from "@/components/DashboardLayout";
+import {
+  ARIANE_STYLE_ONBOARDING_NEXT_CREATE_SESSION_KEY,
+  ARIANE_STYLE_ONBOARDING_PENDING_PROJECT_ID_KEY,
+} from "@/constants/ariane";
+import { bindForcedProgressiveProjectAfterCreate } from "@/lib/progressiveOnboardingStorage";
 
 export default function Projects() {
   const { toast } = useToast();
@@ -78,6 +83,8 @@ export default function Projects() {
       ? Math.max(1, Math.min(99, parseInt(panelsTarget, 10) || 10))
       : null;
 
+    const isFirstProject = projects.length === 0;
+
     createProject.mutate(
       { title: title.trim(), description: finalDescription, panels_target_per_chapter: panelsNum },
       {
@@ -86,6 +93,18 @@ export default function Projects() {
           setTitle("");
           setPanelsTarget("");
           setSelectedTags([]);
+          try {
+            const attachStyleOnboarding =
+              isFirstProject ||
+              sessionStorage.getItem(ARIANE_STYLE_ONBOARDING_NEXT_CREATE_SESSION_KEY) === "1";
+            if (attachStyleOnboarding) {
+              sessionStorage.setItem(ARIANE_STYLE_ONBOARDING_PENDING_PROJECT_ID_KEY, data.id);
+              sessionStorage.removeItem(ARIANE_STYLE_ONBOARDING_NEXT_CREATE_SESSION_KEY);
+            }
+            bindForcedProgressiveProjectAfterCreate(data.id);
+          } catch {
+            /* ignore */
+          }
           navigate(`/dashboard/projects/${data.id}`);
         },
         onError: (err) =>

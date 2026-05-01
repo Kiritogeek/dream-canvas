@@ -13,12 +13,23 @@ import { StyleManager } from "@/components/project/StyleManager";
 import { ScenarioSection } from "@/components/project/ScenarioSection";
 import { UniverseSection } from "@/components/project/UniverseSection";
 import { EditionSection } from "@/components/project/EditionSection";
+import { ArianeStyleOnboardingCard, ArianeJourneyCompleteCard } from "@/components/ariane";
+import {
+  ARIANE_ONBOARDING_ADMIN_EMAIL,
+  ARIANE_STYLE_ONBOARDING_PENDING_PROJECT_ID_KEY,
+  ARIANE_STYLE_ONBOARDING_STORAGE_KEY,
+} from "@/constants/ariane";
+import { useAuth } from "@/hooks/useAuth";
+import { getMaxAccessibleTab, useProgressiveMenuAccess } from "@/hooks/useProgressiveMenuGate";
+import { dismissJourneyFinal, isJourneyFinalDismissed } from "@/lib/progressiveOnboardingStorage";
 
 export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
   const { data: project, isLoading: loadingProject } = useProject(id);
   const { data: assets = [], isLoading: loadingAssets } = useAssets(id);
   const { plan: userPlan, usageInfo } = useUserPlan();
+  const { user } = useAuth();
+  const { isResolved, appliesProgressiveFlow, accessible } = useProgressiveMenuAccess(id);
 
   const [searchParams, setSearchParams] = useSearchParams();
   const rawTab = searchParams.get("tab");
@@ -31,6 +42,7 @@ export default function ProjectDetail() {
       : "style";
 
   const [styleDraft, setStyleDraft] = useState<string | undefined>(undefined);
+  const [journeyCompleteOpen, setJourneyCompleteOpen] = useState(false);
 
   useEffect(() => {
     setStyleDraft(undefined);
@@ -39,6 +51,30 @@ export default function ProjectDetail() {
   useEffect(() => {
     if (activeTab !== "style") setStyleDraft(undefined);
   }, [activeTab]);
+
+  useEffect(() => {
+    if (!isResolved || !appliesProgressiveFlow) return;
+    const tab = activeTab as keyof typeof accessible;
+    if (accessible[tab]) return;
+    setSearchParams({ tab: getMaxAccessibleTab(accessible) }, { replace: true });
+  }, [isResolved, appliesProgressiveFlow, activeTab, accessible, setSearchParams]);
+
+  useEffect(() => {
+    if (!user?.id || !isResolved || !appliesProgressiveFlow) {
+      setJourneyCompleteOpen(false);
+      return;
+    }
+    if (activeTab !== "edition") {
+      setJourneyCompleteOpen(false);
+      return;
+    }
+    if (!accessible.edition) return;
+    if (isJourneyFinalDismissed(user.id)) {
+      setJourneyCompleteOpen(false);
+      return;
+    }
+    setJourneyCompleteOpen(true);
+  }, [user?.id, isResolved, appliesProgressiveFlow, activeTab, accessible.edition]);
 
   const styleTemplate = styleDraft ?? project?.style_template ?? "";
 
@@ -50,6 +86,57 @@ export default function ProjectDetail() {
 
   const [pendingAssetName, setPendingAssetName] = useState("");
   const [pendingAssetType, setPendingAssetType] = useState<"character" | "background" | "object">("character");
+  const [styleOnboardingOpen, setStyleOnboardingOpen] = useState(false);
+
+  useEffect(() => {
+    setStyleOnboardingOpen(false);
+  }, [project?.id]);
+
+  useEffect(() => {
+    if (activeTab !== "style" || !project?.id) return;
+    let dismissed = false;
+    try {
+      dismissed = localStorage.getItem(ARIANE_STYLE_ONBOARDING_STORAGE_KEY) === "1";
+    } catch {
+      dismissed = false;
+    }
+    if (dismissed) return;
+    try {
+      const pendingId = sessionStorage.getItem(ARIANE_STYLE_ONBOARDING_PENDING_PROJECT_ID_KEY);
+      if (pendingId === project.id) setStyleOnboardingOpen(true);
+    } catch {
+      /* ignore */
+    }
+  }, [activeTab, project?.id]);
+
+  const handleStyleOnboardingDismiss = useCallback(() => {
+    try {
+      sessionStorage.removeItem(ARIANE_STYLE_ONBOARDING_PENDING_PROJECT_ID_KEY);
+      localStorage.setItem(ARIANE_STYLE_ONBOARDING_STORAGE_KEY, "1");
+    } catch {
+      /* ignore */
+    }
+    setStyleOnboardingOpen(false);
+  }, []);
+
+  const handleJourneyCompleteFinished = useCallback(() => {
+    if (user?.id) dismissJourneyFinal(user.id);
+    setJourneyCompleteOpen(false);
+  }, [user?.id]);
+
+  const canReplayStyleOnboarding =
+    user?.email?.trim().toLowerCase() === ARIANE_ONBOARDING_ADMIN_EMAIL;
+
+  const handleAdminReplayStyleOnboarding = useCallback(() => {
+    if (!project?.id) return;
+    try {
+      sessionStorage.setItem(ARIANE_STYLE_ONBOARDING_PENDING_PROJECT_ID_KEY, project.id);
+      localStorage.removeItem(ARIANE_STYLE_ONBOARDING_STORAGE_KEY);
+    } catch {
+      /* ignore */
+    }
+    setStyleOnboardingOpen(true);
+  }, [project?.id]);
 
   useEffect(() => {
     const name = searchParams.get("pendingName");
@@ -68,11 +155,15 @@ export default function ProjectDetail() {
 
   const handleNavigateToCreateAsset = useCallback(
     (name: string, type: "character" | "background" | "object") => {
+      if (isResolved && appliesProgressiveFlow && !accessible.assets) {
+        setSearchParams({ tab: getMaxAccessibleTab(accessible) }, { replace: true });
+        return;
+      }
       setPendingAssetName(name);
       setPendingAssetType(type);
       setSearchParams({ tab: "assets" });
     },
-    [setSearchParams]
+    [setSearchParams, isResolved, appliesProgressiveFlow, accessible]
   );
 
   const loading = loadingProject || loadingAssets;
@@ -103,11 +194,11 @@ export default function ProjectDetail() {
   }
 
   const tabHeaders = {
-    style:    { icon: Palette,   title: "Sélection de style"    },
-    assets:   { icon: ImageIcon, title: "Bibliothèque d'assets" },
-    scenario: { icon: BookOpen,  title: "Scénario"              },
-    universe: { icon: Globe,     title: "Univers"               },
-    edition:  { icon: Layers,    title: "Édition"               },
+    style: { icon: Palette, title: "Sélection de style" },
+    assets: { icon: ImageIcon, title: "Bibliothèque d'assets" },
+    scenario: { icon: BookOpen, title: "Scénario" },
+    universe: { icon: Globe, title: "Univers" },
+    edition: { icon: Layers, title: "Édition" },
   } as const;
   const currentHeader = tabHeaders[activeTab as keyof typeof tabHeaders];
   const HeaderIcon = currentHeader.icon;
@@ -122,7 +213,11 @@ export default function ProjectDetail() {
       </div>
       <Tabs
         value={activeTab}
-        onValueChange={(tab) => setSearchParams({ tab })}
+        onValueChange={(tab) => {
+          const t = tab as keyof typeof accessible;
+          if (appliesProgressiveFlow && !accessible[t]) return;
+          setSearchParams({ tab });
+        }}
         className="space-y-4 sm:space-y-6"
       >
         <TabsContent value="style">
@@ -131,8 +226,13 @@ export default function ProjectDetail() {
             styleTemplate={styleTemplate}
             onStyleTemplateChange={setStyleDraft}
             onStyleSaveSuccess={() => setStyleDraft(undefined)}
-            onStyleValidated={() => setSearchParams({ tab: "assets" })}
+            onStyleValidated={() =>
+              setSearchParams({ tab: appliesProgressiveFlow ? "scenario" : "assets" })
+            }
             userPlan={userPlan}
+            adminReplayStyleOnboarding={
+              canReplayStyleOnboarding ? handleAdminReplayStyleOnboarding : undefined
+            }
           />
         </TabsContent>
 
@@ -165,8 +265,15 @@ export default function ProjectDetail() {
         <TabsContent value="edition">
           <EditionSection projectId={project.id} />
         </TabsContent>
-
       </Tabs>
+      <ArianeStyleOnboardingCard
+        open={styleOnboardingOpen && activeTab === "style"}
+        onDismiss={handleStyleOnboardingDismiss}
+      />
+      <ArianeJourneyCompleteCard
+        open={journeyCompleteOpen && activeTab === "edition"}
+        onDismiss={handleJourneyCompleteFinished}
+      />
     </DashboardLayout>
   );
 }

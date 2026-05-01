@@ -48,6 +48,8 @@ interface StyleManagerProps {
   onStyleSaveSuccess?: () => void;
   onStyleValidated?: () => void;
   userPlan?: UserPlan;
+  /** Réservé au compte démo (email Ariane admin) — relance l’overlay d’intro Style. */
+  adminReplayStyleOnboarding?: () => void;
 }
 
 export function StyleManager({
@@ -55,7 +57,9 @@ export function StyleManager({
   styleTemplate,
   onStyleTemplateChange,
   onStyleSaveSuccess,
+  onStyleValidated,
   userPlan = "free",
+  adminReplayStyleOnboarding,
 }: StyleManagerProps) {
   const STYLE_OPTIONS = [
     {
@@ -243,6 +247,7 @@ export function StyleManager({
         description: `${selectedStyle.label} enregistré pour le projet.`,
       });
       onStyleSaveSuccess?.();
+      if (isFirstTime) onStyleValidated?.();
       return true;
     } catch (err) {
       const message = err instanceof Error ? err.message : "Erreur inconnue";
@@ -310,6 +315,19 @@ export function StyleManager({
 
       {/* Carte principale */}
       <div className="glass rounded-lg sm:rounded-xl p-4 sm:p-6 space-y-4">
+        {adminReplayStyleOnboarding ? (
+          <div className="flex justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="border-[hsl(var(--lavender)/0.4)] bg-background/40 text-xs sm:text-sm"
+              onClick={adminReplayStyleOnboarding}
+            >
+              Relancer l’onboarding Style
+            </Button>
+          </div>
+        ) : null}
 
         {/* En-tête contextuel */}
         {isFirstTime ? (

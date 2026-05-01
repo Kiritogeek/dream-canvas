@@ -55,6 +55,7 @@ import { useChapter, useUpdateChapter } from "@/hooks/useChapters";
 import { useScenarioChapters, useScenarioChapter } from "@/hooks/useScenarioChapters";
 import { useAssets } from "@/hooks/useAssets";
 import { useProject } from "@/hooks/useProjects";
+import { getMaxAccessibleTab, useProgressiveMenuAccess } from "@/hooks/useProgressiveMenuGate";
 import { useUserPlan } from "@/hooks/useUserPlan";
 import {
   usePanels,
@@ -120,6 +121,8 @@ export default function ChapterDetail() {
 
   const { data: chapter, isLoading: loadingChapter } = useChapter(chapterId);
   const { data: project } = useProject(projectId);
+  const { isResolved, appliesProgressiveFlow, accessible } = useProgressiveMenuAccess(projectId);
+  const progressiveRedirectRef = useRef(false);
   const { plan, usageInfo, goToCheckout } = useUserPlan();
   const navigate = useNavigate();
   const isPro = plan === "pro";
@@ -137,6 +140,24 @@ export default function ChapterDetail() {
   const generatePanelImage = useGeneratePanelImage(chapterId ?? "");
   const panelsQueryKey = useMemo(() => ["panels", chapterId] as const, [chapterId]);
   const preloadedImagesRef = useRef<HTMLImageElement[]>([]);
+
+  useEffect(() => {
+    progressiveRedirectRef.current = false;
+  }, [projectId]);
+
+  useEffect(() => {
+    if (!isResolved || !appliesProgressiveFlow || !projectId) return;
+    if (accessible.edition) return;
+    if (progressiveRedirectRef.current) return;
+    progressiveRedirectRef.current = true;
+    const tab = getMaxAccessibleTab(accessible);
+    toast({
+      title: "Étape précédente requise",
+      description:
+        "Poursuivez le parcours débutant dans l’ordre : Style → Scénario → Assets → Univers → Édition.",
+    });
+    navigate(`/dashboard/projects/${projectId}?tab=${tab}`, { replace: true });
+  }, [isResolved, appliesProgressiveFlow, accessible, projectId, navigate, toast]);
 
   useEffect(() => {
     const urls = panels.flatMap((p) =>

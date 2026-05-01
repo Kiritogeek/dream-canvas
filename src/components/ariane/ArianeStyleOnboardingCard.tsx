@@ -8,13 +8,8 @@ import {
   SPEECH_BUBBLE_VIEWBOX_NARRATION,
 } from "@/components/chapter/SpeechBubbleShape";
 import { layoutSpeechBubbleNoTailTextRect } from "@/components/chapter/speechBubbleTextAreaLayout";
-import {
-  ARIANE_WELCOME_REPLAY_EVENT,
-} from "@/constants/ariane";
 import { ArianeGlyph } from "./ArianeGlyph";
 import { cn } from "@/lib/utils";
-
-const STORAGE_KEY = "dw.ariane_onboarding_v1_dismissed";
 
 const shellEase = [0.22, 1, 0.36, 1] as const;
 const textEase = [0.25, 0.9, 0.35, 1] as const;
@@ -23,7 +18,7 @@ const bubbleTextVariants = {
   hidden: { opacity: 0 },
   show: {
     opacity: 1,
-    transition: { staggerChildren: 0.14, delayChildren: 0.06 },
+    transition: { staggerChildren: 0.12, delayChildren: 0.06 },
   },
 };
 
@@ -32,21 +27,25 @@ const bubbleTextItem = {
   show: {
     opacity: 1,
     y: 0,
-    transition: { duration: 0.72, ease: textEase },
+    transition: { duration: 0.68, ease: textEase },
   },
 };
 
-const BUBBLE_TEXT_REVEAL_DELAY_MS = 340;
-const FOCUS_AFTER_TEXT_MS = 1450;
+const BUBBLE_TEXT_REVEAL_DELAY_MS = 320;
+const FOCUS_AFTER_TEXT_MS = 1400;
 const OVERLAY_EXIT_DURATION_S = 0.42;
 
-export type ArianeOnboardingCardProps = {
+export type ArianeStyleOnboardingCardProps = {
+  open: boolean;
+  onDismiss: () => void;
   className?: string;
 };
 
-export function ArianeOnboardingCard({ className }: ArianeOnboardingCardProps) {
-  const [welcomeReplayEpoch, setWelcomeReplayEpoch] = useState(0);
-  const [open, setOpen] = useState(false);
+export function ArianeStyleOnboardingCard({
+  open,
+  onDismiss,
+  className,
+}: ArianeStyleOnboardingCardProps) {
   const [exiting, setExiting] = useState(false);
   const [revealBubbleText, setRevealBubbleText] = useState(false);
   const [imgFailed, setImgFailed] = useState(false);
@@ -67,13 +66,8 @@ export function ArianeOnboardingCard({ className }: ArianeOnboardingCardProps) {
     if (!exitingRef.current) return;
     clearExitFallback();
     exitingRef.current = false;
-    try {
-      localStorage.setItem(STORAGE_KEY, "1");
-    } catch {
-      /* ignore */
-    }
     setExiting(false);
-    setOpen(false);
+    onDismiss();
   };
 
   const dismiss = () => {
@@ -88,27 +82,6 @@ export function ArianeOnboardingCard({ className }: ArianeOnboardingCardProps) {
   };
 
   useEffect(() => {
-    const onReplay = () => setWelcomeReplayEpoch((n) => n + 1);
-    window.addEventListener(ARIANE_WELCOME_REPLAY_EVENT, onReplay);
-    return () => window.removeEventListener(ARIANE_WELCOME_REPLAY_EVENT, onReplay);
-  }, []);
-
-  useEffect(() => {
-    if (welcomeReplayEpoch > 0) {
-      clearExitFallback();
-      setOpen(true);
-      setExiting(false);
-      exitingRef.current = false;
-      return;
-    }
-    try {
-      setOpen(localStorage.getItem(STORAGE_KEY) !== "1");
-    } catch {
-      setOpen(true);
-    }
-  }, [welcomeReplayEpoch]);
-
-  useEffect(() => {
     if (!open) {
       setRevealBubbleText(false);
       return;
@@ -116,7 +89,7 @@ export function ArianeOnboardingCard({ className }: ArianeOnboardingCardProps) {
     setRevealBubbleText(false);
     const t = window.setTimeout(() => setRevealBubbleText(true), BUBBLE_TEXT_REVEAL_DELAY_MS);
     return () => window.clearTimeout(t);
-  }, [open, welcomeReplayEpoch]);
+  }, [open]);
 
   useLayoutEffect(() => {
     if (!open) return;
@@ -205,7 +178,7 @@ export function ArianeOnboardingCard({ className }: ArianeOnboardingCardProps) {
     <motion.div
       role="dialog"
       aria-modal="true"
-      aria-labelledby="ariane-onboarding-heading"
+      aria-labelledby="ariane-style-onboarding-heading"
       className={cn(
         "fixed inset-0 z-[200] flex min-h-0 flex-col-reverse md:flex-row md:items-stretch",
         className
@@ -322,7 +295,7 @@ export function ArianeOnboardingCard({ className }: ArianeOnboardingCardProps) {
           >
             <motion.div
               className={cn(
-                "flex w-full min-w-0 max-w-2xl flex-col items-center justify-center gap-5 text-center md:gap-6",
+                "flex w-full min-w-0 max-w-2xl flex-col items-center justify-center gap-4 text-center md:gap-5",
                 "text-sm md:text-[0.9375rem] leading-[1.45] break-words [overflow-wrap:anywhere] text-foreground/90"
               )}
               variants={bubbleTextVariants}
@@ -330,40 +303,22 @@ export function ArianeOnboardingCard({ className }: ArianeOnboardingCardProps) {
               animate={revealBubbleText ? "show" : "hidden"}
             >
               <motion.h2
-                id="ariane-onboarding-heading"
+                id="ariane-style-onboarding-heading"
                 className="font-display w-full shrink-0 text-center text-lg font-bold leading-tight tracking-tight text-foreground md:text-xl"
                 variants={bubbleTextItem}
               >
-                Bienvenue sur{" "}
-                <span className={cn(bubbleBrandWord)}>DreamWeave</span>
+                Votre <span className={cn(bubbleBrandWord)}>style visuel</span>
               </motion.h2>
               <motion.span
                 className="block w-full text-pretty text-muted-foreground"
                 variants={bubbleTextItem}
               >
-                Je suis <span className={cn(bubbleBrandWord)}>Ariane</span>, votre guide.
-              </motion.span>
-              <motion.span
-                className="mt-2 block w-full text-pretty text-muted-foreground md:mt-2.5"
-                variants={bubbleTextItem}
-              >
-                Je suis là pour vous aider à comprendre comment{" "}
-                <span className={cn(bubbleBrandWord)}>DreamWeave</span> s’articule autour de votre création :
-                Webtoons, Mangas et bien d’autres&nbsp;!
-              </motion.span>
-              <motion.span
-                className="mt-2 block w-full text-pretty text-muted-foreground md:mt-2.5"
-                variants={bubbleTextItem}
-              >
-                Vous définissez le <strong className="font-semibold text-foreground">Style</strong>, créez vos{" "}
-                <strong className="font-semibold text-foreground">Assets</strong>, écrivez votre{" "}
-                <strong className="font-semibold text-foreground">Scénario</strong>, définissez les règles de votre{" "}
-                <strong className="font-semibold text-foreground">Univers</strong>, puis composez vos chapitres grâce à
-                l’<strong className="font-semibold text-foreground">Édition</strong>.
+                C’est la première étape de votre projet : choisissez un <strong className="font-semibold text-foreground">modèle</strong> dans la grille (manga, webtoon, etc.), puis enregistrez-le avec{" "}
+                <strong className="font-semibold text-foreground">Valider ce style</strong>. Toutes vos futures générations s’aligneront sur ce réglage.
               </motion.span>
               <motion.div
                 className={cn(
-                  "relative z-20 flex w-full shrink-0 justify-center",
+                  "relative z-20 mt-2 flex w-full shrink-0 justify-center",
                   "pb-[max(0px,env(safe-area-inset-bottom,0px))]"
                 )}
                 variants={bubbleTextItem}
@@ -374,12 +329,9 @@ export function ArianeOnboardingCard({ className }: ArianeOnboardingCardProps) {
                   size="default"
                   disabled={exiting}
                   className="h-11 w-full min-w-[200px] gradient-primary text-primary-foreground shadow-dream md:h-10 md:w-auto"
-                  onClick={() => {
-                    if (exiting) return;
-                    dismiss();
-                  }}
+                  onClick={dismiss}
                 >
-                  C’est parti
+                  J’ai compris, je choisis mon style
                 </Button>
               </motion.div>
             </motion.div>

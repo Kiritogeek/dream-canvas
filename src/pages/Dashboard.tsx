@@ -12,9 +12,15 @@ import { useAssetCount } from "@/hooks/useAssets";
 import { useUserPlan } from "@/hooks/useUserPlan";
 import { planDisplayName } from "@/types";
 import DashboardLayout from "@/components/DashboardLayout";
-import { ArianeOnboardingCard } from "@/components/ariane";
-import { ARIANE_DISPLAY_NAME, ARIANE_ONBOARDING_ADMIN_EMAIL } from "@/constants/ariane";
+import {
+  ARIANE_DISPLAY_NAME,
+  ARIANE_ONBOARDING_ADMIN_EMAIL,
+  ARIANE_STYLE_ONBOARDING_NEXT_CREATE_SESSION_KEY,
+  ARIANE_STYLE_ONBOARDING_PENDING_PROJECT_ID_KEY,
+  ARIANE_WELCOME_REPLAY_EVENT,
+} from "@/constants/ariane";
 import { useAuth } from "@/hooks/useAuth";
+import { resetProgressiveOnboardingSimulation, bindForcedProgressiveProjectAfterCreate } from "@/lib/progressiveOnboardingStorage";
 
 const genreTags = [
   { label: "Fantasy",    emoji: "🧙" },
@@ -45,7 +51,6 @@ export default function Dashboard() {
   const [newTitle, setNewTitle] = useState("");
   const [newPanelsTarget, setNewPanelsTarget] = useState("");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [arianeOnboardingReplayEpoch, setArianeOnboardingReplayEpoch] = useState(0);
 
   const canReplayArianeOnboarding =
     user?.email?.trim().toLowerCase() === ARIANE_ONBOARDING_ADMIN_EMAIL;
@@ -59,6 +64,7 @@ export default function Dashboard() {
     const panelsNum = newPanelsTarget.trim()
       ? Math.max(1, Math.min(99, parseInt(newPanelsTarget, 10) || 10))
       : null;
+    const isFirstProject = projectCount === 0;
     createProject.mutate(
       {
         title: newTitle.trim(),
@@ -71,6 +77,18 @@ export default function Dashboard() {
           setNewTitle("");
           setNewPanelsTarget("");
           setSelectedTags([]);
+          try {
+            const attachStyleOnboarding =
+              isFirstProject ||
+              sessionStorage.getItem(ARIANE_STYLE_ONBOARDING_NEXT_CREATE_SESSION_KEY) === "1";
+            if (attachStyleOnboarding) {
+              sessionStorage.setItem(ARIANE_STYLE_ONBOARDING_PENDING_PROJECT_ID_KEY, data.id);
+              sessionStorage.removeItem(ARIANE_STYLE_ONBOARDING_NEXT_CREATE_SESSION_KEY);
+            }
+            bindForcedProgressiveProjectAfterCreate(data.id);
+          } catch {
+            /* ignore */
+          }
           navigate(`/dashboard/projects/${data.id}`);
         },
         onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }),
@@ -90,7 +108,6 @@ export default function Dashboard() {
   ];
 
   return (
-    <>
     <DashboardLayout>
       <div className="space-y-6 sm:space-y-8">
         {/* Welcome */}
@@ -117,15 +134,34 @@ export default function Dashboard() {
               Nouveau projet
             </Button>
             {canReplayArianeOnboarding ? (
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className="border-[hsl(var(--lavender)/0.4)] bg-background/40 text-sm"
-                onClick={() => setArianeOnboardingReplayEpoch((n) => n + 1)}
-              >
-                Relancer l’onboarding Ariane
-              </Button>
+              <>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="border-[hsl(var(--lavender)/0.4)] bg-background/40 text-sm"
+                  onClick={() => window.dispatchEvent(new CustomEvent(ARIANE_WELCOME_REPLAY_EVENT))}
+                >
+                  Relancer l’onboarding Ariane
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="border-[hsl(var(--mint)/0.35)] bg-background/40 text-sm"
+                  onClick={() => {
+                    resetProgressiveOnboardingSimulation(user?.id);
+                    window.dispatchEvent(new CustomEvent(ARIANE_WELCOME_REPLAY_EVENT));
+                    toast({
+                      title: "Parcours débutant réinitialisé",
+                      description:
+                        "Bienvenue Ariane, Style et menus New seront proposés après création d’un projet ou en naviguant.",
+                    });
+                  }}
+                >
+                  Simuler première connexion (menus)
+                </Button>
+              </>
             ) : null}
           </div>
         </motion.div>
@@ -300,7 +336,5 @@ export default function Dashboard() {
         </DialogContent>
       </Dialog>
     </DashboardLayout>
-    <ArianeOnboardingCard adminReplayEpoch={arianeOnboardingReplayEpoch} />
-    </>
   );
 }

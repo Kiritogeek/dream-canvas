@@ -10,10 +10,12 @@ import {
 import {
   ARIANE_FORCED_PROGRESSIVE_PENDING,
   ARIANE_FORCED_PROGRESSIVE_PROJECT_SESSION_KEY,
+  ARIANE_PROGRESSIVE_SIDEBAR_BUMP_EVENT,
 } from "@/constants/ariane";
 import {
   dismissMenuNew,
   isMenuNewDismissed,
+  isArianeTabTourComplete,
   type ProgressiveMenuStep,
 } from "@/lib/progressiveOnboardingStorage";
 
@@ -127,15 +129,22 @@ export function useProgressiveMenuSidebarState(
   accessibleRef.current = accessible;
 
   useEffect(() => {
-    if (!userId || !appliesProgressiveFlow || !isResolved) return;
+    const onBump = () => setTick((n) => n + 1);
+    window.addEventListener(ARIANE_PROGRESSIVE_SIDEBAR_BUMP_EVENT, onBump);
+    return () => window.removeEventListener(ARIANE_PROGRESSIVE_SIDEBAR_BUMP_EVENT, onBump);
+  }, []);
+
+  useEffect(() => {
+    if (!userId || !projectId || !appliesProgressiveFlow || !isResolved) return;
     if (sidebarActiveStep === "style") return;
     const steps: ProgressiveMenuStep[] = ["scenario", "assets", "universe", "edition"];
     if (!steps.includes(sidebarActiveStep as ProgressiveMenuStep)) return;
     const step = sidebarActiveStep as ProgressiveMenuStep;
     if (!accessibleRef.current[step]) return;
+    if (!isArianeTabTourComplete(userId, projectId, step)) return;
     dismissMenuNew(userId, step);
     setTick((n) => n + 1);
-  }, [userId, appliesProgressiveFlow, isResolved, sidebarActiveStep]);
+  }, [userId, projectId, appliesProgressiveFlow, isResolved, sidebarActiveStep]);
 
   const showNew =
     !userId || !appliesProgressiveFlow

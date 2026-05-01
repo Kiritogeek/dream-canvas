@@ -141,41 +141,21 @@ Les **explications affichables plus tard** devront rester en **langage histoire*
 
 ### Onboarding Ariane — **pages et contenus implémentés**
 
-Tout l’onboarding produit **à ce jour** est concentré sur le **tableau de bord**. Aucune autre route n’affiche aujourd’hui un composant d’onboarding dédié (modal multi-étapes, tour guidé plein écran, etc.) — évolutions possibles voir `NarraMind-Guide-Personnage.md`.
+- **Accueil plein écran** : `ArianeOnboardingCard` monté dans **`DashboardLayout`** (toutes les routes dashboard : tableau de bord, fiche projet, liste projets, profil, plans). Dismiss `localStorage` `dw.ariane_onboarding_v1_dismissed`; replay admin : événement `dw:ariane-welcome-replay`.
+- **Style (première validation)** : `ArianeStyleOnboardingCard` sur l’onglet Style du projet lorsque `sessionStorage` `dw.style_onboarding_pending_project_id` correspond au projet.
+- **Fin de parcours** : `ArianeJourneyCompleteCard` sur l’onglet **Édition** lorsque toutes les étapes progressives sont débloquées et que l’utilisateur n’a pas encore fermé la carte finale (`dw.ariane_journey_final_v1_*`).
+- **Menus progressifs** : masquage des onglets non débloqués (premier projet ou recette simulation) — voir `UX.md` §2.2bis et wiki Obsidian `Parcours-Premier-Projet.md`.
 
-#### Page : **Tableau de bord**
+#### Page : **Tableau de bord** (actions recette admin)
 
-| Élément | Détail |
-|---------|--------|
-| **Route** | `/dashboard` |
-| **Fichier page** | `src/pages/Dashboard.tsx` |
-| **Zone** | Bloc d’accueil en haut de page (carte `gradient-dream`), au-dessus du bouton « Nouveau projet ». |
+Email `kiritogeek@gmail.com` : boutons *Relancer l’onboarding Ariane* ; *Simuler première connexion (menus)* (`resetProgressiveOnboardingSimulation`).
 
-**Texte d’accueil (hors bulle Ariane)** — affiché pour **tous** les visiteurs de cette page :
+#### Pages **sans** la même bulle d’accueil
 
-- **Titre** : « Bienvenue sur DreamWeave »
-- **Paragraphe** : le nom **Ariane** (constante `ARIANE_DISPLAY_NAME` dans `src/constants/ariane.ts`) introduit la phrase : *« vous souhaite la bienvenue. Prêt à tisser de nouvelles histoires ? Créez un projet et commencez à générer vos webtoons. »*
+- **Landing / auth** : pas d’`ArianeOnboardingCard`.
+- **Éditeur de chapitre (cases)** : pas d’overlay d’accueil ; tiroir **Continuité** (alertes) = contexte distinct.
 
-**Carte bulle « guide du parcours »** — composant `ArianeOnboardingCard` (`src/components/ariane/ArianeOnboardingCard.tsx`), bulle `ArianeBubble` en variant **`onboarding`** :
-
-| Élément | Détail |
-|---------|--------|
-| **Visibilité** | Affichée tant que la clé **`localStorage`** `dw.ariane_onboarding_v1_dismissed` **n’est pas** à la valeur `"1"`. Dès que l’utilisateur clique sur **« J’ai compris »**, la clé est posée et la **carte ne réapparaît plus** (même navigateur). |
-| **Légende sous la signature** | « Guide du parcours — vous pouvez refermer cette carte. » |
-| **Titre interne (accessibilité)** | « Bienvenue sur DreamWeave » |
-| **Paragraphe principal** | *« Je vous accompagne pour poser les bases de votre univers : créez un projet, définissez le style et les personnages, écrivez le scénario puis passez à l’édition des cases. Prenez votre temps — chaque étape nourrit la cohérence de votre récit. »* |
-| **Liste numérotée (3 points)** | (1) Lien **Tableau de bord** → `/dashboard` — légende « vos projets » ; (2) **Projet** — mention des onglets *Style, Assets, Scénario, Édition* ; (3) **Scénario** — indication que les *Points d’attention* (bouton **Continuité** dans l’éditeur de chapitre) listent les incohérences possibles **pour le chapitre ouvert** (formulation orientée auteur, sans jargon technique). |
-| **Actions** | **« J’ai compris »** — masque la carte et enregistre le dismiss en `localStorage` ; **« Créer ou ouvrir un projet »** — lien vers `/dashboard` (même entrée que le tableau de bord ; la création se fait aussi via le bouton « Nouveau projet » sous la carte). |
-
-**Identité visuelle de la bulle** : pictogramme `ArianeGlyph` + fond `.glass`, bordure lavande légère — aligné sur [`NarraMind-Guide-Personnage.md`](./NarraMind-Guide-Personnage.md).
-
-#### Pages **sans** onboarding Ariane dédié aujourd’hui
-
-- **Projet** (`/dashboard/projects/:id`), **éditeur de chapitre** (`/dashboard/projects/:id/scenario/chapters/:chapterId`), **autres écrans** : pas de composant `ArianeOnboardingCard` ni tutoriel Ariane équivalent ; l’éditeur propose uniquement l’**assistance continuité** (tiroir **Continuité**), qui est un **autre contexte** (alertes), pas l’onboarding premier lancement.
-
-Prérequis alertes (rappel) : **persistance** dans `narramind_alerts` (cf. §3).
-
-**Microcopy et pictogramme (référence créative)** : [`NarraMind-Guide-Personnage.md`](./NarraMind-Guide-Personnage.md).
+**Microcopy et pictogramme** : [`NarraMind-Guide-Personnage.md`](./NarraMind-Guide-Personnage.md).
 
 ---
 
@@ -189,7 +169,7 @@ Prérequis alertes (rappel) : **persistance** dans `narramind_alerts` (cf. §3).
 | Snapshot `narramind_anomalies` sur le chapitre (technique / utilitaires) | ✅ |
 | Pas de persistance « produit » uniquement via JSON chapitre | ✅ |
 | Déclenchement auto uniquement + throttle 12 min / 80 mots (éditeur) | ✅ |
-| UI alertes / **Continuité** (Ariane, éditeur scénario + onboarding dashboard) | ✅ |
+| UI alertes / **Continuité** + onboarding Ariane (layout, Style, fin parcours, menus progressifs) | ✅ |
 | Mémoire longue : `narra_summary` + fusion batch `memory_summaries` | ✅ (phase 3) |
 | Plafonds prompt assets + entités + lore monde (`narramind-update`) | ✅ (phase 2 — budgets + logs) |
 
@@ -264,4 +244,4 @@ Ordre d’implémentation suggéré : **1 (persistance alertes) ✅ → 4 (plafo
 
 ---
 
-*Dernière mise à jour : 30 avril 2026 — phases 1–3 NarraMind (alertes, plafonds, `narra_summary` + compression) ; branche `feat/narramind-persist-alertes` ; **Ariane** = interface.*
+*Dernière mise à jour : 30 avril 2026 — §7 onboarding (layout + progressif), alignement Gemini scénario.*

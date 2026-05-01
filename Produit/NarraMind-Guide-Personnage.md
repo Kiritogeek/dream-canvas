@@ -72,10 +72,17 @@ Détail optionnel graphique : petit motif **fil / nœud** rappelant le mythe, sa
 
 ---
 
-## 7. Implémentation (pistes)
+## 7. Implémentation — état livré
 
-- Centraliser le libellé affiché dans une constante front (ex. `ARIANE_DISPLAY_NAME = "Ariane"`) pour éviter les divergences onboarding / scénario.
-- Même composant **bulle + avatar** réutilisable avec un prop `variant: "onboarding" | "continuity"`.
+- Libellé : `ARIANE_DISPLAY_NAME` et email admin recette dans `src/constants/ariane.ts`.
+- Variants onboarding : `ArianeOnboardingCard` (accueil), `ArianeStyleOnboardingCard`, `ArianeJourneyCompleteCard` (+ panneau continuité hors onboarding).
+- **Parcours progressif menus** — masquage sidebar, badges New : `useProgressiveMenuGate.ts`, `progressiveOnboardingStorage.ts`, `DashboardLayout`. Spec : **Obsidian** `wiki/Parcours-Premier-Projet.md`.
+
+---
+
+## 8. Prochain chantier onboarding (produit)
+
+- **Expliquer chaque menu** lors de la **première ouverture** (copy Ariane par onglet, persistance locale, même ton que ce guide).
 
 ---
 
@@ -85,4 +92,4 @@ Référence historique : **La Scripte**, **La Trame**, **Le Repère**, **La Cont
 
 ---
 
-*Dernière mise à jour : 30 avril 2026 — **Ariane** retenue : assistance NarraMind + onboarding, vouvoiement.*
+*Dernière mise à jour : 30 avril 2026 — parcours progressif livré ; §8 prochains textes par menu.*

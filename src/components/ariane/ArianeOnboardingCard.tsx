@@ -12,33 +12,22 @@ import {
   ARIANE_WELCOME_REPLAY_EVENT,
 } from "@/constants/ariane";
 import { ArianeGlyph } from "./ArianeGlyph";
+import {
+  ARIANE_BUBBLE_CONTENT_REVEAL_DELAY_MS,
+  ARIANE_FOCUS_AFTER_REVEAL_MS,
+  ARIANE_BUBBLE_BOX_ENTER_INITIAL,
+  ARIANE_BUBBLE_BOX_ENTER_TRANSITION,
+  ARIANE_BACKDROP_ENTER_TRANSITION,
+  ARIANE_CHARACTER_ENTER_TRANSITION,
+  ARIANE_OVERLAY_EXIT_S,
+  ARIANE_SIGNATURE_ENTER_TRANSITION,
+  arianeBubbleTextItem,
+  arianeBubbleTextVariants,
+  arianeShellRootTransition,
+} from "./arianeOverlayMotion";
 import { cn } from "@/lib/utils";
 
 const STORAGE_KEY = "dw.ariane_onboarding_v1_dismissed";
-
-const shellEase = [0.22, 1, 0.36, 1] as const;
-const textEase = [0.25, 0.9, 0.35, 1] as const;
-
-const bubbleTextVariants = {
-  hidden: { opacity: 0 },
-  show: {
-    opacity: 1,
-    transition: { staggerChildren: 0.14, delayChildren: 0.06 },
-  },
-};
-
-const bubbleTextItem = {
-  hidden: { opacity: 0, y: 12 },
-  show: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.72, ease: textEase },
-  },
-};
-
-const BUBBLE_TEXT_REVEAL_DELAY_MS = 340;
-const FOCUS_AFTER_TEXT_MS = 1450;
-const OVERLAY_EXIT_DURATION_S = 0.42;
 
 export type ArianeOnboardingCardProps = {
   className?: string;
@@ -84,7 +73,7 @@ export function ArianeOnboardingCard({ className }: ArianeOnboardingCardProps) {
     exitFallbackTimerRef.current = setTimeout(() => {
       exitFallbackTimerRef.current = null;
       if (exitingRef.current) handleRootAnimationComplete();
-    }, OVERLAY_EXIT_DURATION_S * 1000 + 120);
+    }, ARIANE_OVERLAY_EXIT_S * 1000 + 180);
   };
 
   useEffect(() => {
@@ -114,7 +103,10 @@ export function ArianeOnboardingCard({ className }: ArianeOnboardingCardProps) {
       return;
     }
     setRevealBubbleText(false);
-    const t = window.setTimeout(() => setRevealBubbleText(true), BUBBLE_TEXT_REVEAL_DELAY_MS);
+    const t = window.setTimeout(
+      () => setRevealBubbleText(true),
+      ARIANE_BUBBLE_CONTENT_REVEAL_DELAY_MS
+    );
     return () => window.clearTimeout(t);
   }, [open, welcomeReplayEpoch]);
 
@@ -154,7 +146,7 @@ export function ArianeOnboardingCard({ className }: ArianeOnboardingCardProps) {
 
   useEffect(() => {
     if (!open || !revealBubbleText) return;
-    const t = window.setTimeout(() => dismissBtnRef.current?.focus(), FOCUS_AFTER_TEXT_MS);
+    const t = window.setTimeout(() => dismissBtnRef.current?.focus(), ARIANE_FOCUS_AFTER_REVEAL_MS);
     return () => window.clearTimeout(t);
   }, [open, revealBubbleText]);
 
@@ -216,10 +208,7 @@ export function ArianeOnboardingCard({ className }: ArianeOnboardingCardProps) {
           ? { opacity: 0, scale: 1.02, y: 8 }
           : { opacity: 1, scale: 1, y: 0 }
       }
-      transition={{
-        duration: exiting ? OVERLAY_EXIT_DURATION_S : 0.22,
-        ease: exiting ? shellEase : "easeOut",
-      }}
+      transition={arianeShellRootTransition(exiting)}
       onAnimationComplete={handleRootAnimationComplete}
     >
       <motion.div
@@ -227,7 +216,7 @@ export function ArianeOnboardingCard({ className }: ArianeOnboardingCardProps) {
         aria-hidden
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ duration: 0.22, ease: "easeOut" }}
+        transition={ARIANE_BACKDROP_ENTER_TRANSITION}
       />
 
       <motion.div
@@ -239,7 +228,7 @@ export function ArianeOnboardingCard({ className }: ArianeOnboardingCardProps) {
         aria-hidden
         initial={{ opacity: 0, x: -10 }}
         animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.32, delay: 0.04, ease: shellEase }}
+        transition={ARIANE_SIGNATURE_ENTER_TRANSITION}
       >
         <p className="font-display text-left text-2xl font-bold leading-none tracking-tight md:text-3xl lg:text-4xl">
           <span
@@ -278,7 +267,7 @@ export function ArianeOnboardingCard({ className }: ArianeOnboardingCardProps) {
           )}
           initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.38, delay: 0.06, ease: shellEase }}
+          transition={ARIANE_CHARACTER_ENTER_TRANSITION}
         >
           {imgFailed ? (
             <ArianeGlyph className="mb-0 h-40 w-40 shrink-0 translate-y-4 text-[hsl(var(--lavender))] md:h-56 md:w-56 md:translate-y-10" />
@@ -308,9 +297,9 @@ export function ArianeOnboardingCard({ className }: ArianeOnboardingCardProps) {
             "relative mx-auto w-full max-w-[min(100%,63rem)] overflow-visible",
             "translate-x-3 md:translate-x-7 lg:translate-x-10"
           )}
-          initial={{ opacity: 0, scale: 0.98 }}
+          initial={ARIANE_BUBBLE_BOX_ENTER_INITIAL}
           animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.34, delay: 0.08, ease: shellEase }}
+          transition={ARIANE_BUBBLE_BOX_ENTER_TRANSITION}
         >
           {bubbleSvg}
           <div
@@ -325,27 +314,27 @@ export function ArianeOnboardingCard({ className }: ArianeOnboardingCardProps) {
                 "flex w-full min-w-0 max-w-2xl flex-col items-center justify-center gap-5 text-center md:gap-6",
                 "text-sm md:text-[0.9375rem] leading-[1.45] break-words [overflow-wrap:anywhere] text-foreground/90"
               )}
-              variants={bubbleTextVariants}
+              variants={arianeBubbleTextVariants}
               initial="hidden"
               animate={revealBubbleText ? "show" : "hidden"}
             >
               <motion.h2
                 id="ariane-onboarding-heading"
                 className="font-display w-full shrink-0 text-center text-lg font-bold leading-tight tracking-tight text-foreground md:text-xl"
-                variants={bubbleTextItem}
+                variants={arianeBubbleTextItem}
               >
                 Bienvenue sur{" "}
                 <span className={cn(bubbleBrandWord)}>DreamWeave</span>
               </motion.h2>
               <motion.span
                 className="block w-full text-pretty text-muted-foreground"
-                variants={bubbleTextItem}
+                variants={arianeBubbleTextItem}
               >
                 Je suis <span className={cn(bubbleBrandWord)}>Ariane</span>, votre guide.
               </motion.span>
               <motion.span
                 className="mt-2 block w-full text-pretty text-muted-foreground md:mt-2.5"
-                variants={bubbleTextItem}
+                variants={arianeBubbleTextItem}
               >
                 Je suis là pour vous aider à comprendre comment{" "}
                 <span className={cn(bubbleBrandWord)}>DreamWeave</span> s’articule autour de votre création :
@@ -353,7 +342,7 @@ export function ArianeOnboardingCard({ className }: ArianeOnboardingCardProps) {
               </motion.span>
               <motion.span
                 className="mt-2 block w-full text-pretty text-muted-foreground md:mt-2.5"
-                variants={bubbleTextItem}
+                variants={arianeBubbleTextItem}
               >
                 Vous définissez le <strong className="font-semibold text-foreground">Style</strong>, créez vos{" "}
                 <strong className="font-semibold text-foreground">Assets</strong>, écrivez votre{" "}
@@ -366,7 +355,7 @@ export function ArianeOnboardingCard({ className }: ArianeOnboardingCardProps) {
                   "relative z-20 flex w-full shrink-0 justify-center",
                   "pb-[max(0px,env(safe-area-inset-bottom,0px))]"
                 )}
-                variants={bubbleTextItem}
+                variants={arianeBubbleTextItem}
               >
                 <Button
                   ref={dismissBtnRef}

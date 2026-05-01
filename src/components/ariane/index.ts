@@ -4,3 +4,4 @@ export { ArianeContinuityPanel } from "./ArianeContinuityPanel";
 export { ArianeOnboardingCard } from "./ArianeOnboardingCard";
 export { ArianeStyleOnboardingCard } from "./ArianeStyleOnboardingCard";
 export { ArianeJourneyCompleteCard } from "./ArianeJourneyCompleteCard";
+export { ArianeTabTourOverlay } from "./ArianeTabTourOverlay";

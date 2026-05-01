@@ -9,31 +9,21 @@ import {
 } from "@/components/chapter/SpeechBubbleShape";
 import { layoutSpeechBubbleNoTailTextRect } from "@/components/chapter/speechBubbleTextAreaLayout";
 import { ArianeGlyph } from "./ArianeGlyph";
+import {
+  ARIANE_BUBBLE_CONTENT_REVEAL_DELAY_MS,
+  ARIANE_FOCUS_AFTER_REVEAL_MS,
+  ARIANE_BUBBLE_BOX_ENTER_INITIAL,
+  ARIANE_BUBBLE_BOX_ENTER_TRANSITION,
+  ARIANE_BACKDROP_ENTER_TRANSITION,
+  ARIANE_CHARACTER_ENTER_TRANSITION,
+  ARIANE_OVERLAY_EXIT_S,
+  ARIANE_SIGNATURE_ENTER_TRANSITION,
+  arianeBubbleTextItem,
+  arianeBubbleTextVariants,
+  arianeShellRootTransition,
+} from "./arianeOverlayMotion";
 import { cn } from "@/lib/utils";
-
-const shellEase = [0.22, 1, 0.36, 1] as const;
-const textEase = [0.25, 0.9, 0.35, 1] as const;
-
-const bubbleTextVariants = {
-  hidden: { opacity: 0 },
-  show: {
-    opacity: 1,
-    transition: { staggerChildren: 0.12, delayChildren: 0.06 },
-  },
-};
-
-const bubbleTextItem = {
-  hidden: { opacity: 0, y: 12 },
-  show: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.68, ease: textEase },
-  },
-};
-
-const BUBBLE_TEXT_REVEAL_DELAY_MS = 320;
-const FOCUS_AFTER_TEXT_MS = 1400;
-const OVERLAY_EXIT_DURATION_S = 0.42;
+import { PROJECT_MENU_LABEL } from "@/lib/projectMenuLabels";
 
 export type ArianeJourneyCompleteCardProps = {
   open: boolean;
@@ -78,7 +68,7 @@ export function ArianeJourneyCompleteCard({
     exitFallbackTimerRef.current = setTimeout(() => {
       exitFallbackTimerRef.current = null;
       if (exitingRef.current) handleRootAnimationComplete();
-    }, OVERLAY_EXIT_DURATION_S * 1000 + 120);
+    }, ARIANE_OVERLAY_EXIT_S * 1000 + 180);
   };
 
   useEffect(() => {
@@ -87,7 +77,10 @@ export function ArianeJourneyCompleteCard({
       return;
     }
     setRevealBubbleText(false);
-    const t = window.setTimeout(() => setRevealBubbleText(true), BUBBLE_TEXT_REVEAL_DELAY_MS);
+    const t = window.setTimeout(
+      () => setRevealBubbleText(true),
+      ARIANE_BUBBLE_CONTENT_REVEAL_DELAY_MS
+    );
     return () => window.clearTimeout(t);
   }, [open]);
 
@@ -127,7 +120,7 @@ export function ArianeJourneyCompleteCard({
 
   useEffect(() => {
     if (!open || !revealBubbleText) return;
-    const t = window.setTimeout(() => dismissBtnRef.current?.focus(), FOCUS_AFTER_TEXT_MS);
+    const t = window.setTimeout(() => dismissBtnRef.current?.focus(), ARIANE_FOCUS_AFTER_REVEAL_MS);
     return () => window.clearTimeout(t);
   }, [open, revealBubbleText]);
 
@@ -189,10 +182,7 @@ export function ArianeJourneyCompleteCard({
           ? { opacity: 0, scale: 1.02, y: 8 }
           : { opacity: 1, scale: 1, y: 0 }
       }
-      transition={{
-        duration: exiting ? OVERLAY_EXIT_DURATION_S : 0.22,
-        ease: exiting ? shellEase : "easeOut",
-      }}
+      transition={arianeShellRootTransition(exiting)}
       onAnimationComplete={handleRootAnimationComplete}
     >
       <motion.div
@@ -200,7 +190,7 @@ export function ArianeJourneyCompleteCard({
         aria-hidden
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ duration: 0.22, ease: "easeOut" }}
+        transition={ARIANE_BACKDROP_ENTER_TRANSITION}
       />
 
       <motion.div
@@ -212,7 +202,7 @@ export function ArianeJourneyCompleteCard({
         aria-hidden
         initial={{ opacity: 0, x: -10 }}
         animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.32, delay: 0.04, ease: shellEase }}
+        transition={ARIANE_SIGNATURE_ENTER_TRANSITION}
       >
         <p className="font-display text-left text-2xl font-bold leading-none tracking-tight md:text-3xl lg:text-4xl">
           <span
@@ -251,7 +241,7 @@ export function ArianeJourneyCompleteCard({
           )}
           initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.38, delay: 0.06, ease: shellEase }}
+          transition={ARIANE_CHARACTER_ENTER_TRANSITION}
         >
           {imgFailed ? (
             <ArianeGlyph className="mb-0 h-40 w-40 shrink-0 translate-y-4 text-[hsl(var(--lavender))] md:h-56 md:w-56 md:translate-y-10" />
@@ -281,9 +271,9 @@ export function ArianeJourneyCompleteCard({
             "relative mx-auto w-full max-w-[min(100%,63rem)] overflow-visible",
             "translate-x-3 md:translate-x-7 lg:translate-x-10"
           )}
-          initial={{ opacity: 0, scale: 0.98 }}
+          initial={ARIANE_BUBBLE_BOX_ENTER_INITIAL}
           animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.34, delay: 0.08, ease: shellEase }}
+          transition={ARIANE_BUBBLE_BOX_ENTER_TRANSITION}
         >
           {bubbleSvg}
           <div
@@ -295,43 +285,69 @@ export function ArianeJourneyCompleteCard({
           >
             <motion.div
               className={cn(
-                "flex w-full min-w-0 max-w-2xl flex-col items-center justify-center gap-4 text-center md:gap-5",
+                "flex w-full min-w-0 max-w-2xl flex-col items-center justify-center gap-3 text-center md:gap-3.5",
                 "text-sm md:text-[0.9375rem] leading-[1.45] break-words [overflow-wrap:anywhere] text-foreground/90"
               )}
-              variants={bubbleTextVariants}
+              variants={arianeBubbleTextVariants}
               initial="hidden"
               animate={revealBubbleText ? "show" : "hidden"}
             >
+              <motion.div
+                className="flex w-full min-w-0 flex-col items-center gap-1"
+                variants={arianeBubbleTextItem}
+              >
+                <p className="font-display px-1 text-center text-3xl font-bold leading-[1.08] tracking-tight md:text-4xl">
+                  <span
+                    className={cn(
+                      "text-gradient inline-block",
+                      "[filter:drop-shadow(0_2px_10px_hsl(var(--lavender)/0.45))_drop-shadow(0_1px_2px_hsl(0_0%_0%/0.85))]"
+                    )}
+                  >
+                    {PROJECT_MENU_LABEL.edition}
+                  </span>
+                </p>
+                <p className="font-display px-2 text-center text-[11px] font-normal uppercase tracking-[0.14em] text-muted-foreground/65">
+                  Fin du parcours guidé
+                </p>
+              </motion.div>
               <motion.h2
                 id="ariane-journey-complete-heading"
                 className="font-display w-full shrink-0 text-center text-lg font-bold leading-tight tracking-tight text-foreground md:text-xl"
-                variants={bubbleTextItem}
+                variants={arianeBubbleTextItem}
               >
-                Merci d’avoir suivi le fil avec{" "}
-                <span className={cn(bubbleBrandWord)}>moi</span>
+                Vous tenez tout le{" "}
+                <span className={cn(bubbleBrandWord)}>fil jusqu’à l’Édition</span>
               </motion.h2>
               <motion.span
                 className="block w-full text-pretty text-muted-foreground"
-                variants={bubbleTextItem}
+                variants={arianeBubbleTextItem}
               >
-                Vous avez débloqué toutes les étapes de votre premier projet sur{" "}
-                <span className={cn(bubbleBrandWord)}>DreamWeave</span>. Vous êtes prêt à
-                l’utiliser à <strong className="font-semibold text-foreground">100&nbsp;%</strong>.
+                Vous avez ouvert puis parcouru{" "}
+                <strong className="font-semibold text-foreground">Scénario</strong>,{" "}
+                <strong className="font-semibold text-foreground">Assets</strong>,{" "}
+                <strong className="font-semibold text-foreground">Univers</strong> jusqu’à l’atelier{" "}
+                <strong className="font-semibold text-foreground">Édition</strong>. À partir de là, vos onglets restent disponibles&nbsp;: avancez sur{" "}
+                <span className={cn(bubbleBrandWord)}>DreamWeave</span> comme sur un tableau de création dont vous pilotez chaque bloc.
               </motion.span>
               <motion.span
                 className="block w-full text-pretty text-muted-foreground"
-                variants={bubbleTextItem}
+                variants={arianeBubbleTextItem}
               >
-                À vous de créer des histoires parmi les plus{" "}
-                <strong className="font-semibold text-foreground">merveilleuses</strong>, les unes
-                que les autres — j’ai hâte de voir ce que vous allez tisser&nbsp;!
+                La suite vous appartient&nbsp;: vos onglets{" "}
+                <strong className="font-semibold text-foreground">Scénario</strong>,{" "}
+                <strong className="font-semibold text-foreground">Assets</strong>,{" "}
+                <strong className="font-semibold text-foreground">Univers</strong> et{" "}
+                <strong className="font-semibold text-foreground">Édition</strong> restent accessibles sans repasser par ce tutoriel. Lorsque vos chapitres s’allongent, le panneau{" "}
+                <strong className="font-semibold text-foreground">Continuité</strong> (avec{" "}
+                <span className={cn(bubbleBrandWord)}>Ariane</span>) aide à repérer les écarts&nbsp;: pour l’instant, concentrez-vous sur le{" "}
+                <strong className="font-semibold text-foreground">plaisir de composer</strong>.
               </motion.span>
               <motion.div
                 className={cn(
                   "relative z-20 mt-2 flex w-full shrink-0 justify-center",
                   "pb-[max(0px,env(safe-area-inset-bottom,0px))]"
                 )}
-                variants={bubbleTextItem}
+                variants={arianeBubbleTextItem}
               >
                 <Button
                   ref={dismissBtnRef}

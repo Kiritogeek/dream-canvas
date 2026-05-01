@@ -303,8 +303,13 @@ export default function Projects() {
                   </p>
                 </Link>
                 <button
-                  onClick={() => setDeleteTargetId(p.id)}
-                  className="absolute top-3 right-3 sm:top-4 sm:right-4 text-muted-foreground hover:text-destructive transition-colors opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setDeleteTargetId(p.id);
+                  }}
+                  className="absolute top-3 right-3 sm:top-4 sm:right-4 rounded-md p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors z-10"
                   title="Supprimer le projet"
                 >
                   <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />

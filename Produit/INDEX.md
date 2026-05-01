@@ -33,6 +33,7 @@
 | — | [Guide styles](./Guide_Maintenance_Styles.md) | Évolution des styles (UI + EF) |
 | — | [**NarraMind**](./NarraMind.md) | Mémoire narrative, EF, métriques ; persistance alertes sur branche **`feat/narramind-persist-alertes`** (PR dédiée) |
 | — | [**Ariane** — guide & identité](./NarraMind-Guide-Personnage.md) | Assistance (NarraMind) + onboarding : nom, pictogramme, vouvoiement |
+| — | **Parcours premier projet** | Spec Obsidian : `wiki/Parcours-Premier-Projet.md` ; résumé `UX.md` §2.2bis |
 | — | [Plan implémentation NarraMind](./Plan-NarraMind-Implementation.md) | Phases code : alertes, caps prompt, mémoire longue, UI Ariane, 3ᵉ plan |
 | — | [IA — Mesure & scalabilité](./IA-Mesure-et-Scalabilite.md) | Fournisseurs, `usage`, `narramind_metrics`, leviers charge |
 
@@ -129,4 +130,4 @@ docs/
 
 ---
 
-*Dernière mise à jour : 30 avril 2026 — fusion docs édition, archive audit, déplacement feedback/école*
+*Dernière mise à jour : 30 avril 2026 — parcours premier projet (UX §2.2bis, wiki Obsidian), INDEX liens*

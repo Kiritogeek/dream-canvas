@@ -6,6 +6,8 @@ Ce document décrit **comment les éléments sont agencés** pour les écrans pl
 
 - `src/components/ariane/ArianeOnboardingCard.tsx` (tableau de bord)
 - `src/components/ariane/ArianeStyleOnboardingCard.tsx` (premier projet → Style)
+- `src/components/ariane/ArianeTabTourOverlay.tsx` (premier projet → onglets **Scénario**, **Assets**, **Univers**, **Édition** : parcours multi-étapes)
+- `src/lib/arianeTabTourSteps.ts` (contenu textuel structuré du tour par onglet)
 
 **Forme de bulle (onboarding uniquement) :** ellipse de type **dialogue** **sans queue** — `SpeechBubbleShape` avec `type="speech"` et **`tailOn={false}`**, `viewBox` **`SPEECH_BUBBLE_VIEWBOX_NARRATION`** (`0 0 100 100`). Géométrie associée : **`layoutSpeechBubbleNoTailTextRect`** dans `src/components/chapter/speechBubbleTextAreaLayout.ts`.
 
@@ -140,6 +142,22 @@ Pour un **nouvel écran Ariane** (autre onboarding, tutoriel, etc.) :
 - Réutiliser cette **structure de calques** et les **bornes** bulle / personnage sauf décision produit contraire.
 - Remplacer uniquement le **slot contenu** (titres, textes, CTA, éventuellement plusieurs boutons) en gardant **`max-w-2xl`** et le centrage si la densité de lecture doit rester identique à l’onboarding de référence.
 - Conserver **sans queue** pour les overlays plein écran Ariane, sauf décision contraire.
+
+---
+
+## 11. Parcours première connexion — menu progressif + Ariane
+
+Décision produit : **un seul projet** (parcours onboarding forcé via recette ou compte avec un seul projet) fait apparaître les onglets **Scénario → Assets → Univers → Édition** au fil des critères métier (`useProgressiveMenuAccess`). À la **première ouverture** de chaque onglet ainsi débloqué, **`ArianeTabTourOverlay`** masque la page jusqu’à la fin du tour ; le badge **« New »** ne disparaît qu’après **complétion** du tour (clés locales `dw.ariane_tab_tour_v1_{user}_{project}_{onglet}`, synchronisées avec le dismiss du badge via `dw.menu_new_seen_v1_*` après `ARIANE_PROGRESSIVE_SIDEBAR_BUMP_EVENT`).
+
+| Ordre | Onglet | Tour | Objectif utilisateur après le tour |
+|-------|--------|------|-----------------------------------|
+| 1 | Style | `ArianeStyleOnboardingCard` (mono-écran CTA) | Valider un style |
+| 2 | Scénario | `ArianeTabTourOverlay` — **4 étapes** | Créer un **premier chapitre** |
+| 3 | Assets | **3 étapes** | **Générer** une première image sur un asset |
+| 4 | Univers | **3 étapes** | **Sauvegarder** du lore (monde ou fiche asset) |
+| 5 | Édition | **3 étapes** | La **carte `ArianeJourneyCompleteCard`** s’affiche seulement **après** la fin du tour Édition |
+
+Dans la bulle : **« Étape *i* / *n* »** + **Suivant** / **C’est parti** sur la dernière étape. Recette admin : `resetProgressiveOnboardingSimulation` efface aussi les tours onglets (`clearArianeTabToursForUser`).
 
 ---
 

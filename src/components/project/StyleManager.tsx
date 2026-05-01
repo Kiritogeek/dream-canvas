@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   ImagePlus,
@@ -46,10 +46,7 @@ interface StyleManagerProps {
   styleTemplate: string;
   onStyleTemplateChange: (value: string) => void;
   onStyleSaveSuccess?: () => void;
-  onStyleValidated?: () => void;
   userPlan?: UserPlan;
-  /** Réservé au compte démo (email Ariane admin) — relance l’overlay d’intro Style. */
-  adminReplayStyleOnboarding?: () => void;
 }
 
 export function StyleManager({
@@ -57,9 +54,7 @@ export function StyleManager({
   styleTemplate,
   onStyleTemplateChange,
   onStyleSaveSuccess,
-  onStyleValidated,
   userPlan = "free",
-  adminReplayStyleOnboarding,
 }: StyleManagerProps) {
   const STYLE_OPTIONS = [
     {
@@ -161,6 +156,25 @@ export function StyleManager({
   const [styleNotes, setStyleNotes] = useState("");
   const [styleInitialized, setStyleInitialized] = useState(false);
   const [styleChangeWarningOpen, setStyleChangeWarningOpen] = useState(false);
+  const STYLE_NEXT_STEP_LINK_GUARD_MS = 750;
+  const [nextStepLinksSuppressed, setNextStepLinksSuppressed] = useState(false);
+  const linkGuardTimerRef = useRef<ReturnType<typeof window.setTimeout> | null>(null);
+
+  const suppressNextStepLinksBriefly = useCallback(() => {
+    if (linkGuardTimerRef.current != null) window.clearTimeout(linkGuardTimerRef.current);
+    setNextStepLinksSuppressed(true);
+    linkGuardTimerRef.current = window.setTimeout(() => {
+      setNextStepLinksSuppressed(false);
+      linkGuardTimerRef.current = null;
+    }, STYLE_NEXT_STEP_LINK_GUARD_MS);
+  }, []);
+
+  useEffect(
+    () => () => {
+      if (linkGuardTimerRef.current != null) window.clearTimeout(linkGuardTimerRef.current);
+    },
+    []
+  );
 
   const { data: assets = [] } = useAssets(project.id);
   const hasGeneratedAssets = assets.some((a) => !!a.image_url);
@@ -247,7 +261,7 @@ export function StyleManager({
         description: `${selectedStyle.label} enregistré pour le projet.`,
       });
       onStyleSaveSuccess?.();
-      if (isFirstTime) onStyleValidated?.();
+      suppressNextStepLinksBriefly();
       return true;
     } catch (err) {
       const message = err instanceof Error ? err.message : "Erreur inconnue";
@@ -315,20 +329,6 @@ export function StyleManager({
 
       {/* Carte principale */}
       <div className="glass rounded-lg sm:rounded-xl p-4 sm:p-6 space-y-4">
-        {adminReplayStyleOnboarding ? (
-          <div className="flex justify-end">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="border-[hsl(var(--lavender)/0.4)] bg-background/40 text-xs sm:text-sm"
-              onClick={adminReplayStyleOnboarding}
-            >
-              Relancer l’onboarding Style
-            </Button>
-          </div>
-        ) : null}
-
         {/* En-tête contextuel */}
         {isFirstTime ? (
           <div className="space-y-1">
@@ -443,6 +443,7 @@ export function StyleManager({
         {/* CTA contextuel */}
         {isFirstTime ? (
           <Button
+            type="button"
             onClick={saveStyle}
             disabled={updateProject.isPending}
             className="w-full gradient-primary text-primary-foreground"
@@ -451,6 +452,7 @@ export function StyleManager({
           </Button>
         ) : selectedStyleKey !== savedKey ? (
           <Button
+            type="button"
             onClick={saveStyle}
             disabled={updateProject.isPending}
             className="w-full bg-mint hover:bg-mint/90 text-white gap-2"
@@ -460,41 +462,6 @@ export function StyleManager({
           </Button>
         ) : null}
       </div>
-
-      {/* Prochaines étapes — visibles dès que le style est sauvegardé */}
-      {!isFirstTime && (
-        <div className="space-y-3">
-          <p className="text-sm font-semibold text-foreground px-0.5">Prochaines étapes</p>
-          <div className="grid grid-cols-2 gap-3">
-            <Link
-              to={`/dashboard/projects/${project.id}?tab=scenario`}
-              className="glass rounded-xl p-4 hover:shadow-dream transition-shadow group block"
-            >
-              <BookOpen className="h-4 w-4 text-primary mb-2.5" />
-              <p className="font-display font-semibold text-sm">Scénario</p>
-              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                Écrivez votre histoire, chapitres et dialogues
-              </p>
-              <span className="text-xs text-primary mt-2.5 inline-flex items-center gap-1 group-hover:gap-1.5 transition-[gap] duration-150">
-                Commencer <ArrowRight className="h-3 w-3" />
-              </span>
-            </Link>
-            <Link
-              to={`/dashboard/projects/${project.id}?tab=assets`}
-              className="glass rounded-xl p-4 hover:shadow-dream transition-shadow group block"
-            >
-              <ImageIcon className="h-4 w-4 text-primary mb-2.5" />
-              <p className="font-display font-semibold text-sm">Assets visuels</p>
-              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                Créez personnages, décors et objets avec l'IA
-              </p>
-              <span className="text-xs text-primary mt-2.5 inline-flex items-center gap-1 group-hover:gap-1.5 transition-[gap] duration-150">
-                Créer <ArrowRight className="h-3 w-3" />
-              </span>
-            </Link>
-          </div>
-        </div>
-      )}
 
       {/* Images de référence — plan Artiste */}
       <div className="glass rounded-lg sm:rounded-xl p-4 sm:p-6 space-y-3 sm:space-y-4">
@@ -602,6 +569,46 @@ export function StyleManager({
           </p>
         )}
       </div>
+
+      {/* Prochaines étapes — sous les refs pour éviter clic fantôme au premier Valider */}
+      {!isFirstTime && (
+        <div
+          className={cn(
+            "space-y-3 transition-opacity duration-150",
+            nextStepLinksSuppressed && "pointer-events-none select-none opacity-95"
+          )}
+        >
+          <p className="text-sm font-semibold text-foreground px-0.5">Prochaines étapes</p>
+          <div className="grid grid-cols-2 gap-3">
+            <Link
+              to={`/dashboard/projects/${project.id}?tab=scenario`}
+              className="glass rounded-xl p-4 hover:shadow-dream transition-shadow group block"
+            >
+              <BookOpen className="h-4 w-4 text-primary mb-2.5" />
+              <p className="font-display font-semibold text-sm">Scénario</p>
+              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                Écrivez votre histoire, chapitres et dialogues
+              </p>
+              <span className="text-xs text-primary mt-2.5 inline-flex items-center gap-1 group-hover:gap-1.5 transition-[gap] duration-150">
+                Commencer <ArrowRight className="h-3 w-3" />
+              </span>
+            </Link>
+            <Link
+              to={`/dashboard/projects/${project.id}?tab=assets`}
+              className="glass rounded-xl p-4 hover:shadow-dream transition-shadow group block"
+            >
+              <ImageIcon className="h-4 w-4 text-primary mb-2.5" />
+              <p className="font-display font-semibold text-sm">Assets visuels</p>
+              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                Créez personnages, décors et objets avec l'IA
+              </p>
+              <span className="text-xs text-primary mt-2.5 inline-flex items-center gap-1 group-hover:gap-1.5 transition-[gap] duration-150">
+                Créer <ArrowRight className="h-3 w-3" />
+              </span>
+            </Link>
+          </div>
+        </div>
+      )}
 
       {/* Dialog aperçu image */}
       <Dialog

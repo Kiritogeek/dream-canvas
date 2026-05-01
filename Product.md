@@ -47,6 +47,8 @@ DreamWeave résout ces problèmes en :
 - Suppression de projets
 - Statistiques (nombre de projets, assets, chapitres)
 
+- **Découverte guidée** : pour le premier projet, parcours **progressif** (menus débloqués étape par étape) avec **Ariane** ; wiki Obsidian `Parcours-Premier-Projet`, `UX.md` §2.2bis.
+
 **Valeur** : Organisation claire du travail, gestion multi-projets.
 
 ---

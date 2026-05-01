@@ -36,7 +36,7 @@ DreamWeave est une application web monopage (SPA) basée sur une architecture **
 │  │   Auth)       │  │         │  │  generate-scenario-ai    │  │
 │  └───────────────┘  │         │  │  - IA Scénario/Chapitre   │  │
 │  ┌───────────────┐  │         │  │  - Découpage panels      │  │
-│  │  Storage      │  │         │  │  - Groq/Llama 3.3 70B    │  │
+│  │  Storage      │  │         │  │  - Gemini Flash + fallback Groq  │  │
 │  │  (Bucket      │  │         │  └──────────────┬────────────┘  │
 │  │  dreamweave)  │  │         │  ┌───────────────────────────┐  │
 │  └───────────────┘  │         │  │  generate-panel-image    │  │
@@ -724,4 +724,4 @@ VITE_SUPABASE_PUBLISHABLE_KEY="eyJ..."
 
 ---
 
-*Dernière mise à jour : 17 février 2026 (Audit : routes ChapterDetail, composants ScenarioSection/EditionSection, Edge Functions generate-scenario-ai et generate-panel-image)*
+*Dernière mise à jour : 30 avril 2026 — schéma `generate-scenario-ai` Gemini + fallback Groq ; reste du doc inchangé depuis fév.*

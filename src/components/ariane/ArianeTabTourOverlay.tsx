@@ -9,11 +9,17 @@ import {
 } from "@/components/chapter/SpeechBubbleShape";
 import { layoutSpeechBubbleNoTailTextRect } from "@/components/chapter/speechBubbleTextAreaLayout";
 import { ArianeGlyph } from "./ArianeGlyph";
+import { cn } from "@/lib/utils";
+import { ARIANE_TAB_TOUR_MENU_HEADING, ARIANE_TAB_TOUR_BY_STEP } from "@/lib/arianeTabTourSteps";
+import type { ProgressiveMenuStep } from "@/lib/progressiveOnboardingStorage";
+import { onboardingParagraphLine } from "./onboardingBoldText";
 import {
   ARIANE_BUBBLE_CONTENT_REVEAL_DELAY_MS,
   ARIANE_FOCUS_AFTER_REVEAL_MS,
   ARIANE_BUBBLE_BOX_ENTER_INITIAL,
   ARIANE_BUBBLE_BOX_ENTER_TRANSITION,
+  ARIANE_TAB_STEP_CONTENT_INITIAL,
+  ARIANE_TAB_STEP_CONTENT_TRANSITION,
   ARIANE_BACKDROP_ENTER_TRANSITION,
   ARIANE_CHARACTER_ENTER_TRANSITION,
   ARIANE_OVERLAY_EXIT_S,
@@ -22,28 +28,35 @@ import {
   arianeBubbleTextVariants,
   arianeShellRootTransition,
 } from "./arianeOverlayMotion";
-import { cn } from "@/lib/utils";
-import { PROJECT_MENU_LABEL } from "@/lib/projectMenuLabels";
 
-export type ArianeStyleOnboardingCardProps = {
+export type ArianeTabTourOverlayProps = {
   open: boolean;
-  onDismiss: () => void;
+  onComplete: (completedTab: ProgressiveMenuStep) => void;
+  tabKey: ProgressiveMenuStep;
   className?: string;
 };
 
-export function ArianeStyleOnboardingCard({
+export function ArianeTabTourOverlay({
   open,
-  onDismiss,
+  onComplete,
+  tabKey,
   className,
-}: ArianeStyleOnboardingCardProps) {
+}: ArianeTabTourOverlayProps) {
+  const [stepIndex, setStepIndex] = useState(0);
   const [exiting, setExiting] = useState(false);
   const [revealBubbleText, setRevealBubbleText] = useState(false);
   const [imgFailed, setImgFailed] = useState(false);
-  const dismissBtnRef = useRef<HTMLButtonElement>(null);
+  const [bubbleGeom, setBubbleGeom] = useState({ width: 0, height: 0 });
+  const actionBtnRef = useRef<HTMLButtonElement>(null);
   const bubbleBoxRef = useRef<HTMLDivElement>(null);
   const exitingRef = useRef(false);
   const exitFallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [bubbleGeom, setBubbleGeom] = useState({ width: 0, height: 0 });
+  const tabCommittedRef = useRef<ProgressiveMenuStep>(tabKey);
+  if (open) tabCommittedRef.current = tabKey;
+  const tourStepsForTab = useMemo(() => ARIANE_TAB_TOUR_BY_STEP[tabKey], [tabKey]);
+  const total = tourStepsForTab.length;
+  const isLast = stepIndex >= total - 1;
+  const step = tourStepsForTab[stepIndex];
 
   const clearExitFallback = () => {
     if (exitFallbackTimerRef.current != null) {
@@ -57,15 +70,16 @@ export function ArianeStyleOnboardingCard({
     clearExitFallback();
     exitingRef.current = false;
     setExiting(false);
-    onDismiss();
+    setStepIndex(0);
+    onComplete(tabCommittedRef.current);
   };
 
-  const dismiss = () => {
+  const finishTour = () => {
     if (exiting) return;
     clearExitFallback();
     exitingRef.current = true;
     setExiting(true);
-    exitFallbackTimerRef.current = setTimeout(() => {
+    exitFallbackTimerRef.current = window.setTimeout(() => {
       exitFallbackTimerRef.current = null;
       if (exitingRef.current) handleRootAnimationComplete();
     }, ARIANE_OVERLAY_EXIT_S * 1000 + 180);
@@ -73,16 +87,22 @@ export function ArianeStyleOnboardingCard({
 
   useEffect(() => {
     if (!open) {
+      setStepIndex(0);
       setRevealBubbleText(false);
       return;
     }
+    setStepIndex(0);
+  }, [open, tabKey]);
+
+  useEffect(() => {
+    if (!open) return;
     setRevealBubbleText(false);
     const t = window.setTimeout(
       () => setRevealBubbleText(true),
       ARIANE_BUBBLE_CONTENT_REVEAL_DELAY_MS
     );
     return () => window.clearTimeout(t);
-  }, [open]);
+  }, [open, stepIndex]);
 
   useLayoutEffect(() => {
     if (!open) return;
@@ -90,15 +110,13 @@ export function ArianeStyleOnboardingCard({
     if (!el) return;
     const sync = () => {
       const r = el.getBoundingClientRect();
-      if (r.width > 0 && r.height > 0) {
-        setBubbleGeom({ width: r.width, height: r.height });
-      }
+      if (r.width > 0 && r.height > 0) setBubbleGeom({ width: r.width, height: r.height });
     };
     sync();
     const ro = new ResizeObserver(sync);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [open]);
+  }, [open, stepIndex]);
 
   useEffect(() => {
     if (!open) return;
@@ -120,7 +138,7 @@ export function ArianeStyleOnboardingCard({
 
   useEffect(() => {
     if (!open || !revealBubbleText) return;
-    const t = window.setTimeout(() => dismissBtnRef.current?.focus(), ARIANE_FOCUS_AFTER_REVEAL_MS);
+    const t = window.setTimeout(() => actionBtnRef.current?.focus(), ARIANE_FOCUS_AFTER_REVEAL_MS);
     return () => window.clearTimeout(t);
   }, [open, revealBubbleText]);
 
@@ -140,11 +158,24 @@ export function ArianeStyleOnboardingCard({
     return layoutSpeechBubbleNoTailTextRect({ width: w, height: h });
   }, [bubbleGeom.width, bubbleGeom.height]);
 
-  if (!open) return null;
+  const handlePrimary = () => {
+    if (isLast) finishTour();
+    else setStepIndex((i) => Math.min(i + 1, total - 1));
+  };
 
-  const bubbleFill = "hsl(var(--card) / 0.93)";
-  const bubbleStroke = "hsl(var(--lavender) / 0.55)";
-  const strokeW = 2.5;
+  if (!open || !step || total < 1) return null;
+
+  const headingId = `ariane-tab-tour-${tabKey}-heading`;
+  const menuHeading = ARIANE_TAB_TOUR_MENU_HEADING[tabKey];
+
+  const discreetStepCount = (
+    <span
+      className="font-normal tabular-nums text-[11px] uppercase tracking-[0.12em] text-muted-foreground/75"
+      aria-hidden
+    >
+      {stepIndex + 1} / {total}
+    </span>
+  );
 
   const bubbleSvg = (
     <svg
@@ -155,23 +186,15 @@ export function ArianeStyleOnboardingCard({
       overflow="visible"
       aria-hidden
     >
-      <SpeechBubbleShape
-        type="speech"
-        fill={bubbleFill}
-        stroke={bubbleStroke}
-        strokeWidth={strokeW}
-        tailOn={false}
-      />
+      <SpeechBubbleShape type="speech" fill="hsl(var(--card) / 0.93)" stroke="hsl(var(--lavender) / 0.55)" strokeWidth={2.5} tailOn={false} />
     </svg>
   );
-
-  const bubbleBrandWord = "font-semibold text-[hsl(var(--lavender))]";
 
   return createPortal(
     <motion.div
       role="dialog"
       aria-modal="true"
-      aria-labelledby="ariane-style-onboarding-heading"
+      aria-labelledby={headingId}
       className={cn(
         "fixed inset-0 z-[200] flex min-h-0 flex-col-reverse md:flex-row md:items-stretch",
         className
@@ -284,14 +307,21 @@ export function ArianeStyleOnboardingCard({
             )}
           >
             <motion.div
-              className={cn(
-                "flex w-full min-w-0 max-w-2xl flex-col items-center justify-center gap-3 text-center md:gap-3.5",
-                "text-sm md:text-[0.9375rem] leading-[1.45] break-words [overflow-wrap:anywhere] text-foreground/90"
-              )}
-              variants={arianeBubbleTextVariants}
-              initial="hidden"
-              animate={revealBubbleText ? "show" : "hidden"}
+              key={`${tabKey}-${stepIndex}`}
+              className="w-full min-w-0 max-w-2xl"
+              initial={ARIANE_TAB_STEP_CONTENT_INITIAL}
+              animate={{ opacity: 1, y: 0 }}
+              transition={ARIANE_TAB_STEP_CONTENT_TRANSITION}
             >
+              <motion.div
+                className={cn(
+                  "flex w-full min-w-0 max-w-2xl flex-col items-center justify-center gap-3 text-center md:gap-3.5",
+                  "text-sm md:text-[0.9375rem] leading-[1.45] break-words [overflow-wrap:anywhere] text-foreground/90"
+                )}
+                variants={arianeBubbleTextVariants}
+                initial="hidden"
+                animate={revealBubbleText ? "show" : "hidden"}
+              >
               <motion.div
                 className="flex w-full min-w-0 flex-col items-center gap-1"
                 variants={arianeBubbleTextItem}
@@ -303,46 +333,51 @@ export function ArianeStyleOnboardingCard({
                       "[filter:drop-shadow(0_2px_10px_hsl(var(--lavender)/0.45))_drop-shadow(0_1px_2px_hsl(0_0%_0%/0.85))]"
                     )}
                   >
-                    {PROJECT_MENU_LABEL.style}
+                    {menuHeading}
                   </span>
                 </p>
+                {discreetStepCount}
               </motion.div>
+              <span className="sr-only">
+                {menuHeading}, étape {stepIndex + 1} sur {total}
+              </span>
               <motion.h2
-                id="ariane-style-onboarding-heading"
+                id={headingId}
                 className="font-display w-full shrink-0 text-center text-lg font-bold leading-tight tracking-tight text-foreground md:text-xl"
                 variants={arianeBubbleTextItem}
               >
-                <span className={cn(bubbleBrandWord)}>Sélectionner votre style</span>
+                {step.title}
               </motion.h2>
-              <motion.span
-                className="block w-full text-pretty text-muted-foreground"
-                variants={arianeBubbleTextItem}
-              >
-                Chaque projet commence par les mêmes règles graphiques&nbsp;: choisissez un{" "}
-                <strong className="font-semibold text-foreground">modèle de style</strong> dans la grille
-                puis validez-le avec le bouton{" "}
-                <strong className="font-semibold text-foreground">Valider ce style</strong>.
-                Toutes vos prochaines générations d’assets et de cases s’accorderont sur ce même{" "}
-                <strong className="font-semibold text-foreground">cadre créatif DreamWeave</strong>.
-              </motion.span>
+              <div className="flex w-full flex-col gap-3 text-center">
+                {step.paragraphs.map((p, pi) => (
+                  <motion.p
+                    key={pi}
+                    className="w-full text-pretty text-muted-foreground"
+                    variants={arianeBubbleTextItem}
+                  >
+                    {onboardingParagraphLine(p)}
+                  </motion.p>
+                ))}
+              </div>
               <motion.div
                 className={cn(
-                  "relative z-20 mt-2 flex w-full shrink-0 justify-center",
+                  "relative z-20 mt-2 flex w-full shrink-0 justify-center gap-3",
                   "pb-[max(0px,env(safe-area-inset-bottom,0px))]"
                 )}
                 variants={arianeBubbleTextItem}
               >
                 <Button
-                  ref={dismissBtnRef}
+                  ref={actionBtnRef}
                   type="button"
                   size="default"
                   disabled={exiting}
-                  className="h-11 w-full min-w-[200px] gradient-primary text-primary-foreground shadow-dream md:h-10 md:w-auto"
-                  onClick={dismiss}
+                  className="h-11 w-full min-w-[200px] gradient-primary text-primary-foreground shadow-dream md:h-10 md:max-w-sm"
+                  onClick={handlePrimary}
                 >
-                  J’ai compris, je choisis mon style
+                  {isLast ? "C’est parti" : "Suivant"}
                 </Button>
               </motion.div>
+            </motion.div>
             </motion.div>
           </div>
         </motion.div>

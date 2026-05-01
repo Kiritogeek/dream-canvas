@@ -20,3 +20,6 @@ export const ARIANE_FORCED_PROGRESSIVE_PROJECT_SESSION_KEY =
   "dw.forced_progressive_project_id" as const;
 
 export const ARIANE_FORCED_PROGRESSIVE_PENDING = "pending" as const;
+
+/** Après fin d’un tour d’onglet ou dismiss menu New : relecture badge « New » dans la sidebar. */
+export const ARIANE_PROGRESSIVE_SIDEBAR_BUMP_EVENT = "dw:ariane-progressive-sidebar-bump" as const;

@@ -7,7 +7,7 @@
 ## Sommaire
 
 1. [Conventions](#1-conventions)
-2. [Parcours UX actuels (étape par étape)](#2-parcours-ux-actuels-étape-par-étape)
+2. [Parcours UX actuels (étape par étape)](#2-parcours-ux-actuels-étape-par-étape) — incl. [premier projet progressif §2.2bis](#22bis-premier-projet--parcours-progressif-livré-avril-2026)
 3. [Parcours UX à venir](#3-parcours-ux-à-venir)
 4. [Schéma global de l’UX](#4-schéma-global-de-lux)
 5. [Références croisées](#5-références-croisées)
@@ -43,6 +43,20 @@
 | 2 | **Statistiques** | Nombre de projets, assets, usage mensuel (barre + quota Free/Pro). Badge tier (Free / Pro). |
 | 3 | **Actions** | Créer un projet, accéder au profil, déconnexion. |
 | 4 | **Recherche / filtre** | Recherche et filtrage des projets. |
+| 5 | **Recette admin** (email autorisé) | *Relancer l’onboarding Ariane*, *Simuler première connexion (menus)* — reset client + prochain projet = parcours premier projet. |
+
+---
+
+### 2.2bis Premier projet — parcours progressif *(livré avril 2026)*
+
+| Élément | Détail |
+|---------|--------|
+| **Quand** | Compte avec **un seul projet** en base ; ou projet créé après **Simuler première connexion** (id forcé en `sessionStorage`). Les autres projets : sidebar **complète**. |
+| **Sidebar** | Onglets **masqués** tant qu’ils ne sont pas débloqués (pas de liste désactivée). Ordre : **Style** → **Scénario** → **Assets** → **Univers** → **Édition**. |
+| **Conditions de déblocage** | Scénario après validation du style en BDD ; Assets après 1er chapitre scénario ; Univers après 1ère image d’asset ; Édition après lore monde ou lore asset sauvegardé. |
+| **Badges** | **New** (vert) sur l’onglet nouvellement accessible ; disparition **définitive** après premier clic sur cet onglet. |
+| **Ariane** | Bienvenue plein écran, onboarding **Style**, carte **fin de parcours** sur **Édition**. |
+| **Suite produit** | Onboarding **par menu** (expliquer chaque onglet au premier passage) — à concevoir. |
 
 ---
 
@@ -50,7 +64,7 @@
 
 | Étape | Écran / action | Détail |
 |-------|----------------|--------|
-| 1 | **Détail projet** | Titre, description ; **onglets** : Style, Assets, Scénario, Édition de l'œuvre |
+| 1 | **Détail projet** | Titre, description ; **onglets** : Style, Assets, Scénario, Univers, Édition. **Premier projet** : seuls les onglets débloqués apparaissent dans la sidebar (voir §2.2bis). |
 | 2 | **Navigation** | Clic sur un onglet → contenu correspondant. Onglet actif mis en évidence. |
 | 3 | **Édition projet** | Modification du titre, description et nombre cible de panels par chapitre (sauvegarde). |
 
@@ -246,4 +260,4 @@ Onglet Assets : Renommage d’un asset
 
 ---
 
-*Dernière mise à jour : 17 février 2026 (Audit : mise à jour statut réel Section Scénario ✅ et Édition de l'œuvre ✅ partiellement)*
+*Dernière mise à jour : 30 avril 2026 — §2.2bis parcours premier projet ; §2.3 onglets Univers + progressif.*

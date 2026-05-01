@@ -19,6 +19,7 @@ import { useProgressiveMenuSidebarState } from "@/hooks/useProgressiveMenuGate";
 import { useToast } from "@/hooks/use-toast";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { ArianeOnboardingCard } from "@/components/ariane";
+import { PROJECT_MENU_LABEL } from "@/lib/projectMenuLabels";
 
 const navLinks = [
   { to: "/dashboard",         icon: LayoutDashboard, label: "Tableau de bord" },
@@ -27,11 +28,11 @@ const navLinks = [
 ];
 
 const projectSteps = [
-  { key: "style",    label: "Style",    icon: Palette   },
-  { key: "scenario", label: "Scénario", icon: BookOpen  },
-  { key: "assets",   label: "Assets",   icon: ImageIcon },
-  { key: "universe", label: "Univers",  icon: Globe     },
-  { key: "edition",  label: "Édition",  icon: Layers    },
+  { key: "style",    label: PROJECT_MENU_LABEL.style,    icon: Palette   },
+  { key: "scenario", label: PROJECT_MENU_LABEL.scenario, icon: BookOpen  },
+  { key: "assets",   label: PROJECT_MENU_LABEL.assets,   icon: ImageIcon },
+  { key: "universe", label: PROJECT_MENU_LABEL.universe, icon: Globe     },
+  { key: "edition",  label: PROJECT_MENU_LABEL.edition,  icon: Layers    },
 ] as const;
 
 function ProjectStepsSection({ projectId, onLinkClick }: { projectId: string; onLinkClick?: () => void }) {
@@ -243,6 +244,11 @@ function ProjectsListSection({ onLinkClick }: { onLinkClick?: () => void }) {
   );
 }
 
+/** Tableau de bord (nav principale) actif sur l'accueil dashboard et sur la liste des projets — pas sur une fiche projet. */
+function isTableauDeBordNavActive(pathname: string): boolean {
+  return pathname === "/dashboard" || pathname === "/dashboard/projects";
+}
+
 function SidebarContextSection({ onLinkClick }: { onLinkClick?: () => void }) {
   const projectMatch = useMatch("/dashboard/projects/:id");
   const chapterMatch = useMatch("/dashboard/projects/:id/chapter/:chapterId");
@@ -340,7 +346,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
               {navLinks.map((item, index) => {
                 const active =
                   item.to === "/dashboard"
-                    ? location.pathname === "/dashboard"
+                    ? isTableauDeBordNavActive(location.pathname)
                     : location.pathname.startsWith(item.to);
                 return (
                   <Link
@@ -391,7 +397,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
               {navLinks.map((item) => {
                 const isActive =
                   item.to === "/dashboard"
-                    ? location.pathname === "/dashboard"
+                    ? isTableauDeBordNavActive(location.pathname)
                     : location.pathname.startsWith(item.to);
                 return (
                   <Link

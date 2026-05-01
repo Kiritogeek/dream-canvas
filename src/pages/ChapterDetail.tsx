@@ -87,6 +87,7 @@ import {
   DEFAULT_SPEECH_BUBBLE_WIDTH,
   DEFAULT_SPEECH_BUBBLE_HEIGHT,
   SPEECH_BUBBLE_DEFAULT_STYLE,
+  planDisplayName,
 } from "@/types";
 
 const PANEL_WIDTH = 800;
@@ -1663,7 +1664,7 @@ export default function ChapterDetail() {
                     }`}
                     title="Plan actuel"
                   >
-                    {plan === "pro" ? "Pro" : "Free"}
+                    {planDisplayName(plan)}
                   </span>
                   <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/50 px-2.5 py-1 rounded-full border border-border/50">
                     <Sparkles className="h-3 w-3" />
@@ -1785,14 +1786,14 @@ export default function ChapterDetail() {
           <div className="space-y-5 py-2">
             <p className="text-muted-foreground text-sm leading-relaxed">
               Tu as utilisé <span className="font-semibold text-foreground">{usageInfo.count} / {usageInfo.limit}</span> générations ce mois-ci.
-              <br />Passe au plan Pro pour continuer à créer sans limite.
+              <br />Passez au plan {planDisplayName("pro")} pour continuer à créer sans limite.
             </p>
             <div className="flex flex-col gap-2">
               <Button
                 className="w-full gradient-primary text-primary-foreground gap-2"
                 onClick={() => { setShowQuotaModal(false); goToCheckout(); }}
               >
-                Passer au plan Pro →
+                Passer au plan {planDisplayName("pro")} →
               </Button>
               <Button variant="ghost" className="w-full text-sm" asChild>
                 <Link to="/dashboard/plans">Voir les plans</Link>

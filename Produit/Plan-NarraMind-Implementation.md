@@ -2,7 +2,7 @@
 
 > Objectif : système **utilisable** pour petits et gros projets, aligné sur `Produit/NarraMind.md` §10–§11. Ce document est la **checklist de code** ; la vision produit reste dans `NarraMind.md`.
 >
-> **Phases numérotées 0 → 6** (7 blocs au total). **Prochaine livraison cible : Phase 4 / 7** — UI Ariane.  
+> **Phases numérotées 0 → 6** (7 blocs au total). **Prochaine livraison cible : Phase 5 / 7** — coûts & quotas NarraMind.  
 > **Branche Git `feat/narramind-persist-alertes`** : isole la **phase 1** (persistance `narramind_alerts` + EF + client) pour **PR / merge** sans mélanger d’autres chantiers ; à merger avant l’UI Ariane (phase 4) qui consomme la table.
 
 ---
@@ -53,20 +53,20 @@
 
 ---
 
-## Phase 4 / 7 — UI Ariane (personnage + bulles) — **prochaine**
+## Phase 4 / 7 — UI Ariane (personnage + bulles) ✅
 
 | # | Tâche | Détail |
 |---|--------|--------|
-| 4.1 | Composants | Avatar / pictogramme fil (SVG), bulle réutilisable `variant: "onboarding" \| "continuity"`. |
-| 4.2 | Éditeur scénario | Panneau ou drawer : liste alertes actives, filtres sévérité, actions résoudre / ignorer, scroll vers `anchor`. |
-| 4.3 | Onboarding global | Parcours première visite (dashboard ou modal) — **même** composant Ariane, copy `NarraMind-Guide-Personnage.md`. |
-| 4.4 | Accessibilité | Clavier, contrastes, pas d’animation exclusive de la couleur. |
+| 4.1 | Composants | ✅ `ArianeGlyph` (SVG fil / boucle / point pêche, pulse option), `ArianeBubble` `variant: "onboarding" \| "continuity"`, barrel `src/components/ariane/index.ts`. |
+| 4.2 | Éditeur scénario | ✅ `ScenarioChapterEditor` : bouton **Continuité** + badge compteur ; **Sheet** droite avec `ArianeContinuityPanel` — liste alertes actives (`useNarraMindAlerts`), filtres gravité (toolbar `aria-pressed`), **Traitée** / **Ignorer** / **À relire** (`scrollChapterEditorToExcerpt` dans `src/lib/arianeScroll.ts`). |
+| 4.3 | Onboarding global | ✅ `ArianeOnboardingCard` sur le **Dashboard** ; dismiss → `localStorage` `dw.ariane_onboarding_v1_dismissed`. |
+| 4.4 | Accessibilité | ✅ `aria-label` sur actions, structure titre/liste, pas d’info **seulement** par couleur (libellés « Traitée », « Ignorer », « À relire ») ; animation pulse sous `motion-safe:`. |
 
 **Définition de done** : un auteur **voit** et **traite** des alertes sans lire la console réseau.
 
 ---
 
-## Phase 5 / 7 — Coûts & quotas
+## Phase 5 / 7 — Coûts & quotas — **prochaine**
 
 | # | Tâche | Détail |
 |---|--------|--------|

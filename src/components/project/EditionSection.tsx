@@ -46,6 +46,7 @@ import { useScenarioChapters } from "@/hooks/useScenarioChapters";
 import { useUserPlan } from "@/hooks/useUserPlan";
 import { supabase } from "@/integrations/supabase/client";
 import type { Chapter, ScenarioChapter } from "@/types";
+import { planDisplayName } from "@/types";
 
 // ── ChapterEditionCard ────────────────────────────────────────────────────────
 
@@ -193,9 +194,9 @@ const ChapterEditionCard = memo(function ChapterEditionCard({
               </span>
             )
           ) : (
-            <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-400/10 text-amber-600 border border-amber-400/20 cursor-default" title="Fonctionnalité Pro">
+            <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-400/10 text-amber-600 border border-amber-400/20 cursor-default" title={`Réservé au plan ${planDisplayName("pro")}`}>
               <Crown className="h-3 w-3 text-amber-500" />
-              Cases — Pro
+              Cases — {planDisplayName("pro")}
             </span>
           )}
 

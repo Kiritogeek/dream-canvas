@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserPlan } from "@/hooks/useUserPlan";
+import { planDisplayName } from "@/types";
 import { useProject, useProjects, useUpdateProject } from "@/hooks/useProjects";
 import { useToast } from "@/hooks/use-toast";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -281,7 +282,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
               title="Voir les plans"
             >
               {plan === "pro" && <Zap className="h-3 w-3" />}
-              {plan === "pro" ? "Pro" : "Free"}
+              {planDisplayName(plan)}
             </Link>
             <span className="hidden md:inline-flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/50 px-2.5 py-1 rounded-full border border-border/50">
               <Sparkles className="h-3 w-3" />

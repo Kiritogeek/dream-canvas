@@ -10,7 +10,11 @@ import { useToast } from "@/hooks/use-toast";
 import { useRecentProjects, useProjectCount, useCreateProject } from "@/hooks/useProjects";
 import { useAssetCount } from "@/hooks/useAssets";
 import { useUserPlan } from "@/hooks/useUserPlan";
+import { planDisplayName } from "@/types";
 import DashboardLayout from "@/components/DashboardLayout";
+import { ArianeOnboardingCard } from "@/components/ariane";
+import { ARIANE_DISPLAY_NAME, ARIANE_ONBOARDING_ADMIN_EMAIL } from "@/constants/ariane";
+import { useAuth } from "@/hooks/useAuth";
 
 const genreTags = [
   { label: "Fantasy",    emoji: "🧙" },
@@ -29,6 +33,7 @@ const genreTags = [
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { toast } = useToast();
   const { data: projects = [], isLoading } = useRecentProjects(6);
   const { data: projectCount = 0 } = useProjectCount();
@@ -40,6 +45,10 @@ export default function Dashboard() {
   const [newTitle, setNewTitle] = useState("");
   const [newPanelsTarget, setNewPanelsTarget] = useState("");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [arianeOnboardingReplayEpoch, setArianeOnboardingReplayEpoch] = useState(0);
+
+  const canReplayArianeOnboarding =
+    user?.email?.trim().toLowerCase() === ARIANE_ONBOARDING_ADMIN_EMAIL;
 
   const toggleTag = (tag: string) =>
     setSelectedTags((prev) => prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]);
@@ -81,6 +90,7 @@ export default function Dashboard() {
   ];
 
   return (
+    <>
     <DashboardLayout>
       <div className="space-y-6 sm:space-y-8">
         {/* Welcome */}
@@ -93,17 +103,31 @@ export default function Dashboard() {
             Bienvenue sur DreamWeave
           </h1>
           <p className="text-sm sm:text-base text-muted-foreground mb-4">
-            Prêt à tisser de nouvelles histoires ? Créez un projet et commencez
-            à générer vos webtoons.
+            <span className="font-medium text-foreground/90">{ARIANE_DISPLAY_NAME}</span>{" "}
+            vous souhaite la bienvenue. Prêt à tisser de nouvelles histoires&nbsp;?
+            Créez un projet et commencez à générer vos webtoons.
           </p>
-          <Button
-            size="sm"
-            onClick={() => setCreateOpen(true)}
-            className="gradient-primary text-primary-foreground shadow-dream sm:text-sm"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Nouveau projet
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              size="sm"
+              onClick={() => setCreateOpen(true)}
+              className="gradient-primary text-primary-foreground shadow-dream sm:text-sm"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Nouveau projet
+            </Button>
+            {canReplayArianeOnboarding ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="border-[hsl(var(--lavender)/0.4)] bg-background/40 text-sm"
+                onClick={() => setArianeOnboardingReplayEpoch((n) => n + 1)}
+              >
+                Relancer l’onboarding Ariane
+              </Button>
+            ) : null}
+          </div>
         </motion.div>
 
         {/* Stats */}
@@ -129,7 +153,7 @@ export default function Dashboard() {
                 }`}
               >
                 {plan === "pro" && <Zap className="h-3 w-3" />}
-                Plan {plan === "pro" ? "Pro" : "Free"}
+                Plan {planDisplayName(plan)}
               </span>
               <span className="text-xs sm:text-sm text-muted-foreground">
                 {plan === "free" ? "Schnell" : "FLUX.2 Pro"}
@@ -153,7 +177,7 @@ export default function Dashboard() {
           </div>
           {plan === "free" && (
             <p className="text-xs text-muted-foreground mt-2">
-              Passez au plan Pro pour les images de référence, vues multiples et 300 générations/mois.
+              Passez au plan {planDisplayName("pro")} pour les images de référence, vues multiples et 300 générations/mois.
             </p>
           )}
         </div>
@@ -276,5 +300,7 @@ export default function Dashboard() {
         </DialogContent>
       </Dialog>
     </DashboardLayout>
+    <ArianeOnboardingCard adminReplayEpoch={arianeOnboardingReplayEpoch} />
+    </>
   );
 }

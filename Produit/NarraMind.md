@@ -109,7 +109,8 @@ JWT vérifié dans l’Edge Function ; tables mémoire avec politiques classique
 
 ## 5. UI actuelle
 
-- **Pas** de bandeau d’alertes dans l’éditeur scénario, **pas** de bouton de vérification manuelle.
+- **Éditeur chapitre scénario** : panneau **Continuité** (tiroir latéral) — points d’attention, filtres, actions « À relire » / « Traitée » / « Ignorer », signature **Ariane** (`src/components/ariane/`, `ScenarioChapterEditor`).
+- **Dashboard** : carte d’onboarding **Ariane** (première visite, refermable).
 - **Univers / Assets** : copy orientée « cohérence » / « lore » ; pas d’étiquette technique « NarraMind » pour l’utilisateur.
 - **Navigation** : pas de pastille « anomalies » sur l’entrée Scénario (données non exposées sur les chapitres).
 - **Décision produit** : l’assistance (et l’**onboarding**) seront portées par le personnage **Ariane** — voir [`NarraMind-Guide-Personnage.md`](./NarraMind-Guide-Personnage.md). L’implémentation onboarding / panneau continuité suit les jalons §8–§10.
@@ -128,19 +129,53 @@ Les **explications affichables plus tard** devront rester en **langage histoire*
 
 > **Nom interface retenu : Ariane** — même personnage pour (1) l’**onboarding** du site et (2) l’**assistance continuité** (moteur interne NarraMind). Fil d’Ariane comme métaphore du **fil du récit**.
 
-### Continuité / alertes (jalon futur)
+### Continuité / alertes
 
-- Le guide d’**alertes** n’apparaît **que** lorsqu’il existe au moins une **anomalie active** pertinente (après persistance, cf. §10).
-- Le parcours **réutilise la navigation existante**.
+- Le bouton **Continuité** dans l’éditeur de chapitre ouvre toujours le tiroir ; la **liste** peut être vide si aucune alerte active n’a été détectée pour ce chapitre.
+- Les alertes **persistées** proviennent de la table `narramind_alerts` (cf. §3).
 
-### Onboarding
+### Onboarding — ton et portée
 
 - **Ariane** peut accompagner **dès la première visite** — indépendant des anomalies.
 - Ton **accueil** et **pédagogique produit** (vouvoiement), sans jargon NarraMind.
 
-Prérequis alertes : **persistance hors** `scenario_chapters.narramind_anomalies` (table dédiée).
+### Onboarding Ariane — **pages et contenus implémentés**
 
-**Identité visuelle & microcopy** : [`NarraMind-Guide-Personnage.md`](./NarraMind-Guide-Personnage.md).
+Tout l’onboarding produit **à ce jour** est concentré sur le **tableau de bord**. Aucune autre route n’affiche aujourd’hui un composant d’onboarding dédié (modal multi-étapes, tour guidé plein écran, etc.) — évolutions possibles voir `NarraMind-Guide-Personnage.md`.
+
+#### Page : **Tableau de bord**
+
+| Élément | Détail |
+|---------|--------|
+| **Route** | `/dashboard` |
+| **Fichier page** | `src/pages/Dashboard.tsx` |
+| **Zone** | Bloc d’accueil en haut de page (carte `gradient-dream`), au-dessus du bouton « Nouveau projet ». |
+
+**Texte d’accueil (hors bulle Ariane)** — affiché pour **tous** les visiteurs de cette page :
+
+- **Titre** : « Bienvenue sur DreamWeave »
+- **Paragraphe** : le nom **Ariane** (constante `ARIANE_DISPLAY_NAME` dans `src/constants/ariane.ts`) introduit la phrase : *« vous souhaite la bienvenue. Prêt à tisser de nouvelles histoires ? Créez un projet et commencez à générer vos webtoons. »*
+
+**Carte bulle « guide du parcours »** — composant `ArianeOnboardingCard` (`src/components/ariane/ArianeOnboardingCard.tsx`), bulle `ArianeBubble` en variant **`onboarding`** :
+
+| Élément | Détail |
+|---------|--------|
+| **Visibilité** | Affichée tant que la clé **`localStorage`** `dw.ariane_onboarding_v1_dismissed` **n’est pas** à la valeur `"1"`. Dès que l’utilisateur clique sur **« J’ai compris »**, la clé est posée et la **carte ne réapparaît plus** (même navigateur). |
+| **Légende sous la signature** | « Guide du parcours — vous pouvez refermer cette carte. » |
+| **Titre interne (accessibilité)** | « Bienvenue sur DreamWeave » |
+| **Paragraphe principal** | *« Je vous accompagne pour poser les bases de votre univers : créez un projet, définissez le style et les personnages, écrivez le scénario puis passez à l’édition des cases. Prenez votre temps — chaque étape nourrit la cohérence de votre récit. »* |
+| **Liste numérotée (3 points)** | (1) Lien **Tableau de bord** → `/dashboard` — légende « vos projets » ; (2) **Projet** — mention des onglets *Style, Assets, Scénario, Édition* ; (3) **Scénario** — indication que les *Points d’attention* (bouton **Continuité** dans l’éditeur de chapitre) listent les incohérences possibles **pour le chapitre ouvert** (formulation orientée auteur, sans jargon technique). |
+| **Actions** | **« J’ai compris »** — masque la carte et enregistre le dismiss en `localStorage` ; **« Créer ou ouvrir un projet »** — lien vers `/dashboard` (même entrée que le tableau de bord ; la création se fait aussi via le bouton « Nouveau projet » sous la carte). |
+
+**Identité visuelle de la bulle** : pictogramme `ArianeGlyph` + fond `.glass`, bordure lavande légère — aligné sur [`NarraMind-Guide-Personnage.md`](./NarraMind-Guide-Personnage.md).
+
+#### Pages **sans** onboarding Ariane dédié aujourd’hui
+
+- **Projet** (`/dashboard/projects/:id`), **éditeur de chapitre** (`/dashboard/projects/:id/scenario/chapters/:chapterId`), **autres écrans** : pas de composant `ArianeOnboardingCard` ni tutoriel Ariane équivalent ; l’éditeur propose uniquement l’**assistance continuité** (tiroir **Continuité**), qui est un **autre contexte** (alertes), pas l’onboarding premier lancement.
+
+Prérequis alertes (rappel) : **persistance** dans `narramind_alerts` (cf. §3).
+
+**Microcopy et pictogramme (référence créative)** : [`NarraMind-Guide-Personnage.md`](./NarraMind-Guide-Personnage.md).
 
 ---
 
@@ -154,7 +189,7 @@ Prérequis alertes : **persistance hors** `scenario_chapters.narramind_anomalies
 | Snapshot `narramind_anomalies` sur le chapitre (technique / utilitaires) | ✅ |
 | Pas de persistance « produit » uniquement via JSON chapitre | ✅ |
 | Déclenchement auto uniquement + throttle 12 min / 80 mots (éditeur) | ✅ |
-| UI alertes / guide personnage | 🔜 (Phase 4 / 7) |
+| UI alertes / **Continuité** (Ariane, éditeur scénario + onboarding dashboard) | ✅ |
 | Mémoire longue : `narra_summary` + fusion batch `memory_summaries` | ✅ (phase 3) |
 | Plafonds prompt assets + entités + lore monde (`narramind-update`) | ✅ (phase 2 — budgets + logs) |
 
@@ -172,7 +207,7 @@ Prérequis alertes : **persistance hors** `scenario_chapters.narramind_anomalies
 | `src/services/scenarioAI.ts` | `triggerNarraMindUpdate` |
 | `src/services/scenarioChapters.ts` | `parseNarrativeCoherenceAlerts` (utilitaire si réintroduction d’affichage) |
 | `src/pages/ScenarioChapterEditor.tsx` | Déclenchement auto-save |
-| `src/components/project/UniverseSection.tsx` | Déclenchement lore |
+| `src/components/ariane/*` | Ariane : pictogramme, bulle, panneau continuité, onboarding |
 
 ---
 
@@ -181,8 +216,8 @@ Prérequis alertes : **persistance hors** `scenario_chapters.narramind_anomalies
 1. ~~**Persistance des alertes**~~ : livré sur branche `feat/narramind-persist-alertes` (`narramind_alerts`, EF, service, hook).
 2. ~~**Garde-fous prompt**~~ : caps assets / entités / `universe_lore` + logs `prompt budgets (phase2)` dans l’EF — voir `Plan-NarraMind-Implementation.md` **Phase 2 / 7** ✅.
 3. ~~**Mémoire longue**~~ : `projects.narra_summary` + compression batch `memory_summaries` quand seuil tokens — **Phase 3 / 7** ✅ (migration `20260430200000_projects_narra_summary.sql`).
-4. **UI Ariane** : bandeau ou panneau scénario — liste, filtres sévérité, traiter / ignorer, scroll vers `anchor` ; pas le nom NarraMind en titre (cf. §7) — **Phase 4 / 7**.
-5. **Quotas** texte par plan.
+4. ~~**UI Ariane**~~ : panneau Continuité + onboarding — **Phase 4 / 7** ✅.
+5. **Quotas** texte par plan — **Phase 5 / 7**.
 
 ---
 
@@ -198,7 +233,7 @@ Prérequis alertes : **persistance hors** `scenario_chapters.narramind_anomalies
 | # | Manque | Impact petit projet | Impact gros projet |
 |---|--------|---------------------|-------------------|
 | 1 | **Persistance des alertes** (table dédiée + upsert EF) | Même sans gros volume, sinon **aucune trace** exploitable côté app après le run. | Idem + besoin d’**idempotence** et pagination liste. |
-| 2 | **UI Ariane** (personnage + bulle + liste / filtres / acquitter) | Sans ça, le système reste **invisible** pour l’auteur. | Charge UX plus forte (beaucoup d’alertes possibles). |
+| 2 | **UI Ariane** (personnage + bulle + liste / filtres / acquitter) | Carte onboarding + panneau Continuité par chapitre. | Beaucoup d’alertes : UX à affiner (pagination, regroupement). |
 | 3 | **Mémoire longue fiable** (voir proposition §11.1) | Partiellement couvert (`narra_summary` + compression). | **Mitigé** (phase 3) : anciens faits dans le méga-résumé ; valider sur corpus long. |
 | 4 | **Budgets / troncature assets & entités** dans l’EF | Risque limité. | **Mitigé** (phase 2) : caps + logs ; chapitre courant toujours en entier. |
 | 5 | **Compression résumés** (ou fusion niveaux) quand `needs_compression` | MVP présent via l’EF. | **Mitigé** (phase 3) : batch 8 + LLM ; ajuster seuils si besoin. |

@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { BookOpen, Loader2, Layers, GripVertical, CheckCircle2 } from "lucide-react";
 import { ScenarioFormattedPreview } from "@/components/project/ScenarioFormattedPreview";
 import type { Asset } from "@/types";
+import { planDisplayName } from "@/types";
 
 type ValidatedCase = {
   panel_number: number;
@@ -222,7 +223,7 @@ export function EditorRightPanel({
                 : "border-border/70 bg-background text-muted-foreground hover:text-foreground hover:bg-muted/50"
               : "border-border/70 bg-background text-muted-foreground/60 hover:text-muted-foreground hover:bg-muted/30"
           }`}
-          title={isPro ? "Cases" : "Fonctionnalité Pro — Cliquez pour mettre à niveau"}
+          title={isPro ? "Cases" : `Réservé au plan ${planDisplayName("pro")} — cliquez pour vous abonner`}
         >
           <Layers className="h-5 w-5" />
 

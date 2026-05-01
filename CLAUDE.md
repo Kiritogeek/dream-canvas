@@ -7,10 +7,10 @@
 **Valeur principale** : générer des visuels cohérents en secondes, sans compétences en illustration.
 
 **Tiers** :
-- Free : 20 crédits/mois — même modèle FLUX.2 Pro que le Pro (logique Spotify : même qualité, quantité différente)
-- Pro : 300 crédits/mois, 14,99 €/mois — Scénario IA Pro (Découpage → Cases), priorité traitement
+- **Amateur** (`plan` BDD : `free`) : 20 crédits/mois — même modèle FLUX.2 Pro que l’Artiste (logique Spotify : même qualité, quantité différente)
+- **Artiste** (`plan` BDD : `pro`) : 300 crédits/mois, 14,99 €/mois — Scénario IA (Découpage → Cases), priorité traitement
 - 1 crédit = 1 génération (asset, sheet, bloc case — unifié)
-- Multi-vues remplacés par **Sheet System** : fiche composite 4 angles, disponible Free ET Pro
+- Multi-vues remplacés par **Sheet System** : fiche composite 4 angles, disponible Amateur **et** Artiste
 
 ---
 
@@ -151,7 +151,7 @@ Cette règle s'applique même en fin de session, même pour une "mise à jour ra
 
 **Toujours challenger la demande avant d'implémenter.** Pour toute feature ou modification non triviale, poser au moins une question de clarification sur :
 - **L'intention** : pourquoi cet écran / ce flux existe-t-il ? Quel problème utilisateur résout-il ?
-- **Le cas limite** : que se passe-t-il si l'utilisateur n'a pas encore de données ? Si le quota est atteint ? Si c'est un utilisateur Free ?
+- **Le cas limite** : que se passe-t-il si l'utilisateur n'a pas encore de données ? Si le quota est atteint ? Si c'est un utilisateur Amateur (`free`) ?
 - **La cohérence** : est-ce que ça s'aligne avec le reste du parcours (Style → Assets → Scénario → Éditeur) ?
 - **La priorisation** : est-ce que c'est P0 (bloquant) ou P2 (polish) ? Est-ce que ça vaut le coût d'implémentation maintenant ?
 
@@ -240,7 +240,7 @@ Critiques non négociables : `tsc --noEmit` 0 erreur · `npm test` 0 régression
 
 > Source de vérité : `C:/Users/kirit/OneDrive/Documents/Obsidian Vault/wiki/Roadmap-2026.md`
 
-Ordre strict : Scénario IA ✅ → Sheet System ✅ → Audit nav ✅ → Refonte Éditeur (Option B ✅, Option A 🔜) → Plans Free/Pro → **Stripe** 🔴 → Vue Admin.
+Ordre strict : Scénario IA ✅ → Sheet System ✅ → Audit nav ✅ → Refonte Éditeur (Option B ✅, Option A 🔜) → Plans Amateur/Artiste (`free`/`pro`) → **Stripe** 🔴 → Vue Admin.
 
 ---
 

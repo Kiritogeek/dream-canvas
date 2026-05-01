@@ -1,6 +1,6 @@
 // Hook — Plan utilisateur et usage mensuel
 // Le changement de plan passe OBLIGATOIREMENT par Stripe :
-//   goToCheckout() → Stripe Checkout (Free → Pro)
+//   goToCheckout() → Stripe Checkout (Amateur → Artiste)
 //   goToPortal()   → Stripe Customer Portal (annulation, moyen de paiement, etc.)
 // La colonne profiles.plan n'est jamais modifiée côté client (cf. migration 20260418120000).
 
@@ -109,7 +109,7 @@ export function useUserPlan() {
     plan,
   };
 
-  /** Redirige vers Stripe Checkout pour passer Pro */
+  /** Redirige vers Stripe Checkout pour passer au plan Artiste */
   const goToCheckout = async () => {
     await supabase.auth.refreshSession();
     const {

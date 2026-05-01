@@ -39,7 +39,7 @@ import {
 } from "@/lib/styleTemplateMeta";
 import { getReferencePromptsForStyle } from "@fn-shared/style-template-image-prompts.ts";
 import { cn } from "@/lib/utils";
-import type { Project, UserPlan } from "@/types";
+import { type Project, type UserPlan, planDisplayName } from "@/types";
 
 interface StyleManagerProps {
   project: Project;
@@ -478,7 +478,7 @@ export function StyleManager({
         </div>
       )}
 
-      {/* Images de référence — Pro uniquement */}
+      {/* Images de référence — plan Artiste */}
       <div className="glass rounded-lg sm:rounded-xl p-4 sm:p-6 space-y-3 sm:space-y-4">
         <div className="flex items-center justify-between gap-2">
           <div>
@@ -493,14 +493,14 @@ export function StyleManager({
               )}
               {userPlan === "free" && (
                 <span className="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 text-xs font-medium">
-                  Pro
+                  {planDisplayName("pro")}
                 </span>
               )}
             </div>
             <p className="text-sm text-muted-foreground">
               {userPlan === "pro"
                 ? "2 images de référence pour renforcer la cohérence visuelle du style sélectionné"
-                : "Les images de référence sont réservées au plan Pro. Le style texte sera utilisé pour vos générations."}
+                : `Les images de référence sont réservées au plan ${planDisplayName("pro")}. Le style texte sera utilisé pour vos générations.`}
             </p>
           </div>
         </div>
@@ -569,7 +569,11 @@ export function StyleManager({
           <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-amber-500/30 bg-amber-500/5 py-8 px-4 text-center">
             <ImagePlus className="h-8 w-8 text-amber-500/50" />
             <p className="text-sm text-muted-foreground">
-              Passez au plan <span className="font-semibold text-amber-600 dark:text-amber-400">Pro</span> pour ajouter des images de référence et améliorer la cohérence graphique de vos générations.
+              Passez au plan{" "}
+              <span className="font-semibold text-amber-600 dark:text-amber-400">
+                {planDisplayName("pro")}
+              </span>{" "}
+              pour ajouter des images de référence et améliorer la cohérence graphique de vos générations.
             </p>
           </div>
         )}

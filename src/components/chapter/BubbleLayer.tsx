@@ -6,6 +6,7 @@ import { useDragBlock } from "@/hooks/useDragBlock";
 import { useResizeBlock } from "@/hooks/useResizeBlock";
 import type { ResizingState } from "@/hooks/useResizeBlock";
 import { SpeechBubbleShape, SPEECH_BUBBLE_VIEWBOX_WITH_TAIL, SPEECH_BUBBLE_VIEWBOX_NARRATION } from "./SpeechBubbleShape";
+import { SPEECH_TEXT_BODY_BOUNDS } from "./speechBubbleTextAreaLayout";
 import { getTailHitPath, TAIL_ELLIPSE as BUBBLE_TAIL_ELLIPSE, buildUnifiedTailPath, buildTailOnlyPath, buildBodyArcPath } from "./speechBubbleTail";
 
 // Types qui ont une queue draggable via handle
@@ -21,7 +22,7 @@ const BODY_BOUNDS_FRAC: Partial<Record<string, {
   leftFrac?: number; widthFrac?: number;
 }>> = {
   // Ellipses (cy, ry depuis TAIL_ELLIPSE — viewBox height=120, width=100)
-  speech:     { topFrac:  3/120, heightFrac: 86/120, leftFrac:  3/100, widthFrac: 94/100 }, // rx=47
+  speech:     SPEECH_TEXT_BODY_BOUNDS,
   whisper:    { topFrac:  4/120, heightFrac: 84/120, leftFrac:  3/100, widthFrac: 94/100 }, // rx=47
   cloud:      { topFrac: 11/120, heightFrac: 72/120, leftFrac: 10/100, widthFrac: 80/100 }, // rx=44 + bumps
   wavy:       { topFrac:  5/120, heightFrac: 82/120, leftFrac:  4/100, widthFrac: 92/100 }, // rx=46

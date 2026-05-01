@@ -20,7 +20,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useUserPlan } from "@/hooks/useUserPlan";
 import { useAuth } from "@/hooks/useAuth";
 import DashboardLayout from "@/components/DashboardLayout";
-import { TIER_CONFIG } from "@/types";
+import { TIER_CONFIG, planDisplayName } from "@/types";
 import { supabase } from "@/integrations/supabase/client";
 
 interface FeatureRow {
@@ -107,7 +107,7 @@ export default function Plans() {
       );
       if (!res.ok) throw new Error("Erreur serveur");
       invalidate();
-      toast({ title: `Plan basculé → ${newPlan.toUpperCase()}`, description: "Rafraîchis la page si l'UI ne se met pas à jour." });
+      toast({ title: `Plan basculé → ${planDisplayName(newPlan)}`, description: "Rafraîchis la page si l'UI ne se met pas à jour." });
     } catch (err) {
       toast({ title: "Erreur", description: err instanceof Error ? err.message : "Échec", variant: "destructive" });
     } finally {
@@ -119,7 +119,7 @@ export default function Plans() {
   useEffect(() => {
     if (searchParams.get("success") === "true") {
       toast({
-        title: "Bienvenue dans le plan Pro !",
+        title: `Bienvenue dans le plan ${planDisplayName("pro")} !`,
         description:
           "Votre abonnement est actif. Vous avez maintenant accès à toutes les fonctionnalités.",
       });
@@ -179,8 +179,9 @@ export default function Plans() {
             Choisissez votre plan
           </h1>
           <p className="text-sm sm:text-base text-muted-foreground max-w-lg mx-auto px-2">
-            Commencez gratuitement et passez au Pro quand vous êtes prêt à
-            libérer tout le potentiel de DreamWeave.
+            Commencez avec le plan {planDisplayName("free")} et passez au plan{" "}
+            {planDisplayName("pro")} quand vous êtes prêt à libérer tout le
+            potentiel de DreamWeave.
           </p>
         </motion.div>
 
@@ -193,7 +194,7 @@ export default function Plans() {
           >
             <div className="flex items-center gap-2 text-sm text-violet-300">
               <FlaskConical className="h-4 w-4 shrink-0" />
-              <span>Mode admin — plan actuel : <strong>{plan.toUpperCase()}</strong></span>
+              <span>Mode admin — plan actuel : <strong>{planDisplayName(plan)}</strong></span>
             </div>
             <Button
               size="sm"
@@ -205,7 +206,7 @@ export default function Plans() {
               {isTogglingPlan ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
               ) : (
-                `Basculer → ${plan === "pro" ? "Free" : "Pro"}`
+                `Basculer → ${plan === "pro" ? planDisplayName("free") : planDisplayName("pro")}`
               )}
             </Button>
           </motion.div>
@@ -239,7 +240,7 @@ export default function Plans() {
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <Sparkles className="h-5 w-5 text-muted-foreground" />
-                <h2 className="text-lg sm:text-xl font-display font-bold">Free</h2>
+                <h2 className="text-lg sm:text-xl font-display font-bold">{TIER_CONFIG.free.label}</h2>
                 {plan === "free" && (
                   <span className="ml-auto px-2.5 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-semibold">
                     Plan actuel
@@ -303,7 +304,7 @@ export default function Plans() {
             <div className="space-y-2 pt-2">
               <div className="flex items-center gap-2">
                 <Zap className="h-5 w-5 text-amber-500" />
-                <h2 className="text-lg sm:text-xl font-display font-bold">Pro</h2>
+                <h2 className="text-lg sm:text-xl font-display font-bold">{TIER_CONFIG.pro.label}</h2>
                 {plan === "pro" && (
                   <span className="ml-auto px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 text-xs font-semibold">
                     Plan actuel
@@ -373,7 +374,7 @@ export default function Plans() {
                 ) : (
                   <>
                     <Zap className="h-4 w-4 mr-2" />
-                    Passer au Pro
+                    Passer au plan {TIER_CONFIG.pro.label}
                   </>
                 )}
               </Button>
@@ -401,12 +402,12 @@ export default function Plans() {
                     Fonctionnalité
                   </th>
                   <th className="text-center px-3 sm:px-6 py-2.5 sm:py-3 text-xs sm:text-sm font-medium text-muted-foreground w-24 sm:w-36">
-                    Free
+                    {TIER_CONFIG.free.label}
                   </th>
                   <th className="text-center px-3 sm:px-6 py-2.5 sm:py-3 text-xs sm:text-sm font-medium w-24 sm:w-36">
                     <span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400">
                       <Zap className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-                      Pro
+                      {TIER_CONFIG.pro.label}
                     </span>
                   </th>
                 </tr>

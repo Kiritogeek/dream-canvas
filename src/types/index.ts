@@ -23,16 +23,21 @@ export const TIER_CONFIG: Record<UserPlan, TierLimits> = {
     allowReferenceImages: false,
     allowMultipleViews: false,
     model: "schnell",
-    label: "Free",
+    label: "Amateur",
   },
   pro: {
     maxGenerationsPerMonth: 300,
     allowReferenceImages: true,
     allowMultipleViews: true,
     model: "flux-2-pro",
-    label: "Pro",
+    label: "Artiste",
   },
 };
+
+/** Libellé interface (Amateur / Artiste) — les slugs BDD restent free / pro. */
+export function planDisplayName(plan: UserPlan): string {
+  return TIER_CONFIG[plan].label;
+}
 
 // ── Row types (lecture BDD) ──────────────────────────────────────
 export type Project = Tables<"projects">;

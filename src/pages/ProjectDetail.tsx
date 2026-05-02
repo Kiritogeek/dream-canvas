@@ -435,18 +435,17 @@ export default function ProjectDetail() {
           onComplete={handleProgressiveTabTourComplete}
         />
       ) : null}
-      {/* FAB fil d'Ariane — bas-droite, visible uniquement si alertes actives et hors onglets Scénario/Édition */}
+      {/* FAB fil d'Ariane — bulle circulaire bas-droite */}
       {id && allAlerts.length > 0 && (
         <div className="fixed bottom-6 right-6 z-40">
           <button
             type="button"
             onClick={() => setFilArianePanelOpen(true)}
-            className="flex items-center gap-2 pl-3.5 pr-4 h-10 rounded-full bg-background/95 backdrop-blur-xl border border-amber-500/40 hover:border-amber-500/70 shadow-md text-sm font-medium text-amber-700 dark:text-amber-300 transition-[box-shadow,border-color,transform] duration-200 hover:shadow-[0_0_16px_hsl(38_92%_50%/0.35)] hover:scale-[1.03]"
+            className="relative h-14 w-14 rounded-full bg-background/95 backdrop-blur-xl border border-amber-500/40 shadow-[0_4px_24px_hsl(38_92%_50%/0.25)] flex items-center justify-center transition-[transform,box-shadow,border-color] duration-200 hover:scale-110 hover:border-amber-500/70 hover:shadow-[0_6px_32px_hsl(38_92%_50%/0.45)] active:scale-95"
             aria-label={`Fil d'Ariane — ${allAlerts.length} point${allAlerts.length > 1 ? "s" : ""} d'attention`}
           >
-            <ArianeThreadIcon size={18} pulse />
-            <span>Fil d'Ariane</span>
-            <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-bold text-white tabular-nums">
+            <ArianeThreadIcon size={28} pulse />
+            <span className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-bold text-white tabular-nums ring-2 ring-background">
               {allAlerts.length > 99 ? "99+" : allAlerts.length}
             </span>
           </button>

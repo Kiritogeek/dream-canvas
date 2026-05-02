@@ -11,6 +11,12 @@ Plateforme web de création de webtoons assistée par intelligence artificielle.
 - **State** : TanStack React Query 5
 - **Routing** : React Router DOM 6 (lazy loading)
 
+## CI & contribution
+
+- Workflow GitHub Actions : [`.github/workflows/ci.yml`](./.github/workflows/ci.yml) — lint, TypeScript, tests, build sur `main` et les pull requests.
+- Guide contributeur : [`CONTRIBUTING.md`](./CONTRIBUTING.md)
+- Index des Edge Functions Supabase : [`docs/EDGE_FUNCTIONS_INDEX.md`](./docs/EDGE_FUNCTIONS_INDEX.md)
+
 ## Démarrage rapide
 
 ```sh

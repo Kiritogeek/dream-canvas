@@ -1,6 +1,6 @@
 ﻿// Écran d'édition d'un chapitre visuel — double visualisation + panels (liberté de création)
 // Gauche : chapitre texte (scénario) avec Aperçu = surbrillance assets + hover. Droite : panels (l'utilisateur crée le nombre qu'il souhaite).
-import { useState, useMemo, useRef, useEffect, useCallback } from "react";
+import { useState, useMemo, useRef, useEffect, useLayoutEffect, useCallback } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -114,6 +114,67 @@ function viewportClientToCanvas(canvasEl: HTMLDivElement, clientX: number, clien
   return {
     x: (clientX - rect.left) / scale,
     y: (clientY - rect.top) / scale,
+  };
+}
+
+const CHAPTER_EDITOR_ZOOM_MIN = 0.1;
+const CHAPTER_EDITOR_ZOOM_MAX = 2;
+
+function clampChapterEditorZoom(z: number): number {
+  return Math.min(CHAPTER_EDITOR_ZOOM_MAX, Math.max(CHAPTER_EDITOR_ZOOM_MIN, Math.round(z * 100) / 100));
+}
+
+/** Données pour recaler le scroll après un changement de zoom (ancre écran + fraction sur le cadre). */
+type ChapterEditorZoomPivot = {
+  scrollLeft: number;
+  scrollTop: number;
+  rx: number;
+  ry: number;
+  /** Position client (viewport) que le point (rx, ry) doit retrouver après zoom — centre du panneau scroll ou curseur. */
+  anchorClientX: number;
+  anchorClientY: number;
+};
+
+/** Boutons ± : ancre = centre **visible** du conteneur à scroll (zone centrale de l’éditeur). */
+function captureChapterEditorZoomPivotViewportCenter(
+  scrollEl: HTMLDivElement,
+  frameEl: HTMLDivElement,
+): ChapterEditorZoomPivot | null {
+  const fr = frameEl.getBoundingClientRect();
+  if (fr.width < 8 || fr.height < 8) return null;
+  const sr = scrollEl.getBoundingClientRect();
+  const anchorClientX = sr.left + scrollEl.clientWidth / 2;
+  const anchorClientY = sr.top + scrollEl.clientHeight / 2;
+  const rx = Math.min(1, Math.max(0, (anchorClientX - fr.left) / fr.width));
+  const ry = Math.min(1, Math.max(0, (anchorClientY - fr.top) / fr.height));
+  return {
+    scrollLeft: scrollEl.scrollLeft,
+    scrollTop: scrollEl.scrollTop,
+    rx,
+    ry,
+    anchorClientX,
+    anchorClientY,
+  };
+}
+
+/** Ctrl + molette : ancre = position du curseur ; le point du canvas sous la souris reste sous la souris. */
+function captureChapterEditorZoomPivotAtMouse(
+  scrollEl: HTMLDivElement,
+  frameEl: HTMLDivElement,
+  clientX: number,
+  clientY: number,
+): ChapterEditorZoomPivot | null {
+  const fr = frameEl.getBoundingClientRect();
+  if (fr.width < 8 || fr.height < 8) return null;
+  const rx = Math.min(1, Math.max(0, (clientX - fr.left) / fr.width));
+  const ry = Math.min(1, Math.max(0, (clientY - fr.top) / fr.height));
+  return {
+    scrollLeft: scrollEl.scrollLeft,
+    scrollTop: scrollEl.scrollTop,
+    rx,
+    ry,
+    anchorClientX: clientX,
+    anchorClientY: clientY,
   };
 }
 
@@ -298,6 +359,10 @@ export default function ChapterDetail() {
   const canvasRefByPanel = useRef<Record<string, HTMLDivElement | null>>({});
   /** Conteneur à scroll du canvas en modale d’édition (centre viewport = là où « regarde » l’utilisateur). */
   const panelEditorCanvasScrollRef = useRef<HTMLDivElement | null>(null);
+  /** Cadre border du canvas zoomé — pour ancrer le zoom sur le centre du viewport de scroll (pas sur le coin haut-gauche). */
+  const panelEditorZoomFrameRef = useRef<HTMLDivElement | null>(null);
+  /** Pivot capturé juste avant un setZoom pour réajuster scrollLeft / scrollTop au layout suivant (useLayoutEffect). */
+  const chapterZoomPivotPendingRef = useRef<ChapterEditorZoomPivot | null>(null);
   /** Panels où un picker couleur « live » a déjà enregistré l’instantané undo (SV / curseur teinte). */
   const panelLiveColorPickUndoRef = useRef<Set<string>>(new Set());
   /** Refs du canvas de prévisualisation par panel (utilisées pour l'export PNG) */
@@ -716,6 +781,51 @@ export default function ChapterDetail() {
     zoomRef.current = zoomLevel;
   }, [zoomLevel]);
 
+  useEffect(() => {
+    if (!expandedPanelId) chapterZoomPivotPendingRef.current = null;
+  }, [expandedPanelId]);
+
+  useLayoutEffect(() => {
+    if (!expandedPanelId) return;
+    const pivot = chapterZoomPivotPendingRef.current;
+    if (!pivot) return;
+    chapterZoomPivotPendingRef.current = null;
+
+    const scroll = panelEditorCanvasScrollRef.current;
+    const frame = panelEditorZoomFrameRef.current;
+    if (!scroll || !frame) return;
+
+    const fr1 = frame.getBoundingClientRect();
+    if (fr1.width < 8 || fr1.height < 8) return;
+
+    const vxExpected = fr1.left + pivot.rx * fr1.width;
+    const vyExpected = fr1.top + pivot.ry * fr1.height;
+
+    // Déplacer le contenu pour que le point zoomé rejoigne l’ancre écran : scrollLeft ↑ décale le contenu vers la gauche.
+    scroll.scrollLeft = pivot.scrollLeft + (vxExpected - pivot.anchorClientX);
+    scroll.scrollTop = pivot.scrollTop + (vyExpected - pivot.anchorClientY);
+  }, [expandedPanelId, zoomLevel]);
+
+  const applyChapterEditorZoom = useCallback(
+    (nextRaw: number, pivotFrom: "buttons" | { clientX: number; clientY: number }) => {
+      const prev = clampChapterEditorZoom(zoomRef.current);
+      const next = clampChapterEditorZoom(nextRaw);
+      if (next === prev) return;
+      const scroll = panelEditorCanvasScrollRef.current;
+      const frame = panelEditorZoomFrameRef.current;
+      if (expandedPanelId && scroll && frame) {
+        chapterZoomPivotPendingRef.current =
+          pivotFrom === "buttons"
+            ? captureChapterEditorZoomPivotViewportCenter(scroll, frame)
+            : captureChapterEditorZoomPivotAtMouse(scroll, frame, pivotFrom.clientX, pivotFrom.clientY);
+      } else {
+        chapterZoomPivotPendingRef.current = null;
+      }
+      zoomRef.current = next;
+      setZoomLevel(next);
+    },
+    [expandedPanelId],
+  );
 
   useEffect(() => {
     if (!expandedPanelId) return;
@@ -723,16 +833,14 @@ export default function ChapterDetail() {
       if (!e.ctrlKey) return;
       e.preventDefault();
       const step = 0.05;
-      setZoomLevel((prev) => {
-        const delta = e.deltaY > 0 ? -step : step;
-        const next = Math.min(2, Math.max(0.1, Math.round((prev + delta) * 100) / 100));
-        zoomRef.current = next;
-        return next;
+      applyChapterEditorZoom(zoomRef.current + (e.deltaY > 0 ? -step : step), {
+        clientX: e.clientX,
+        clientY: e.clientY,
       });
     };
     document.addEventListener("wheel", handleWheel, { passive: false });
     return () => document.removeEventListener("wheel", handleWheel);
-  }, [expandedPanelId]);
+  }, [expandedPanelId, applyChapterEditorZoom]);
 
   const handleColorBlockMoveCommit = useCallback((panelId: string, colorBlockId: string, x: number, y: number) => {
     const currentPanels = queryClient.getQueryData<Panel[]>(panelsQueryKey) ?? [];
@@ -1659,6 +1767,9 @@ export default function ChapterDetail() {
                       le cadre mange 2px sur la zone utile et overflow-hidden coupait le bord droit du
                       canvas (sélection pleine largeur). */}
                   <div
+                    ref={(el) => {
+                      panelEditorZoomFrameRef.current = el;
+                    }}
                     className="rounded-none box-content border border-border shadow-md overflow-hidden bg-muted"
                     style={{ width: scaledPanelW, height: scaledPanelH }}
                   >
@@ -1701,7 +1812,6 @@ export default function ChapterDetail() {
                             setSelectedBlockIdInModal(null);
                             setSelectedSpeechBubbleIdInModal(null);
                             setSelectedColorBlockIdInModal({ panelId: panel.id, colorBlockId: id });
-                            setActiveSidebarTab(null);
                           } else {
                             setSelectedColorBlockIdInModal(null);
                           }
@@ -1723,7 +1833,6 @@ export default function ChapterDetail() {
                             setSelectedSpeechBubbleIdInModal(null);
                             setSelectedColorBlockIdInModal(null);
                             setSelectedBlockIdInModal({ panelId: panel.id, blockId: id });
-                            setActiveSidebarTab(null);
                           } else {
                             setSelectedBlockIdInModal(null);
                           }
@@ -2225,7 +2334,7 @@ export default function ChapterDetail() {
                   size="sm"
                   variant="ghost"
                   className="h-7 w-7 p-0"
-                  onClick={() => setZoomLevel((l) => Math.max(0.1, Math.round((l - 0.1) * 10) / 10))}
+                  onClick={() => applyChapterEditorZoom(zoomRef.current - 0.1, "buttons")}
                   title="Dézoomer (Ctrl+Scroll)"
                 >
                   <Minus className="h-3.5 w-3.5" />
@@ -2235,7 +2344,7 @@ export default function ChapterDetail() {
                   size="sm"
                   variant="ghost"
                   className="h-7 w-7 p-0"
-                  onClick={() => setZoomLevel((l) => Math.min(2, Math.round((l + 0.1) * 10) / 10))}
+                  onClick={() => applyChapterEditorZoom(zoomRef.current + 0.1, "buttons")}
                   title="Zoomer (Ctrl+Scroll)"
                 >
                   <Plus className="h-3.5 w-3.5" />

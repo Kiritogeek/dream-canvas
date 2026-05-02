@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import { Trash2 } from "lucide-react";
 import type { Panel, ColorBlock, ColorBlockFill } from "@/types";
-import { getPanelHeight } from "@/services/panels";
+import { getPanelHeight, RESIZE_HANDLE_CORNER_PX, RESIZE_HANDLE_EDGE_PX } from "@/services/panels";
 import { useDragBlock } from "@/hooks/useDragBlock";
 import { useResizeBlock } from "@/hooks/useResizeBlock";
 import type { ResizingState } from "@/hooks/useResizeBlock";
@@ -81,7 +81,7 @@ export function ColorBlockLayer({
         const isResizingThis = resizingColorBlockState?.panelId === panel.id && resizingColorBlockState?.colorBlockId === cb.id;
         const geom = isResizingThis && resizeColorBlockDraft
           ? { x: Math.round(resizeColorBlockDraft.x), y: Math.round(resizeColorBlockDraft.y), width: Math.round(resizeColorBlockDraft.width), height: Math.round(resizeColorBlockDraft.height) }
-          : { x: cb.x, y: cb.y, width: cb.width, height: cb.height };
+          : { x: Math.round(cb.x), y: Math.round(cb.y), width: Math.round(cb.width), height: Math.round(cb.height) };
         const isSelected = selectedColorBlockId === cb.id;
         const bgStyle = cb.fill.type === "solid"
           ? { backgroundColor: cb.fill.color }
@@ -90,14 +90,20 @@ export function ColorBlockLayer({
           <div
             key={cb.id}
             ref={isResizingThis ? (el) => { if (el) resizingColorBlockElRef.current = el; } : undefined}
-            className={`group absolute overflow-visible border border-border/80 transition-[box-shadow,ring] duration-150 cursor-grab active:cursor-grabbing ${isSelected ? "ring-2 ring-primary ring-offset-2 ring-offset-background" : "hover:ring-2 hover:ring-primary/40"}`}
+            className={`group absolute overflow-visible border shadow-sm transition-[box-shadow,outline,outline-offset,filter,ring] duration-150 cursor-grab active:cursor-grabbing ${isSelected ? "border-transparent brightness-[1.02]" : "border-border/80 ring-1 ring-inset ring-black/25 dark:ring-white/25 hover:ring-[3px] hover:ring-primary/55"}`}
             style={{
               left: geom.x,
               top: geom.y,
               width: geom.width,
               height: geom.height,
               ...bgStyle,
-              zIndex: 0,
+              zIndex: isSelected ? 50 : 0,
+              ...(isSelected
+                ? {
+                    outline: "4px solid hsl(var(--primary))",
+                    outlineOffset: "-4px",
+                  }
+                : {}),
             }}
             onPointerDown={!isResizingThis && !isResizingColorBlockRef.current ? (e) => {
               const ghost = ghostRefByPanel.current[panel.id];
@@ -125,14 +131,14 @@ export function ColorBlockLayer({
                 <Trash2 className="h-4 w-4" />
               </button>
               {[
-                  { edge: "r" as const, style: { right: 0, top: 0, bottom: 0, width: 9 }, cursor: "ew-resize" },
-                  { edge: "b" as const, style: { bottom: 0, left: 0, right: 0, height: 9 }, cursor: "ns-resize" },
-                  { edge: "l" as const, style: { left: 0, top: 0, bottom: 0, width: 9 }, cursor: "ew-resize" },
-                  { edge: "t" as const, style: { top: 0, left: 0, right: 0, height: 9 }, cursor: "ns-resize" },
-                  { edge: "tl" as const, style: { left: 0, top: 0, width: 15, height: 15 }, cursor: "nwse-resize" },
-                  { edge: "tr" as const, style: { right: 0, top: 0, width: 15, height: 15 }, cursor: "nesw-resize" },
-                  { edge: "br" as const, style: { right: 0, bottom: 0, width: 15, height: 15 }, cursor: "nwse-resize" },
-                  { edge: "bl" as const, style: { left: 0, bottom: 0, width: 15, height: 15 }, cursor: "nesw-resize" },
+                  { edge: "r" as const, style: { right: 0, top: 0, bottom: 0, width: RESIZE_HANDLE_EDGE_PX }, cursor: "ew-resize" },
+                  { edge: "b" as const, style: { bottom: 0, left: 0, right: 0, height: RESIZE_HANDLE_EDGE_PX }, cursor: "ns-resize" },
+                  { edge: "l" as const, style: { left: 0, top: 0, bottom: 0, width: RESIZE_HANDLE_EDGE_PX }, cursor: "ew-resize" },
+                  { edge: "t" as const, style: { top: 0, left: 0, right: 0, height: RESIZE_HANDLE_EDGE_PX }, cursor: "ns-resize" },
+                  { edge: "tl" as const, style: { left: 0, top: 0, width: RESIZE_HANDLE_CORNER_PX, height: RESIZE_HANDLE_CORNER_PX }, cursor: "nwse-resize" },
+                  { edge: "tr" as const, style: { right: 0, top: 0, width: RESIZE_HANDLE_CORNER_PX, height: RESIZE_HANDLE_CORNER_PX }, cursor: "nesw-resize" },
+                  { edge: "br" as const, style: { right: 0, bottom: 0, width: RESIZE_HANDLE_CORNER_PX, height: RESIZE_HANDLE_CORNER_PX }, cursor: "nwse-resize" },
+                  { edge: "bl" as const, style: { left: 0, bottom: 0, width: RESIZE_HANDLE_CORNER_PX, height: RESIZE_HANDLE_CORNER_PX }, cursor: "nesw-resize" },
                 ].map(({ edge, style, cursor }) => (
                   <div
                     key={edge}

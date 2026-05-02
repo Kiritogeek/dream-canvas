@@ -5,6 +5,9 @@ import type { Asset } from "@/types";
 import { planDisplayName } from "@/types";
 import { cn } from "@/lib/utils";
 import {
+  CHAPTER_EDITOR_RAIL_ASIDE_CLASS,
+  CHAPTER_EDITOR_RAIL_COUNT_BADGE_CLASS,
+  CHAPTER_EDITOR_RAIL_PANEL_RIGHT_CLASS,
   CHAPTER_EDITOR_RAIL_BTN_ACTIVE,
   CHAPTER_EDITOR_RAIL_BTN_BASE,
   CHAPTER_EDITOR_RAIL_BTN_DISABLED,
@@ -58,9 +61,11 @@ export function EditorRightPanel({
     <>
       {/* Droite : panel contenu en overlay absolu — ne pousse pas le canvas */}
       <aside
-        className={`absolute right-[76px] top-0 bottom-0 flex flex-col border-l border-border bg-background z-20 transition-[width] duration-200 ease-in-out overflow-hidden ${
-          activeTool ? "w-[340px]" : "w-0 pointer-events-none border-l-0"
-        }`}
+        className={cn(
+          "absolute top-0 bottom-0 flex flex-col border-l border-border bg-background z-20 transition-[width] duration-200 ease-in-out overflow-hidden",
+          CHAPTER_EDITOR_RAIL_PANEL_RIGHT_CLASS,
+          activeTool ? "w-[min(340px,calc(100vw-9rem))] sm:w-[340px]" : "w-0 pointer-events-none border-l-0",
+        )}
       >
         {activeTool === "chapter-text" && (
           <div className="p-4 space-y-2 flex-1 min-h-0 flex flex-col">
@@ -87,9 +92,14 @@ export function EditorRightPanel({
                 Cases du scénario
               </span>
               {validatedCases.length > 0 && (
-                <span className="text-[10px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25 px-2 py-0.5 rounded-full font-semibold">
-                  {validatedCases.length} validée{validatedCases.length > 1 ? "s" : ""}
-                </span>
+                <div className="flex items-center gap-2 rounded-lg border border-emerald-500/35 bg-emerald-500/12 px-2.5 py-1.5 shadow-sm dark:bg-emerald-500/15">
+                  <span className="text-xl font-bold tabular-nums leading-none text-emerald-900 dark:text-emerald-50">
+                    {validatedCases.length}
+                  </span>
+                  <span className="text-xs font-medium leading-tight text-emerald-800 dark:text-emerald-200">
+                    case{validatedCases.length > 1 ? "s" : ""} validée{validatedCases.length > 1 ? "s" : ""}
+                  </span>
+                </div>
               )}
             </div>
 
@@ -206,7 +216,12 @@ export function EditorRightPanel({
       </aside>
 
       {/* Barre d'icônes droite */}
-      <aside className="relative w-[76px] shrink-0 border-l border-border bg-muted/20 px-2 py-4 flex flex-col items-center gap-2 z-30">
+      <aside
+        className={cn(
+          "relative border-l border-border bg-muted/20 px-1.5 py-2 sm:py-2.5 flex flex-col items-stretch gap-1.5 z-30",
+          CHAPTER_EDITOR_RAIL_ASIDE_CLASS,
+        )}
+      >
         <button
           type="button"
           onClick={() => onToolChange(activeTool === "chapter-text" ? null : "chapter-text")}
@@ -216,7 +231,7 @@ export function EditorRightPanel({
           )}
           title="Scénario"
         >
-          <BookOpen className="h-4 w-4" />
+          <BookOpen className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" strokeWidth={1.75} />
         </button>
 
         <button
@@ -231,20 +246,31 @@ export function EditorRightPanel({
                 : CHAPTER_EDITOR_RAIL_BTN_IDLE
               : CHAPTER_EDITOR_RAIL_BTN_DISABLED,
           )}
-          title={isPro ? "Cases" : `Réservé au plan ${planDisplayName("pro")} — cliquez pour vous abonner`}
+          title={
+            isPro
+              ? unaddedCount > 0
+                ? `${unaddedCount} case${unaddedCount > 1 ? "s" : ""} à ajouter au canvas · ${validatedCases.length} validée${validatedCases.length > 1 ? "s" : ""} au total`
+                : `Cases · ${validatedCases.length} validée${validatedCases.length > 1 ? "s" : ""}`
+              : `Réservé au plan ${planDisplayName("pro")} — cliquez pour vous abonner`
+          }
         >
-          <Layers className="h-4 w-4" />
+          <Layers className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" strokeWidth={1.75} />
 
           {/* Badge : nombre de cases pas encore sur le canvas */}
           {isPro && unaddedCount > 0 && (
-            <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-[hsl(var(--lavender))] text-white text-[9px] font-bold flex items-center justify-center leading-none">
-              {unaddedCount}
+            <span
+              className={cn(
+                CHAPTER_EDITOR_RAIL_COUNT_BADGE_CLASS,
+                unaddedCount > 99 && "min-w-7 px-1",
+              )}
+            >
+              {unaddedCount > 99 ? "99+" : unaddedCount}
             </span>
           )}
 
           {/* Badge PRO pour les non-pro */}
           {!isPro && (
-            <span className="absolute -top-1 -right-1 bg-amber-400/30 text-amber-600 dark:text-amber-400 border border-amber-400/40 text-[8px] font-bold rounded px-1 tracking-wide">
+            <span className="absolute -top-0.5 -right-0.5 bg-amber-400/30 text-amber-600 dark:text-amber-400 border border-amber-400/40 text-[7px] font-bold rounded px-0.5 tracking-wide leading-tight">
               PRO
             </span>
           )}

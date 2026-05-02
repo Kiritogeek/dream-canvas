@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Bold, Italic, Underline, Strikethrough, AlignLeft, AlignCenter, AlignRight, Copy, Trash2, Plus, Minus, Square, Blend, ChevronDown, ChevronLeft, SlidersHorizontal } from "lucide-react";
+import { Bold, Italic, Underline, Strikethrough, AlignLeft, AlignCenter, AlignRight, Copy, Trash2, Plus, Minus, Square, Blend, ChevronDown, ChevronLeft, Settings } from "lucide-react";
 import type { SpeechBubble } from "@/types";
 import { getSpeechBubbleFillStroke, SPEECH_BUBBLE_NO_TAIL_TYPES } from "@/types";
 import { cn } from "@/lib/utils";
@@ -132,7 +132,7 @@ export function BubbleToolbar({ bubble, speechBubbles, onUpdate, onDuplicate, on
       const thoughtTailGap = bubble.thoughtTailGap ?? 3;
       return (
         <div className="relative inline-block">
-          <div className={cn("gap-2 z-50", CHAPTER_CANVAS_TOOLBAR_SURFACE)}>
+          <div className={cn(CHAPTER_CANVAS_TOOLBAR_SURFACE, "gap-2 z-50")}>
             <button
               type="button"
               onClick={() => onTailContextChange?.(false)}
@@ -177,7 +177,7 @@ export function BubbleToolbar({ bubble, speechBubbles, onUpdate, onDuplicate, on
     const tailBaseWidth = bubble.tailBaseWidth ?? 28;
     return (
       <div className="relative inline-block">
-        <div className={cn("gap-2 z-50", CHAPTER_CANVAS_TOOLBAR_SURFACE)}>
+        <div className={cn(CHAPTER_CANVAS_TOOLBAR_SURFACE, "gap-2 z-50")}>
           <button
             type="button"
             onClick={() => onTailContextChange?.(false)}
@@ -242,7 +242,7 @@ export function BubbleToolbar({ bubble, speechBubbles, onUpdate, onDuplicate, on
         <div className={cn(
           "absolute top-full left-1/2 -translate-x-1/2 mt-2 whitespace-nowrap z-50",
           CHAPTER_CANVAS_TOOLBAR_SURFACE,
-          "gap-3 py-2.5",
+          "gap-2 py-2.5",
         )}>
           {showBorderSlider && (
             <>
@@ -265,7 +265,7 @@ export function BubbleToolbar({ bubble, speechBubbles, onUpdate, onDuplicate, on
         </div>
       )}
 
-      <div className={cn(CHAPTER_CANVAS_TOOLBAR_SURFACE, "max-w-full overflow-x-auto")}>
+      <div className={cn(CHAPTER_CANVAS_TOOLBAR_SURFACE, "max-w-full overflow-x-auto gap-2")}>
 
         {/* Police — dropdown custom (fixed pour échapper à overflow-x-auto) */}
         <div className="relative shrink-0">
@@ -398,7 +398,9 @@ export function BubbleToolbar({ bubble, speechBubbles, onUpdate, onDuplicate, on
               <Blend className="h-4 w-4" />
             </button>
 
-            {/* Queue : glyphe bulle+queue (pas de libellé), même format que les autres boutons */}
+            <div className={CHAPTER_CANVAS_TOOLBAR_SEP_CLASS} aria-hidden />
+
+            {/* Icônes seules : queue, puis paramètres (si queue activée) */}
             {!hasNoTail && !["radio", "electronic", "explosion"].includes(bubble.type) && !isText && (
               <>
                 <button
@@ -413,10 +415,10 @@ export function BubbleToolbar({ bubble, speechBubbles, onUpdate, onDuplicate, on
                   <button
                     type="button"
                     onClick={() => onTailContextChange(true)}
-                    className={chapterCanvasToolbarIconButtonClass(false)}
-                    title="Affiner la queue : courbure, largeur, position…"
+                    className={chapterCanvasToolbarIconButtonClass(tailContext)}
+                    title="Paramètres de la bulle (queue, forme…)"
                   >
-                    <SlidersHorizontal className="h-4 w-4" strokeWidth={2.25} />
+                    <Settings className="h-4 w-4" />
                   </button>
                 )}
               </>
@@ -426,7 +428,9 @@ export function BubbleToolbar({ bubble, speechBubbles, onUpdate, onDuplicate, on
 
         <div className="flex-1 min-w-2" />
 
-        <div className="flex items-center gap-1 shrink-0 pl-2 ml-0.5 border-l border-border/60">
+        {sep}
+
+        <div className="flex items-center gap-2 shrink-0">
           <button
             type="button"
             onClick={onDuplicate}

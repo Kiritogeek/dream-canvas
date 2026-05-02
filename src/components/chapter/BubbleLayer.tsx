@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useLayoutEffect } from "react";
 import type { Panel, SpeechBubble } from "@/types";
 import { getSpeechBubbleFillStroke, DEFAULT_SPEECH_BUBBLE_WIDTH, DEFAULT_SPEECH_BUBBLE_HEIGHT, SPEECH_BUBBLE_NO_TAIL_TYPES } from "@/types";
-import { getPanelHeight } from "@/services/panels";
+import { getPanelHeight, RESIZE_BUBBLE_CORNER_PX, RESIZE_BUBBLE_EDGE_PX } from "@/services/panels";
 import { useDragBlock } from "@/hooks/useDragBlock";
 import { useResizeBlock } from "@/hooks/useResizeBlock";
 import type { ResizingState } from "@/hooks/useResizeBlock";
@@ -266,8 +266,18 @@ export function BubbleLayer({
         const bw = bubble.width ?? DEFAULT_SPEECH_BUBBLE_WIDTH;
         const bh = bubble.height ?? DEFAULT_SPEECH_BUBBLE_HEIGHT;
         const geom = useResizeDraft
-          ? { x: resizeSpeechBubbleDraft.x, y: resizeSpeechBubbleDraft.y, width: resizeSpeechBubbleDraft.width, height: resizeSpeechBubbleDraft.height }
-          : { x: bubble.position.x, y: bubble.position.y, width: bw, height: bh };
+          ? {
+              x: Math.round(resizeSpeechBubbleDraft.x),
+              y: Math.round(resizeSpeechBubbleDraft.y),
+              width: Math.round(resizeSpeechBubbleDraft.width),
+              height: Math.round(resizeSpeechBubbleDraft.height),
+            }
+          : {
+              x: Math.round(bubble.position.x),
+              y: Math.round(bubble.position.y),
+              width: Math.round(bw),
+              height: Math.round(bh),
+            };
         const fontSize = bubble.style?.size ?? 14;
         const fontFamily = bubble.style?.font ?? "inherit";
         const color = bubble.style?.color ?? "#000000";
@@ -353,8 +363,20 @@ export function BubbleLayer({
             key={bubble.id}
             ref={isResizingThis ? (el) => { if (el) resizingSpeechBubbleElRef.current = el; } : undefined}
             role={!isResizingThis && !isEditing ? "button" : undefined}
-            className={`group absolute z-20 overflow-visible transition-[box-shadow,ring] duration-150 ${isEditing ? "cursor-text" : "cursor-grab active:cursor-grabbing"} ${isSelected && !isTailContext ? "ring-2 ring-primary ring-offset-2 ring-offset-background" : !isTailContext ? "hover:ring-2 hover:ring-primary/40" : ""}`}
-            style={{ left: geom.x, top: geom.y, width: geom.width, height: geom.height }}
+            className={`group absolute overflow-visible transition-[box-shadow,outline,outline-offset,filter,ring] duration-150 ${isEditing ? "cursor-text" : "cursor-grab active:cursor-grabbing"} ${isSelected && !isTailContext ? "brightness-[1.02]" : !isTailContext ? "hover:ring-[3px] hover:ring-inset hover:ring-primary/55" : ""}`}
+            style={{
+              left: geom.x,
+              top: geom.y,
+              width: geom.width,
+              height: geom.height,
+              zIndex: 20,
+              ...(isSelected && !isTailContext
+                ? {
+                    outline: "4px solid hsl(var(--primary))",
+                    outlineOffset: "-4px",
+                  }
+                : {}),
+            }}
             onPointerDown={!isResizingThis && !isResizingSpeechBubbleRef.current && !isEditing ? (e) => dragSpeechBubble.onPointerDown(e, panel.id, bubble.id, geom.x, geom.y, geom.width, geom.height, getPanelHeight(panel)) : undefined}
             onClick={(e) => {
               e.stopPropagation();
@@ -672,14 +694,14 @@ export function BubbleLayer({
             )}
 
             {isSelected && !isResizingThis && !isEditing && !isTailContext && [
-              { edge: "r" as const, style: { right: 0, top: 0, bottom: 0, width: 8 }, cursor: "ew-resize" },
-              { edge: "b" as const, style: { bottom: 0, left: 0, right: 0, height: 8 }, cursor: "ns-resize" },
-              { edge: "l" as const, style: { left: 0, top: 0, bottom: 0, width: 8 }, cursor: "ew-resize" },
-              { edge: "t" as const, style: { top: 0, left: 0, right: 0, height: 8 }, cursor: "ns-resize" },
-              { edge: "tl" as const, style: { left: 0, top: 0, width: 12, height: 12 }, cursor: "nwse-resize" },
-              { edge: "tr" as const, style: { right: 0, top: 0, width: 12, height: 12 }, cursor: "nesw-resize" },
-              { edge: "br" as const, style: { right: 0, bottom: 0, width: 12, height: 12 }, cursor: "nwse-resize" },
-              { edge: "bl" as const, style: { left: 0, bottom: 0, width: 12, height: 12 }, cursor: "nesw-resize" },
+              { edge: "r" as const, style: { right: 0, top: 0, bottom: 0, width: RESIZE_BUBBLE_EDGE_PX }, cursor: "ew-resize" },
+              { edge: "b" as const, style: { bottom: 0, left: 0, right: 0, height: RESIZE_BUBBLE_EDGE_PX }, cursor: "ns-resize" },
+              { edge: "l" as const, style: { left: 0, top: 0, bottom: 0, width: RESIZE_BUBBLE_EDGE_PX }, cursor: "ew-resize" },
+              { edge: "t" as const, style: { top: 0, left: 0, right: 0, height: RESIZE_BUBBLE_EDGE_PX }, cursor: "ns-resize" },
+              { edge: "tl" as const, style: { left: 0, top: 0, width: RESIZE_BUBBLE_CORNER_PX, height: RESIZE_BUBBLE_CORNER_PX }, cursor: "nwse-resize" },
+              { edge: "tr" as const, style: { right: 0, top: 0, width: RESIZE_BUBBLE_CORNER_PX, height: RESIZE_BUBBLE_CORNER_PX }, cursor: "nesw-resize" },
+              { edge: "br" as const, style: { right: 0, bottom: 0, width: RESIZE_BUBBLE_CORNER_PX, height: RESIZE_BUBBLE_CORNER_PX }, cursor: "nwse-resize" },
+              { edge: "bl" as const, style: { left: 0, bottom: 0, width: RESIZE_BUBBLE_CORNER_PX, height: RESIZE_BUBBLE_CORNER_PX }, cursor: "nesw-resize" },
             ].map(({ edge, style, cursor }) => (
               <div
                 key={edge}

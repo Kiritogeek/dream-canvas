@@ -168,6 +168,63 @@ export type Database = {
           },
         ]
       }
+      chapter_canvas_image_history: {
+        Row: {
+          id: string
+          user_id: string
+          chapter_id: string
+          panel_canvas_id: string
+          event_kind: "image_generated" | "case_removed_with_image"
+          source_block_id: string
+          prompt: string | null
+          image_url: string
+          block_name: string | null
+          layout_rect: Json | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          chapter_id: string
+          panel_canvas_id: string
+          event_kind: "image_generated" | "case_removed_with_image"
+          source_block_id: string
+          prompt?: string | null
+          image_url: string
+          block_name?: string | null
+          layout_rect?: Json | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          chapter_id?: string
+          panel_canvas_id?: string
+          event_kind?: "image_generated" | "case_removed_with_image"
+          source_block_id?: string
+          prompt?: string | null
+          image_url?: string
+          block_name?: string | null
+          layout_rect?: Json | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chapter_canvas_image_history_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chapter_canvas_image_history_panel_canvas_id_fkey"
+            columns: ["panel_canvas_id"]
+            isOneToOne: false
+            referencedRelation: "chapter_canvases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       memory_entities: {
         Row: {
           asset_id: string | null

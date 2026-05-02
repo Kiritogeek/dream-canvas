@@ -3,7 +3,7 @@ import { Plus, Trash2, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ImageWithFallback } from "@/components/ui/ImageWithFallback";
 import type { Panel, PanelBlock } from "@/types";
-import { getPanelHeight } from "@/services/panels";
+import { getPanelHeight, RESIZE_HANDLE_CORNER_PX, RESIZE_HANDLE_EDGE_PX } from "@/services/panels";
 import { useDragBlock } from "@/hooks/useDragBlock";
 import { useResizeBlock } from "@/hooks/useResizeBlock";
 import type { ResizingState } from "@/hooks/useResizeBlock";
@@ -90,7 +90,7 @@ export function ImageBlockLayer({
           <div className="flex flex-col items-center gap-3 text-center p-6 text-muted-foreground text-sm pointer-events-auto">
             <Square className="h-10 w-10 opacity-50" />
             <p>Aucun bloc. Glissez un bloc depuis la bibliothèque (gauche) ou ajoutez un premier bloc.</p>
-            <Button size="sm" variant="outline" onClick={() => onAddBlock(0, 0)} disabled={isUpdating}>
+            <Button size="sm" variant="outline" onClick={() => onAddBlock()} disabled={isUpdating}>
               <Plus className="h-4 w-4 mr-1.5" /> Ajouter un bloc
             </Button>
           </div>
@@ -110,9 +110,15 @@ export function ImageBlockLayer({
               draggable={false}
               onPointerDown={!isThisResizing ? (e) => dragImageBlock.onPointerDown(e, panel.id, block.id, block.x, block.y, block.width, block.height, getPanelHeight(panel)) : undefined}
               onClick={(e) => { e.stopPropagation(); onSelectBlock(block.id); }}
-              className={`group absolute overflow-visible bg-black border border-border shadow-md transition-[box-shadow,ring] duration-150 cursor-grab active:cursor-grabbing ${isSelected ? "ring-2 ring-primary shadow-lg ring-offset-2 ring-offset-background" : "ring-1 ring-border/80 hover:ring-2 hover:ring-primary/50 hover:shadow-md"}`}
-              style={{ left: geom.x, top: geom.y, width: geom.width, height: geom.height, zIndex: 10 }}
-              title={block.name ?? `Bloc ${blockIndex + 1}`}
+              className={`group absolute overflow-visible bg-black border shadow-sm transition-[box-shadow,filter,ring] duration-150 cursor-grab active:cursor-grabbing ${isSelected ? "border-transparent brightness-[1.02]" : "border-border/80 ring-1 ring-inset ring-black/25 dark:ring-white/25 hover:ring-[3px] hover:ring-primary/55"}`}
+              style={{
+                left: geom.x,
+                top: geom.y,
+                width: geom.width,
+                height: geom.height,
+                zIndex: 10,
+              }}
+              title={block.name ?? `Case ${blockIndex + 1}`}
             >
               <button
                 type="button"
@@ -133,42 +139,16 @@ export function ImageBlockLayer({
                     </div>
                   </div>
                 )}
-                {/* Overlay DreamWeave loader pendant la génération */}
-                {isGenerating && (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm z-30">
-                    <div className="flex flex-col items-center gap-2">
-                      <div className="relative w-10 h-10">
-                        {/* Anneau tournant */}
-                        <svg className="animate-spin absolute inset-0" viewBox="0 0 40 40" fill="none">
-                          <circle cx="20" cy="20" r="16" stroke="url(#dw-spin-grad)" strokeWidth="3" strokeLinecap="round" strokeDasharray="60 40" />
-                          <defs>
-                            <linearGradient id="dw-spin-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-                              <stop offset="0%" stopColor="hsl(var(--primary))" />
-                              <stop offset="100%" stopColor="hsl(var(--primary) / 0.2)" />
-                            </linearGradient>
-                          </defs>
-                        </svg>
-                        {/* Logo DreamWeave centré */}
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                            <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z" fill="hsl(var(--primary))" strokeWidth="0" />
-                          </svg>
-                        </div>
-                      </div>
-                      <span className="text-[11px] font-medium text-primary/80 tracking-wide">Génération…</span>
-                    </div>
-                  </div>
-                )}
               </div>
               {[
-                { edge: "r" as const, style: { right: 0, top: 0, bottom: 0, width: 9 }, cursor: "ew-resize" },
-                { edge: "b" as const, style: { bottom: 0, left: 0, right: 0, height: 9 }, cursor: "ns-resize" },
-                { edge: "l" as const, style: { left: 0, top: 0, bottom: 0, width: 9 }, cursor: "ew-resize" },
-                { edge: "t" as const, style: { top: 0, left: 0, right: 0, height: 9 }, cursor: "ns-resize" },
-                { edge: "tl" as const, style: { left: 0, top: 0, width: 15, height: 15 }, cursor: "nwse-resize" },
-                { edge: "tr" as const, style: { right: 0, top: 0, width: 15, height: 15 }, cursor: "nesw-resize" },
-                { edge: "br" as const, style: { right: 0, bottom: 0, width: 15, height: 15 }, cursor: "nwse-resize" },
-                { edge: "bl" as const, style: { left: 0, bottom: 0, width: 15, height: 15 }, cursor: "nesw-resize" },
+                { edge: "r" as const, style: { right: 0, top: 0, bottom: 0, width: RESIZE_HANDLE_EDGE_PX }, cursor: "ew-resize" },
+                { edge: "b" as const, style: { bottom: 0, left: 0, right: 0, height: RESIZE_HANDLE_EDGE_PX }, cursor: "ns-resize" },
+                { edge: "l" as const, style: { left: 0, top: 0, bottom: 0, width: RESIZE_HANDLE_EDGE_PX }, cursor: "ew-resize" },
+                { edge: "t" as const, style: { top: 0, left: 0, right: 0, height: RESIZE_HANDLE_EDGE_PX }, cursor: "ns-resize" },
+                { edge: "tl" as const, style: { left: 0, top: 0, width: RESIZE_HANDLE_CORNER_PX, height: RESIZE_HANDLE_CORNER_PX }, cursor: "nwse-resize" },
+                { edge: "tr" as const, style: { right: 0, top: 0, width: RESIZE_HANDLE_CORNER_PX, height: RESIZE_HANDLE_CORNER_PX }, cursor: "nesw-resize" },
+                { edge: "br" as const, style: { right: 0, bottom: 0, width: RESIZE_HANDLE_CORNER_PX, height: RESIZE_HANDLE_CORNER_PX }, cursor: "nwse-resize" },
+                { edge: "bl" as const, style: { left: 0, bottom: 0, width: RESIZE_HANDLE_CORNER_PX, height: RESIZE_HANDLE_CORNER_PX }, cursor: "nesw-resize" },
               ].map(({ edge, style, cursor }) => (
                 <div
                   key={edge}
@@ -203,6 +183,37 @@ export function ImageBlockLayer({
                   aria-label="Redimensionner"
                 />
               ))}
+              {/* Sélection : inset au-dessus du visuel (sinon l’outline du parent passe sous l’image / les poignées et disparaît en bas). */}
+              {isSelected && (
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute inset-0 z-[25] transition-[box-shadow] duration-150"
+                  style={{ boxShadow: "inset 0 0 0 4px hsl(var(--primary))" }}
+                />
+              )}
+              {isGenerating && (
+                <div className="pointer-events-none absolute inset-0 z-[35] flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm">
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="relative w-10 h-10">
+                      <svg className="animate-spin absolute inset-0" viewBox="0 0 40 40" fill="none">
+                        <circle cx="20" cy="20" r="16" stroke={`url(#dw-spin-grad-${block.id})`} strokeWidth="3" strokeLinecap="round" strokeDasharray="60 40" />
+                        <defs>
+                          <linearGradient id={`dw-spin-grad-${block.id}`} x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stopColor="hsl(var(--primary))" />
+                            <stop offset="100%" stopColor="hsl(var(--primary) / 0.2)" />
+                          </linearGradient>
+                        </defs>
+                      </svg>
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                          <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z" fill="hsl(var(--primary))" strokeWidth="0" />
+                        </svg>
+                      </div>
+                    </div>
+                    <span className="text-[11px] font-medium text-primary/80 tracking-wide">Génération…</span>
+                  </div>
+                </div>
+              )}
             </div>
           );
         })

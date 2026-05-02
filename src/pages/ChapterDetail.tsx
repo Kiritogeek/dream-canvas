@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { BubbleToolbar } from "@/components/chapter/BubbleToolbar";
 import { BlockToolbar } from "@/components/chapter/BlockToolbar";
+import type { CanvasColorFillPickMeta } from "@/components/chapter/DreamWeaveColorPicker";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -81,7 +82,7 @@ import { ColorBlockLayer } from "@/components/chapter/ColorBlockLayer";
 import { ImageBlockLayer } from "@/components/chapter/ImageBlockLayer";
 import { BubbleLayer } from "@/components/chapter/BubbleLayer";
 import { EditorRightPanel } from "@/components/chapter/EditorRightPanel";
-import { EditorLeftSidebar } from "@/components/chapter/EditorLeftSidebar";
+import { EditorLeftSidebar, type SidebarTab } from "@/components/chapter/EditorLeftSidebar";
 import type { Json } from "@/integrations/supabase/types";
 import type { Panel, PanelBlock, PanelLayout, ColorBlock, ColorBlockFill, SpeechBubble, Asset } from "@/types";
 import {
@@ -90,8 +91,91 @@ import {
   SPEECH_BUBBLE_DEFAULT_STYLE,
   planDisplayName,
 } from "@/types";
+import type { ChapterCanvasImageHistoryRow } from "@/services/chapterCanvasImageHistory";
+import {
+  chapterCanvasImageHistoryQueryKey,
+  insertChapterCanvasImageHistoryForSession,
+  parseLayoutRect,
+} from "@/services/chapterCanvasImageHistory";
+import { useChapterCanvasImageHistory } from "@/hooks/useChapterCanvasImageHistory";
+import {
+  pushCanvasUndoSnapshot,
+  snapshotPanelCanvas,
+  type PanelCanvasSnapshot,
+  type PanelCanvasUndoEntry,
+} from "@/lib/panelCanvasUndo";
 
 const PANEL_WIDTH = 800;
+
+/** Convertit coords écran viewport → coords logiques du canvas (prend en compte le zoom via getBoundingClientRect). */
+function viewportClientToCanvas(canvasEl: HTMLDivElement, clientX: number, clientY: number) {
+  const rect = canvasEl.getBoundingClientRect();
+  const scale = canvasEl.offsetWidth > 0 ? rect.width / canvasEl.offsetWidth : 1;
+  return {
+    x: (clientX - rect.left) / scale,
+    y: (clientY - rect.top) / scale,
+  };
+}
+
+/** Centre de la zone de scroll visible projeté sur le canvas, puis ancres top-left d’un rectangle itemW×itemH (clampé dans le canvas). */
+function canvasPlacementFromViewportCenter(
+  canvasEl: HTMLDivElement | null,
+  scrollEl: HTMLDivElement | null,
+  panelWidth: number,
+  panelLogicalHeight: number,
+  itemWidth: number,
+  itemHeight: number,
+): { x: number; y: number } {
+  if (!canvasEl) {
+    return {
+      x: Math.max(0, Math.round((panelWidth - itemWidth) / 2)),
+      y: Math.max(0, Math.round((panelLogicalHeight - itemHeight) / 2)),
+    };
+  }
+
+  let clientX: number;
+  let clientY: number;
+  if (scrollEl) {
+    const sr = scrollEl.getBoundingClientRect();
+    clientX = sr.left + sr.width / 2;
+    clientY = sr.top + sr.height / 2;
+  } else {
+    const cr = canvasEl.getBoundingClientRect();
+    clientX = cr.left + cr.width / 2;
+    clientY = cr.top + cr.height / 2;
+  }
+
+  const canvasRect = canvasEl.getBoundingClientRect();
+  const margin = 4;
+  const px = Math.min(Math.max(clientX, canvasRect.left + margin), canvasRect.right - margin);
+  const py = Math.min(Math.max(clientY, canvasRect.top + margin), canvasRect.bottom - margin);
+  const pos = viewportClientToCanvas(canvasEl, px, py);
+  const x = Math.round(pos.x - itemWidth / 2);
+  const y = Math.round(pos.y - itemHeight / 2);
+  return {
+    x: Math.max(0, Math.min(panelWidth - itemWidth, x)),
+    y: Math.max(0, Math.min(panelLogicalHeight - itemHeight, y)),
+  };
+}
+
+const CANVAS_HISTORY_RESTORED_IDS_KEY = (id: string) => `dreamweave_canvas_history_restored_${id}`;
+
+function loadCanvasHistoryRestoredIds(chapterDbId: string | undefined): Set<string> {
+  if (!chapterDbId || typeof sessionStorage === "undefined") return new Set();
+  try {
+    const raw = sessionStorage.getItem(CANVAS_HISTORY_RESTORED_IDS_KEY(chapterDbId));
+    const arr = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(arr)) return new Set();
+    return new Set(arr.filter((x): x is string => typeof x === "string"));
+  } catch {
+    return new Set();
+  }
+}
+
+type CanvasElementDeleteIntent =
+  | { panelId: string; kind: "image"; blockId: string }
+  | { panelId: string; kind: "color"; colorBlockId: string }
+  | { panelId: string; kind: "bubble"; bubbleId: string };
 
 function getAssetReferenceImageUrl(asset: Asset): string | null {
   if (asset.asset_type === "character") {
@@ -139,7 +223,14 @@ export default function ChapterDetail() {
   const [showQuotaModal, setShowQuotaModal] = useState(false);
   const generatePanelImage = useGeneratePanelImage(chapterId ?? "");
   const panelsQueryKey = useMemo(() => ["panels", chapterId] as const, [chapterId]);
+  const { data: chapterImageHistory = [], isPending: chapterImageHistoryPending } = useChapterCanvasImageHistory(chapterId);
+  const [restoringHistoryId, setRestoringHistoryId] = useState<string | null>(null);
+  const [canvasHistoryRestoredIds, setCanvasHistoryRestoredIds] = useState<Set<string>>(() => new Set());
   const preloadedImagesRef = useRef<HTMLImageElement[]>([]);
+
+  useEffect(() => {
+    setCanvasHistoryRestoredIds(loadCanvasHistoryRestoredIds(chapterId));
+  }, [chapterId]);
 
   useEffect(() => {
     progressiveRedirectRef.current = false;
@@ -205,6 +296,10 @@ export default function ChapterDetail() {
   const panelHeightDragRef = useRef<{ startY: number; startH: number } | null>(null);
   /** Refs du canvas par panel (pour calcul position de dépôt quand on drop sur un bloc) */
   const canvasRefByPanel = useRef<Record<string, HTMLDivElement | null>>({});
+  /** Conteneur à scroll du canvas en modale d’édition (centre viewport = là où « regarde » l’utilisateur). */
+  const panelEditorCanvasScrollRef = useRef<HTMLDivElement | null>(null);
+  /** Panels où un picker couleur « live » a déjà enregistré l’instantané undo (SV / curseur teinte). */
+  const panelLiveColorPickUndoRef = useRef<Set<string>>(new Set());
   /** Refs du canvas de prévisualisation par panel (utilisées pour l'export PNG) */
   const exportCanvasRefByPanel = useRef<Record<string, HTMLDivElement | null>>({});
   /** Export du chapitre entier en cours */
@@ -213,6 +308,8 @@ export default function ChapterDetail() {
   const newBlockDragGhostRef = useRef<HTMLDivElement | null>(null);
   /** Drop move-block traité sur le canvas : ne pas nettoyer le preview dans onDragEnd pour éviter le saut visuel */
   const moveDropHandledRef = useRef(false);
+  /** Après un drag, un clic parasite peut remonter au scroll parent et tout désélectionner ; le premier onClick sur cette zone est ignoré (ne pas réinitialiser ce flag dans un setTimeout(0) : il courrait avant le clic et cassait l’effet). */
+  const skipNextCanvasEmptyClickRef = useRef(false);
   /** Panel sur lequel un élément de la sidebar est en train d'être survolé (drag-over) */
   const [isDragOverCanvasId, setIsDragOverCanvasId] = useState<string | null>(null);
   const dragOverCounterRef = useRef<Record<string, number>>({});
@@ -233,8 +330,8 @@ export default function ChapterDetail() {
   /** Niveau de zoom du canvas éditeur (0.1–2.0, défaut 0.5) */
   const [zoomLevel, setZoomLevel] = useState(0.5);
   const zoomRef = useRef(0.5);
-  /** Onglet actif de la sidebar bibliothèque (null = fermée) */
-  const [activeSidebarTab, setActiveSidebarTab] = useState<"blocs" | "couleurs" | "dialogue" | "assets" | null>(null);
+  /** Onglet actif de la sidebar bibliothèque / historique (null = fermée) */
+  const [activeSidebarTab, setActiveSidebarTab] = useState<SidebarTab | null>(null);
 
   // Réduit la duplication des resets d'état de l'éditeur panel.
   const resetPanelEditorUiState = useCallback(() => {
@@ -247,6 +344,8 @@ export default function ChapterDetail() {
 
   const closePanelEditor = useCallback(() => {
     setExpandedPanelId(null);
+    setCanvasDeleteIntent(null);
+    setActiveSidebarTab(null);
     resetPanelEditorUiState();
   }, [resetPanelEditorUiState]);
   /** Valeur sentinelle pour "Aucun" (Radix Select n'accepte pas value="") */
@@ -284,16 +383,149 @@ export default function ChapterDetail() {
     displayedScenarioChapterId ?? undefined
   );
 
+  const canvasUndoStacksRef = useRef(new Map<string, PanelCanvasUndoEntry>());
+  const [canvasDeleteIntent, setCanvasDeleteIntent] = useState<CanvasElementDeleteIntent | null>(null);
 
-  /** Convertit viewport -> coords logiques canvas. getBoundingClientRect() reflète déjà le scroll (le canvas bouge dans la viewport), donc pas d’ajout de scroll. */
-  const viewportToCanvas = (canvasEl: HTMLDivElement, clientX: number, clientY: number) => {
-    const rect = canvasEl.getBoundingClientRect();
-    const scale = canvasEl.offsetWidth > 0 ? rect.width / canvasEl.offsetWidth : 1;
-    return {
-      x: (clientX - rect.left) / scale,
-      y: (clientY - rect.top) / scale,
-    };
-  };
+  const applyCanvasSnapshot = useCallback(
+    (panelId: string, snap: PanelCanvasSnapshot) => {
+      queryClient.setQueryData<Panel[]>(panelsQueryKey, (old) =>
+        !old
+          ? old
+          : old.map((row) =>
+              row.id === panelId
+                ? {
+                    ...row,
+                    layout: snap.layout as unknown as Json,
+                    speech_bubbles: snap.speech_bubbles as unknown as Json,
+                    color_blocks: snap.color_blocks as unknown as Json,
+                  }
+                : row,
+            ),
+      );
+      updatePanelMutation.mutate(
+        {
+          id: panelId,
+          updates: {
+            layout: snap.layout as unknown as Json,
+            speech_bubbles: snap.speech_bubbles as unknown as Json,
+            color_blocks: snap.color_blocks as unknown as Json,
+          },
+        },
+        {
+          onError: (err) => {
+            toast({ title: "Erreur", description: err.message, variant: "destructive" });
+            queryClient.invalidateQueries({ queryKey: panelsQueryKey });
+          },
+        },
+      );
+    },
+    [queryClient, panelsQueryKey, updatePanelMutation, toast],
+  );
+
+  const recordCanvasUndoBeforeChange = useCallback(
+    (panelId: string) => {
+      const list = queryClient.getQueryData<Panel[]>(panelsQueryKey);
+      const pnow = list?.find((pp) => pp.id === panelId);
+      if (pnow) pushCanvasUndoSnapshot(canvasUndoStacksRef.current, panelId, pnow);
+    },
+    [queryClient, panelsQueryKey],
+  );
+
+  const handleColorPickLiveGestureEndForPanel = useCallback((panelId: string) => {
+    panelLiveColorPickUndoRef.current.delete(panelId);
+  }, []);
+
+  const undoPanelCanvas = useCallback(
+    (panelId: string): boolean => {
+      const entry = canvasUndoStacksRef.current.get(panelId);
+      const list = queryClient.getQueryData<Panel[]>(panelsQueryKey);
+      const panel = list?.find((p) => p.id === panelId);
+      if (!entry?.past.length || !panel) return false;
+      const current = snapshotPanelCanvas(panel);
+      const prev = entry.past.pop()!;
+      entry.future.push(current);
+      applyCanvasSnapshot(panelId, prev);
+      toast({ title: "Annulé", description: "Modification du canvas annulée." });
+      return true;
+    },
+    [applyCanvasSnapshot, queryClient, panelsQueryKey, toast],
+  );
+
+  const redoPanelCanvas = useCallback(
+    (panelId: string): boolean => {
+      const entry = canvasUndoStacksRef.current.get(panelId);
+      const list = queryClient.getQueryData<Panel[]>(panelsQueryKey);
+      const panel = list?.find((p) => p.id === panelId);
+      if (!entry?.future.length || !panel) return false;
+      const current = snapshotPanelCanvas(panel);
+      const next = entry.future.pop()!;
+      entry.past.push(current);
+      applyCanvasSnapshot(panelId, next);
+      toast({ title: "Rétabli", description: "Modification du canvas rejouée." });
+      return true;
+    },
+    [applyCanvasSnapshot, queryClient, panelsQueryKey, toast],
+  );
+
+  const restoreChapterCanvasImageHistoryRow = useCallback(
+    async (entry: ChapterCanvasImageHistoryRow) => {
+      if (!chapterId) return;
+      const list = queryClient.getQueryData<Panel[]>(panelsQueryKey) ?? panels;
+      const panel = list.find((p) => p.id === entry.panel_canvas_id);
+      if (!panel) {
+        toast({
+          title: "Canvas introuvable",
+          description: "Ce chapitre ne contient plus le canvas cible.",
+          variant: "destructive",
+        });
+        return;
+      }
+      setRestoringHistoryId(entry.id);
+      try {
+        const ly = getPanelLayout(panel);
+        const panelH = getPanelHeight(panel);
+        const rect = parseLayoutRect(entry.layout_rect);
+        const w = rect?.width ?? DEFAULT_BLOCK_WIDTH;
+        const h = rect?.height ?? DEFAULT_BLOCK_HEIGHT;
+        const x = rect?.x ?? Math.max(0, Math.round((PANEL_WIDTH - w) / 2));
+        const y = rect?.y ?? Math.max(0, Math.round((panelH - h) / 2));
+        const newBlock: PanelBlock = {
+          id: crypto.randomUUID(),
+          x,
+          y,
+          width: w,
+          height: h,
+          name: entry.block_name?.trim() || "Case restaurée",
+          prompt: entry.prompt?.trim() || null,
+          image_url: entry.image_url,
+        };
+        recordCanvasUndoBeforeChange(panel.id);
+        await updatePanelMutation.mutateAsync({
+          id: panel.id,
+          updates: { layout: { ...ly, blocks: [...ly.blocks, newBlock] } as unknown as Json },
+        });
+        setCanvasHistoryRestoredIds((prev) => {
+          const next = new Set(prev).add(entry.id);
+          try {
+            sessionStorage.setItem(CANVAS_HISTORY_RESTORED_IDS_KEY(chapterId), JSON.stringify([...next]));
+          } catch {
+            /* ignore quota / private mode */
+          }
+          return next;
+        });
+        toast({ title: "Image restaurée sur le canvas" });
+      } catch (err) {
+        toast({
+          title: "Restauration impossible",
+          description: err instanceof Error ? err.message : String(err),
+          variant: "destructive",
+        });
+      } finally {
+        setRestoringHistoryId(null);
+      }
+    },
+    [chapterId, panels, panelsQueryKey, queryClient, recordCanvasUndoBeforeChange, toast, updatePanelMutation],
+  );
 
   const handleSaveScenarioLink = () => {
     const idToSave = displayedScenarioChapterId;
@@ -333,24 +565,38 @@ export default function ChapterDetail() {
         return;
       }
 
+      if ((e.ctrlKey || e.metaKey) && String(e.key).toLowerCase() === "z" && !e.altKey) {
+        e.preventDefault();
+        if (e.shiftKey) redoPanelCanvas(expandedPanelId);
+        else undoPanelCanvas(expandedPanelId);
+        return;
+      }
+
       if (e.key === "b" || e.key === "B") {
         e.preventDefault();
         const w = DEFAULT_BLOCK_WIDTH;
         const h = DEFAULT_BLOCK_HEIGHT;
-        const x = Math.max(0, Math.round((PANEL_WIDTH - w) / 2));
-        const y = Math.max(0, Math.round((panelH - h) / 2));
+        const { x, y } = canvasPlacementFromViewportCenter(
+          canvasRefByPanel.current[panel.id] ?? null,
+          panelEditorCanvasScrollRef.current,
+          PANEL_WIDTH,
+          panelH,
+          w,
+          h,
+        );
         const newBlock: PanelBlock = {
           id: crypto.randomUUID(),
           x, y, width: w, height: h,
-          name: `Bloc ${layout.blocks.length + 1}`,
+          name: `Case ${layout.blocks.length + 1}`,
           prompt: null, image_url: null,
         };
+        recordCanvasUndoBeforeChange(panel.id);
         updatePanelMutation.mutate(
           { id: panel.id, updates: { layout: { ...layout, blocks: [...layout.blocks, newBlock] } as unknown as Json } },
           {
             onSuccess: () => {
               setSelectedBlockIdInModal({ panelId: panel.id, blockId: newBlock.id });
-              toast({ title: "Bloc ajouté", description: "Raccourci B" });
+              toast({ title: "Case ajoutée", description: "Raccourci B" });
             },
             onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }),
           }
@@ -360,15 +606,23 @@ export default function ChapterDetail() {
 
       if (e.key === "c" || e.key === "C") {
         e.preventDefault();
-        const w = 300, h = 300;
-        const x = Math.max(0, Math.round((PANEL_WIDTH - w) / 2));
-        const y = Math.max(0, Math.round((panelH - h) / 2));
+        const w = 300,
+          h = 300;
+        const { x, y } = canvasPlacementFromViewportCenter(
+          canvasRefByPanel.current[panel.id] ?? null,
+          panelEditorCanvasScrollRef.current,
+          PANEL_WIDTH,
+          panelH,
+          w,
+          h,
+        );
         const colorBlocks = getPanelColorBlocks(panel);
         const newCb: ColorBlock = {
           id: crypto.randomUUID(),
           x, y, width: w, height: h,
           fill: { ...DEFAULT_COLOR_BLOCK_FILL },
         };
+        recordCanvasUndoBeforeChange(panel.id);
         updatePanelMutation.mutate(
           { id: panel.id, updates: { color_blocks: [...colorBlocks, newCb] as unknown as Json } },
           {
@@ -386,8 +640,14 @@ export default function ChapterDetail() {
         e.preventDefault();
         const w = DEFAULT_SPEECH_BUBBLE_WIDTH;
         const h = DEFAULT_SPEECH_BUBBLE_HEIGHT;
-        const x = Math.max(0, Math.round((PANEL_WIDTH - w) / 2));
-        const y = Math.max(0, Math.round((panelH - h) / 2));
+        const { x, y } = canvasPlacementFromViewportCenter(
+          canvasRefByPanel.current[panel.id] ?? null,
+          panelEditorCanvasScrollRef.current,
+          PANEL_WIDTH,
+          panelH,
+          w,
+          h,
+        );
         const bubbles = getPanelSpeechBubbles(panel);
         const newBubble: SpeechBubble = {
           id: crypto.randomUUID(),
@@ -398,6 +658,7 @@ export default function ChapterDetail() {
           height: h,
           style: {},
         };
+        recordCanvasUndoBeforeChange(panel.id);
         updatePanelMutation.mutate(
           { id: panel.id, updates: { speech_bubbles: [...bubbles, newBubble] as unknown as Json } },
           {
@@ -417,40 +678,39 @@ export default function ChapterDetail() {
         const blocks = getPanelBlocks(panel);
         const block = blocks.find((b) => b.id === selectedBlockIdInModal.blockId);
         if (block) {
-          const nextBlocks = blocks.filter((b) => b.id !== block.id);
-          setSelectedBlockIdInModal(null);
-          updatePanelMutation.mutate(
-            { id: panel.id, updates: { layout: { ...layout, blocks: nextBlocks } as unknown as Json } },
-            { onSuccess: () => toast({ title: "Bloc supprimé" }), onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }) }
-          );
+          e.preventDefault();
+          setCanvasDeleteIntent({ panelId: panel.id, kind: "image", blockId: block.id });
         }
       } else if (selectedColorBlockIdInModal?.panelId === expandedPanelId && selectedColorBlockIdInModal.colorBlockId) {
         const colorBlocks = getPanelColorBlocks(panel);
         const cb = colorBlocks.find((c) => c.id === selectedColorBlockIdInModal.colorBlockId);
         if (cb) {
-          const next = colorBlocks.filter((c) => c.id !== cb.id);
-          setSelectedColorBlockIdInModal(null);
-          updatePanelMutation.mutate(
-            { id: panel.id, updates: { color_blocks: next as unknown as Json } },
-            { onSuccess: () => toast({ title: "Bloc de couleur supprimé" }), onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }) }
-          );
+          e.preventDefault();
+          setCanvasDeleteIntent({ panelId: panel.id, kind: "color", colorBlockId: cb.id });
         }
       } else if (selectedSpeechBubbleIdInModal?.panelId === expandedPanelId && selectedSpeechBubbleIdInModal.bubbleId) {
         const speechBubbles = getPanelSpeechBubbles(panel);
         const bubble = speechBubbles.find((b) => b.id === selectedSpeechBubbleIdInModal.bubbleId);
         if (bubble) {
-          const next = speechBubbles.filter((b) => b.id !== bubble.id);
-          setSelectedSpeechBubbleIdInModal(null);
-          updatePanelMutation.mutate(
-            { id: panel.id, updates: { speech_bubbles: next as unknown as Json } },
-            { onSuccess: () => toast({ title: "Bulle supprimée" }), onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }) }
-          );
+          e.preventDefault();
+          setCanvasDeleteIntent({ panelId: panel.id, kind: "bubble", bubbleId: bubble.id });
         }
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [expandedPanelId, selectedBlockIdInModal, selectedColorBlockIdInModal, selectedSpeechBubbleIdInModal, panels, updatePanelMutation, toast]);
+  }, [
+    expandedPanelId,
+    selectedBlockIdInModal,
+    selectedColorBlockIdInModal,
+    selectedSpeechBubbleIdInModal,
+    panels,
+    updatePanelMutation,
+    toast,
+    undoPanelCanvas,
+    redoPanelCanvas,
+    recordCanvasUndoBeforeChange,
+  ]);
 
   useEffect(() => {
     zoomRef.current = zoomLevel;
@@ -477,6 +737,7 @@ export default function ChapterDetail() {
   const handleColorBlockMoveCommit = useCallback((panelId: string, colorBlockId: string, x: number, y: number) => {
     const currentPanels = queryClient.getQueryData<Panel[]>(panelsQueryKey) ?? [];
     const panelData = currentPanels.find((p) => p.id === panelId);
+    if (panelData) recordCanvasUndoBeforeChange(panelId);
     const colorBlocksList = getPanelColorBlocks(panelData ?? panels.find((p) => p.id === panelId));
     const next = colorBlocksList.map((c) => (c.id === colorBlockId ? { ...c, x, y } : c));
     queryClient.cancelQueries({ queryKey: panelsQueryKey });
@@ -486,12 +747,17 @@ export default function ChapterDetail() {
       { id: panelId, updates: { color_blocks: next as unknown as Json } },
       { onError: (err) => { if (previousPanels != null) queryClient.setQueryData(panelsQueryKey, previousPanels); toast({ title: "Erreur", description: err.message, variant: "destructive" }); } }
     );
+    skipNextCanvasEmptyClickRef.current = true;
+    setSelectedBlockIdInModal(null);
+    setSelectedSpeechBubbleIdInModal(null);
+    setSelectedColorBlockIdInModal({ panelId, colorBlockId });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [queryClient, panels, updatePanelMutation, toast]);
+  }, [queryClient, panels, updatePanelMutation, toast, recordCanvasUndoBeforeChange]);
 
   const handleColorBlockResizeCommit = useCallback((panelId: string, colorBlockId: string, draft: { x: number; y: number; width: number; height: number }) => {
     const currentPanels = queryClient.getQueryData<Panel[]>(panelsQueryKey) ?? [];
     const currentPanel = currentPanels.find((p) => p.id === panelId);
+    if (currentPanel) recordCanvasUndoBeforeChange(panelId);
     const currentColorBlocks = getPanelColorBlocks(currentPanel ?? panels.find((p) => p.id === panelId));
     const next = currentColorBlocks.map((c) => (c.id === colorBlockId ? { ...c, x: draft.x, y: draft.y, width: draft.width, height: draft.height } : c));
     queryClient.cancelQueries({ queryKey: panelsQueryKey });
@@ -502,11 +768,12 @@ export default function ChapterDetail() {
       { onError: (err) => { if (previousPanels != null) queryClient.setQueryData(panelsQueryKey, previousPanels); toast({ title: "Erreur", description: err.message, variant: "destructive" }); } }
     );
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [queryClient, panels, updatePanelMutation, toast]);
+  }, [queryClient, panels, updatePanelMutation, toast, recordCanvasUndoBeforeChange]);
 
   const handleImageBlockMoveCommit = useCallback((panelId: string, blockId: string, x: number, y: number) => {
     const currentPanels = queryClient.getQueryData<Panel[]>(panelsQueryKey) ?? [];
     const panelData = currentPanels.find((p) => p.id === panelId);
+    if (panelData) recordCanvasUndoBeforeChange(panelId);
     const layoutData = getPanelLayout(panelData ?? panels.find((p) => p.id === panelId));
     const nextBlocks = layoutData.blocks.map((b) => (b.id === blockId ? { ...b, x, y } : b));
     moveDropHandledRef.current = true;
@@ -522,12 +789,17 @@ export default function ChapterDetail() {
         toast({ title: "Erreur", description: err.message, variant: "destructive" });
       },
     });
+    skipNextCanvasEmptyClickRef.current = true;
+    setSelectedColorBlockIdInModal(null);
+    setSelectedSpeechBubbleIdInModal(null);
+    setSelectedBlockIdInModal({ panelId, blockId });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [queryClient, panels, updatePanelMutation, moveDropHandledRef, toast]);
+  }, [queryClient, panels, updatePanelMutation, moveDropHandledRef, toast, recordCanvasUndoBeforeChange]);
 
   const handleImageBlockResizeCommit = useCallback((panelId: string, blockId: string, draft: { x: number; y: number; width: number; height: number }) => {
     const currentPanels = queryClient.getQueryData<Panel[]>(panelsQueryKey) ?? [];
     const panelData = currentPanels.find((p) => p.id === panelId);
+    if (panelData) recordCanvasUndoBeforeChange(panelId);
     const layoutData = getPanelLayout(panelData ?? panels.find((p) => p.id === panelId));
     const nextBlocks = layoutData.blocks.map((b) => (b.id === blockId ? { ...b, x: draft.x, y: draft.y, width: draft.width, height: draft.height } : b));
     queryClient.cancelQueries({ queryKey: panelsQueryKey });
@@ -538,11 +810,12 @@ export default function ChapterDetail() {
       { onError: (err) => { if (previousPanels != null) queryClient.setQueryData(panelsQueryKey, previousPanels); toast({ title: "Erreur", description: err.message, variant: "destructive" }); } }
     );
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [queryClient, panels, updatePanelMutation, toast]);
+  }, [queryClient, panels, updatePanelMutation, toast, recordCanvasUndoBeforeChange]);
 
   const handleBubbleMoveCommit = useCallback((panelId: string, bubbleId: string, x: number, y: number) => {
     const currentPanels = queryClient.getQueryData<Panel[]>(panelsQueryKey) ?? [];
     const panelData = currentPanels.find((p) => p.id === panelId);
+    if (panelData) recordCanvasUndoBeforeChange(panelId);
     const bubblesList = getPanelSpeechBubbles(panelData ?? panels.find((p) => p.id === panelId));
     const next = bubblesList.map((b) => (b.id === bubbleId ? { ...b, position: { x, y } } : b));
     queryClient.cancelQueries({ queryKey: panelsQueryKey });
@@ -552,12 +825,17 @@ export default function ChapterDetail() {
       { id: panelId, updates: { speech_bubbles: next as unknown as Json } },
       { onError: (err) => { if (previousPanels != null) queryClient.setQueryData(panelsQueryKey, previousPanels); toast({ title: "Erreur", description: err.message, variant: "destructive" }); } }
     );
+    skipNextCanvasEmptyClickRef.current = true;
+    setSelectedBlockIdInModal(null);
+    setSelectedColorBlockIdInModal(null);
+    setSelectedSpeechBubbleIdInModal({ panelId, bubbleId });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [queryClient, panels, updatePanelMutation, toast]);
+  }, [queryClient, panels, updatePanelMutation, toast, recordCanvasUndoBeforeChange]);
 
   const handleBubbleResizeCommit = useCallback((panelId: string, bubbleId: string, draft: { x: number; y: number; width: number; height: number }) => {
     const currentPanels = queryClient.getQueryData<Panel[]>(panelsQueryKey) ?? [];
     const currentPanel = currentPanels.find((p) => p.id === panelId);
+    if (currentPanel) recordCanvasUndoBeforeChange(panelId);
     const list = getPanelSpeechBubbles(currentPanel ?? panels.find((p) => p.id === panelId));
     const next = list.map((b) => (b.id === bubbleId ? { ...b, position: { x: draft.x, y: draft.y }, width: draft.width, height: draft.height } : b));
     queryClient.cancelQueries({ queryKey: panelsQueryKey });
@@ -568,12 +846,101 @@ export default function ChapterDetail() {
       { onError: (err) => { if (previousPanels != null) queryClient.setQueryData(panelsQueryKey, previousPanels); toast({ title: "Erreur", description: err.message, variant: "destructive" }); } }
     );
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [queryClient, panels, updatePanelMutation, toast]);
+  }, [queryClient, panels, updatePanelMutation, toast, recordCanvasUndoBeforeChange]);
 
   const loading = loadingChapter || loadingPanels;
   const canSaveLink =
     (chapter?.linked_scenario_chapter_id ?? null) !==
     (displayedScenarioChapterId ?? null);
+
+  const confirmCanvasElementDelete = (intent: CanvasElementDeleteIntent) => {
+    setCanvasDeleteIntent(null);
+    const row = (queryClient.getQueryData<Panel[]>(panelsQueryKey) ?? []).find((p) => p.id === intent.panelId);
+    if (!row) return;
+    recordCanvasUndoBeforeChange(intent.panelId);
+    const ly = getPanelLayout(row);
+    const cols = getPanelColorBlocks(row);
+    const bubbles = getPanelSpeechBubbles(row);
+
+    if (intent.kind === "image") {
+      const doomed = ly.blocks.find((b) => b.id === intent.blockId);
+      const imgUrl = doomed?.image_url?.trim();
+      if (doomed && imgUrl && chapterId) {
+        void (async () => {
+          try {
+            await insertChapterCanvasImageHistoryForSession({
+              chapterId,
+              panelCanvasId: intent.panelId,
+              eventKind: "case_removed_with_image",
+              sourceBlockId: intent.blockId,
+              prompt: doomed.prompt ?? null,
+              imageUrl: imgUrl,
+              blockName: doomed.name ?? null,
+              layoutRect: { x: doomed.x, y: doomed.y, width: doomed.width, height: doomed.height },
+            });
+            await queryClient.invalidateQueries({ queryKey: chapterCanvasImageHistoryQueryKey(chapterId) });
+          } catch (e) {
+            toast({
+              title: "Historique non sauvegardé",
+              description: e instanceof Error ? e.message : String(e),
+              variant: "destructive",
+            });
+          }
+        })();
+      }
+      const nextBlocks = ly.blocks.filter((b) => b.id !== intent.blockId);
+      if (
+        selectedBlockIdInModal?.panelId === intent.panelId &&
+        selectedBlockIdInModal.blockId === intent.blockId
+      ) {
+        setSelectedBlockIdInModal(null);
+      }
+      updatePanelMutation.mutate(
+        { id: intent.panelId, updates: { layout: { ...ly, blocks: nextBlocks } as unknown as Json } },
+        {
+          onSuccess: () => {
+            setBlockPromptDrafts((prev) => {
+              const n = { ...prev };
+              delete n[`${intent.panelId}-${intent.blockId}`];
+              return n;
+            });
+            toast({ title: "Case supprimée" });
+          },
+          onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }),
+        },
+      );
+      return;
+    }
+    if (intent.kind === "color") {
+      const nextColor = cols.filter((c) => c.id !== intent.colorBlockId);
+      if (
+        selectedColorBlockIdInModal?.panelId === intent.panelId &&
+        selectedColorBlockIdInModal.colorBlockId === intent.colorBlockId
+      ) {
+        setSelectedColorBlockIdInModal(null);
+      }
+      updatePanelMutation.mutate(
+        { id: intent.panelId, updates: { color_blocks: nextColor as unknown as Json } },
+        {
+          onSuccess: () => toast({ title: "Bloc de couleur supprimé" }),
+          onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }),
+        },
+      );
+      return;
+    }
+    const nextSpeech = bubbles.filter((b) => b.id !== intent.bubbleId);
+    setSelectedSpeechBubbleIdInModal((cur) =>
+      cur?.panelId === intent.panelId && cur.bubbleId === intent.bubbleId ? null : cur,
+    );
+    setTailContextBubbleId((t) => (t === intent.bubbleId ? null : t));
+    updatePanelMutation.mutate(
+      { id: intent.panelId, updates: { speech_bubbles: nextSpeech as unknown as Json } },
+      {
+        onSuccess: () => toast({ title: "Bulle supprimée" }),
+        onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }),
+      },
+    );
+  };
 
   if (loading && !chapter) {
     return (
@@ -637,25 +1004,42 @@ export default function ChapterDetail() {
     const handleAddBlock = (atX?: number, atY?: number, width = DEFAULT_BLOCK_WIDTH, height = DEFAULT_BLOCK_HEIGHT) => {
       const w = Math.max(100, Math.min(PANEL_WIDTH, width));
       const h = Math.max(100, Math.min(panelHeight, height));
-      const x = Math.max(0, Math.min(PANEL_WIDTH - w, atX ?? 0));
-      const y = Math.max(0, Math.min(panelHeight - h, atY ?? 0));
+      const placed =
+        atX !== undefined && atY !== undefined
+          ? { x: atX, y: atY }
+          : canvasPlacementFromViewportCenter(
+              canvasRefByPanel.current[panel.id] ?? null,
+              panelEditorCanvasScrollRef.current,
+              PANEL_WIDTH,
+              panelHeight,
+              w,
+              h,
+            );
+      const x = Math.max(0, Math.min(PANEL_WIDTH - w, placed.x));
+      const y = Math.max(0, Math.min(panelHeight - h, placed.y));
       const newBlock: PanelBlock = {
         id: crypto.randomUUID(),
         x, y, width: w, height: h,
-        name: `Bloc ${layout.blocks.length + 1}`,
+        name: `Case ${layout.blocks.length + 1}`,
         prompt: null, image_url: null,
       };
       const newLayout: PanelLayout = { ...layout, blocks: [...layout.blocks, newBlock] };
+      recordCanvasUndoBeforeChange(panel.id);
       updatePanelMutation.mutate(
         { id: panel.id, updates: { layout: newLayout as unknown as Json } },
-        { onSuccess: () => toast({ title: "Bloc ajouté" }), onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }) }
+        {
+          onSuccess: () => {
+            toast({ title: "Case ajoutée" });
+          },
+          onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }),
+        }
       );
     };
 
     const getCanvasDropPosition = (e: React.DragEvent, canvasEl?: HTMLDivElement | null, maxW = DEFAULT_BLOCK_WIDTH, maxH = DEFAULT_BLOCK_HEIGHT) => {
       const el = canvasEl ?? canvasRefByPanel.current[panel.id] ?? (e.currentTarget as HTMLDivElement);
       if (!el) return { x: 0, y: 0 };
-      const { x: canvasX, y: canvasY } = viewportToCanvas(el, e.clientX, e.clientY);
+      const { x: canvasX, y: canvasY } = viewportClientToCanvas(el, e.clientX, e.clientY);
       const x = Math.round(canvasX - maxW / 2);
       const y = Math.round(canvasY - maxH / 2);
       return { x: Math.max(0, Math.min(PANEL_WIDTH - maxW, x)), y: Math.max(0, Math.min(panelHeight - maxH, y)) };
@@ -668,7 +1052,7 @@ export default function ChapterDetail() {
         if (block) {
           const canvasEl = canvasRefByPanel.current[panel.id];
           if (!canvasEl) return;
-          const { x: canvasMouseX, y: canvasMouseY } = viewportToCanvas(canvasEl, e.clientX, e.clientY);
+          const { x: canvasMouseX, y: canvasMouseY } = viewportClientToCanvas(canvasEl, e.clientX, e.clientY);
           const newX = Math.max(0, Math.min(PANEL_WIDTH - block.width, draggingBlock.startBlockX + (canvasMouseX - draggingBlock.startMouseX)));
           const newY = Math.max(0, Math.min(panelHeight - block.height, draggingBlock.startBlockY + (canvasMouseY - draggingBlock.startMouseY)));
           setDragPreview({ panelId: panel.id, blockId: block.id, x: newX, y: newY });
@@ -720,6 +1104,7 @@ export default function ChapterDetail() {
             asset_refs: [data.assetId],
           };
           const newLayout: PanelLayout = { ...layout, blocks: [...layout.blocks, newBlock] };
+          recordCanvasUndoBeforeChange(panel.id);
           updatePanelMutation.mutate(
             { id: panel.id, updates: { layout: newLayout as unknown as Json } },
             {
@@ -745,20 +1130,24 @@ export default function ChapterDetail() {
           const w = DEFAULT_BLOCK_WIDTH;
           const h = DEFAULT_BLOCK_HEIGHT;
           const { x, y } = getCanvasDropPosition(e, canvasEl, w, h);
+          const rawCaseNum = (data as { caseNumber?: unknown }).caseNumber;
+          const caseNum =
+            typeof rawCaseNum === "number" && Number.isFinite(rawCaseNum) ? rawCaseNum : layout.blocks.length + 1;
           const newBlock: PanelBlock = {
             id: crypto.randomUUID(),
             x, y, width: w, height: h,
-            name: `Case ${(data as { caseNumber?: number }).caseNumber ?? ""}`.trim(),
+            name: `Case ${caseNum}`,
             prompt: data.description.trim(),
             image_url: null,
           };
           const newLayout: PanelLayout = { ...layout, blocks: [...layout.blocks, newBlock] };
+          recordCanvasUndoBeforeChange(panel.id);
           updatePanelMutation.mutate(
             { id: panel.id, updates: { layout: newLayout as unknown as Json } },
             {
               onSuccess: () => {
                 setSelectedBlockIdInModal({ panelId: panel.id, blockId: newBlock.id });
-                toast({ title: "Bloc créé", description: "Prompt pré-rempli depuis la case." });
+                toast({ title: "Case créée", description: "Prompt pré-rempli depuis le scénario." });
               },
               onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }),
             }
@@ -789,13 +1178,15 @@ export default function ChapterDetail() {
         if (data.type === "move-block" && data.blockId) {
           const block = layout.blocks.find((b) => b.id === data.blockId);
           if (block && draggingBlock && draggingBlock.panelId === panel.id && draggingBlock.blockId === data.blockId && canvasEl) {
-            const { x: canvasMouseX, y: canvasMouseY } = viewportToCanvas(canvasEl, e.clientX, e.clientY);
+            const { x: canvasMouseX, y: canvasMouseY } = viewportClientToCanvas(canvasEl, e.clientX, e.clientY);
             const clampedX = Math.max(0, Math.min(PANEL_WIDTH - block.width, Math.round(draggingBlock.startBlockX + (canvasMouseX - draggingBlock.startMouseX))));
             const clampedY = Math.max(0, Math.min(panelHeight - block.height, Math.round(draggingBlock.startBlockY + (canvasMouseY - draggingBlock.startMouseY))));
             const blockIndex = layout.blocks.findIndex((b) => b.id === data.blockId);
             const nextBlocks = layout.blocks.map((b, i) => (i === blockIndex ? { ...b, x: clampedX, y: clampedY } : b));
             moveDropHandledRef.current = true;
             const movePayload = { id: panel.id, updates: { layout: { ...layout, blocks: nextBlocks } as unknown as Json } };
+            const panelRowUndo = (queryClient.getQueryData<Panel[]>(panelsQueryKey) ?? []).find((p) => p.id === panel.id);
+            if (panelRowUndo) recordCanvasUndoBeforeChange(panel.id);
             queryClient.cancelQueries({ queryKey: panelsQueryKey });
             const previousPanels = queryClient.getQueryData<Panel[]>(panelsQueryKey);
             queryClient.setQueryData<Panel[]>(panelsQueryKey, (old) => (!old ? old : old.map((p) => (p.id === movePayload.id ? { ...p, layout: movePayload.updates.layout ?? p.layout } : p))));
@@ -823,6 +1214,7 @@ export default function ChapterDetail() {
 
     const handleSaveBlockName = (block: PanelBlock, name: string) => {
       const nextBlocks = layout.blocks.map((b) => (b.id === block.id ? { ...b, name: name.trim() || null } : b));
+      recordCanvasUndoBeforeChange(panel.id);
       updatePanelMutation.mutate(
         { id: panel.id, updates: { layout: { ...layout, blocks: nextBlocks } as unknown as Json } },
         { onSuccess: () => toast({ title: "Nom enregistré" }), onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }) }
@@ -837,6 +1229,8 @@ export default function ChapterDetail() {
         return { ...b, y };
       });
       const newLayout: PanelLayout = { ...layout, panelHeight: h, blocks: clampedBlocks };
+      const panelUndoRow = (queryClient.getQueryData<Panel[]>(panelsQueryKey) ?? []).find((p) => p.id === panel.id);
+      if (panelUndoRow) recordCanvasUndoBeforeChange(panel.id);
       queryClient.cancelQueries({ queryKey: panelsQueryKey });
       const previousPanels = queryClient.getQueryData<Panel[]>(panelsQueryKey);
       queryClient.setQueryData<Panel[]>(panelsQueryKey, (old) =>
@@ -857,43 +1251,59 @@ export default function ChapterDetail() {
       );
     };
 
-    const handleDeleteBlock = (block: PanelBlock) => {
-      const nextBlocks = layout.blocks.filter((b) => b.id !== block.id);
-      if (selectedBlockIdInModal?.blockId === block.id) setSelectedBlockIdInModal(null);
-      updatePanelMutation.mutate(
-        { id: panel.id, updates: { layout: { ...layout, blocks: nextBlocks } as unknown as Json } },
-        {
-          onSuccess: () => {
-            setBlockPromptDrafts((prev) => { const next = { ...prev }; delete next[`${panel.id}-${block.id}`]; return next; });
-            toast({ title: "Bloc supprimé" });
-          },
-          onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }),
-        }
-      );
-    };
+    const handleDeleteBlock = (block: PanelBlock) =>
+      setCanvasDeleteIntent({ panelId: panel.id, kind: "image", blockId: block.id });
 
-    const handleAddColorBlock = (atX: number, atY: number, width: number, height: number, fill?: ColorBlockFill) => {
+    const handleAddColorBlock = (atX: number | undefined, atY: number | undefined, width: number, height: number, fill?: ColorBlockFill) => {
       const w = Math.max(50, Math.min(PANEL_WIDTH, width));
       const h = Math.max(50, Math.min(panelHeight, height));
-      const x = Math.max(0, Math.min(PANEL_WIDTH - w, atX));
-      const y = Math.max(0, Math.min(panelHeight - h, atY));
+      const placed =
+        atX !== undefined && atY !== undefined
+          ? { x: atX, y: atY }
+          : canvasPlacementFromViewportCenter(
+              canvasRefByPanel.current[panel.id] ?? null,
+              panelEditorCanvasScrollRef.current,
+              PANEL_WIDTH,
+              panelHeight,
+              w,
+              h,
+            );
+      const x = Math.max(0, Math.min(PANEL_WIDTH - w, placed.x));
+      const y = Math.max(0, Math.min(panelHeight - h, placed.y));
       const newBlock: ColorBlock = {
         id: crypto.randomUUID(),
         x, y, width: w, height: h,
         fill: fill ?? DEFAULT_COLOR_BLOCK_FILL,
       };
       const next = [...colorBlocks, newBlock];
+      recordCanvasUndoBeforeChange(panel.id);
       updatePanelMutation.mutate(
         { id: panel.id, updates: { color_blocks: next as unknown as Json } },
-        { onSuccess: () => toast({ title: "Bloc de couleur ajouté" }), onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }) }
+        {
+          onSuccess: () => {
+            toast({ title: "Bloc de couleur ajouté" });
+          },
+          onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }),
+        }
       );
     };
 
-    const handleAddSpeechBubble = (bubbleType: SpeechBubble["type"], x: number, y: number) => {
+    const handleAddSpeechBubble = (bubbleType: SpeechBubble["type"], x?: number, y?: number) => {
       const w = (bubbleType === "thought" || bubbleType === "shout") ? 380 : DEFAULT_SPEECH_BUBBLE_WIDTH;
       const h = (bubbleType === "thought" || bubbleType === "shout") ? 200 : DEFAULT_SPEECH_BUBBLE_HEIGHT;
-      const clampedX = Math.max(0, Math.min(PANEL_WIDTH - w, x));
-      const clampedY = Math.max(0, Math.min(panelHeight - h, y));
+      const placed =
+        x !== undefined && y !== undefined
+          ? { x, y }
+          : canvasPlacementFromViewportCenter(
+              canvasRefByPanel.current[panel.id] ?? null,
+              panelEditorCanvasScrollRef.current,
+              PANEL_WIDTH,
+              panelHeight,
+              w,
+              h,
+            );
+      const clampedX = Math.max(0, Math.min(PANEL_WIDTH - w, placed.x));
+      const clampedY = Math.max(0, Math.min(panelHeight - h, placed.y));
       const defaultStyle = SPEECH_BUBBLE_DEFAULT_STYLE[bubbleType];
       const newBubble: SpeechBubble = {
         id: crypto.randomUUID(),
@@ -912,9 +1322,15 @@ export default function ChapterDetail() {
         },
       };
       const next = [...speechBubbles, newBubble];
+      recordCanvasUndoBeforeChange(panel.id);
       updatePanelMutation.mutate(
         { id: panel.id, updates: { speech_bubbles: next as unknown as Json } },
-        { onSuccess: () => toast({ title: "Bulle ajoutée" }), onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }) }
+        {
+          onSuccess: () => {
+            toast({ title: "Bulle ajoutée" });
+          },
+          onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }),
+        }
       );
     };
 
@@ -927,38 +1343,56 @@ export default function ChapterDetail() {
       );
     };
 
-    const handleDeleteSpeechBubble = (bubble: SpeechBubble) => {
-      const next = speechBubbles.filter((b) => b.id !== bubble.id);
-      setSelectedSpeechBubbleIdInModal(null);
-      updatePanelMutation.mutate(
-        { id: panel.id, updates: { speech_bubbles: next as unknown as Json } },
-        { onSuccess: () => toast({ title: "Bulle supprimée" }), onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }) }
-      );
-    };
+    const handleDeleteSpeechBubble = (bubble: SpeechBubble) =>
+      setCanvasDeleteIntent({ panelId: panel.id, kind: "bubble", bubbleId: bubble.id });
 
     const handleUpdateColorBlocks = (next: ColorBlock[]) => {
+      queryClient.cancelQueries({ queryKey: panelsQueryKey });
+      const previousPanels = queryClient.getQueryData<Panel[]>(panelsQueryKey);
+      queryClient.setQueryData<Panel[]>(panelsQueryKey, (old) =>
+        !old ? old : old.map((p) => (p.id === panel.id ? { ...p, color_blocks: next as unknown as Json } : p)),
+      );
       updatePanelMutation.mutate(
         { id: panel.id, updates: { color_blocks: next as unknown as Json } },
-        { onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }) }
+        {
+          onError: (err) => {
+            if (previousPanels != null) queryClient.setQueryData(panelsQueryKey, previousPanels);
+            toast({ title: "Erreur", description: err.message, variant: "destructive" });
+          },
+        },
       );
     };
 
-    const handleDeleteColorBlock = (cb: ColorBlock) => {
-      const next = colorBlocks.filter((c) => c.id !== cb.id);
-      if (selectedColorBlockIdInModal?.colorBlockId === cb.id) setSelectedColorBlockIdInModal(null);
-      updatePanelMutation.mutate(
-        { id: panel.id, updates: { color_blocks: next as unknown as Json } },
-        { onSuccess: () => toast({ title: "Bloc de couleur supprimé" }), onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }) }
-      );
-    };
+    const handleDeleteColorBlock = (cb: ColorBlock) =>
+      setCanvasDeleteIntent({ panelId: panel.id, kind: "color", colorBlockId: cb.id });
 
-    const handleColorBlockFillChange = (cb: ColorBlock, fill: ColorBlock["fill"]) => {
+    const handleColorBlockFillChange = (
+      cb: ColorBlock,
+      fill: ColorBlock["fill"],
+      meta?: CanvasColorFillPickMeta,
+    ) => {
       const next = colorBlocks.map((c) => (c.id === cb.id ? { ...c, fill } : c));
+
+      if (!meta?.live) {
+        panelLiveColorPickUndoRef.current.delete(panel.id);
+        recordCanvasUndoBeforeChange(panel.id);
+        handleUpdateColorBlocks(next);
+        return;
+      }
+
+      if (meta.phase === "begin") {
+        const marks = panelLiveColorPickUndoRef.current;
+        if (!marks.has(panel.id)) {
+          recordCanvasUndoBeforeChange(panel.id);
+          marks.add(panel.id);
+        }
+      }
       handleUpdateColorBlocks(next);
     };
 
     const handleSaveBlockPrompt = (block: PanelBlock, newPrompt: string, options?: { silent?: boolean }) => {
       const nextBlocks = layout.blocks.map((b) => (b.id === block.id ? { ...b, prompt: newPrompt.trim() || null } : b));
+      recordCanvasUndoBeforeChange(panel.id);
       updatePanelMutation.mutate(
         { id: panel.id, updates: { layout: { ...layout, blocks: nextBlocks } as unknown as Json } },
         {
@@ -1049,11 +1483,51 @@ export default function ChapterDetail() {
         {
           onSuccess: (result) => {
             toast({ title: "Image générée" });
-            const blockIndex = layout.blocks.findIndex((b) => b.id === block.id);
-            if (blockIndex >= 0) {
-              const nextBlocks = layout.blocks.map((b, i) => (i === blockIndex ? { ...b, image_url: result.image_url } : b));
-              updatePanelMutation.mutate({ id: panel.id, updates: { layout: { ...layout, blocks: nextBlocks } as unknown as Json } });
-            }
+            const row = (queryClient.getQueryData<Panel[]>(panelsQueryKey) ?? []).find((p) => p.id === panel.id);
+            if (!row) return;
+            const ly = getPanelLayout(row);
+            const blockIndex = ly.blocks.findIndex((b) => b.id === block.id);
+            if (blockIndex < 0) return;
+            const blockRow = ly.blocks[blockIndex];
+            recordCanvasUndoBeforeChange(panel.id);
+            const nextBlocks = ly.blocks.map((b, i) => (i === blockIndex ? { ...b, image_url: result.image_url } : b));
+            updatePanelMutation.mutate(
+              {
+                id: panel.id,
+                updates: { layout: { ...ly, blocks: nextBlocks } as unknown as Json },
+              },
+              {
+                onSuccess: () => {
+                  if (!chapterId || !result.image_url) return;
+                  void (async () => {
+                    try {
+                      await insertChapterCanvasImageHistoryForSession({
+                        chapterId,
+                        panelCanvasId: panel.id,
+                        eventKind: "image_generated",
+                        sourceBlockId: block.id,
+                        prompt: promptToUse,
+                        imageUrl: result.image_url,
+                        blockName: blockRow.name ?? null,
+                        layoutRect: {
+                          x: blockRow.x,
+                          y: blockRow.y,
+                          width: blockRow.width,
+                          height: blockRow.height,
+                        },
+                      });
+                      await queryClient.invalidateQueries({ queryKey: chapterCanvasImageHistoryQueryKey(chapterId) });
+                    } catch (e) {
+                      toast({
+                        title: "Historique non sauvegardé",
+                        description: e instanceof Error ? e.message : String(e),
+                        variant: "destructive",
+                      });
+                    }
+                  })();
+                },
+              },
+            );
           },
           onError: (err) => toast({ title: "Génération échouée", description: err.message, variant: "destructive" }),
         }
@@ -1082,14 +1556,24 @@ export default function ChapterDetail() {
           isUpdating={updatePanelMutation.isPending}
           newBlockDragGhostRef={newBlockDragGhostRef}
           onSliceOpen={() => setSliceModalOpen(true)}
+          imageHistoryEntries={chapterImageHistory}
+          imageHistoryLoading={chapterImageHistoryPending}
+          restoringHistoryId={restoringHistoryId}
+          imageHistoryRestoredIds={canvasHistoryRestoredIds}
+          onRestoreImageHistory={restoreChapterCanvasImageHistoryRow}
           onAddBlock={handleAddBlock}
           onAddColorBlock={handleAddColorBlock}
           onAddSpeechBubble={handleAddSpeechBubble}
         />
         {/* Centre : panel 800px de large exactement, zoomable via contrôles header ou Ctrl+Scroll */}
         <div
+          ref={panelEditorCanvasScrollRef}
           className="flex-1 min-w-0 flex flex-col items-center overflow-auto p-6 bg-background"
           onClick={() => {
+            if (skipNextCanvasEmptyClickRef.current) {
+              skipNextCanvasEmptyClickRef.current = false;
+              return;
+            }
             setSelectedBlockIdInModal(null);
             setSelectedColorBlockIdInModal(null);
             setSelectedSpeechBubbleIdInModal(null);
@@ -1149,7 +1633,8 @@ export default function ChapterDetail() {
                   <BlockToolbar
                     type="color"
                     colorBlock={selectedColorBlock}
-                    onColorChange={(fill) => handleColorBlockFillChange(selectedColorBlock, fill)}
+                    onColorChange={(fill, meta) => handleColorBlockFillChange(selectedColorBlock, fill, meta)}
+                    onLiveColorPickEnd={() => handleColorPickLiveGestureEndForPanel(panel.id)}
                     onDelete={() => handleDeleteColorBlock(selectedColorBlock)}
                   />
                 )}
@@ -1160,18 +1645,28 @@ export default function ChapterDetail() {
           <div className="relative mt-[160px]" style={{ flexShrink: 0 }}>
             {(() => {
               const liveH = panelHeightDragDraft ?? panelHeight;
+              const scaledPanelW = Math.ceil(PANEL_WIDTH * zoomLevel);
+              const scaledPanelH = Math.ceil(liveH * zoomLevel);
+              /** Cadre avec border : zone totale = contenu + 2px (boîte content-box). */
+              const panelFrameOuterW = scaledPanelW + 2;
               return (
                 <>
-                  {/* Border hors du transform pour rester 1px à tous les niveaux de zoom */}
+                  {/* Border hors du transform pour rester 1px à tous les niveaux de zoom.
+                      Pas de rounded-* ici : avec overflow-hidden, un rayon arrondi clippe les traits
+                      de sélection / outlines aux coins du canvas (même comportement qu’un masque).
+                      Largeurs/hauteurs en ceil : évite de rogner le bord droit après scale() (sous-pixels).
+                      box-content : la bordure s’ajoute à la largeur/hauteur — avec border-box par défaut,
+                      le cadre mange 2px sur la zone utile et overflow-hidden coupait le bord droit du
+                      canvas (sélection pleine largeur). */}
                   <div
-                    className="rounded-2xl border border-border shadow-md overflow-hidden bg-muted"
-                    style={{ width: PANEL_WIDTH * zoomLevel, height: liveH * zoomLevel }}
+                    className="rounded-none box-content border border-border shadow-md overflow-hidden bg-muted"
+                    style={{ width: scaledPanelW, height: scaledPanelH }}
                   >
                     <div style={{ transform: `scale(${zoomLevel})`, transformOrigin: "top left", width: PANEL_WIDTH }}>
                     <div className="relative shrink-0 bg-muted" style={{ width: PANEL_WIDTH, height: liveH }}>
                       <div
                         ref={(el) => { if (el) canvasRefByPanel.current[panel.id] = el; }}
-                        className="absolute left-0 top-0 rounded-lg overflow-hidden"
+                        className="absolute left-0 top-0 overflow-visible rounded-none"
                         style={{
                           width: PANEL_WIDTH,
                           height: liveH,
@@ -1280,7 +1775,7 @@ export default function ChapterDetail() {
                   {/* Poignée de redimensionnement — verte, toujours visible */}
                   <div
                     className="relative flex items-center justify-center select-none cursor-ns-resize mb-[600px]"
-                    style={{ width: PANEL_WIDTH * zoomLevel, height: 24 }}
+                    style={{ width: panelFrameOuterW, height: 24 }}
                     title={`Hauteur : ${Math.round(liveH)} px — glisser pour redimensionner`}
                     onPointerDown={(e) => {
                       if (e.button !== 0) return;
@@ -1615,6 +2110,40 @@ export default function ChapterDetail() {
           })}
         </div>
       </div>
+
+      {/* Confirmation suppression case / bloc couleur / bulle sur le canvas */}
+      <AlertDialog
+        open={canvasDeleteIntent !== null}
+        onOpenChange={(open) => {
+          if (!open) setCanvasDeleteIntent(null);
+        }}
+      >
+        <AlertDialogContent className="glass">
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {canvasDeleteIntent?.kind === "image"
+                ? "Supprimer cette case ?"
+                : canvasDeleteIntent?.kind === "color"
+                  ? "Supprimer ce bloc de couleur ?"
+                  : "Supprimer cette bulle ?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {"L'élément sera retiré du canvas. Vous pouvez annuler avec Ctrl+Z ou rétablir avec Ctrl+Maj+Z."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (canvasDeleteIntent) confirmCanvasElementDelete(canvasDeleteIntent);
+              }}
+            >
+              Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Confirmation suppression panel */}
       <AlertDialog open={!!panelToDeleteId} onOpenChange={(open) => { if (!open) setPanelToDeleteId(null); }}>

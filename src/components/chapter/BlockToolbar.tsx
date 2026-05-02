@@ -1,6 +1,10 @@
 import { useState, useEffect, useMemo } from "react";
 import { Trash2, Loader2, Sparkles } from "lucide-react";
 import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  DreamWeaveColorPicker,
+  type CanvasColorFillPickMeta,
+} from "@/components/chapter/DreamWeaveColorPicker";
 import { getDetectedAssets } from "@/components/project/ScenarioTextHighlighter";
 import {
   CHAPTER_CANVAS_TOOLBAR_SURFACE,
@@ -51,7 +55,9 @@ type ImageVariant = {
 type ColorVariant = {
   type: "color";
   colorBlock: ColorBlock;
-  onColorChange: (fill: ColorBlockFill) => void;
+  onColorChange: (fill: ColorBlockFill, meta?: CanvasColorFillPickMeta) => void;
+  /** Fin du glissé sur nuancier ou teinte (relâcher le clic). */
+  onLiveColorPickEnd?: () => void;
   onDelete: () => void;
 };
 
@@ -101,7 +107,7 @@ function ImageBlockToolbar(props: ImageVariant) {
       {/* PopoverAnchor = toute la toolbar → la popup se centre dessus */}
       <PopoverAnchor asChild>
         <div
-          className={cn(CHAPTER_CANVAS_TOOLBAR_SURFACE, "z-50")}
+          className={cn(CHAPTER_CANVAS_TOOLBAR_SURFACE, "z-50 gap-2")}
           onMouseDown={(e) => e.stopPropagation()}
           onClick={(e) => e.stopPropagation()}
         >
@@ -110,7 +116,7 @@ function ImageBlockToolbar(props: ImageVariant) {
             value={nameDraft}
             onChange={(e) => onNameChange(e.target.value)}
             onBlur={onNameSave}
-            placeholder={block.name ?? "Nom du bloc"}
+            placeholder={block.name ?? "Nom de la case"}
             className={cn(CHAPTER_CANVAS_TOOLBAR_FIELD_CLASS, "w-28 bg-transparent")}
           />
 
@@ -256,12 +262,14 @@ function ImageBlockToolbar(props: ImageVariant) {
 }
 
 function ColorBlockToolbar(props: ColorVariant) {
-  const { colorBlock, onColorChange, onDelete } = props;
+  const { colorBlock, onColorChange, onLiveColorPickEnd, onDelete } = props;
 
   const currentColor =
     colorBlock.fill.type === "solid"
       ? colorBlock.fill.color
       : colorBlock.fill.from;
+
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   const [hexDraft, setHexDraft] = useState(currentColor);
 
@@ -273,7 +281,7 @@ function ColorBlockToolbar(props: ColorVariant) {
 
   const handleHexChange = (v: string) => {
     setHexDraft(v);
-    if (isValidHex(v)) onColorChange({ type: "solid", color: v });
+    if (isValidHex(v)) onColorChange({ type: "solid", color: v }, undefined);
   };
 
   const handleHexBlur = () => {
@@ -282,51 +290,81 @@ function ColorBlockToolbar(props: ColorVariant) {
 
   return (
     <div className="relative inline-block">
-      <div
-        className={cn(CHAPTER_CANVAS_TOOLBAR_SURFACE, "z-50")}
-        onClick={(e) => e.stopPropagation()}
+      <Popover
+        open={pickerOpen}
+        onOpenChange={(open) => {
+          if (!open) onLiveColorPickEnd?.();
+          setPickerOpen(open);
+        }}
       >
-        {/* Swatch + color picker natif superposé */}
-        <label className="relative cursor-pointer shrink-0 flex items-center justify-center h-8 w-8 rounded-lg border border-border/80 shadow-sm ring-1 ring-black/[0.04]" title="Ouvrir le sélecteur de couleur">
+        <PopoverAnchor asChild>
           <div
-            className="w-5 h-5 rounded-md border border-border/50 shrink-0"
-            style={{ backgroundColor: currentColor, boxShadow: currentColor === "#ffffff" ? "inset 0 0 0 1px #cbd5e1" : undefined }}
-          />
-          <input
-            type="color"
-            value={currentColor}
-            onChange={(e) => onColorChange({ type: "solid", color: e.target.value })}
-            className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-          />
-        </label>
+            className={cn(CHAPTER_CANVAS_TOOLBAR_SURFACE, "z-50 gap-2")}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                className="relative shrink-0 flex items-center justify-center h-8 w-8 rounded-lg border border-border/80 shadow-sm ring-1 ring-black/[0.04] hover:bg-muted/40 transition-colors"
+                title="DreamWeave — choisir une couleur"
+              >
+                <div
+                  className="w-5 h-5 rounded-md border border-border/50 shrink-0 pointer-events-none"
+                  style={{
+                    backgroundColor: currentColor,
+                    boxShadow: currentColor.toLowerCase() === "#ffffff" ? "inset 0 0 0 1px #cbd5e1" : undefined,
+                  }}
+                />
+              </button>
+            </PopoverTrigger>
 
-        {/* Input hex éditable */}
-        <input
-          type="text"
-          value={hexDraft}
-          onChange={(e) => handleHexChange(e.target.value)}
-          onBlur={handleHexBlur}
+            {/* Input hex éditable */}
+            <input
+              type="text"
+              value={hexDraft}
+              onChange={(e) => handleHexChange(e.target.value)}
+              onBlur={handleHexBlur}
+              onClick={(e) => e.stopPropagation()}
+              spellCheck={false}
+              maxLength={7}
+              className={cn(
+                CHAPTER_CANVAS_TOOLBAR_FIELD_CLASS,
+                "w-[78px] font-mono tabular-nums",
+                isValidHex(hexDraft) ? "text-foreground" : "border-destructive/60 focus:ring-destructive/40 text-destructive",
+              )}
+            />
+
+            {sep}
+
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete();
+              }}
+              className={chapterCanvasToolbarIconButtonClass(false, "danger")}
+              title="Supprimer le bloc de couleur"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          </div>
+        </PopoverAnchor>
+        <PopoverContent
+          align="center"
+          side="bottom"
+          sideOffset={8}
+          className="w-auto p-3 border-border/70 bg-popover/95 backdrop-blur-md shadow-xl z-[80]"
+          onOpenAutoFocus={(e) => e.preventDefault()}
           onClick={(e) => e.stopPropagation()}
-          spellCheck={false}
-          maxLength={7}
-          className={cn(
-            CHAPTER_CANVAS_TOOLBAR_FIELD_CLASS,
-            "w-[78px] font-mono tabular-nums",
-            isValidHex(hexDraft) ? "text-foreground" : "border-destructive/60 focus:ring-destructive/40 text-destructive",
-          )}
-        />
-
-        {sep}
-
-        <button
-          type="button"
-          onClick={(e) => { e.stopPropagation(); onDelete(); }}
-          className={chapterCanvasToolbarIconButtonClass(false, "danger")}
-          title="Supprimer le bloc de couleur"
+          onMouseDown={(e) => e.stopPropagation()}
         >
-          <Trash2 className="h-4 w-4" />
-        </button>
-      </div>
+          <DreamWeaveColorPicker
+            value={currentColor}
+            onChange={(hex, meta) => onColorChange({ type: "solid", color: hex }, meta)}
+            onLivePickEnd={onLiveColorPickEnd}
+          />
+        </PopoverContent>
+      </Popover>
     </div>
   );
 }

@@ -30,6 +30,13 @@ export const PANELS_REFERENCE_MAX = 14;
 export const DEFAULT_BLOCK_WIDTH = 500;
 export const DEFAULT_BLOCK_HEIGHT = 500;
 
+/** Zones de clic des poignées de redimensionnement (éditeur canvas), ×1.5 pour faciliter la prise en main. */
+export const RESIZE_HANDLE_EDGE_PX = 14;
+export const RESIZE_HANDLE_CORNER_PX = 23;
+/** Bulles (valeurs historiques 8 / 12, ×1.5 arrondies). */
+export const RESIZE_BUBBLE_EDGE_PX = 12;
+export const RESIZE_BUBBLE_CORNER_PX = 18;
+
 /** Bibliothèque de blocs prédéfinis (image et couleur partagent les mêmes dimensions). */
 export const BLOCK_PRESETS = [
   { label: "500×500", width: 500, height: 500 },

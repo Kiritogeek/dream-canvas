@@ -35,7 +35,7 @@ export default function EmailVerification() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user } = useAuth();
-  const [status, setStatus] = useState<"loading" | "success" | "error" | "expired">("loading");
+  const [status, setStatus] = useState<"loading" | "pending" | "success" | "error" | "expired">("loading");
   const [message, setMessage] = useState("Vérification de votre email en cours...");
 
   useEffect(() => {
@@ -44,7 +44,9 @@ export default function EmailVerification() {
     // Écouter les changements d'état d'authentification
     // Supabase peut automatiquement créer une session quand l'utilisateur clique sur le lien
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (import.meta.env.DEV) console.log("Changement d'état auth:", event, session?.user?.email);
+      if (import.meta.env.DEV && event !== "INITIAL_SESSION") {
+        console.debug("Changement d'état auth:", event, session?.user?.email);
+      }
 
       if (event === "SIGNED_IN" && session?.user) {
         // Vérifier si l'email est confirmé
@@ -77,7 +79,38 @@ export default function EmailVerification() {
       const accessToken = urlParams.access_token;
       const refreshToken = urlParams.refresh_token;
       
-      if (import.meta.env.DEV) console.log("Paramètres URL détectés:", { token, type, tokenHash, urlParams });
+      if (import.meta.env.DEV) {
+        console.debug("[verify-email] Paramètres", {
+          hasToken: !!token,
+          hasTokenHash: !!tokenHash,
+          hasAccessToken: !!accessToken,
+          pending: searchParams.get("pending"),
+        });
+      }
+
+      const pendingSignup = searchParams.get("pending") === "signup";
+      const emailFromQuery = searchParams.get("email");
+      if (
+        pendingSignup &&
+        emailFromQuery &&
+        !tokenHash &&
+        !token &&
+        !accessToken
+      ) {
+        const { data: { session: pendingSession } } = await supabase.auth.getSession();
+        if (pendingSession?.user?.email_confirmed_at) {
+          setStatus("success");
+          setMessage("Votre email est déjà vérifié ! Vous êtes connecté.");
+          window.history.replaceState(null, "", window.location.pathname);
+          setTimeout(() => navigate("/dashboard"), 1500);
+          return;
+        }
+        setStatus("pending");
+        setMessage(
+          `Un email de confirmation devrait arriver sur ${emailFromQuery}. Vérifiez les courriers indésirables et l’onglet Promotions (Gmail).`
+        );
+        return;
+      }
 
       // Si on a un access_token dans le hash, Supabase a déjà vérifié l'email
       // C'est le cas quand la vérification se fait automatiquement via le hash
@@ -217,9 +250,11 @@ export default function EmailVerification() {
       }
 
       // Pas de token dans l'URL et utilisateur non connecté
-      console.error("Aucun token de vérification trouvé dans l'URL");
+      if (import.meta.env.DEV) console.warn("Aucun token de vérification dans l’URL");
       setStatus("error");
-      setMessage("Lien de vérification invalide ou manquant. Vérifiez que vous avez cliqué sur le bon lien dans l'email.");
+      setMessage(
+        "Lien de vérification invalide ou manquant. Utilise « Renvoyer l’email » ci-dessous avec la même adresse que lors de l’inscription, ou vérifie la configuration Supabase (SMTP, URL du site)."
+      );
     };
 
     verifyEmail();
@@ -257,7 +292,8 @@ export default function EmailVerification() {
 
       toast({
         title: "Email renvoyé",
-        description: "Un nouvel email de vérification a été envoyé. Vérifiez votre boîte de réception.",
+        description:
+          "Si vous ne voyez toujours rien : courriers indésirables, onglet Promotions, et vérifiez dans Supabase (SMTP / journaux Auth).",
       });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Erreur lors de l'envoi de l'email";
@@ -294,6 +330,30 @@ export default function EmailVerification() {
                 Vérification en cours...
               </h1>
               <p className="text-sm sm:text-base text-muted-foreground">{message}</p>
+            </>
+          )}
+
+          {status === "pending" && (
+            <>
+              <Mail className="h-12 w-12 mx-auto mb-4 text-primary" />
+              <h1 className="text-xl sm:text-2xl font-display font-bold mb-2">Vérifiez votre boîte mail</h1>
+              <p className="text-sm sm:text-base text-muted-foreground mb-4 text-pretty">{message}</p>
+              <p className="text-xs text-muted-foreground mb-6 text-left rounded-lg border border-border bg-muted/40 p-3 text-pretty">
+                Si aucun mail n’arrive après plusieurs minutes : vérifiez le dossier spam, puis dans le tableau Supabase → Authentication → Users que votre compte existe.
+                Pour une livraison fiable en production, configurez un SMTP personnalisé (Réglages du projet → Authentication → SMTP).
+              </p>
+              <div className="space-y-2">
+                <Button
+                  type="button"
+                  onClick={handleResendEmail}
+                  className="w-full gradient-primary text-primary-foreground shadow-dream"
+                >
+                  Renvoyer l&apos;email de confirmation
+                </Button>
+                <Button type="button" onClick={() => navigate("/auth")} variant="outline" className="w-full">
+                  Retour à la connexion
+                </Button>
+              </div>
             </>
           )}
 

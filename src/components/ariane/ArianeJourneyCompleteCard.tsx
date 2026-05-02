@@ -354,7 +354,7 @@ export function ArianeJourneyCompleteCard({
                   type="button"
                   size="default"
                   disabled={exiting}
-                  className="h-11 w-full min-w-[200px] gradient-primary text-primary-foreground shadow-dream md:h-10 md:w-auto"
+                  className="h-11 w-full min-w-[200px] gradient-primary text-primary-foreground shadow-dream transition-[box-shadow,transform] duration-200 ease-out hover:shadow-glow hover:scale-[1.02] active:scale-[0.98] motion-reduce:transition-shadow motion-reduce:hover:scale-100 md:h-10 md:w-auto"
                   onClick={dismiss}
                 >
                   C’est parti

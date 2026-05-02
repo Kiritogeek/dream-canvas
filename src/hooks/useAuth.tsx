@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components -- Provider + hook dans un seul module (pattern Auth classique). */
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { User, Session } from "@supabase/supabase-js";
@@ -70,7 +71,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         data: { display_name: displayName },
       },
     });
-    
+
+    if (import.meta.env.DEV) {
+      console.debug("[DreamWeave Auth] signUp réponse", {
+        erreur: error?.message,
+        session: !!data.session,
+        identities: data.user?.identities,
+        email: data.user?.email,
+      });
+    }
     if (error) {
       // Détecter l'erreur user_already_exists (code d'erreur Supabase)
       // Supabase peut retourner cette erreur de différentes manières :
@@ -115,6 +124,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error("Erreur lors de la création du compte. Veuillez réessayer.");
     }
     
+    // Anti-énumération Supabase : email déjà enregistré → pas d'erreur HTTP,
+    // mais identities = [] et aucun mail de confirmation n'est envoyé.
+    // Ne pas utiliser identities ?? [] : si le champ est absent, ce n'est pas un doublon.
+    // https://github.com/supabase/auth-js/issues/513
+    const identitiesList = data.user.identities;
+    if (!data.session && Array.isArray(identitiesList) && identitiesList.length === 0) {
+      const customError = new Error(
+        "Cet email est déjà utilisé : Supabase ne renvoie pas d’erreur et n’envoie aucun nouveau mail dans ce cas. Connectez-vous ou utilisez « Mot de passe oublié »."
+      ) as AuthErrorWithMeta;
+      customError.code = "USER_ALREADY_EXISTS" satisfies AuthErrorCode;
+      customError.status = 422;
+      throw customError;
+    }
+
     // Si l'email n'est pas confirmé, retourner une information spéciale
     // data.session sera null si l'email doit être confirmé
     if (!data.session && data.user) {

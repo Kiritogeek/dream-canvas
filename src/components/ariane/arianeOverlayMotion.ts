@@ -2,7 +2,8 @@
 
 export const ARIANE_SHELL_EASE = [0.22, 1, 0.36, 1] as const;
 
-export const ARIANE_TEXT_EASE = [0.25, 0.9, 0.35, 1] as const;
+/** Courbe du texte bulle : quasi linéaire pour éviter le fort amortissement en fin d’anim (ease-out classique). */
+export const ARIANE_TEXT_EASE = [0, 0, 1, 1] as const;
 
 export const ARIANE_OVERLAY_ENTER_S = 0.38;
 
@@ -13,14 +14,14 @@ export const ARIANE_BACKDROP_ENTER_S = 0.4;
 /** Délai avant apparition stagger du texte bulle — synchronisée avec entrée enveloppe bulle/personnage. */
 export const ARIANE_BUBBLE_CONTENT_REVEAL_DELAY_MS = 380;
 
-/** Après stagger texte visible : focus bouton principal. */
-export const ARIANE_FOCUS_AFTER_REVEAL_MS = 1540;
+/** Après stagger texte visible : focus bouton principal (voir stagger × nb. blocs + durée item). */
+export const ARIANE_FOCUS_AFTER_REVEAL_MS = 1320;
 
-export const ARIANE_BUBBLE_TEXT_STAGGER_CHILD_S = 0.16;
+export const ARIANE_BUBBLE_TEXT_STAGGER_CHILD_S = 0.11;
 
-export const ARIANE_BUBBLE_TEXT_DELAY_CHILDREN_S = 0.08;
+export const ARIANE_BUBBLE_TEXT_DELAY_CHILDREN_S = 0.06;
 
-export const ARIANE_BUBBLE_TEXT_ITEM_DURATION_S = 0.82;
+export const ARIANE_BUBBLE_TEXT_ITEM_DURATION_S = 0.48;
 
 /** Décal vertical entrée lignes bulle — volontairement faible pour limiter les « sauts ». */
 export const ARIANE_BUBBLE_TEXT_Y_OFFSET_PX = 10;
@@ -55,8 +56,8 @@ export const ARIANE_BUBBLE_BOX_ENTER_TRANSITION = {
 export const ARIANE_TAB_STEP_CONTENT_INITIAL = { opacity: 0, y: 12 };
 
 export const ARIANE_TAB_STEP_CONTENT_TRANSITION = {
-  duration: 0.46,
-  ease: ARIANE_SHELL_EASE,
+  duration: 0.42,
+  ease: ARIANE_TEXT_EASE,
 } as const;
 
 export const ARIANE_BACKDROP_ENTER_TRANSITION = {

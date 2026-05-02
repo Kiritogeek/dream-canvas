@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Sparkles, Mail, Lock, User } from "lucide-react";
+import { Sparkles, Mail, Lock, User, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -98,6 +98,8 @@ export default function Auth() {
   const { signIn, signUp, signInWithGoogle, resetPassword } = useAuth();
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [resetEmailSent, setResetEmailSent] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -206,26 +208,13 @@ export default function Auth() {
         } catch (signUpError: unknown) {
           // Vérifier si c'est une erreur de confirmation d'email requise
           if (signUpError instanceof Error && getErrorCode(signUpError) === "EMAIL_CONFIRMATION_REQUIRED") {
-            // Ne pas afficher d'erreur destructive, mais un message informatif
             toast({
-              title: "Email de vérification envoyé",
-              description: "Vérifiez votre boîte de réception et cliquez sur le lien pour confirmer votre email. Vous pourrez ensuite vous connecter.",
+              title: "Email de vérification",
+              description:
+                "Ouvrez le lien reçu par email pour activer votre compte. Vous pouvez renvoyer le mail depuis la page suivante si besoin.",
             });
-            // Réinitialiser le formulaire
-            setEmail("");
-            setPassword("");
-            setConfirmPassword("");
-            setDisplayName("");
-            setTriedSubmit(false);
-            // Basculer vers le mode connexion après un délai
-            setTimeout(() => {
-              setIsSignUp(false);
-              toast({
-                title: "Mode connexion",
-                description: "Une fois votre email confirmé, vous pourrez vous connecter ici.",
-              });
-            }, 3000);
-            return; // Sortir de la fonction sans afficher d'erreur
+            navigate(`/auth/verify-email?pending=signup&email=${encodeURIComponent(normalizedEmail)}`);
+            return;
           }
           // Sinon, propager l'erreur pour qu'elle soit gérée par le bloc catch général
           throw signUpError;
@@ -500,10 +489,10 @@ export default function Auth() {
                   Mot de passe
                 </Label>
                 <div className="relative">
-                  <Lock className={`absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 ${triedSubmit && errors.password ? "text-destructive" : "text-muted-foreground"}`} />
+                  <Lock className={`pointer-events-none absolute left-3 top-1/2 z-[1] -translate-y-1/2 h-4 w-4 ${triedSubmit && errors.password ? "text-destructive" : "text-muted-foreground"}`} />
                   <Input
                     id="password"
-                    type="password"
+                    type={showPassword ? "text" : "password"}
                     placeholder="••••••••"
                     value={password}
                     onChange={(e) => {
@@ -513,9 +502,17 @@ export default function Auth() {
                         setTriedSubmit(false);
                       }
                     }}
-                    className={`pl-10 ${triedSubmit && errors.password ? "border-destructive focus-visible:ring-destructive" : ""}`}
+                    className={`pl-10 pr-11 ${triedSubmit && errors.password ? "border-destructive focus-visible:ring-destructive" : ""}`}
                     autoComplete={isSignUp ? "new-password" : "current-password"}
                   />
+                  <button
+                    type="button"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 rounded-md p-2 text-muted-foreground hover:bg-muted/80 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background"
+                    onClick={() => setShowPassword((v) => !v)}
+                    aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" aria-hidden /> : <Eye className="h-4 w-4" aria-hidden />}
+                  </button>
                 </div>
                 {triedSubmit && errors.password && (
                   <p className="text-sm text-destructive">{errors.password}</p>
@@ -541,10 +538,10 @@ export default function Auth() {
                     Confirmer le mot de passe
                   </Label>
                   <div className="relative">
-                    <Lock className={`absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 ${triedSubmit && errors.confirmPassword ? "text-destructive" : "text-muted-foreground"}`} />
+                    <Lock className={`pointer-events-none absolute left-3 top-1/2 z-[1] -translate-y-1/2 h-4 w-4 ${triedSubmit && errors.confirmPassword ? "text-destructive" : "text-muted-foreground"}`} />
                     <Input
                       id="confirmPassword"
-                      type="password"
+                      type={showConfirmPassword ? "text" : "password"}
                       placeholder="••••••••"
                       value={confirmPassword}
                       onChange={(e) => {
@@ -554,9 +551,17 @@ export default function Auth() {
                           setTriedSubmit(false);
                         }
                       }}
-                      className={`pl-10 ${triedSubmit && errors.confirmPassword ? "border-destructive focus-visible:ring-destructive" : ""}`}
+                      className={`pl-10 pr-11 ${triedSubmit && errors.confirmPassword ? "border-destructive focus-visible:ring-destructive" : ""}`}
                       autoComplete="new-password"
                     />
+                    <button
+                      type="button"
+                      className="absolute right-1 top-1/2 -translate-y-1/2 rounded-md p-2 text-muted-foreground hover:bg-muted/80 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background"
+                      onClick={() => setShowConfirmPassword((v) => !v)}
+                      aria-label={showConfirmPassword ? "Masquer la confirmation du mot de passe" : "Afficher la confirmation du mot de passe"}
+                    >
+                      {showConfirmPassword ? <EyeOff className="h-4 w-4" aria-hidden /> : <Eye className="h-4 w-4" aria-hidden />}
+                    </button>
                   </div>
                   {triedSubmit && errors.confirmPassword && (
                     <p className="text-sm text-destructive">{errors.confirmPassword}</p>
@@ -598,12 +603,14 @@ export default function Auth() {
             <span className="text-muted-foreground">
               {isSignUp ? "Déjà un compte ?" : "Pas encore de compte ?"}
             </span>{" "}
-            <button
+              <button
               type="button"
               onClick={() => {
                 setTriedSubmit(false);
                 setIsSignUp(!isSignUp);
                 setConfirmPassword(""); // Réinitialiser la confirmation lors du changement
+                setShowPassword(false);
+                setShowConfirmPassword(false);
               }}
               className="text-primary font-medium hover:underline"
             >

@@ -72,6 +72,10 @@ export default function ProjectDetail() {
   const [filArianePanelOpen, setFilArianePanelOpen] = useState(false);
 
   const { data: allAlerts = [] } = useNarraMindAlerts(id, { statuses: ["active"] });
+
+  useEffect(() => {
+    if (filArianePanelOpen && allAlerts.length === 0) setFilArianePanelOpen(false);
+  }, [allAlerts.length, filArianePanelOpen]);
   const { data: scenarioChapters = [] } = useScenarioChapters(id);
 
   useEffect(() => {

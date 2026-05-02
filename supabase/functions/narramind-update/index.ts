@@ -838,13 +838,21 @@ ${chapter.content ?? "(vide)"}
 TÂCHE : Retourne un JSON avec :
 1. "entities_to_update": liste des fiches entités à créer ou mettre à jour
 2. "chapter_summary": résumé du chapitre en 60-80 tokens maximum
-3. "anomalies": uniquement les CONTRADICTIONS EXPLICITES avec le LORE DU MONDE, le RÉSUMÉ LONG DU PROJET éventuel, les LORE des assets, les faits des FICHES ENTITÉS, ou les faits posés dans les RÉSUMÉS CHAPITRES PRÉCÉDENTS ci-dessus lorsqu'ils sont présents (résumés partiels et fenêtre récente : ne pas exiger qu'un détail absent des résumés soit une anomalie). Préfère un tableau d'objets avec titre et explication ; tu peux utiliser une chaîne courte seulement si une seule phrase suffit. Si aucune contradiction : [].
+3. "anomalies": les problèmes de continuité décrits ci-dessous. Préfère un tableau d'objets avec titre et explication ; tu peux utiliser une chaîne courte seulement si une seule phrase suffit. Si aucune anomalie : [].
+
+TYPES D'ANOMALIES À SIGNALER :
+A) CONTRADICTIONS EXPLICITES — Le chapitre affirme X alors que le lore / les résumés antérieurs / le lore des personnages établissent clairement Y.
+   Exemples : un personnage réapparaît vivant alors qu'un chapitre précédent le dit mort ; un lieu décrit au nord est soudain au sud.
+B) RUPTURES DE TON / GENRE — L'univers établi (lore ou résumés antérieurs) est clairement réaliste ou ne comporte aucun élément magique / fantastique / science-fiction, et le chapitre courant en introduit un brusquement, sans mise en place préalable.
+   Exemples : un personnage tire une boule de feu dans un récit policier réaliste ; un vaisseau spatial apparaît dans une saga médiévale sans technologie avancée.
+   Condition stricte : l'univers DOIT avoir été posé comme sans ces éléments (via le lore ou des résumés de chapitres précédents). Si l'univers est vague, nouveau ou non établi → ne pas alerter.
 
 RÈGLES STRICTES POUR "anomalies" (légitime = ne PAS alerter) :
-- Mystère, suspense, révélation différée, ellipses, éléments « étranges » ou nouveaux dans le chapitre tant que le texte ne les présente pas comme déjà fixés ailleurs : ce n'est PAS une anomalie. Ex. un lieu ou un objet que le POV découvre soudainement sans explication immédiate, si rien dans le lore interdit cette découverte.
-- Un personnage qui doute (« je ne l'avais jamais remarqué ») ou une ambiguïté volontaire : PAS une anomalie.
+- Mystère, suspense, révélation différée, ellipses, éléments « étranges » ou nouveaux dans le chapitre tant que le texte ne les présente pas comme déjà fixés ailleurs : ce n'est PAS une anomalie.
+- Un personnage qui doute ou une ambiguïté volontaire : PAS une anomalie.
 - Conseil de relecture générique (« c'est abrupt », « manque de motivation ») sans citation d'un fait ou d'un lore contredit : PAS une anomalie.
-- Alerter seulement si tu peux formuler : « Le chapitre affirme X alors que le lore / les entités établissent Y. »
+- Univers vague ou non établi (premier chapitre, peu de contexte disponible) : PAS d'alerte de rupture de genre.
+- Alerter seulement si tu peux formuler : « Le chapitre introduit / affirme X alors que l'univers établi (lore / résumés antérieurs) l'exclut ou contredit Y. »
 
 Chaque objet anomalie :
 - "title" : libellé court (environ 80 caractères max), langage **histoire** uniquement
@@ -852,11 +860,14 @@ Chaque objet anomalie :
 - "severity" optionnel : "info" | "warning" | "critical"
 - "anchor" optionnel : { "type": "excerpt", "text": "copie exacte et courte d'un passage du chapitre ci-dessus (pour retrouver l'endroit dans le texte)" }
 
-Rédaction "title" et "explanation" pour l'auteur — **interdit** :
+Rédaction "title" et "explanation" pour l'auteur — **ABSOLUMENT INTERDIT** :
 - Tout terme ou artefact **technique** ou **outil / base de données** : « asset », « entité », « fiche », « JSON », noms de champs (ex. first_seen_chapter, last_seen_chapter, entity_type, traits, relations, project_id, etc.).
+- Toute référence à **une fiche** ou **un enregistrement** : n'écrire jamais « la fiche de X indique », « selon la fiche », « la fiche du personnage », etc.
 - Toute référence au **format interne** ou aux clés du JSON que tu produis.
 Exemple **interdit** : « Contradiction avec first_seen_chapter: 2 ».
-Exemple **correct** : « Le texte dit que Kael n'a jamais nagé vers l'épave, alors qu'au chapitre précédent il s'y dirige déjà à la nage. »
+Exemple **interdit** : « La fiche de Pleine Mer indique qu'il a été vu pour la première fois au chapitre 2. »
+Exemple **correct** : « Le texte dit que Kael n'a jamais nagé vers l'épave, alors qu'au chapitre 3 il s'y dirige déjà. »
+Formule toujours en termes d'histoire : personnages, lieux, événements, éléments du monde.
 
 Format JSON STRICT :
 {

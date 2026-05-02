@@ -16,11 +16,8 @@ import {
   Package,
   Type,
   AlertTriangle,
-  BookOpenCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -39,8 +36,6 @@ import { useNarraMindDebounce } from "@/hooks/useNarraMindDebounce";
 import { estimatePanelCount } from "@/services/panels";
 import { ScenarioTextHighlighter } from "@/components/project/ScenarioTextHighlighter";
 import { useToast } from "@/hooks/use-toast";
-import { useNarraMindAlerts } from "@/hooks/useNarramindAlerts";
-import { ArianeContinuityPanel } from "@/components/ariane";
 import type { LockedBlock, DetectedBlock, AssetType } from "@/types";
 
 /** NarraMind : auto-save uniquement, pas d’appel manuel — garde-fous tokens. */
@@ -253,10 +248,6 @@ export default function ScenarioChapterEditor() {
   const progressiveRedirectRef = useRef(false);
   const { data: assets = [] } = useAssets(projectId);
   const { data: allChapters = [] } = useScenarioChapters(projectId);
-  const { data: continuityAlerts = [] } = useNarraMindAlerts(projectId, {
-    chapterId,
-    statuses: ["active"],
-  });
   const contextChapters = useMemo(
     () => allChapters.filter((c) => c.id !== chapterId).slice(-5),
     [allChapters, chapterId]
@@ -322,7 +313,6 @@ export default function ScenarioChapterEditor() {
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const [continuityOpen, setContinuityOpen] = useState(false);
   const lastScrollTopRef = useRef<number>(0);
   // Bloque onScroll pendant le toggle assets pour éviter que l'effondrement
   // du contenu n'écrase lastScrollTopRef avec une valeur clampée.
@@ -1029,27 +1019,6 @@ export default function ScenarioChapterEditor() {
             {!chapterAIResult && viewMode === "edit" && (
               <div className="ml-auto flex items-center gap-2">
                 <button
-                  type="button"
-                  onClick={() => setContinuityOpen(true)}
-                  className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border transition-colors ${
-                    continuityAlerts.length > 0
-                      ? "bg-[hsl(var(--peach)/0.25)] border-[hsl(var(--peach-deep)/0.4)] text-foreground"
-                      : "bg-transparent border-border text-muted-foreground hover:text-foreground"
-                  }`}
-                  aria-label={`Continuité du récit — ${continuityAlerts.length} point${continuityAlerts.length !== 1 ? "s" : ""} d’attention`}
-                >
-                  <BookOpenCheck className="h-3 w-3 shrink-0" aria-hidden />
-                  Continuité
-                  {continuityAlerts.length > 0 ? (
-                    <Badge
-                      variant="secondary"
-                      className="h-5 min-w-5 px-1.5 text-[10px] font-bold bg-[hsl(var(--lavender)/0.25)] text-[hsl(var(--lavender))] border border-[hsl(var(--lavender)/0.35)]"
-                    >
-                      {continuityAlerts.length}
-                    </Badge>
-                  ) : null}
-                </button>
-                <button
                   onClick={() => {
                     lastScrollTopRef.current = scrollContainerRef.current?.scrollTop ?? lastScrollTopRef.current;
                     setShowAssets((v) => !v);
@@ -1463,22 +1432,6 @@ export default function ScenarioChapterEditor() {
 
       {/* PANNEAU STATS cible — rendu hors flux, accessible via le panneau Stats supprimé */}
       {/* La cible cases est accessible via le chip "~N cases" dans le header */}
-      <Sheet open={continuityOpen} onOpenChange={setContinuityOpen}>
-        <SheetContent
-          side="right"
-          className="w-full sm:max-w-md flex flex-col gap-0 p-4 sm:p-6 overflow-hidden"
-        >
-          {projectId && chapterId ? (
-            <ArianeContinuityPanel
-              projectId={projectId}
-              chapterId={chapterId}
-              chapterContent={content}
-              textareaRef={textareaRef}
-              scrollContainerRef={scrollContainerRef}
-            />
-          ) : null}
-        </SheetContent>
-      </Sheet>
 
       {editingTarget && (
         <div className="fixed bottom-4 right-4 z-50 glass rounded-xl p-4 shadow-dream flex flex-col gap-3 w-64">

@@ -163,9 +163,10 @@ export function ArianeContinuityPanel({
                     !isScoped && chapters
                       ? (() => {
                           const ch = chapters.find((c) => c.id === a.chapterId);
-                          return ch
-                            ? `Chapitre ${ch.chapter_number}${ch.title ? ` — ${ch.title}` : ""}`
-                            : undefined;
+                          if (!ch) return undefined;
+                          const base = `Chapitre ${ch.chapter_number}`;
+                          const extra = ch.title && ch.title.trim() !== base ? ` — ${ch.title}` : "";
+                          return `${base}${extra}`;
                         })()
                       : undefined
                   }

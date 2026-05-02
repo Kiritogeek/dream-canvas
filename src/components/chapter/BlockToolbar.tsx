@@ -2,6 +2,14 @@ import { useState, useEffect, useMemo } from "react";
 import { Trash2, Loader2, Sparkles } from "lucide-react";
 import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { getDetectedAssets } from "@/components/project/ScenarioTextHighlighter";
+import {
+  CHAPTER_CANVAS_TOOLBAR_SURFACE,
+  CHAPTER_CANVAS_TOOLBAR_SEP_CLASS,
+  CHAPTER_CANVAS_TOOLBAR_FIELD_CLASS,
+  CHAPTER_CANVAS_TOOLBAR_PRIMARY_ACTION_CLASS,
+  chapterCanvasToolbarIconButtonClass,
+} from "@/components/chapter/chapterCanvasToolbar";
+import { cn } from "@/lib/utils";
 import type { PanelBlock, ColorBlock, ColorBlockFill, Asset } from "@/types";
 
 function DreamWeaveLogo({ size = 14 }: { size?: number }) {
@@ -49,7 +57,7 @@ type ColorVariant = {
 
 type BlockToolbarProps = ImageVariant | ColorVariant;
 
-const sep = <div className="w-px h-5 bg-border/60 shrink-0 mx-0.5" />;
+const sep = <div className={CHAPTER_CANVAS_TOOLBAR_SEP_CLASS} />;
 
 function ImageBlockToolbar(props: ImageVariant) {
   const {
@@ -93,7 +101,7 @@ function ImageBlockToolbar(props: ImageVariant) {
       {/* PopoverAnchor = toute la toolbar → la popup se centre dessus */}
       <PopoverAnchor asChild>
         <div
-          className="inline-flex items-center gap-1 px-2 py-1.5 bg-background/95 backdrop-blur-sm border border-border rounded-xl shadow-lg"
+          className={cn(CHAPTER_CANVAS_TOOLBAR_SURFACE, "z-50")}
           onMouseDown={(e) => e.stopPropagation()}
           onClick={(e) => e.stopPropagation()}
         >
@@ -103,7 +111,7 @@ function ImageBlockToolbar(props: ImageVariant) {
             onChange={(e) => onNameChange(e.target.value)}
             onBlur={onNameSave}
             placeholder={block.name ?? "Nom du bloc"}
-            className="h-7 w-28 bg-transparent text-xs px-2 rounded-md border border-border/60 focus:outline-none focus:ring-1 focus:ring-primary/40 text-foreground placeholder:text-muted-foreground/50"
+            className={cn(CHAPTER_CANVAS_TOOLBAR_FIELD_CLASS, "w-28 bg-transparent")}
           />
 
           {sep}
@@ -111,10 +119,14 @@ function ImageBlockToolbar(props: ImageVariant) {
           <PopoverTrigger asChild>
             <button
               type="button"
-              className={`h-7 px-2.5 flex items-center gap-1.5 rounded-md transition-all shrink-0 text-xs font-semibold text-white ${open ? "gradient-primary opacity-90 scale-[0.97]" : "gradient-primary hover:opacity-90"}`}
+              className={cn(
+                CHAPTER_CANVAS_TOOLBAR_PRIMARY_ACTION_CLASS,
+                "shrink-0",
+                open && "opacity-90 scale-[0.98]",
+              )}
               title={block.image_url ? "Régénérer l'image" : "Générer l'image"}
             >
-              {isGenerating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <DreamWeaveLogo size={14} />}
+              {isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <DreamWeaveLogo size={16} />}
               IA
             </button>
           </PopoverTrigger>
@@ -124,10 +136,10 @@ function ImageBlockToolbar(props: ImageVariant) {
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); onDelete(); }}
-            className="h-7 w-7 flex items-center justify-center rounded-md border border-border/60 bg-background text-muted-foreground hover:text-destructive hover:bg-destructive/10 hover:border-destructive/40 transition-colors shrink-0"
+            className={chapterCanvasToolbarIconButtonClass(false, "danger")}
             title="Supprimer le bloc"
           >
-            <Trash2 className="h-3.5 w-3.5" />
+            <Trash2 className="h-4 w-4" />
           </button>
         </div>
       </PopoverAnchor>
@@ -271,13 +283,13 @@ function ColorBlockToolbar(props: ColorVariant) {
   return (
     <div className="relative inline-block">
       <div
-        className="inline-flex items-center gap-1 px-2 py-1.5 bg-background border border-border rounded-xl shadow-lg z-50"
+        className={cn(CHAPTER_CANVAS_TOOLBAR_SURFACE, "z-50")}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Swatch + color picker natif superposé */}
-        <label className="relative cursor-pointer shrink-0 flex items-center justify-center h-7 w-7" title="Ouvrir le sélecteur de couleur">
+        <label className="relative cursor-pointer shrink-0 flex items-center justify-center h-8 w-8 rounded-lg border border-border/80 shadow-sm ring-1 ring-black/[0.04]" title="Ouvrir le sélecteur de couleur">
           <div
-            className="w-5 h-5 rounded border border-border/60 shrink-0"
+            className="w-5 h-5 rounded-md border border-border/50 shrink-0"
             style={{ backgroundColor: currentColor, boxShadow: currentColor === "#ffffff" ? "inset 0 0 0 1px #cbd5e1" : undefined }}
           />
           <input
@@ -297,7 +309,11 @@ function ColorBlockToolbar(props: ColorVariant) {
           onClick={(e) => e.stopPropagation()}
           spellCheck={false}
           maxLength={7}
-          className={`h-7 w-[78px] bg-background text-xs px-2 rounded-md border focus:outline-none focus:ring-1 font-mono tabular-nums ${isValidHex(hexDraft) ? "border-border/60 focus:ring-primary/40 text-foreground" : "border-destructive/60 focus:ring-destructive/40 text-destructive"}`}
+          className={cn(
+            CHAPTER_CANVAS_TOOLBAR_FIELD_CLASS,
+            "w-[78px] font-mono tabular-nums",
+            isValidHex(hexDraft) ? "text-foreground" : "border-destructive/60 focus:ring-destructive/40 text-destructive",
+          )}
         />
 
         {sep}
@@ -305,10 +321,10 @@ function ColorBlockToolbar(props: ColorVariant) {
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); onDelete(); }}
-          className="h-7 w-7 flex items-center justify-center rounded-md border border-border/60 bg-background text-destructive hover:bg-destructive/10 transition-colors shrink-0"
+          className={chapterCanvasToolbarIconButtonClass(false, "danger")}
           title="Supprimer le bloc de couleur"
         >
-          <Trash2 className="h-3.5 w-3.5" />
+          <Trash2 className="h-4 w-4" />
         </button>
       </div>
     </div>

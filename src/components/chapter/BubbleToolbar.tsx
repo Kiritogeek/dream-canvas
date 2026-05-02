@@ -1,7 +1,15 @@
 import { useState, useRef, useEffect } from "react";
-import { Bold, Italic, Underline, Strikethrough, AlignLeft, AlignCenter, AlignRight, Copy, Trash2, MessageCircle, Plus, Minus, Square, Blend, ChevronDown, ChevronLeft } from "lucide-react";
+import { Bold, Italic, Underline, Strikethrough, AlignLeft, AlignCenter, AlignRight, Copy, Trash2, Plus, Minus, Square, Blend, ChevronDown, ChevronLeft, SlidersHorizontal } from "lucide-react";
 import type { SpeechBubble } from "@/types";
 import { getSpeechBubbleFillStroke, SPEECH_BUBBLE_NO_TAIL_TYPES } from "@/types";
+import { cn } from "@/lib/utils";
+import {
+  CHAPTER_CANVAS_TOOLBAR_SURFACE,
+  CHAPTER_CANVAS_TOOLBAR_SEP_CLASS,
+  CHAPTER_CANVAS_TOOLBAR_FIELD_CLASS,
+  chapterCanvasToolbarIconButtonClass,
+} from "@/components/chapter/chapterCanvasToolbar";
+import { BubbleTailIcon } from "@/components/chapter/BubbleTailIcon";
 
 const FONTS = [
   { value: "inherit",                     label: "Défaut" },
@@ -113,11 +121,7 @@ export function BubbleToolbar({ bubble, speechBubbles, onUpdate, onDuplicate, on
     document.execCommand(cmd, false, value);
   };
 
-  const sep = <div className="w-px h-5 bg-border/60 shrink-0 mx-0.5" />;
-
-  // Toolbar container : rounded-xl (12px) — boutons : rounded-md (6px) → continuité visuelle
-  const btnCls = (active: boolean) =>
-    `h-7 w-7 flex items-center justify-center rounded-md border transition-colors shrink-0 ${active ? "border-primary bg-primary/15 text-primary" : "border-border/60 bg-background text-muted-foreground hover:bg-muted/50"}`;
+  const sep = <div className={CHAPTER_CANVAS_TOOLBAR_SEP_CLASS} />;
 
   // ── Mode queue : toolbar dédiée ──────────────────────────────────────────
   if (tailContext && !hasNoTail) {
@@ -128,18 +132,18 @@ export function BubbleToolbar({ bubble, speechBubbles, onUpdate, onDuplicate, on
       const thoughtTailGap = bubble.thoughtTailGap ?? 3;
       return (
         <div className="relative inline-block">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-background border border-border rounded-xl shadow-lg z-50">
+          <div className={cn("gap-2 z-50", CHAPTER_CANVAS_TOOLBAR_SURFACE)}>
             <button
               type="button"
               onClick={() => onTailContextChange?.(false)}
-              className="h-7 flex items-center gap-1 px-2 rounded-md border border-border/60 bg-background text-muted-foreground hover:bg-muted/50 transition-colors text-xs shrink-0"
+              className={cn(CHAPTER_CANVAS_TOOLBAR_FIELD_CLASS, "flex items-center gap-1.5 px-2.5 font-medium text-xs shrink-0")}
               title="Retour aux options de la bulle"
             >
-              <ChevronLeft className="h-3 w-3" />
+              <ChevronLeft className="h-3.5 w-3.5 shrink-0" />
               Bulle
             </button>
             {sep}
-            <span className="text-xs text-muted-foreground shrink-0">Courbure</span>
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground shrink-0">Courbure</span>
             <input
               type="range" min={-30} max={30} value={tailCurve}
               onChange={(e) => { const n = parseInt(e.target.value, 10); if (!Number.isNaN(n)) patch({ tailCurve: n }); }}
@@ -148,7 +152,7 @@ export function BubbleToolbar({ bubble, speechBubbles, onUpdate, onDuplicate, on
             />
             <span className="text-xs tabular-nums text-foreground w-6 text-right shrink-0">{tailCurve > 0 ? `+${tailCurve}` : tailCurve}</span>
             {sep}
-            <span className="text-xs text-muted-foreground shrink-0">Ronds</span>
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground shrink-0">Ronds</span>
             <input
               type="range" min={3} max={25} step={1} value={Math.round(thoughtTailDotSize * 10)}
               onChange={(e) => { const n = parseInt(e.target.value, 10); if (!Number.isNaN(n)) patch({ thoughtTailDotSize: n / 10 }); }}
@@ -157,7 +161,7 @@ export function BubbleToolbar({ bubble, speechBubbles, onUpdate, onDuplicate, on
             />
             <span className="text-xs tabular-nums text-foreground w-8 text-right shrink-0">×{thoughtTailDotSize.toFixed(1)}</span>
             {sep}
-            <span className="text-xs text-muted-foreground shrink-0">Espace</span>
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground shrink-0">Espace</span>
             <input
               type="range" min={-4} max={12} step={1} value={thoughtTailGap}
               onChange={(e) => { const n = parseInt(e.target.value, 10); if (!Number.isNaN(n)) patch({ thoughtTailGap: n }); }}
@@ -173,18 +177,18 @@ export function BubbleToolbar({ bubble, speechBubbles, onUpdate, onDuplicate, on
     const tailBaseWidth = bubble.tailBaseWidth ?? 28;
     return (
       <div className="relative inline-block">
-        <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-background border border-border rounded-xl shadow-lg z-50">
+        <div className={cn("gap-2 z-50", CHAPTER_CANVAS_TOOLBAR_SURFACE)}>
           <button
             type="button"
             onClick={() => onTailContextChange?.(false)}
-            className="h-7 flex items-center gap-1 px-2 rounded-md border border-border/60 bg-background text-muted-foreground hover:bg-muted/50 transition-colors text-xs shrink-0"
+            className={cn(CHAPTER_CANVAS_TOOLBAR_FIELD_CLASS, "flex items-center gap-1.5 px-2.5 font-medium text-xs shrink-0")}
             title="Retour aux options de la bulle"
           >
-            <ChevronLeft className="h-3 w-3" />
+            <ChevronLeft className="h-3.5 w-3.5 shrink-0" />
             Bulle
           </button>
           {sep}
-          <span className="text-xs text-muted-foreground shrink-0">Largeur</span>
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground shrink-0">Largeur</span>
           <input
             type="range" min={8} max={50} value={tailBaseWidth}
             onChange={(e) => { const n = parseInt(e.target.value, 10); if (!Number.isNaN(n)) patch({ tailBaseWidth: n }); }}
@@ -193,7 +197,7 @@ export function BubbleToolbar({ bubble, speechBubbles, onUpdate, onDuplicate, on
           />
           <span className="text-xs tabular-nums text-foreground w-8 text-right shrink-0">{tailBaseWidth}px</span>
           {sep}
-          <span className="text-xs text-muted-foreground shrink-0">Courbure</span>
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground shrink-0">Courbure</span>
           <input
             type="range" min={-100} max={100} value={tailCurve}
             onChange={(e) => { const n = parseInt(e.target.value, 10); if (!Number.isNaN(n)) patch({ tailCurve: n }); }}
@@ -235,7 +239,11 @@ export function BubbleToolbar({ bubble, speechBubbles, onUpdate, onDuplicate, on
 
       {/* Toolbar secondaire sliders */}
       {(showBorderSlider || showTransparencySlider) && !isText && (
-        <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1.5 flex items-center gap-3 px-3 py-2 bg-background border border-border rounded-xl shadow-lg z-50 whitespace-nowrap">
+        <div className={cn(
+          "absolute top-full left-1/2 -translate-x-1/2 mt-2 whitespace-nowrap z-50",
+          CHAPTER_CANVAS_TOOLBAR_SURFACE,
+          "gap-3 py-2.5",
+        )}>
           {showBorderSlider && (
             <>
               <span className="text-xs text-muted-foreground shrink-0">Contour</span>
@@ -257,7 +265,7 @@ export function BubbleToolbar({ bubble, speechBubbles, onUpdate, onDuplicate, on
         </div>
       )}
 
-      <div className="inline-flex items-center gap-1 px-2 py-1.5 bg-background border border-border rounded-xl shadow-lg z-50 overflow-x-auto max-w-full">
+      <div className={cn(CHAPTER_CANVAS_TOOLBAR_SURFACE, "max-w-full overflow-x-auto")}>
 
         {/* Police — dropdown custom (fixed pour échapper à overflow-x-auto) */}
         <div className="relative shrink-0">
@@ -272,7 +280,7 @@ export function BubbleToolbar({ bubble, speechBubbles, onUpdate, onDuplicate, on
               }
               setShowFontDropdown((v) => !v);
             }}
-            className="h-7 px-2 flex items-center gap-1 rounded-md border border-border/60 bg-background text-foreground hover:bg-muted/50 transition-colors"
+            className={cn(CHAPTER_CANVAS_TOOLBAR_FIELD_CLASS, "min-w-[5.5rem] flex items-center gap-1.5")}
             title="Police"
           >
             <span
@@ -281,31 +289,31 @@ export function BubbleToolbar({ bubble, speechBubbles, onUpdate, onDuplicate, on
             >
               {currentFontLabel}
             </span>
-            <ChevronDown className="h-3 w-3 text-muted-foreground shrink-0" />
+            <ChevronDown className="h-3.5 w-3.5 text-foreground/60 shrink-0" />
           </button>
         </div>
 
         {sep}
 
         {/* Taille : - [valeur] + */}
-        <div className="flex items-center shrink-0">
+        <div className="flex items-center shrink-0 rounded-lg border border-border/80 overflow-hidden bg-background/90 shadow-sm">
           <button type="button"
             onMouseDown={(e) => { e.preventDefault(); patchStyle({ size: Math.max(8, (bubble.style?.size ?? 14) - 1) }); }}
-            className="h-7 w-6 flex items-center justify-center rounded-md border border-border/60 bg-background text-muted-foreground hover:bg-muted/50 transition-colors"
+            className="h-8 w-7 flex items-center justify-center border-r border-border/70 text-foreground/80 hover:bg-muted/70 transition-colors"
             title="Réduire la taille">
-            <Minus className="h-2.5 w-2.5" />
+            <Minus className="h-3 w-3" />
           </button>
           <input
             type="number" min={8} max={72} value={bubble.style?.size ?? 14}
             onChange={(e) => { const n = parseInt(e.target.value, 10); if (!Number.isNaN(n)) patchStyle({ size: n }); }}
-            className="h-7 w-10 border-y border-border/60 bg-background text-xs text-center tabular-nums focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            className="h-8 w-11 border-0 bg-transparent text-xs font-semibold text-center tabular-nums text-foreground focus:outline-none focus:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             title="Taille de police"
           />
           <button type="button"
             onMouseDown={(e) => { e.preventDefault(); patchStyle({ size: Math.min(72, (bubble.style?.size ?? 14) + 1) }); }}
-            className="h-7 w-6 flex items-center justify-center rounded-md border border-border/60 bg-background text-muted-foreground hover:bg-muted/50 transition-colors"
+            className="h-8 w-7 flex items-center justify-center border-l border-border/70 text-foreground/80 hover:bg-muted/70 transition-colors"
             title="Augmenter la taille">
-            <Plus className="h-2.5 w-2.5" />
+            <Plus className="h-3 w-3" />
           </button>
         </div>
 
@@ -313,32 +321,32 @@ export function BubbleToolbar({ bubble, speechBubbles, onUpdate, onDuplicate, on
 
         {/* Gras */}
         <button type="button" title="Gras" onMouseDown={(e) => applyFmt(e, "bold", "bold")}
-          className={btnCls((bubble.style?.bold ?? false) || hasBoldInHtml || fmtState.bold)}>
-          <Bold className="h-3.5 w-3.5" />
+          className={chapterCanvasToolbarIconButtonClass((bubble.style?.bold ?? false) || hasBoldInHtml || fmtState.bold)}>
+          <Bold className="h-4 w-4" />
         </button>
 
         {/* Italique */}
         <button type="button" title="Italique" onMouseDown={(e) => applyFmt(e, "italic", "italic")}
-          className={btnCls((bubble.style?.italic ?? false) || hasItalicInHtml || fmtState.italic)}>
-          <Italic className="h-3.5 w-3.5" />
+          className={chapterCanvasToolbarIconButtonClass((bubble.style?.italic ?? false) || hasItalicInHtml || fmtState.italic)}>
+          <Italic className="h-4 w-4" />
         </button>
 
         {/* Souligné */}
         <button type="button" title="Souligné" onMouseDown={(e) => applyFmt(e, "underline", "underline")}
-          className={btnCls((bubble.style?.underline ?? false) || hasUnderlineInHtml || fmtState.underline)}>
-          <Underline className="h-3.5 w-3.5" />
+          className={chapterCanvasToolbarIconButtonClass((bubble.style?.underline ?? false) || hasUnderlineInHtml || fmtState.underline)}>
+          <Underline className="h-4 w-4" />
         </button>
 
         {/* Barré */}
         <button type="button" title="Barré" onMouseDown={(e) => applyFmt(e, "strikethrough", "strikeThrough")}
-          className={btnCls((bubble.style?.strikethrough ?? false) || hasStrikeInHtml || fmtState.strikeThrough)}>
-          <Strikethrough className="h-3.5 w-3.5" />
+          className={chapterCanvasToolbarIconButtonClass((bubble.style?.strikethrough ?? false) || hasStrikeInHtml || fmtState.strikeThrough)}>
+          <Strikethrough className="h-4 w-4" />
         </button>
 
         {/* Couleur du texte */}
         <label className="relative cursor-pointer shrink-0" title="Couleur du texte" onMouseDown={saveRange}>
-          <div className="w-7 h-7 rounded-md border border-border/60 bg-background hover:bg-muted/50 transition-colors flex flex-col items-center justify-center gap-[2px]">
-            <span className="text-[12px] font-bold leading-none text-foreground">A</span>
+          <div className="w-8 h-8 rounded-lg border border-border/80 bg-background/90 shadow-sm hover:bg-muted/50 transition-all flex flex-col items-center justify-center gap-[2px]">
+            <span className="text-[13px] font-bold leading-none text-foreground">A</span>
             <div className="w-4 h-[3px] rounded-full" style={{ background: bubble.style?.color ?? "#000000" }} />
           </div>
           <input type="color" value={bubble.style?.color ?? "#000000"}
@@ -351,9 +359,9 @@ export function BubbleToolbar({ bubble, speechBubbles, onUpdate, onDuplicate, on
         {/* Alignement — cycle centre → gauche → droite → centre */}
         <button type="button"
           onMouseDown={(e) => { e.preventDefault(); cycleAlign(); }}
-          className={btnCls(true)}
+          className={chapterCanvasToolbarIconButtonClass(true)}
           title={`Alignement : ${alignTitle}`}>
-          <AlignIcon className="h-3.5 w-3.5" />
+          <AlignIcon className="h-4 w-4" />
         </button>
 
         {!isText && (
@@ -362,7 +370,7 @@ export function BubbleToolbar({ bubble, speechBubbles, onUpdate, onDuplicate, on
 
             {/* Couleur de fond */}
             <label className="relative cursor-pointer shrink-0" title="Couleur de fond">
-              <div className="w-7 h-7 rounded-md border border-border/60" style={{ background: fillColor === "transparent" ? "#ffffff" : fillColor }} />
+              <div className="w-8 h-8 rounded-lg border border-border/80 shadow-sm ring-1 ring-black/[0.04]" style={{ background: fillColor === "transparent" ? "#ffffff" : fillColor }} />
               <input type="color" value={fillColor === "transparent" ? "#ffffff" : fillColor}
                 onChange={(e) => patch({ bgColor: e.target.value })}
                 className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" />
@@ -370,7 +378,7 @@ export function BubbleToolbar({ bubble, speechBubbles, onUpdate, onDuplicate, on
 
             {/* Couleur du contour */}
             <label className="relative cursor-pointer shrink-0" title="Couleur du contour">
-              <div className="w-7 h-7 rounded-md border-2" style={{ background: strokeColor === "transparent" ? "#000000" : strokeColor, borderColor: strokeColor === "transparent" ? "hsl(var(--border))" : strokeColor, outline: "1px solid hsl(var(--border) / 0.6)", outlineOffset: "1px" }} />
+              <div className="w-8 h-8 rounded-lg border-2 shadow-sm" style={{ background: strokeColor === "transparent" ? "#000000" : strokeColor, borderColor: strokeColor === "transparent" ? "hsl(var(--border))" : strokeColor, outline: "1px solid hsl(var(--border) / 0.6)", outlineOffset: "1px" }} />
               <input type="color" value={strokeColor === "transparent" ? "#000000" : strokeColor}
                 onChange={(e) => patch({ borderColor: e.target.value })}
                 className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" />
@@ -378,45 +386,64 @@ export function BubbleToolbar({ bubble, speechBubbles, onUpdate, onDuplicate, on
 
             {/* Épaisseur du contour */}
             <button type="button" onClick={() => { setShowBorderSlider((v) => !v); setShowTransparencySlider(false); }}
-              className={btnCls(showBorderSlider)}
+              className={chapterCanvasToolbarIconButtonClass(showBorderSlider)}
               title={`Épaisseur contour (${borderWidth}px)`}>
-              <Square className="h-3.5 w-3.5" />
+              <Square className="h-4 w-4" />
             </button>
 
             {/* Transparence du fond */}
             <button type="button" onClick={() => { setShowTransparencySlider((v) => !v); setShowBorderSlider(false); }}
-              className={btnCls(showTransparencySlider || bgTransparency > 0)}
+              className={chapterCanvasToolbarIconButtonClass(showTransparencySlider || bgTransparency > 0)}
               title={`Transparence du fond (${bgTransparency}%)`}>
-              <Blend className="h-3.5 w-3.5" />
+              <Blend className="h-4 w-4" />
             </button>
 
-            {/* Queue : toggle pour toutes les bulles avec queue draggable */}
+            {/* Queue : glyphe bulle+queue (pas de libellé), même format que les autres boutons */}
             {!hasNoTail && !["radio", "electronic", "explosion"].includes(bubble.type) && !isText && (
-              <button type="button"
-                onClick={() => patch({ tailOn: bubble.tailOn !== false ? false : true })}
-                className={btnCls(bubble.tailOn !== false)}
-                title={bubble.tailOn !== false ? "Supprimer la queue" : "Ajouter une queue"}>
-                <MessageCircle className="h-3.5 w-3.5" />
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={() => patch({ tailOn: bubble.tailOn !== false ? false : true })}
+                  className={chapterCanvasToolbarIconButtonClass(bubble.tailOn !== false)}
+                  title={bubble.tailOn !== false ? "Retirer la queue de la bulle" : "Afficher une queue sur la bulle"}
+                >
+                  <BubbleTailIcon className="h-[18px] w-[18px]" />
+                </button>
+                {bubble.tailOn !== false && onTailContextChange && (
+                  <button
+                    type="button"
+                    onClick={() => onTailContextChange(true)}
+                    className={chapterCanvasToolbarIconButtonClass(false)}
+                    title="Affiner la queue : courbure, largeur, position…"
+                  >
+                    <SlidersHorizontal className="h-4 w-4" strokeWidth={2.25} />
+                  </button>
+                )}
+              </>
             )}
           </>
         )}
 
         <div className="flex-1 min-w-2" />
 
-        {/* Dupliquer */}
-        <button type="button" onClick={onDuplicate}
-          className="h-7 w-7 flex items-center justify-center rounded-md border border-border/60 bg-background text-muted-foreground hover:bg-muted/50 transition-colors shrink-0"
-          title="Dupliquer">
-          <Copy className="h-3.5 w-3.5" />
-        </button>
-
-        {/* Supprimer */}
-        <button type="button" onClick={onDelete}
-          className="h-7 w-7 flex items-center justify-center rounded-md border border-border/60 bg-background text-destructive hover:bg-destructive/10 transition-colors shrink-0"
-          title="Supprimer">
-          <Trash2 className="h-3.5 w-3.5" />
-        </button>
+        <div className="flex items-center gap-1 shrink-0 pl-2 ml-0.5 border-l border-border/60">
+          <button
+            type="button"
+            onClick={onDuplicate}
+            className={chapterCanvasToolbarIconButtonClass(false)}
+            title="Dupliquer"
+          >
+            <Copy className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={onDelete}
+            className={chapterCanvasToolbarIconButtonClass(false, "danger")}
+            title="Supprimer"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </div>
       </div>
     </div>
   );

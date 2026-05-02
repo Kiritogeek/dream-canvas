@@ -3,6 +3,13 @@ import { BookOpen, Loader2, Layers, GripVertical, CheckCircle2 } from "lucide-re
 import { ScenarioFormattedPreview } from "@/components/project/ScenarioFormattedPreview";
 import type { Asset } from "@/types";
 import { planDisplayName } from "@/types";
+import { cn } from "@/lib/utils";
+import {
+  CHAPTER_EDITOR_RAIL_BTN_ACTIVE,
+  CHAPTER_EDITOR_RAIL_BTN_BASE,
+  CHAPTER_EDITOR_RAIL_BTN_DISABLED,
+  CHAPTER_EDITOR_RAIL_BTN_IDLE,
+} from "@/components/chapter/chapterCanvasToolbar";
 
 type ValidatedCase = {
   panel_number: number;
@@ -203,29 +210,30 @@ export function EditorRightPanel({
         <button
           type="button"
           onClick={() => onToolChange(activeTool === "chapter-text" ? null : "chapter-text")}
-          className={`w-full h-12 rounded-xl border flex items-center justify-center transition-colors duration-150 ${
-            activeTool === "chapter-text"
-              ? "border-primary/70 bg-primary/15 text-primary shadow-sm"
-              : "border-border/70 bg-background text-muted-foreground hover:text-foreground hover:bg-muted/50"
-          }`}
+          className={cn(
+            CHAPTER_EDITOR_RAIL_BTN_BASE,
+            activeTool === "chapter-text" ? CHAPTER_EDITOR_RAIL_BTN_ACTIVE : CHAPTER_EDITOR_RAIL_BTN_IDLE,
+          )}
           title="Scénario"
         >
-          <BookOpen className="h-5 w-5" />
+          <BookOpen className="h-4 w-4" />
         </button>
 
         <button
           type="button"
           onClick={isPro ? () => onToolChange(activeTool === "cases" ? null : "cases") : onNavigateToPlans}
-          className={`relative w-full h-12 rounded-xl border flex items-center justify-center transition-colors duration-150 ${
+          className={cn(
+            "relative",
+            CHAPTER_EDITOR_RAIL_BTN_BASE,
             isPro
               ? activeTool === "cases"
-                ? "border-primary/70 bg-primary/15 text-primary shadow-sm"
-                : "border-border/70 bg-background text-muted-foreground hover:text-foreground hover:bg-muted/50"
-              : "border-border/70 bg-background text-muted-foreground/60 hover:text-muted-foreground hover:bg-muted/30"
-          }`}
+                ? CHAPTER_EDITOR_RAIL_BTN_ACTIVE
+                : CHAPTER_EDITOR_RAIL_BTN_IDLE
+              : CHAPTER_EDITOR_RAIL_BTN_DISABLED,
+          )}
           title={isPro ? "Cases" : `Réservé au plan ${planDisplayName("pro")} — cliquez pour vous abonner`}
         >
-          <Layers className="h-5 w-5" />
+          <Layers className="h-4 w-4" />
 
           {/* Badge : nombre de cases pas encore sur le canvas */}
           {isPro && unaddedCount > 0 && (

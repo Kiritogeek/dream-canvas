@@ -5,6 +5,12 @@ import { BLOCK_PRESETS, getPanelHeight } from "@/services/panels";
 import { SPEECH_BUBBLE_TYPE_LABELS, DEFAULT_SPEECH_BUBBLE_WIDTH, DEFAULT_SPEECH_BUBBLE_HEIGHT } from "@/types";
 import { getDetectedAssets } from "@/components/project/ScenarioTextHighlighter";
 import type { Panel, ColorBlockFill, SpeechBubbleType, Asset } from "@/types";
+import { cn } from "@/lib/utils";
+import {
+  CHAPTER_EDITOR_RAIL_BTN_ACTIVE,
+  CHAPTER_EDITOR_RAIL_BTN_BASE,
+  CHAPTER_EDITOR_RAIL_BTN_IDLE,
+} from "@/components/chapter/chapterCanvasToolbar";
 
 const PANEL_WIDTH = 800;
 
@@ -111,9 +117,13 @@ export function EditorLeftSidebar({
             type="button"
             title={label}
             onClick={() => onTabChange(activeSidebarTab === id ? null : id)}
-            className={`relative w-full h-12 rounded-xl border flex items-center justify-center transition-colors ${activeSidebarTab === id ? "border-primary/70 bg-primary/15 text-primary shadow-sm" : "border-border/70 bg-background text-muted-foreground hover:text-foreground hover:bg-muted/50"}`}
+            className={cn(
+              "relative",
+              CHAPTER_EDITOR_RAIL_BTN_BASE,
+              activeSidebarTab === id ? CHAPTER_EDITOR_RAIL_BTN_ACTIVE : CHAPTER_EDITOR_RAIL_BTN_IDLE,
+            )}
           >
-            <Icon className="h-5 w-5" />
+            <Icon className="h-4 w-4" />
             {"badge" in { badge } && badge !== undefined && (
               <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-[hsl(var(--lavender))] text-white text-[9px] font-bold flex items-center justify-center leading-none">
                 {badge}

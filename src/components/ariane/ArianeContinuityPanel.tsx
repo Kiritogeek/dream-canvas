@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 import type { NarrativeAlertSeverity, NarraMindAlertView } from "@/types";
 import { AlertTriangle, Check, Eye, Loader2, X } from "lucide-react";
 import { ARIANE_DISPLAY_NAME } from "@/constants/ariane";
-import { ArianeThreadIcon } from "./ArianeThreadIcon";
+import { ArianeOrbitIcon } from "./ArianeOrbitIcon";
 
 const SEVERITY_LABEL: Record<NarrativeAlertSeverity, string> = {
   info: "Info",
@@ -75,7 +75,7 @@ export function ArianeContinuityPanel({
     <>
       <SheetHeader className="space-y-2 pb-3 border-b border-border/60">
         <div className="flex items-start gap-3">
-          <ArianeThreadIcon size={36} pulse={alerts.length > 0} className="mt-0.5 shrink-0" />
+          <ArianeOrbitIcon size={36} className="mt-0.5 shrink-0" />
           <div className="min-w-0 space-y-0.5">
             <p className="text-left text-xs font-semibold uppercase tracking-widest bg-gradient-to-r from-amber-400 to-yellow-300 bg-clip-text text-transparent">
               Fil d'Ariane

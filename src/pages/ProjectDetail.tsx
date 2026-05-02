@@ -21,7 +21,7 @@ import {
   ArianeStyleOnboardingCard,
   ArianeJourneyCompleteCard,
   ArianeTabTourOverlay,
-  ArianeThreadIcon,
+  ArianeOrbitIcon,
   ArianeContinuityPanel,
 } from "@/components/ariane";
 import {
@@ -435,20 +435,80 @@ export default function ProjectDetail() {
           onComplete={handleProgressiveTabTourComplete}
         />
       ) : null}
-      {/* FAB fil d'Ariane — bulle circulaire bas-droite */}
+      {/* FAB fil d'Ariane — fils orbitaux autour du bouton */}
       {id && allAlerts.length > 0 && (
         <div className="fixed bottom-6 right-6 z-40">
-          <button
-            type="button"
-            onClick={() => setFilArianePanelOpen(true)}
-            className="relative h-14 w-14 rounded-full bg-background/95 backdrop-blur-xl border border-amber-500/40 shadow-[0_4px_24px_hsl(38_92%_50%/0.25)] flex items-center justify-center transition-[transform,box-shadow,border-color] duration-200 hover:scale-110 hover:border-amber-500/70 hover:shadow-[0_6px_32px_hsl(38_92%_50%/0.45)] active:scale-95"
-            aria-label={`Fil d'Ariane — ${allAlerts.length} point${allAlerts.length > 1 ? "s" : ""} d'attention`}
-          >
-            <ArianeThreadIcon size={28} pulse />
-            <span className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-bold text-white tabular-nums ring-2 ring-background">
-              {allAlerts.length > 99 ? "99+" : allAlerts.length}
-            </span>
-          </button>
+          <div className="relative">
+            {/* Fils qui orbitent autour du bouton (SVG dépasse le bouton de 10px de chaque côté) */}
+            <svg
+              width="76"
+              height="76"
+              viewBox="0 0 76 76"
+              fill="none"
+              className="absolute -top-[10px] -left-[10px] pointer-events-none overflow-visible"
+              aria-hidden
+            >
+              <defs>
+                <filter id="ariane-fab-glow" x="-80%" y="-80%" width="260%" height="260%">
+                  <feGaussianBlur stdDeviation="1.8" result="blur" />
+                  <feMerge>
+                    <feMergeNode in="blur" />
+                    <feMergeNode in="SourceGraphic" />
+                  </feMerge>
+                </filter>
+              </defs>
+              {/* Fil 1 — sens horaire, 4s */}
+              <g>
+                <animateTransform
+                  attributeName="transform"
+                  type="rotate"
+                  from="0 38 38"
+                  to="360 38 38"
+                  dur="4s"
+                  repeatCount="indefinite"
+                />
+                <path
+                  d="M 4 38 Q 21 16 38 38 Q 55 60 72 38"
+                  stroke="#FCD34D"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  opacity="0.65"
+                />
+                <circle cx="72" cy="38" r="2.5" fill="#FCD34D" filter="url(#ariane-fab-glow)" />
+              </g>
+              {/* Fil 2 — anti-horaire, 6.5s, décalé 180° */}
+              <g>
+                <animateTransform
+                  attributeName="transform"
+                  type="rotate"
+                  from="180 38 38"
+                  to="-180 38 38"
+                  dur="6.5s"
+                  repeatCount="indefinite"
+                />
+                <path
+                  d="M 5 38 Q 21.5 18 38 38 Q 54.5 58 71 38"
+                  stroke="#F59E0B"
+                  strokeWidth="1.2"
+                  strokeLinecap="round"
+                  opacity="0.5"
+                />
+                <circle cx="71" cy="38" r="2" fill="#F59E0B" filter="url(#ariane-fab-glow)" />
+              </g>
+            </svg>
+            {/* Bouton */}
+            <button
+              type="button"
+              onClick={() => setFilArianePanelOpen(true)}
+              className="relative h-14 w-14 rounded-full bg-background/95 backdrop-blur-xl border border-amber-500/40 shadow-[0_4px_24px_hsl(38_92%_50%/0.25)] flex items-center justify-center transition-[transform,box-shadow,border-color] duration-200 hover:scale-110 hover:border-amber-500/70 hover:shadow-[0_6px_32px_hsl(38_92%_50%/0.45)] active:scale-95"
+              aria-label={`Fil d'Ariane — ${allAlerts.length} point${allAlerts.length > 1 ? "s" : ""} d'attention`}
+            >
+              <ArianeOrbitIcon size={26} />
+              <span className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-bold text-white tabular-nums ring-2 ring-background">
+                {allAlerts.length > 99 ? "99+" : allAlerts.length}
+              </span>
+            </button>
+          </div>
         </div>
       )}
 

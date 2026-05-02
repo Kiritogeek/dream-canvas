@@ -73,15 +73,18 @@ export function ArianeContinuityPanel({
 
   return (
     <>
-      <SheetHeader className="space-y-2 pb-2 border-b border-border/60">
+      <SheetHeader className="space-y-2 pb-3 border-b border-border/60">
         <div className="flex items-start gap-3">
           <ArianeThreadIcon size={36} pulse={alerts.length > 0} className="mt-0.5 shrink-0" />
-          <div className="min-w-0">
+          <div className="min-w-0 space-y-0.5">
+            <p className="text-left text-xs font-semibold uppercase tracking-widest bg-gradient-to-r from-amber-400 to-yellow-300 bg-clip-text text-transparent">
+              Fil d'Ariane
+            </p>
             <SheetTitle className="text-left font-display text-lg">
               Points d'attention
             </SheetTitle>
-            <SheetDescription className="text-left text-xs sm:text-sm mt-1">
-              {ARIANE_DISPLAY_NAME} — Le fil d'Ariane repère les écarts dans la continuité de votre récit.
+            <SheetDescription className="text-left text-xs sm:text-sm">
+              {ARIANE_DISPLAY_NAME} repère les écarts dans la continuité de votre récit.
             </SheetDescription>
           </div>
         </div>

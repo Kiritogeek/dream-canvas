@@ -1,5 +1,4 @@
 import { useState, useCallback } from "react";
-import { useQueryClient } from "@tanstack/react-query";
 import { Globe, Users, MapPin, Box, Save, Loader2, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -7,7 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useUpdateProject } from "@/hooks/useProjects";
 import { useUpdateAsset } from "@/hooks/useAssets";
 import { useScenarioChapters } from "@/hooks/useScenarioChapters";
-import { triggerNarraMindUpdate } from "@/services/scenarioAI";
+import { useNarraMindDebounce } from "@/hooks/useNarraMindDebounce";
 import type { Project, Asset } from "@/types";
 
 interface Props {
@@ -117,39 +116,34 @@ function AssetLoreCard({ asset, onLoreSaved }: { asset: Asset; onLoreSaved?: () 
 }
 
 export function UniverseSection({ project, assets }: Props) {
-  const queryClient = useQueryClient();
   const { toast } = useToast();
   const updateProject = useUpdateProject();
   const { data: scenarioChapters = [] } = useScenarioChapters(project.id);
+  const { schedule: scheduleNarraMind } = useNarraMindDebounce();
   const [activeTab, setActiveTab] = useState<UniverseTab>("monde");
   const [universeLore, setUniverseLore] = useState(project.universe_lore ?? "");
   const [savingLore, setSavingLore] = useState(false);
 
   const isLoreDirty = universeLore !== (project.universe_lore ?? "");
 
-  const triggerNarraMindOnLatestChapter = useCallback(() => {
+  const scheduleNarraMindOnLatestChapter = useCallback(() => {
     const latest = [...scenarioChapters].sort((a, b) => b.chapter_number - a.chapter_number)[0];
     if (!latest) return;
-    void triggerNarraMindUpdate(project.id, latest.id)
-      .then(() => {
-        void queryClient.invalidateQueries({ queryKey: ["scenario-chapter", latest.id] });
-        void queryClient.invalidateQueries({ queryKey: ["scenario-chapters", project.id] });
-      })
-      .catch(() => {});
-  }, [project.id, scenarioChapters, queryClient]);
+    scheduleNarraMind(project.id, latest.id);
+  }, [project.id, scenarioChapters, scheduleNarraMind]);
 
   const handleSaveLore = useCallback(async () => {
     setSavingLore(true);
     try {
       await updateProject.mutateAsync({ id: project.id, updates: { universe_lore: universeLore } });
       toast({ title: "Lore du monde sauvegardé" });
-      triggerNarraMindOnLatestChapter();
+      scheduleNarraMindOnLatestChapter();
     } catch {
       toast({ title: "Erreur", description: "Impossible de sauvegarder.", variant: "destructive" });
     } finally {
       setSavingLore(false);
     }
-  }, [project.id, universeLore, updateProject, toast, triggerNarraMindOnLatestChapter]);
+  }, [project.id, universeLore, updateProject, toast, scheduleNarraMindOnLatestChapter]);
 
   const currentTab = TABS.find((t) => t.id === activeTab)!;
   const filteredAssets = currentTab.assetType
@@ -236,7 +230,7 @@ export function UniverseSection({ project, assets }: Props) {
                 {filteredAssets.length} {currentTab.label.toLowerCase()} — cliquez pour éditer le LORE
               </p>
               {filteredAssets.map((asset) => (
-                <AssetLoreCard key={asset.id} asset={asset} onLoreSaved={triggerNarraMindOnLatestChapter} />
+                <AssetLoreCard key={asset.id} asset={asset} onLoreSaved={scheduleNarraMindOnLatestChapter} />
               ))}
             </>
           )}

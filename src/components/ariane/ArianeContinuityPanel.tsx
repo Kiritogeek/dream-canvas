@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 import type { NarrativeAlertSeverity, NarraMindAlertView } from "@/types";
 import { AlertTriangle, Check, Eye, Loader2, X } from "lucide-react";
 import { ARIANE_DISPLAY_NAME } from "@/constants/ariane";
-import { ArianeGlyph } from "./ArianeGlyph";
+import { ArianeThreadIcon } from "./ArianeThreadIcon";
 
 const SEVERITY_LABEL: Record<NarrativeAlertSeverity, string> = {
   info: "Info",
@@ -22,7 +22,7 @@ const SEVERITY_LABEL: Record<NarrativeAlertSeverity, string> = {
 };
 
 const SEVERITY_BADGE: Record<NarrativeAlertSeverity, string> = {
-  info: "bg-muted text-muted-foreground border-border",
+  info: "bg-amber-500/15 text-amber-800 dark:text-amber-200 border-amber-500/35",
   warning: "bg-amber-500/15 text-amber-800 dark:text-amber-200 border-amber-500/35",
   critical: "bg-destructive/15 text-destructive border-destructive/35",
 };
@@ -31,22 +31,30 @@ type FilterSeverity = "all" | NarrativeAlertSeverity;
 
 type ArianeContinuityPanelProps = {
   projectId: string;
-  chapterId: string;
-  chapterContent: string;
-  textareaRef: React.RefObject<HTMLTextAreaElement | null>;
-  scrollContainerRef: React.RefObject<HTMLElement | null>;
+  chapters?: Array<{ id: string; chapter_number: number; title: string | null }>;
+  onNavigateToChapter?: (chapterId: string) => void;
+  chapterId?: string;
+  chapterContent?: string;
+  textareaRef?: React.RefObject<HTMLTextAreaElement | null>;
+  scrollContainerRef?: React.RefObject<HTMLElement | null>;
 };
 
 export function ArianeContinuityPanel({
   projectId,
+  chapters,
+  onNavigateToChapter,
   chapterId,
   chapterContent,
   textareaRef,
   scrollContainerRef,
 }: ArianeContinuityPanelProps) {
+  const isScoped = !!chapterId;
+
   const { data: alerts = [], isLoading, isError, refetch } = useNarraMindAlerts(
     projectId,
-    { chapterId, statuses: ["active"] }
+    isScoped
+      ? { chapterId, statuses: ["active"] }
+      : { statuses: ["active"] }
   );
   const setStatus = useSetNarraMindAlertStatus();
   const [filter, setFilter] = useState<FilterSeverity>("all");
@@ -67,14 +75,13 @@ export function ArianeContinuityPanel({
     <>
       <SheetHeader className="space-y-2 pb-2 border-b border-border/60">
         <div className="flex items-start gap-3">
-          <ArianeGlyph className="h-9 w-9 shrink-0" pulse={alerts.length > 0} />
+          <ArianeThreadIcon size={36} pulse={alerts.length > 0} className="mt-0.5 shrink-0" />
           <div className="min-w-0">
             <SheetTitle className="text-left font-display text-lg">
-              Points d’attention
+              Points d'attention
             </SheetTitle>
             <SheetDescription className="text-left text-xs sm:text-sm mt-1">
-              {ARIANE_DISPLAY_NAME} relève les écarts possibles avec le fil de votre récit.
-              Les libellés sont rédigés en langage auteur, sans jargon technique.
+              {ARIANE_DISPLAY_NAME} — Le fil d'Ariane repère les écarts dans la continuité de votre récit.
             </SheetDescription>
           </div>
         </div>
@@ -136,7 +143,7 @@ export function ArianeContinuityPanel({
         {!isLoading && !isError && filtered.length === 0 && (
           <p className="text-sm text-muted-foreground py-6 text-center px-2">
             {alerts.length === 0
-              ? "Aucun point d’attention sur ce chapitre pour l’instant. Vous pouvez continuer à écrire — une vérification se fait en arrière-plan après sauvegarde."
+              ? "Aucun point d'attention pour l'instant. Continuez à écrire — une vérification se fait en arrière-plan après sauvegarde."
               : "Aucune alerte ne correspond à ce filtre."}
           </p>
         )}
@@ -149,22 +156,38 @@ export function ArianeContinuityPanel({
                   key={a.id}
                   alert={a}
                   disabled={setStatus.isPending}
-                  onRelire={() => {
-                    const ok = scrollChapterEditorToExcerpt(
-                      textareaRef.current,
-                      scrollContainerRef.current,
-                      chapterContent,
-                      a.anchor?.type === "excerpt" ? a.anchor.text : a.title
-                    );
-                    if (!ok && a.anchor?.type === "excerpt") {
-                      scrollChapterEditorToExcerpt(
-                        textareaRef.current,
-                        scrollContainerRef.current,
-                        chapterContent,
-                        a.explanation
-                      );
-                    }
-                  }}
+                  chapterLabel={
+                    !isScoped && chapters
+                      ? (() => {
+                          const ch = chapters.find((c) => c.id === a.chapterId);
+                          return ch
+                            ? `Chapitre ${ch.chapter_number}${ch.title ? ` — ${ch.title}` : ""}`
+                            : undefined;
+                        })()
+                      : undefined
+                  }
+                  onRelire={
+                    isScoped
+                      ? () => {
+                          const ok = scrollChapterEditorToExcerpt(
+                            textareaRef?.current ?? null,
+                            scrollContainerRef?.current ?? null,
+                            chapterContent ?? "",
+                            a.anchor?.type === "excerpt" ? a.anchor.text : a.title
+                          );
+                          if (!ok && a.anchor?.type === "excerpt") {
+                            scrollChapterEditorToExcerpt(
+                              textareaRef?.current ?? null,
+                              scrollContainerRef?.current ?? null,
+                              chapterContent ?? "",
+                              a.explanation
+                            );
+                          }
+                        }
+                      : onNavigateToChapter
+                        ? () => onNavigateToChapter(a.chapterId)
+                        : null
+                  }
                   onResolu={() =>
                     setStatus.mutate({ rowId: a.id, status: "resolved" })
                   }
@@ -184,20 +207,22 @@ export function ArianeContinuityPanel({
 function ContinuityAlertCard({
   alert,
   disabled,
+  chapterLabel,
   onRelire,
   onResolu,
   onIgnorer,
 }: {
   alert: NarraMindAlertView;
   disabled: boolean;
-  onRelire: () => void;
+  chapterLabel?: string;
+  onRelire: (() => void) | null;
   onResolu: () => void;
   onIgnorer: () => void;
 }) {
   const sev = alert.severity ?? "warning";
   return (
     <li>
-      <div className="rounded-xl border border-border/80 bg-background/60 p-3 space-y-2 shadow-sm">
+      <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 dark:bg-amber-500/8 dark:border-amber-500/25 p-3 space-y-2 shadow-sm">
         <div className="flex flex-wrap items-center gap-2">
           <span
             className={cn(
@@ -207,6 +232,11 @@ function ContinuityAlertCard({
           >
             {SEVERITY_LABEL[sev]}
           </span>
+          {chapterLabel && (
+            <span className="text-[10px] text-muted-foreground font-medium">
+              {chapterLabel}
+            </span>
+          )}
         </div>
         <h3 className="font-medium text-sm leading-snug">{alert.title}</h3>
         {alert.explanation ? (
@@ -220,7 +250,8 @@ function ContinuityAlertCard({
             size="sm"
             variant="outline"
             className="h-8 text-xs gap-1"
-            onClick={onRelire}
+            onClick={onRelire ?? undefined}
+            disabled={onRelire === null}
             aria-label={`À relire dans le texte : ${alert.title}`}
           >
             <Eye className="h-3.5 w-3.5" aria-hidden />

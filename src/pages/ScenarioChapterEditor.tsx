@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { useQueryClient } from "@tanstack/react-query";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
@@ -35,7 +34,8 @@ import { useAssets } from "@/hooks/useAssets";
 import { useScenarioAI } from "@/hooks/useScenarioAI";
 import { useUserPlan } from "@/hooks/useUserPlan";
 import { planDisplayName } from "@/types";
-import { callDetectBlocks, callGenerateAiSummary, triggerNarraMindUpdate } from "@/services/scenarioAI";
+import { callDetectBlocks, callGenerateAiSummary } from "@/services/scenarioAI";
+import { useNarraMindDebounce } from "@/hooks/useNarraMindDebounce";
 import { estimatePanelCount } from "@/services/panels";
 import { ScenarioTextHighlighter } from "@/components/project/ScenarioTextHighlighter";
 import { useToast } from "@/hooks/use-toast";
@@ -45,7 +45,6 @@ import type { LockedBlock, DetectedBlock, AssetType } from "@/types";
 
 /** NarraMind : auto-save uniquement, pas d’appel manuel — garde-fous tokens. */
 const NARRAMIND_AUTOSAVE_MIN_WORDS = 80;
-const NARRAMIND_AUTOSAVE_MIN_INTERVAL_MS = 12 * 60 * 1000;
 
 const EDITOR_FONT_STYLE: React.CSSProperties = {
   fontFamily: "inherit",
@@ -245,7 +244,6 @@ export default function ScenarioChapterEditor() {
   }>();
   const { toast } = useToast();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
 
   // Data
   const { data: chapter, isLoading: isLoadingChapter } =
@@ -268,6 +266,7 @@ export default function ScenarioChapterEditor() {
   const chapterAI = useScenarioAI();
   const { plan } = useUserPlan();
   const isPro = plan === "pro";
+  const { schedule: scheduleNarraMind } = useNarraMindDebounce();
 
   // Local state — content / title
   const [content, setContent] = useState("");
@@ -333,7 +332,6 @@ export default function ScenarioChapterEditor() {
   const initialSyncDoneRef = useRef(false);
   // Throttle ai_summary : max 1 appel Groq toutes les 2 min pour économiser le budget TPM
   const lastAiSummaryCallRef = useRef<number>(0);
-  const lastNarraMindCallRef = useRef<number>(0);
 
   useEffect(() => {
     progressiveRedirectRef.current = false;
@@ -487,17 +485,8 @@ export default function ScenarioChapterEditor() {
                 chapter_number: chapter.chapter_number,
               }).catch(() => {});
             }
-            if (
-              words >= NARRAMIND_AUTOSAVE_MIN_WORDS &&
-              now - lastNarraMindCallRef.current > NARRAMIND_AUTOSAVE_MIN_INTERVAL_MS
-            ) {
-              lastNarraMindCallRef.current = now;
-              void triggerNarraMindUpdate(projectId!, chapter.id)
-                .then(() => {
-                  void queryClient.invalidateQueries({ queryKey: ["scenario-chapter", chapter.id] });
-                  void queryClient.invalidateQueries({ queryKey: ["scenario-chapters", projectId!] });
-                })
-                .catch(() => {});
+            if (words >= NARRAMIND_AUTOSAVE_MIN_WORDS) {
+              scheduleNarraMind(projectId!, chapter.id);
             }
           },
           onError: () => setSaveState("dirty"),

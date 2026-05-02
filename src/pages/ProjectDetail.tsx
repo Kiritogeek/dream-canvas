@@ -3,17 +3,26 @@ import { useParams, useSearchParams, Link } from "react-router-dom";
 import { Palette, Image as ImageIcon, BookOpen, Globe, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { useProject } from "@/hooks/useProjects";
 import { useAssets } from "@/hooks/useAssets";
 import { useAssetGeneration } from "@/hooks/useAssetGeneration";
 import { useUserPlan } from "@/hooks/useUserPlan";
+import { useNarraMindAlerts } from "@/hooks/useNarramindAlerts";
+import { useScenarioChapters } from "@/hooks/useScenarioChapters";
 import DashboardLayout from "@/components/DashboardLayout";
 import { AssetLibrary } from "@/components/project/AssetLibrary";
 import { StyleManager } from "@/components/project/StyleManager";
 import { ScenarioSection } from "@/components/project/ScenarioSection";
 import { UniverseSection } from "@/components/project/UniverseSection";
 import { EditionSection } from "@/components/project/EditionSection";
-import { ArianeStyleOnboardingCard, ArianeJourneyCompleteCard, ArianeTabTourOverlay } from "@/components/ariane";
+import {
+  ArianeStyleOnboardingCard,
+  ArianeJourneyCompleteCard,
+  ArianeTabTourOverlay,
+  ArianeThreadIcon,
+  ArianeContinuityPanel,
+} from "@/components/ariane";
 import {
   ARIANE_ONBOARDING_ADMIN_EMAIL,
   ARIANE_PROGRESSIVE_SIDEBAR_BUMP_EVENT,
@@ -55,6 +64,10 @@ export default function ProjectDetail() {
 
   const [styleDraft, setStyleDraft] = useState<string | undefined>(undefined);
   const [journeyCompleteOpen, setJourneyCompleteOpen] = useState(false);
+  const [filArianePanelOpen, setFilArianePanelOpen] = useState(false);
+
+  const { data: allAlerts = [] } = useNarraMindAlerts(id, { statuses: ["active"] });
+  const { data: scenarioChapters = [] } = useScenarioChapters(id);
 
   useEffect(() => {
     setStyleDraft(undefined);
@@ -276,6 +289,14 @@ export default function ProjectDetail() {
     [setSearchParams, isResolved, appliesProgressiveFlow, accessible]
   );
 
+  const handleNavigateToChapter = useCallback(
+    (chapterId: string) => {
+      setFilArianePanelOpen(false);
+      setSearchParams({ tab: "scenario", focusChapter: chapterId });
+    },
+    [setSearchParams]
+  );
+
   const loading = loadingProject || loadingAssets;
 
   if (loading) {
@@ -324,17 +345,38 @@ export default function ProjectDetail() {
             {currentHeader.title}
           </h1>
         </div>
-        {canShowAdminTriggerOnboardingButton ? (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="border-[hsl(var(--lavender)/0.35)] bg-background/50 text-xs shrink-0"
-            onClick={handleAdminTriggerOnboarding}
-          >
-            Déclencher l&apos;onboarding
-          </Button>
-        ) : null}
+        <div className="flex items-center gap-2 shrink-0">
+          {id && (
+            <button
+              type="button"
+              onClick={() => setFilArianePanelOpen(true)}
+              className="relative flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-medium
+                         bg-amber-500/10 border border-amber-500/25 text-amber-700 dark:text-amber-300
+                         hover:bg-amber-500/15 hover:border-amber-500/35 transition-colors duration-150
+                         shrink-0"
+              aria-label={`Le fil d'Ariane — ${allAlerts.length} point${allAlerts.length > 1 ? "s" : ""} d'attention`}
+            >
+              <ArianeThreadIcon size={18} pulse={allAlerts.length > 0} />
+              <span className="hidden sm:inline">Fil d'Ariane</span>
+              {allAlerts.length > 0 && (
+                <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-bold text-white tabular-nums">
+                  {allAlerts.length > 99 ? "99+" : allAlerts.length}
+                </span>
+              )}
+            </button>
+          )}
+          {canShowAdminTriggerOnboardingButton ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="border-[hsl(var(--lavender)/0.35)] bg-background/50 text-xs shrink-0"
+              onClick={handleAdminTriggerOnboarding}
+            >
+              Déclencher l&apos;onboarding
+            </Button>
+          ) : null}
+        </div>
       </div>
       <Tabs
         value={activeTab}
@@ -401,6 +443,21 @@ export default function ProjectDetail() {
           onComplete={handleProgressiveTabTourComplete}
         />
       ) : null}
+      <Sheet open={filArianePanelOpen} onOpenChange={setFilArianePanelOpen}>
+        <SheetContent side="right" className="w-full sm:max-w-md flex flex-col gap-0 p-4 sm:p-6 overflow-hidden">
+          {id && (
+            <ArianeContinuityPanel
+              projectId={id}
+              chapters={scenarioChapters.map((c) => ({
+                id: c.id,
+                chapter_number: c.chapter_number,
+                title: c.title,
+              }))}
+              onNavigateToChapter={handleNavigateToChapter}
+            />
+          )}
+        </SheetContent>
+      </Sheet>
     </DashboardLayout>
   );
 }

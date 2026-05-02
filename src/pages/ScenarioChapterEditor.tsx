@@ -405,7 +405,7 @@ export default function ScenarioChapterEditor() {
         setDetectedBlocks(detected);
         setLockedBlocks(locked);
         setDetectedAtContent(chapter.content ?? "");
-        setViewMode("visuels");
+        setViewMode("edit");
       } else {
         setDetectedBlocks([]);
         setLockedBlocks([]);

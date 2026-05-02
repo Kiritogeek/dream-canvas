@@ -439,7 +439,7 @@ export default function ProjectDetail() {
       {id && allAlerts.length > 0 && (
         <div className="fixed bottom-6 right-6 z-40">
           <div className="relative">
-            {/* Fils qui orbitent autour du bouton (SVG dépasse le bouton de 10px de chaque côté) */}
+            {/* Fils ondulants qui orbitent autour du bouton — amplitude ±14px, radius 34px */}
             <svg
               width="76"
               height="76"
@@ -449,6 +449,18 @@ export default function ProjectDetail() {
               aria-hidden
             >
               <defs>
+                <style>{`
+                  @keyframes ariane-fab-w1 {
+                    0%,100% { d: path("M 4 38 C 17 24 24 24 38 38 C 52 52 59 52 72 38"); }
+                    50%     { d: path("M 4 38 C 17 52 24 52 38 38 C 52 24 59 24 72 38"); }
+                  }
+                  @keyframes ariane-fab-w2 {
+                    0%,100% { d: path("M 5 38 C 18 52 25 52 38 38 C 51 24 58 24 71 38"); }
+                    50%     { d: path("M 5 38 C 18 24 25 24 38 38 C 51 52 58 52 71 38"); }
+                  }
+                  .ariane-fab-p1 { animation: ariane-fab-w1 2s ease-in-out infinite; }
+                  .ariane-fab-p2 { animation: ariane-fab-w2 2.8s ease-in-out infinite; }
+                `}</style>
                 <filter id="ariane-fab-glow" x="-80%" y="-80%" width="260%" height="260%">
                   <feGaussianBlur stdDeviation="1.8" result="blur" />
                   <feMerge>
@@ -457,43 +469,47 @@ export default function ProjectDetail() {
                   </feMerge>
                 </filter>
               </defs>
-              {/* Fil 1 — sens horaire, 4s */}
+              {/* Fil 1 — sens horaire 4.5s, vague 2s */}
               <g>
                 <animateTransform
                   attributeName="transform"
                   type="rotate"
                   from="0 38 38"
                   to="360 38 38"
-                  dur="4s"
+                  dur="4.5s"
                   repeatCount="indefinite"
                 />
                 <path
-                  d="M 4 38 Q 21 16 38 38 Q 55 60 72 38"
+                  className="ariane-fab-p1"
+                  d="M 4 38 C 17 24 24 24 38 38 C 52 52 59 52 72 38"
                   stroke="#FCD34D"
-                  strokeWidth="1.5"
+                  strokeWidth="1.6"
                   strokeLinecap="round"
-                  opacity="0.65"
+                  fill="none"
+                  opacity="0.7"
                 />
-                <circle cx="72" cy="38" r="2.5" fill="#FCD34D" filter="url(#ariane-fab-glow)" />
+                <circle cx="72" cy="38" r="2.8" fill="#FCD34D" filter="url(#ariane-fab-glow)" />
               </g>
-              {/* Fil 2 — anti-horaire, 6.5s, décalé 180° */}
+              {/* Fil 2 — anti-horaire 7s, vague inversée 2.8s, décalé 180° */}
               <g>
                 <animateTransform
                   attributeName="transform"
                   type="rotate"
                   from="180 38 38"
                   to="-180 38 38"
-                  dur="6.5s"
+                  dur="7s"
                   repeatCount="indefinite"
                 />
                 <path
-                  d="M 5 38 Q 21.5 18 38 38 Q 54.5 58 71 38"
+                  className="ariane-fab-p2"
+                  d="M 5 38 C 18 52 25 52 38 38 C 51 24 58 24 71 38"
                   stroke="#F59E0B"
                   strokeWidth="1.2"
                   strokeLinecap="round"
+                  fill="none"
                   opacity="0.5"
                 />
-                <circle cx="71" cy="38" r="2" fill="#F59E0B" filter="url(#ariane-fab-glow)" />
+                <circle cx="71" cy="38" r="2.2" fill="#F59E0B" filter="url(#ariane-fab-glow)" />
               </g>
             </svg>
             {/* Bouton */}

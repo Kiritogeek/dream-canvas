@@ -345,38 +345,17 @@ export default function ProjectDetail() {
             {currentHeader.title}
           </h1>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          {id && (
-            <button
-              type="button"
-              onClick={() => setFilArianePanelOpen(true)}
-              className="relative flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-medium
-                         bg-amber-500/10 border border-amber-500/25 text-amber-700 dark:text-amber-300
-                         hover:bg-amber-500/15 hover:border-amber-500/35 transition-colors duration-150
-                         shrink-0"
-              aria-label={`Le fil d'Ariane — ${allAlerts.length} point${allAlerts.length > 1 ? "s" : ""} d'attention`}
-            >
-              <ArianeThreadIcon size={18} pulse={allAlerts.length > 0} />
-              <span className="hidden sm:inline">Fil d'Ariane</span>
-              {allAlerts.length > 0 && (
-                <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-bold text-white tabular-nums">
-                  {allAlerts.length > 99 ? "99+" : allAlerts.length}
-                </span>
-              )}
-            </button>
-          )}
-          {canShowAdminTriggerOnboardingButton ? (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="border-[hsl(var(--lavender)/0.35)] bg-background/50 text-xs shrink-0"
-              onClick={handleAdminTriggerOnboarding}
-            >
-              Déclencher l&apos;onboarding
-            </Button>
-          ) : null}
-        </div>
+        {canShowAdminTriggerOnboardingButton ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="border-[hsl(var(--lavender)/0.35)] bg-background/50 text-xs shrink-0"
+            onClick={handleAdminTriggerOnboarding}
+          >
+            Déclencher l&apos;onboarding
+          </Button>
+        ) : null}
       </div>
       <Tabs
         value={activeTab}
@@ -443,8 +422,26 @@ export default function ProjectDetail() {
           onComplete={handleProgressiveTabTourComplete}
         />
       ) : null}
+      {/* FAB fil d'Ariane — bas-droite, visible uniquement si alertes actives et hors onglets Scénario/Édition */}
+      {id && allAlerts.length > 0 && activeTab !== "scenario" && activeTab !== "edition" && (
+        <div className="fixed bottom-6 right-6 z-40">
+          <button
+            type="button"
+            onClick={() => setFilArianePanelOpen(true)}
+            className="flex items-center gap-2 pl-3.5 pr-4 h-10 rounded-full bg-background/95 backdrop-blur-xl border border-amber-500/40 hover:border-amber-500/70 shadow-md text-sm font-medium text-amber-700 dark:text-amber-300 transition-[box-shadow,border-color,transform] duration-200 hover:shadow-[0_0_16px_hsl(38_92%_50%/0.35)] hover:scale-[1.03]"
+            aria-label={`Fil d'Ariane — ${allAlerts.length} point${allAlerts.length > 1 ? "s" : ""} d'attention`}
+          >
+            <ArianeThreadIcon size={18} pulse />
+            <span>Fil d'Ariane</span>
+            <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-bold text-white tabular-nums">
+              {allAlerts.length > 99 ? "99+" : allAlerts.length}
+            </span>
+          </button>
+        </div>
+      )}
+
       <Sheet open={filArianePanelOpen} onOpenChange={setFilArianePanelOpen}>
-        <SheetContent side="right" className="w-full sm:max-w-md flex flex-col gap-0 p-4 sm:p-6 overflow-hidden">
+        <SheetContent side="right" className="w-full sm:max-w-lg flex flex-col gap-0 p-4 sm:p-6 overflow-hidden">
           {id && (
             <ArianeContinuityPanel
               projectId={id}

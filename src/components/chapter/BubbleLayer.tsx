@@ -8,6 +8,7 @@ import type { ResizingState } from "@/hooks/useResizeBlock";
 import { SpeechBubbleShape, SPEECH_BUBBLE_VIEWBOX_WITH_TAIL, SPEECH_BUBBLE_VIEWBOX_NARRATION } from "./SpeechBubbleShape";
 import { SPEECH_TEXT_BODY_BOUNDS } from "./speechBubbleTextAreaLayout";
 import { getTailHitPath, TAIL_ELLIPSE as BUBBLE_TAIL_ELLIPSE, buildUnifiedTailPath, buildTailOnlyPath, buildBodyArcPath } from "./speechBubbleTail";
+import { sanitizeBubbleHtml } from "@/lib/bubbleHtmlSanitize";
 
 // Types qui ont une queue draggable via handle
 const DRAGGABLE_TAIL_TYPES = new Set(["speech", "whisper", "cloud", "wavy", "sadness", "anger", "shout", "thought"]);
@@ -58,27 +59,6 @@ interface BubbleLayerProps {
 }
 
 type BubbleResizingState = ResizingState & { bubbleId: string };
-
-
-// Whitelist HTML : on ne garde que les balises de formatage propres.
-// Tout le reste (<font>, <span>, <div>, attributs, styles inline, classes…) est strippé.
-// Cause directe du bug de doublon historique : execCommand("foreColor") injectait
-// `<font color="...">` qui s'accumulait dans bubble.text au fil des saves.
-const ALLOWED_TAGS = new Set(["b", "strong", "i", "em", "u", "s", "strike", "del", "br"]);
-
-function sanitizeBubbleHtml(html: string): string {
-  if (!html) return "";
-  let out = html.replace(/<\/(p|div|li|h[1-6])>/gi, "<br>");
-  out = out.replace(/<(p|div|li|h[1-6])\b[^>]*>/gi, "");
-  out = out.replace(/<(\/?)([a-zA-Z][a-zA-Z0-9]*)[^>]*>/g, (_match, slash, tag: string) => {
-    const tagLower = tag.toLowerCase();
-    return ALLOWED_TAGS.has(tagLower) ? `<${slash}${tagLower}>` : "";
-  });
-  out = out.replace(/<br\s*\/?>/gi, "<br>");
-  out = out.replace(/(<br>\s*){3,}/gi, "<br><br>");
-  out = out.replace(/(<br>\s*)+$/i, "");
-  return out.trim();
-}
 
 export function BubbleLayer({
   panel,

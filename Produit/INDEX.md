@@ -26,6 +26,7 @@
 | # | Document | Description |
 |---|----------|-------------|
 | **UX** | [**UX**](./UX.md) | Parcours utilisateur, écran par écran |
+| **BM** | [**Benchmark**](./Benchmark.md) | Grilles pondérées (création / publication), références Clip Studio · WEBTOON CANVAS · Tapas · IA vertical, sources web |
 | 04 | [User Stories](./04_User_Stories_Parcours.md) | Epics, stories, RICE |
 | 07 | [Roadmap](./07_Roadmap_Produit.md) | Phases 2026 |
 | — | [Plan Scénario](./Plan_Action_Developpement_Scénario.md) | Scénario : réalisé + chantier 1 + **TextHighlighter** (§5) |
@@ -111,6 +112,7 @@ Produit/
 ├── IA-Mesure-et-Scalabilite.md
 ├── Plan_Action_Developpement_Scénario.md
 ├── Guide_Maintenance_Styles.md
+├── Benchmark.md
 └── Archive-Audit-2026-02.md   # Snapshot audit 17/02/2026 (INDEX historique)
 docs/
 ├── feedback/12_Retour_Utilisateur_Jeremy.md
@@ -130,4 +132,4 @@ docs/
 
 ---
 
-*Dernière mise à jour : 30 avril 2026 — parcours premier projet (UX §2.2bis, wiki Obsidian), INDEX liens*
+*Dernière mise à jour : 2 mai 2026 — `Benchmark.md` (concurrentiel & périmètres création/publication)* 

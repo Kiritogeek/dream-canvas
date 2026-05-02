@@ -81,6 +81,7 @@ import { callSuggestBlockPrompt } from "@/services/scenarioAI";
 import { ColorBlockLayer } from "@/components/chapter/ColorBlockLayer";
 import { ImageBlockLayer } from "@/components/chapter/ImageBlockLayer";
 import { BubbleLayer } from "@/components/chapter/BubbleLayer";
+import { PanelExportSpeechBubbles } from "@/components/chapter/PanelExportSpeechBubbles";
 import { EditorRightPanel } from "@/components/chapter/EditorRightPanel";
 import { EditorLeftSidebar, type SidebarTab } from "@/components/chapter/EditorLeftSidebar";
 import type { Json } from "@/integrations/supabase/types";
@@ -105,6 +106,7 @@ import {
   type PanelCanvasSnapshot,
   type PanelCanvasUndoEntry,
 } from "@/lib/panelCanvasUndo";
+import { getSpeechBubbleBottomInPanelPx } from "@/lib/bubbleSvgLayout";
 
 const PANEL_WIDTH = 800;
 
@@ -2062,22 +2064,33 @@ export default function ChapterDetail() {
           {panels.map((panel) => {
             const previewColorBlocks = getPanelColorBlocks(panel);
             const blocks = getPanelBlocks(panel);
+            const exportBubbles = getPanelSpeechBubbles(panel);
+            const exportPanelPxHeight =
+              exportBubbles.length === 0
+                ? getPanelHeight(panel)
+                : Math.max(getPanelHeight(panel), ...exportBubbles.map(getSpeechBubbleBottomInPanelPx));
             return (
               <div key={panel.id} style={{ position: "fixed", left: -9999, top: 0, pointerEvents: "none", zIndex: -1 }}>
                 <div
                   ref={(el) => { exportCanvasRefByPanel.current[panel.id] = el; }}
-                  style={{ width: PANEL_WIDTH, height: getPanelHeight(panel), backgroundColor: "#ffffff", position: "relative", overflow: "hidden" }}
+                  style={{
+                    width: PANEL_WIDTH,
+                    height: exportPanelPxHeight,
+                    backgroundColor: "#ffffff",
+                    position: "relative",
+                    overflow: "visible",
+                  }}
                 >
                   {previewColorBlocks.map((cb) => {
                     const bgStyle = cb.fill.type === "solid"
                       ? { backgroundColor: cb.fill.color }
                       : { background: `linear-gradient(${cb.fill.angle ?? 90}deg, ${cb.fill.from}, ${cb.fill.to})` };
                     return (
-                      <div key={cb.id} style={{ position: "absolute", left: cb.x, top: cb.y, width: cb.width, height: cb.height, zIndex: 0, ...bgStyle }} />
+                      <div key={cb.id} data-export-layer="bg" style={{ position: "absolute", left: cb.x, top: cb.y, width: cb.width, height: cb.height, zIndex: 0, ...bgStyle }} />
                     );
                   })}
                   {blocks.map((block) => (
-                    <div key={block.id} style={{ position: "absolute", left: block.x, top: block.y, width: block.width, height: block.height, zIndex: 10, overflow: "hidden" }}>
+                    <div key={block.id} data-export-layer="bg" style={{ position: "absolute", left: block.x, top: block.y, width: block.width, height: block.height, zIndex: 10, overflow: "hidden" }}>
                       {block.image_url ? (
                         <img
                           src={block.image_url}
@@ -2089,6 +2102,7 @@ export default function ChapterDetail() {
                       ) : null}
                     </div>
                   ))}
+                  <PanelExportSpeechBubbles speechBubbles={getPanelSpeechBubbles(panel)} />
                 </div>
               </div>
             );
@@ -2253,9 +2267,9 @@ export default function ChapterDetail() {
           <div className="space-y-4">
             <div className="rounded-lg bg-muted/40 border border-border p-4 space-y-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Hauteur du canvas</span>
+                <span className="text-muted-foreground">Hauteur totale</span>
                 <span className="font-medium tabular-nums">
-                  {panels[0] ? getPanelHeight(panels[0]).toLocaleString() : "–"} px
+                  {panels.length > 0 ? panels.reduce((sum, p) => sum + getPanelHeight(p), 0).toLocaleString() : "–"} px
                 </span>
               </div>
               <div className="flex justify-between">
@@ -2265,7 +2279,7 @@ export default function ChapterDetail() {
               <div className="flex justify-between text-foreground font-semibold">
                 <span>Panels générés</span>
                 <span className="tabular-nums">
-                  {panels[0] ? Math.ceil(getPanelHeight(panels[0]) / 1280) : "–"}
+                  {panels.length > 0 ? Math.ceil(panels.reduce((sum, p) => sum + getPanelHeight(p), 0) / 1280) : "–"}
                 </span>
               </div>
             </div>
@@ -2277,18 +2291,19 @@ export default function ChapterDetail() {
               className="w-full gradient-primary text-primary-foreground gap-2"
               disabled={exportingChapter}
               onClick={async () => {
-                if (!panels[0] || !project) return;
-                const panelId = panels[0].id;
-                const el = exportCanvasRefByPanel.current[panelId];
-                if (!el) {
-                  toast({ title: "Canvas non disponible", description: "Ouvrez d'abord le panel dans l'éditeur.", variant: "destructive" });
+                if (!project) return;
+                const panelEls = panels
+                  .map((p) => exportCanvasRefByPanel.current[p.id])
+                  .filter((el): el is HTMLDivElement => el != null);
+                if (panelEls.length === 0) {
+                  toast({ title: "Aucun panel disponible", variant: "destructive" });
                   return;
                 }
                 setExportingChapter(true);
                 try {
                   const { exportChapterAsZip } = await import("@/services/exportPanel");
                   await exportChapterAsZip(
-                    el,
+                    panelEls,
                     project.title ?? "Projet",
                     chapter?.chapter_number ?? 1,
                     1280

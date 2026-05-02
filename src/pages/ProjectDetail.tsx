@@ -436,7 +436,7 @@ export default function ProjectDetail() {
         />
       ) : null}
       {/* FAB fil d'Ariane — bas-droite, visible uniquement si alertes actives et hors onglets Scénario/Édition */}
-      {id && allAlerts.length > 0 && activeTab !== "scenario" && activeTab !== "edition" && (
+      {id && allAlerts.length > 0 && (
         <div className="fixed bottom-6 right-6 z-40">
           <button
             type="button"

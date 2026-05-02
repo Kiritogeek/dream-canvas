@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Link, useLocation, useNavigate, useMatch } from "react-router-dom";
 import {
   Sparkles, LayoutDashboard, LogOut, User, Zap, Crown, Menu, X,
-  Palette, Image as ImageIcon, BookOpen, Layers, Plus, Pencil, Globe,
+  Palette, Image as ImageIcon, BookOpen, Layers, Plus, Pencil, Globe, FlaskConical,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +20,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { ArianeOnboardingCard } from "@/components/ariane";
 import { PROJECT_MENU_LABEL } from "@/lib/projectMenuLabels";
+import { ARIANE_ONBOARDING_ADMIN_EMAIL } from "@/constants/ariane";
 
 const navLinks = [
   { to: "/dashboard",         icon: LayoutDashboard, label: "Tableau de bord" },
@@ -45,6 +46,8 @@ function ProjectStepsSection({ projectId, onLinkClick }: { projectId: string; on
       ? "scenario"
       : new URLSearchParams(location.search).get("tab") || "style";
   const { data: project } = useProject(projectId);
+  const { user } = useAuth();
+  const isAdmin = user?.email?.trim().toLowerCase() === ARIANE_ONBOARDING_ADMIN_EMAIL;
   const { isResolved, appliesProgressiveFlow, accessible, showNew } = useProgressiveMenuSidebarState(
     projectId,
     activeTab
@@ -87,14 +90,19 @@ function ProjectStepsSection({ projectId, onLinkClick }: { projectId: string; on
     );
   };
 
+  const baseSteps = isAdmin
+    ? [...projectSteps, { key: "test", label: "Test", icon: FlaskConical } as const]
+    : projectSteps;
+
   const sidebarSteps =
     appliesProgressiveFlow
-      ? projectSteps.filter((step) => {
+      ? baseSteps.filter((step) => {
           if (step.key === "style") return true;
+          if (step.key === "test") return isAdmin;
           if (!isResolved) return false;
           return accessible[step.key as keyof typeof accessible];
         })
-      : projectSteps;
+      : baseSteps;
 
   return (
     <div className="mt-3">

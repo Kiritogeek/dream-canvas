@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import { useParams, useSearchParams, Link } from "react-router-dom";
-import { Palette, Image as ImageIcon, BookOpen, Globe, Layers } from "lucide-react";
+import { Palette, Image as ImageIcon, BookOpen, Globe, Layers, FlaskConical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
@@ -16,6 +16,7 @@ import { StyleManager } from "@/components/project/StyleManager";
 import { ScenarioSection } from "@/components/project/ScenarioSection";
 import { UniverseSection } from "@/components/project/UniverseSection";
 import { EditionSection } from "@/components/project/EditionSection";
+import { TestSection } from "@/components/project/TestSection";
 import {
   ArianeStyleOnboardingCard,
   ArianeJourneyCompleteCard,
@@ -54,13 +55,17 @@ export default function ProjectDetail() {
 
   const [searchParams, setSearchParams] = useSearchParams();
   const rawTab = searchParams.get("tab");
+  const isArianeOnboardingAdmin =
+    user?.email?.trim().toLowerCase() === ARIANE_ONBOARDING_ADMIN_EMAIL;
   const activeTab =
     rawTab === "assets" ||
     rawTab === "scenario" ||
     rawTab === "universe" ||
     rawTab === "edition"
       ? rawTab
-      : "style";
+      : rawTab === "test" && isArianeOnboardingAdmin
+        ? "test"
+        : "style";
 
   const [styleDraft, setStyleDraft] = useState<string | undefined>(undefined);
   const [journeyCompleteOpen, setJourneyCompleteOpen] = useState(false);
@@ -225,9 +230,6 @@ export default function ProjectDetail() {
       stickyTourKey === tabTourKeyStable
   );
 
-  const isArianeOnboardingAdmin =
-    user?.email?.trim().toLowerCase() === ARIANE_ONBOARDING_ADMIN_EMAIL;
-
   const canShowAdminTriggerOnboardingButton =
     isArianeOnboardingAdmin &&
     (activeTab === "style" ||
@@ -330,6 +332,7 @@ export default function ProjectDetail() {
     scenario: { icon: BookOpen, title: "Scénario" },
     universe: { icon: Globe, title: "Univers" },
     edition: { icon: Layers, title: "Édition" },
+    test: { icon: FlaskConical, title: "Test — Fil d'Ariane" },
   } as const;
   const currentHeader = tabHeaders[activeTab as keyof typeof tabHeaders];
   const HeaderIcon = currentHeader.icon;
@@ -360,6 +363,10 @@ export default function ProjectDetail() {
       <Tabs
         value={activeTab}
         onValueChange={(tab) => {
+          if (tab === "test") {
+            if (isArianeOnboardingAdmin) setSearchParams({ tab });
+            return;
+          }
           const t = tab as keyof typeof accessible;
           if (appliesProgressiveFlow && !accessible[t]) return;
           setSearchParams({ tab });
@@ -405,6 +412,12 @@ export default function ProjectDetail() {
         <TabsContent value="edition">
           <EditionSection projectId={project.id} />
         </TabsContent>
+
+        {isArianeOnboardingAdmin && (
+          <TabsContent value="test">
+            <TestSection projectId={project.id} />
+          </TabsContent>
+        )}
       </Tabs>
       <ArianeStyleOnboardingCard
         open={styleOnboardingOpen && activeTab === "style"}

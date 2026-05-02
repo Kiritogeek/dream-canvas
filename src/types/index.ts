@@ -310,3 +310,20 @@ export interface DetectedBlock {
   description: string;
   text_excerpt: string;
 }
+
+// ── Assets manquants détectés par NarraMind ──────────────────────
+export type NarramindMissingAssetSuggestedType = "character" | "background" | "object";
+export type NarramindMissingAssetStatus = "pending" | "dismissed";
+
+export interface NarramindMissingAsset {
+  id: string;
+  projectId: string;
+  chapterId: string;
+  chapterNumber: number;
+  name: string;
+  suggestedType: NarramindMissingAssetSuggestedType | null;
+  mentionCount: number;
+  status: NarramindMissingAssetStatus;
+  createdAt: string;
+  updatedAt: string;
+}

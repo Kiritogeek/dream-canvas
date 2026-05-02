@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
+import { useParams, Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft,
   Pencil,
@@ -36,6 +36,8 @@ import { useNarraMindDebounce } from "@/hooks/useNarraMindDebounce";
 import { estimatePanelCount } from "@/services/panels";
 import { ScenarioTextHighlighter } from "@/components/project/ScenarioTextHighlighter";
 import { useToast } from "@/hooks/use-toast";
+import { scrollChapterEditorToExcerpt } from "@/lib/arianeScroll";
+import { cn } from "@/lib/utils";
 import type { LockedBlock, DetectedBlock, AssetType } from "@/types";
 
 /** NarraMind : auto-save uniquement, pas d’appel manuel — garde-fous tokens. */
@@ -259,6 +261,13 @@ export default function ScenarioChapterEditor() {
   const isPro = plan === "pro";
   const { schedule: scheduleNarraMind } = useNarraMindDebounce();
 
+  // Highlight via ?highlight= param (navigation depuis Fil d'Ariane)
+  const [searchParams] = useSearchParams();
+  const highlightAnchor = searchParams.get("highlight");
+  const [highlightVisible, setHighlightVisible] = useState(false);
+  const [highlightFading, setHighlightFading] = useState(false);
+  const highlightTriggeredRef = useRef(false);
+
   // Local state — content / title
   const [content, setContent] = useState("");
   const [titleDraft, setTitleDraft] = useState("");
@@ -408,6 +417,31 @@ export default function ScenarioChapterEditor() {
     // — sinon l'auto-save overwrite-erait les frappes en cours.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chapter?.id]);
+
+  // Scroll + surbrillance dorée vers un extrait passé via ?highlight= (navigation depuis Fil d'Ariane)
+  useEffect(() => {
+    if (!highlightAnchor || highlightTriggeredRef.current) return;
+    if (!content || !textareaRef.current || !scrollContainerRef.current) return;
+    highlightTriggeredRef.current = true;
+    const timer = setTimeout(() => {
+      scrollChapterEditorToExcerpt(
+        textareaRef.current!,
+        scrollContainerRef.current!,
+        content,
+        highlightAnchor
+      );
+      setHighlightVisible(true);
+      setHighlightFading(false);
+      const fadeTimer = setTimeout(() => setHighlightFading(true), 2400);
+      const hideTimer = setTimeout(() => {
+        setHighlightVisible(false);
+        setHighlightFading(false);
+      }, 3000);
+      return () => { clearTimeout(fadeTimer); clearTimeout(hideTimer); };
+    }, 350);
+    return () => clearTimeout(timer);
+    // WHY: dépend de content pour attendre le chargement initial, ref stable ensuite
+  }, [highlightAnchor, content]);
 
   // ── Préserver la position de scroll lors du toggle Assets ────
   // setTimeout(0) garantit que l'auto-resize a déjà tourné avant de restaurer.
@@ -1047,6 +1081,20 @@ export default function ScenarioChapterEditor() {
             className={`flex-1 ${chapterAIResult ? "overflow-hidden flex flex-col min-h-0" : "overflow-y-auto"}`}
             onScroll={(e) => { if (!isTransitioningRef.current) lastScrollTopRef.current = e.currentTarget.scrollTop; }}
           >
+            {/* Bandeau de surbrillance doré — navigation depuis Fil d'Ariane */}
+            {highlightAnchor && highlightVisible && (
+              <div
+                className={cn(
+                  "sticky top-0 z-10 flex items-center gap-2 px-8 py-2 border-b border-amber-400/30 bg-amber-500/10 text-xs text-amber-700 dark:text-amber-300 transition-opacity duration-500",
+                  highlightFading ? "opacity-0" : "opacity-100"
+                )}
+              >
+                <span className="font-semibold shrink-0">Point d'attention :</span>
+                <span className="italic text-amber-600/80 dark:text-amber-400/80 line-clamp-1">
+                  {highlightAnchor}
+                </span>
+              </div>
+            )}
             {chapterAIResult ? (
               /* Vue deux colonnes — original vs proposition IA */
               <div className="flex gap-0 flex-1 min-h-0 h-full overflow-hidden">

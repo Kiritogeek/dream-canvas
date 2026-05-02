@@ -632,6 +632,87 @@ async function persistNarramindAlerts(
   }
 }
 
+async function persistNarramindMissingAssets(
+  supabaseUrl: string,
+  dbHeaders: Record<string, string>,
+  params: {
+    userId: string;
+    projectId: string;
+    chapterId: string;
+    chapterNumber: number;
+    items: Array<{ name: string; suggestedType: string | null; mentionCount: number }>;
+  }
+): Promise<void> {
+  const { userId, projectId, chapterId, chapterNumber, items } = params;
+  const now = new Date().toISOString();
+
+  // Normalise le nom en clé de déduplication (minuscules, espaces normalisés)
+  const normalizeKey = (n: string) => n.trim().toLowerCase().replace(/\s+/g, " ");
+
+  const newDedupeKeys = items.map((it) => normalizeKey(it.name));
+
+  // Résoudre les items "pending" qui ne sont plus détectés (l'asset a probablement été créé)
+  const baseFilter = `${supabaseUrl}/rest/v1/narramind_missing_assets?chapter_id=eq.${chapterId}&status=eq.pending`;
+  if (newDedupeKeys.length === 0) {
+    const r = await fetch(baseFilter, {
+      method: "PATCH",
+      headers: { ...dbHeaders, Prefer: "return=minimal" },
+      body: JSON.stringify({ status: "resolved", updated_at: now }),
+    });
+    if (!r.ok) console.error("narramind-update: resolve missing assets", await r.text());
+    return;
+  }
+
+  const notIn = `(${newDedupeKeys.join(",")})`;
+  const r1 = await fetch(`${baseFilter}&dedupe_key=not.in.${notIn}`, {
+    method: "PATCH",
+    headers: { ...dbHeaders, Prefer: "return=minimal" },
+    body: JSON.stringify({ status: "resolved", updated_at: now }),
+  });
+  if (!r1.ok) console.error("narramind-update: resolve stale missing assets", await r1.text());
+
+  // Récupérer les items déjà dismissés pour ne pas les ressusciter
+  const dismissedRes = await fetch(
+    `${supabaseUrl}/rest/v1/narramind_missing_assets?chapter_id=eq.${chapterId}&status=eq.dismissed&select=dedupe_key`,
+    { headers: dbHeaders }
+  );
+  const dismissedKeys = new Set<string>(
+    dismissedRes.ok
+      ? ((await dismissedRes.json() as Array<{ dedupe_key: string }>).map((r) => r.dedupe_key))
+      : []
+  );
+
+  // Préparer les rows à upserter (hors dismissed)
+  const rows = items
+    .filter((it) => !dismissedKeys.has(normalizeKey(it.name)))
+    .map((it) => ({
+      user_id: userId,
+      project_id: projectId,
+      chapter_id: chapterId,
+      chapter_number: chapterNumber,
+      name: it.name,
+      suggested_type: it.suggestedType,
+      mention_count: it.mentionCount,
+      status: "pending",
+      dedupe_key: normalizeKey(it.name),
+      updated_at: now,
+    }));
+
+  if (rows.length === 0) return;
+
+  const upsertRes = await fetch(
+    `${supabaseUrl}/rest/v1/narramind_missing_assets?on_conflict=project_id,chapter_id,dedupe_key`,
+    {
+      method: "POST",
+      headers: { ...dbHeaders, Prefer: "resolution=merge-duplicates,return=minimal" },
+      body: JSON.stringify(rows),
+    }
+  );
+  if (!upsertRes.ok) {
+    console.error("narramind-update: upsert missing assets", await upsertRes.text());
+  }
+}
+
 async function verifyUserFromToken(
   authHeader: string,
   supabaseUrl: string,
@@ -839,6 +920,14 @@ TÂCHE : Retourne un JSON avec :
 1. "entities_to_update": liste des fiches entités à créer ou mettre à jour
 2. "chapter_summary": résumé du chapitre en 60-80 tokens maximum
 3. "anomalies": les problèmes de continuité décrits ci-dessous. Préfère un tableau d'objets avec titre et explication ; tu peux utiliser une chaîne courte seulement si une seule phrase suffit. Si aucune anomalie : [].
+4. "missing_assets": parmi les noms propres (personnages nommés, lieux nommés, objets nommés) mentionnés dans ce chapitre, liste uniquement ceux qui N'ont PAS de correspondance (même partielle, insensible à la casse) dans ASSETS DU PROJET ci-dessus. Pour chaque nom : libellé exact, type probable, nombre d'occurrences dans le chapitre courant.
+
+RÈGLES pour "missing_assets" :
+- Inclure SEULEMENT les noms propres spécifiques : noms de personnages, de lieux précis, d'objets nommés
+- Exclure les termes génériques ("le héros", "la ville", "l'épée", pronoms, articles) — seulement les noms propres reconnaissables
+- Ne pas inclure ce qui est déjà dans ASSETS DU PROJET
+- Compter précisément les occurrences dans ce chapitre (formes fléchies comptent)
+- Si aucun asset manquant : []
 
 TYPES D'ANOMALIES À SIGNALER :
 A) CONTRADICTIONS EXPLICITES — Le chapitre affirme X alors que le lore / les résumés antérieurs / le lore des personnages établissent clairement Y.
@@ -890,6 +979,13 @@ Format JSON STRICT :
       "severity": "warning",
       "anchor": { "type": "excerpt", "text": "string" }
     }
+  ],
+  "missing_assets": [
+    {
+      "name": "string",
+      "suggested_type": "character|background|object",
+      "mention_count": 1
+    }
   ]
 }`;
 
@@ -916,6 +1012,7 @@ Format JSON STRICT :
       }>;
       chapter_summary: string;
       anomalies: unknown;
+      missing_assets: unknown;
     };
 
     const buildGeminiBody = (model: string) =>
@@ -1062,6 +1159,30 @@ Format JSON STRICT :
       projectId: project_id,
       chapterId: chapter_id,
       anomalies,
+    });
+
+    const rawMissingAssets = Array.isArray(aiResult.missing_assets) ? aiResult.missing_assets : [];
+    const missingAssets = rawMissingAssets
+      .filter((x): x is { name: string; suggested_type?: string | null; mention_count?: number } =>
+        x != null && typeof x === "object" && typeof (x as Record<string, unknown>).name === "string"
+      )
+      .map((x) => ({
+        name: (x.name as string).trim(),
+        suggestedType: (["character", "background", "object"].includes(x.suggested_type as string)
+          ? x.suggested_type
+          : null) as string | null,
+        mentionCount: typeof x.mention_count === "number" && x.mention_count > 0
+          ? x.mention_count
+          : 1,
+      }))
+      .filter((x) => x.name.length > 0);
+
+    await persistNarramindMissingAssets(supabaseUrl, dbHeaders, {
+      userId,
+      projectId: project_id,
+      chapterId: chapter_id,
+      chapterNumber: chapter.chapter_number,
+      items: missingAssets,
     });
 
     // 6. Upsert des entités

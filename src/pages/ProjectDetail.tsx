@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
-import { useParams, useSearchParams, Link } from "react-router-dom";
+import { useParams, useSearchParams, Link, useNavigate } from "react-router-dom";
 import { Palette, Image as ImageIcon, BookOpen, Globe, Layers, FlaskConical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
@@ -9,6 +9,8 @@ import { useAssets } from "@/hooks/useAssets";
 import { useAssetGeneration } from "@/hooks/useAssetGeneration";
 import { useUserPlan } from "@/hooks/useUserPlan";
 import { useNarraMindAlerts } from "@/hooks/useNarramindAlerts";
+import { useNarramindMissingAssets } from "@/hooks/useNarramindMissingAssets";
+import type { AssetType } from "@/types";
 import { useScenarioChapters } from "@/hooks/useScenarioChapters";
 import DashboardLayout from "@/components/DashboardLayout";
 import { AssetLibrary } from "@/components/project/AssetLibrary";
@@ -47,6 +49,7 @@ const PROGRESSIVE_TOUR_TABS = ["scenario", "assets", "universe", "edition"] as c
 
 export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const { data: project, isLoading: loadingProject } = useProject(id);
   const { data: assets = [], isLoading: loadingAssets } = useAssets(id);
   const { plan: userPlan, usageInfo } = useUserPlan();
@@ -72,10 +75,13 @@ export default function ProjectDetail() {
   const [filArianePanelOpen, setFilArianePanelOpen] = useState(false);
 
   const { data: allAlerts = [] } = useNarraMindAlerts(id, { statuses: ["active"] });
+  const { data: allMissingAssets = [] } = useNarramindMissingAssets(id);
 
   useEffect(() => {
-    if (filArianePanelOpen && allAlerts.length === 0) setFilArianePanelOpen(false);
-  }, [allAlerts.length, filArianePanelOpen]);
+    if (filArianePanelOpen && allAlerts.length === 0 && allMissingAssets.length === 0) {
+      setFilArianePanelOpen(false);
+    }
+  }, [allAlerts.length, allMissingAssets.length, filArianePanelOpen]);
   const { data: scenarioChapters = [] } = useScenarioChapters(id);
 
   useEffect(() => {
@@ -126,7 +132,7 @@ export default function ProjectDetail() {
   });
 
   const [pendingAssetName, setPendingAssetName] = useState("");
-  const [pendingAssetType, setPendingAssetType] = useState<"character" | "background" | "object">("character");
+  const [pendingAssetType, setPendingAssetType] = useState<AssetType | undefined>(undefined);
   const [styleOnboardingOpen, setStyleOnboardingOpen] = useState(false);
   const [stickyTourKey, setStickyTourKey] = useState<string | null>(null);
 
@@ -283,7 +289,7 @@ export default function ProjectDetail() {
   }, [searchParams, setSearchParams]);
 
   const handleNavigateToCreateAsset = useCallback(
-    (name: string, type: "character" | "background" | "object") => {
+    (name: string, type: AssetType) => {
       if (isResolved && appliesProgressiveFlow && !accessible.assets) {
         setSearchParams({ tab: getMaxAccessibleTab(accessible) }, { replace: true });
         return;
@@ -295,12 +301,27 @@ export default function ProjectDetail() {
     [setSearchParams, isResolved, appliesProgressiveFlow, accessible]
   );
 
-  const handleNavigateToChapter = useCallback(
-    (chapterId: string) => {
+  const handleCreateMissingAsset = useCallback(
+    (name: string) => {
+      if (isResolved && appliesProgressiveFlow && !accessible.assets) {
+        setSearchParams({ tab: getMaxAccessibleTab(accessible) }, { replace: true });
+        return;
+      }
       setFilArianePanelOpen(false);
-      setSearchParams({ tab: "scenario", focusChapter: chapterId });
+      setPendingAssetName(name);
+      setPendingAssetType(undefined);
+      setSearchParams({ tab: "assets" });
     },
-    [setSearchParams]
+    [setSearchParams, isResolved, appliesProgressiveFlow, accessible]
+  );
+
+  const handleNavigateToChapter = useCallback(
+    (chapterId: string, anchor?: string) => {
+      setFilArianePanelOpen(false);
+      const search = anchor ? `?highlight=${encodeURIComponent(anchor)}` : "";
+      navigate(`/dashboard/projects/${id}/scenario/${chapterId}${search}`);
+    },
+    [id, navigate]
   );
 
   const loading = loadingProject || loadingAssets;
@@ -440,14 +461,14 @@ export default function ProjectDetail() {
         />
       ) : null}
       {/* FAB fil d'Ariane — fils orbitaux autour du bouton */}
-      {id && allAlerts.length > 0 && (
+      {id && (allAlerts.length > 0 || allMissingAssets.length > 0) && (
         <div className="fixed bottom-6 right-6 z-40">
           <div className="relative">
-            {/* Fils ondulants qui orbitent autour du bouton — amplitude ±14px, radius 34px */}
+            {/* Fils ondulants qui orbitent autour du bouton 64px — SVG 84×84, centre à 42,42 */}
             <svg
-              width="76"
-              height="76"
-              viewBox="0 0 76 76"
+              width="84"
+              height="84"
+              viewBox="0 0 84 84"
               fill="none"
               className="absolute -top-[10px] -left-[10px] pointer-events-none overflow-visible"
               aria-hidden
@@ -455,12 +476,12 @@ export default function ProjectDetail() {
               <defs>
                 <style>{`
                   @keyframes ariane-fab-w1 {
-                    0%,100% { d: path("M 4 38 C 17 24 24 24 38 38 C 52 52 59 52 72 38"); }
-                    50%     { d: path("M 4 38 C 17 52 24 52 38 38 C 52 24 59 24 72 38"); }
+                    0%,100% { d: path("M 8 42 C 21 28 28 28 42 42 C 56 56 63 56 76 42"); }
+                    50%     { d: path("M 8 42 C 21 56 28 56 42 42 C 56 28 63 28 76 42"); }
                   }
                   @keyframes ariane-fab-w2 {
-                    0%,100% { d: path("M 5 38 C 18 52 25 52 38 38 C 51 24 58 24 71 38"); }
-                    50%     { d: path("M 5 38 C 18 24 25 24 38 38 C 51 52 58 52 71 38"); }
+                    0%,100% { d: path("M 9 42 C 22 56 29 56 42 42 C 55 28 62 28 75 42"); }
+                    50%     { d: path("M 9 42 C 22 28 29 28 42 42 C 55 56 62 56 75 42"); }
                   }
                   .ariane-fab-p1 { animation: ariane-fab-w1 2s ease-in-out infinite; }
                   .ariane-fab-p2 { animation: ariane-fab-w2 2.8s ease-in-out infinite; }
@@ -478,54 +499,54 @@ export default function ProjectDetail() {
                 <animateTransform
                   attributeName="transform"
                   type="rotate"
-                  from="0 38 38"
-                  to="360 38 38"
+                  from="0 42 42"
+                  to="360 42 42"
                   dur="4.5s"
                   repeatCount="indefinite"
                 />
                 <path
                   className="ariane-fab-p1"
-                  d="M 4 38 C 17 24 24 24 38 38 C 52 52 59 52 72 38"
+                  d="M 8 42 C 21 28 28 28 42 42 C 56 56 63 56 76 42"
                   stroke="#FCD34D"
                   strokeWidth="1.6"
                   strokeLinecap="round"
                   fill="none"
                   opacity="0.7"
                 />
-                <circle cx="72" cy="38" r="2.8" fill="#FCD34D" filter="url(#ariane-fab-glow)" />
+                <circle cx="76" cy="42" r="2.8" fill="#FCD34D" filter="url(#ariane-fab-glow)" />
               </g>
               {/* Fil 2 — anti-horaire 7s, vague inversée 2.8s, décalé 180° */}
               <g>
                 <animateTransform
                   attributeName="transform"
                   type="rotate"
-                  from="180 38 38"
-                  to="-180 38 38"
+                  from="180 42 42"
+                  to="-180 42 42"
                   dur="7s"
                   repeatCount="indefinite"
                 />
                 <path
                   className="ariane-fab-p2"
-                  d="M 5 38 C 18 52 25 52 38 38 C 51 24 58 24 71 38"
+                  d="M 9 42 C 22 56 29 56 42 42 C 55 28 62 28 75 42"
                   stroke="#F59E0B"
                   strokeWidth="1.2"
                   strokeLinecap="round"
                   fill="none"
                   opacity="0.5"
                 />
-                <circle cx="71" cy="38" r="2.2" fill="#F59E0B" filter="url(#ariane-fab-glow)" />
+                <circle cx="75" cy="42" r="2.2" fill="#F59E0B" filter="url(#ariane-fab-glow)" />
               </g>
             </svg>
-            {/* Bouton */}
+            {/* Bouton 64px */}
             <button
               type="button"
               onClick={() => setFilArianePanelOpen(true)}
-              className="relative h-14 w-14 rounded-full bg-background/95 backdrop-blur-xl border border-amber-500/40 shadow-[0_4px_24px_hsl(38_92%_50%/0.25)] flex items-center justify-center transition-[transform,box-shadow,border-color] duration-200 hover:scale-110 hover:border-amber-500/70 hover:shadow-[0_6px_32px_hsl(38_92%_50%/0.45)] active:scale-95"
-              aria-label={`Fil d'Ariane — ${allAlerts.length} point${allAlerts.length > 1 ? "s" : ""} d'attention`}
+              className="relative h-16 w-16 rounded-full bg-background/95 backdrop-blur-xl border border-amber-500/40 shadow-[0_4px_24px_hsl(38_92%_50%/0.25)] flex items-center justify-center transition-[transform,box-shadow,border-color] duration-200 hover:scale-110 hover:border-amber-500/70 hover:shadow-[0_6px_32px_hsl(38_92%_50%/0.45)] active:scale-95"
+              aria-label={`Fil d'Ariane — ${allAlerts.length + allMissingAssets.length} élément${allAlerts.length + allMissingAssets.length > 1 ? "s" : ""}`}
             >
-              <ArianeOrbitIcon size={26} />
-              <span className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-bold text-white tabular-nums ring-2 ring-background">
-                {allAlerts.length > 99 ? "99+" : allAlerts.length}
+              <ArianeOrbitIcon size={30} />
+              <span className="absolute -top-1 -right-1 flex h-6 min-w-6 items-center justify-center rounded-full bg-amber-500 px-1.5 text-xs font-bold text-white tabular-nums ring-2 ring-background">
+                {allAlerts.length + allMissingAssets.length > 99 ? "99+" : allAlerts.length + allMissingAssets.length}
               </span>
             </button>
           </div>
@@ -543,6 +564,7 @@ export default function ProjectDetail() {
                 title: c.title,
               }))}
               onNavigateToChapter={handleNavigateToChapter}
+              onCreateMissingAsset={handleCreateMissingAsset}
             />
           )}
         </SheetContent>

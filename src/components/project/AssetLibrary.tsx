@@ -95,7 +95,7 @@ export function AssetLibrary({
 
   // Dialog nouvel asset
   const [assetDialogOpen, setAssetDialogOpen] = useState(false);
-  const [newAssetType, setNewAssetType] = useState<AssetType>("character");
+  const [newAssetType, setNewAssetType] = useState<AssetType | null>("character");
   const [newAssetName, setNewAssetName] = useState("");
   const [newAssetPrompt, setNewAssetPrompt] = useState("");
   const [newAssetLore, setNewAssetLore] = useState("");
@@ -106,7 +106,7 @@ export function AssetLibrary({
   useEffect(() => {
     if (pendingAssetName) {
       setNewAssetName(pendingAssetName);
-      setNewAssetType(pendingAssetType || "character");
+      setNewAssetType(pendingAssetType ?? null);
       setNewAssetPrompt("");
       setAssetDialogOpen(true);
       onPendingAssetConsumed?.();
@@ -156,7 +156,7 @@ export function AssetLibrary({
   const hasChanges = nameChanged || promptChanged || loreChanged;
 
   const canCreateAsset =
-    newAssetName.trim().length > 0 && newAssetPrompt.trim().length > 0;
+    !!newAssetType && newAssetName.trim().length > 0 && newAssetPrompt.trim().length > 0;
 
   // Type par défaut dans le dialog : si filtre actif, utiliser ce type
   const defaultNewAssetType: AssetType =
@@ -164,6 +164,7 @@ export function AssetLibrary({
 
   const handleCreateAsset = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!newAssetType) return;
     const nameTrim = newAssetName.trim();
     const promptText = newAssetPrompt.trim() || null;
 
@@ -188,6 +189,7 @@ export function AssetLibrary({
       } as Parameters<typeof createAssetMutation.mutateAsync>[0]);
 
       setAssetDialogOpen(false);
+      setNewAssetType("character");
       setNewAssetName("");
       setNewAssetPrompt("");
       setNewAssetLore("");
@@ -352,7 +354,10 @@ export function AssetLibrary({
             <HelpCircle className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">Qu'est-ce qu'un asset ?</span>
           </Button>
-          <Dialog open={assetDialogOpen} onOpenChange={setAssetDialogOpen}>
+          <Dialog open={assetDialogOpen} onOpenChange={(open) => {
+            if (!open) setNewAssetType("character");
+            setAssetDialogOpen(open);
+          }}>
             <Button
               size="sm"
               type="button"
@@ -371,7 +376,12 @@ export function AssetLibrary({
             </DialogHeader>
             <form onSubmit={handleCreateAsset} className="space-y-4">
               <div className="space-y-2">
-                <Label>Type</Label>
+                <Label>
+                  Type{" "}
+                  {newAssetType === null && (
+                    <span className="text-destructive text-xs font-normal">— choisissez un type</span>
+                  )}
+                </Label>
                 <div className="flex flex-wrap gap-2">
                   {assetTabs.map((t) => (
                     <Button
@@ -437,11 +447,13 @@ export function AssetLibrary({
               >
                 {createAssetMutation.isPending
                   ? "Création..."
-                  : newAssetType === "character"
-                    ? "Créer le personnage"
-                    : newAssetType === "background"
-                      ? "Créer le décor"
-                      : "Créer l'objet"}
+                  : !newAssetType
+                    ? "Choisir un type"
+                    : newAssetType === "character"
+                      ? "Créer le personnage"
+                      : newAssetType === "background"
+                        ? "Créer le décor"
+                        : "Créer l'objet"}
               </Button>
             </form>
           </DialogContent>

@@ -7,10 +7,11 @@
 **Valeur principale** : générer des visuels cohérents en secondes, sans compétences en illustration.
 
 **Tiers** :
-- **Amateur** (`plan` BDD : `free`) : 20 crédits/mois — même modèle FLUX.2 Pro que l’Artiste (logique Spotify : même qualité, quantité différente)
-- **Artiste** (`plan` BDD : `pro`) : 300 crédits/mois, 14,99 €/mois — Scénario IA (Découpage → Cases), priorité traitement
-- 1 crédit = 1 génération (asset, sheet, bloc case — unifié)
-- Multi-vues remplacés par **Sheet System** : fiche composite 4 angles, disponible Amateur **et** Artiste
+- **Libre** (`plan` BDD : `libre`) : 0 €/mois — 20 crédits, 1 projet, FLUX.2 Pro pour tous, fil d’Ariane 3 alertes max
+- **Créateur** (`plan` BDD : `createur`) : 7,99 €/mois — 150 crédits, projets illimités, Découpage → Cases, export chapitre complet, fil d’Ariane complet
+- **Studio** (`plan` BDD : `studio`) : 19,99 €/mois — 500 crédits, mémoire narrative longue, priorité traitement FAL.ai
+- 1 crédit = 1 génération (asset, sheet, bloc case — unifié). **FLUX.2 Pro pour tous les tiers** (logique Spotify)
+- Multi-vues remplacés par **Sheet System** : fiche composite 4 angles, disponible sur tous les plans
 
 ---
 
@@ -26,7 +27,7 @@
 | Base de données | Supabase PostgreSQL (RLS stricte par user_id) |
 | Storage | Supabase Storage (bucket `dreamweave`) |
 | Edge Functions | Deno (Supabase Functions) |
-| IA Image | FAL.ai — FLUX.1 Schnell (free) / FLUX.2 Pro / FLUX.2 Pro Edit (pro) |
+| IA Image | FAL.ai — FLUX.2 Pro / FLUX.2 Pro Edit (tous les tiers) |
 | IA Scénario | Groq — Llama 3.3 70B |
 | Animation | Framer Motion 12 |
 | Forms | React Hook Form 7 + Zod 3.25 |
@@ -240,7 +241,7 @@ Critiques non négociables : `tsc --noEmit` 0 erreur · `npm test` 0 régression
 
 > Source de vérité : `C:/Users/kirit/OneDrive/Documents/Obsidian Vault/wiki/Roadmap-2026.md`
 
-Ordre strict : Scénario IA ✅ → Sheet System ✅ → Audit nav ✅ → Refonte Éditeur (Option B ✅, Option A 🔜) → Plans Amateur/Artiste (`free`/`pro`) → **Stripe** 🔴 → Vue Admin.
+Ordre strict : Scénario IA ✅ → Sheet System ✅ → Audit nav ✅ → Refonte Éditeur (Option B ✅, Option A ✅) → Plans Libre/Créateur/Studio ✅ → **Stripe** 🔴 → Vue Admin.
 
 ---
 

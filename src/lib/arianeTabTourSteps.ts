@@ -32,12 +32,20 @@ const SCENARIO: ArianeTabTourStep[] = [
     title: "Action concrète",
     paragraphs: [
       "**Créez un premier chapitre** avec un titre et un bloc de texte (même court). C’est ce qui permet de passer aux étapes visuelles du parcours.",
+      "**Conseil** : citez le nom de vos personnages et décors dans le texte — ils seront **surlignés automatiquement** une fois créés dans l’onglet **Assets**.",
+    ],
+  },
+  {
+    title: "Les Assets : vos personnages et décors",
+    paragraphs: [
+      "L’onglet **Assets** (accessible depuis le menu du projet) est là où vous **créez et générez** vos personnages, décors et objets visuels.",
+      "Chaque nom d’asset **apparaît en surbrillance dans votre texte** dès qu’il est créé — c’est le lien visuel entre votre histoire et vos images.",
     ],
   },
   {
     title: "La suite dans le projet",
     paragraphs: [
-      "Une fois **au moins un chapitre de scénario enregistré**, l’onglet **Assets** s’ouvre : vous pourrez générer personnages, décors et objets dans votre **style déjà validé**.",
+      "Une fois **au moins un asset disposant d’une image**, l’onglet **Univers** se débloque pour ancrer votre monde dans une **mémoire narrative durable**.",
     ],
   },
 ];

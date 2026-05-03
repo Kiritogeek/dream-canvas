@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useParams, Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft,
+  ArrowRight,
   Pencil,
   Save,
   Loader2,
@@ -24,6 +25,7 @@ import {
   useScenarioChapter,
   useUpdateScenarioChapter,
   useScenarioChapters,
+  useCreateScenarioChapter,
 } from "@/hooks/useScenarioChapters";
 import { useProject, useUpdateProject } from "@/hooks/useProjects";
 import { getMaxAccessibleTab, useProgressiveMenuAccess } from "@/hooks/useProgressiveMenuGate";
@@ -255,7 +257,15 @@ export default function ScenarioChapterEditor() {
     [allChapters, chapterId]
   );
   const updateChapter = useUpdateScenarioChapter();
+  const createChapter = useCreateScenarioChapter();
   const updateProject = useUpdateProject();
+
+  const nextChapterNumber = useMemo(() => {
+    const used = new Set(allChapters.map((c) => c.chapter_number));
+    let n = 1;
+    while (used.has(n)) n++;
+    return n;
+  }, [allChapters]);
   const chapterAI = useScenarioAI();
   const { plan } = useUserPlan();
   const isPro = plan === "createur" || plan === "studio";
@@ -998,6 +1008,26 @@ export default function ScenarioChapterEditor() {
         >
           <Save className="h-3 w-3" />
           Sauvegarder
+        </Button>
+
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={createChapter.isPending}
+          onClick={() => {
+            createChapter.mutate(
+              { project_id: projectId!, title: `Chapitre ${nextChapterNumber}`, chapter_number: nextChapterNumber, content: null },
+              {
+                onSuccess: (newChapter) => navigate(`/dashboard/projects/${projectId}/scenario/${newChapter.id}`),
+                onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }),
+              }
+            );
+          }}
+          className="h-7 gap-1.5 shrink-0 text-xs border-[hsl(var(--lavender)/0.4)] text-[hsl(var(--lavender))] hover:bg-[hsl(var(--lavender)/0.08)]"
+          title={`Créer et ouvrir le chapitre ${nextChapterNumber}`}
+        >
+          <ArrowRight className="h-3 w-3" />
+          <span className="hidden sm:inline">Ch. {nextChapterNumber}</span>
         </Button>
       </header>
 

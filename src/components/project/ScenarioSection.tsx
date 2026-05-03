@@ -418,6 +418,28 @@ export function ScenarioSection({ projectId, project }: ScenarioSectionProps) {
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* ── Lien vers Assets ─────────────────────────────────── */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 rounded-xl border border-[hsl(var(--lavender)/0.25)] bg-[hsl(var(--lavender)/0.05)] px-4 py-3">
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          <div className="p-1.5 rounded-lg bg-[hsl(var(--lavender)/0.15)] shrink-0">
+            <Package className="h-4 w-4 text-[hsl(var(--lavender))]" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold leading-snug">Personnages, décors et objets</p>
+            <p className="text-xs text-muted-foreground mt-0.5 leading-snug">
+              Les noms créés dans <strong className="text-foreground">Assets</strong> sont automatiquement surlignés dans votre texte et alimentent la génération d'images.
+            </p>
+          </div>
+        </div>
+        <Link
+          to={`/dashboard/projects/${projectId}?tab=assets`}
+          className="inline-flex items-center gap-1.5 shrink-0 rounded-lg border border-[hsl(var(--lavender)/0.35)] px-3 py-1.5 text-xs font-medium text-[hsl(var(--lavender))] hover:bg-[hsl(var(--lavender)/0.1)] transition-colors"
+        >
+          Gérer mes assets
+          <ArrowRight className="h-3 w-3" />
+        </Link>
+      </div>
+
       {/* ── Chapitres ────────────────────────────────────────── */}
       <div className="rounded-2xl p-6 sm:p-8 space-y-5 border border-[hsl(var(--peach)/0.3)] bg-white/50 dark:bg-card/30 shadow-sm">
         <div className="flex items-center justify-between gap-2 flex-wrap">

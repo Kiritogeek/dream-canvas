@@ -289,8 +289,10 @@ export default function Plans() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className={`glass rounded-xl sm:rounded-2xl p-5 sm:p-6 flex flex-col gap-4 sm:gap-5 border-2 transition-colors ${
-              plan === "libre" ? "border-primary shadow-dream" : "border-transparent"
+            className={`glass rounded-xl sm:rounded-2xl p-5 sm:p-6 flex flex-col gap-4 sm:gap-5 border-2 transition-all duration-300 ${
+              plan === "libre"
+                ? "border-primary shadow-[0_0_32px_hsl(var(--primary)/0.35)]"
+                : "border-transparent shadow-none"
             }`}
           >
             <div className="space-y-2">
@@ -339,10 +341,10 @@ export default function Plans() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className={`relative glass rounded-xl sm:rounded-2xl p-5 sm:p-6 flex flex-col gap-4 sm:gap-5 border-2 transition-colors ${
+            className={`relative glass rounded-xl sm:rounded-2xl p-5 sm:p-6 flex flex-col gap-4 sm:gap-5 border-2 transition-all duration-300 ${
               plan === "createur"
-                ? "border-amber-500 shadow-dream"
-                : "border-amber-500/30"
+                ? "border-amber-500 shadow-[0_0_32px_rgba(245,158,11,0.4)]"
+                : "border-amber-500/30 shadow-none"
             }`}
           >
             <div className="absolute -top-3 left-1/2 -translate-x-1/2">
@@ -432,10 +434,10 @@ export default function Plans() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            className={`relative glass rounded-xl sm:rounded-2xl p-5 sm:p-6 flex flex-col gap-4 sm:gap-5 border-2 transition-colors ${
+            className={`relative glass rounded-xl sm:rounded-2xl p-5 sm:p-6 flex flex-col gap-4 sm:gap-5 border-2 transition-all duration-300 ${
               plan === "studio"
-                ? "border-violet-500 shadow-dream"
-                : "border-violet-500/20"
+                ? "border-violet-500 shadow-[0_0_32px_rgba(139,92,246,0.45)]"
+                : "border-violet-500/20 shadow-none"
             }`}
           >
             <div className="space-y-2">

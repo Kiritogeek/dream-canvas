@@ -47,7 +47,8 @@ Deno.serve(async (req) => {
   let body: { plan?: string };
   try { body = await req.json(); } catch { return json({ error: "Body invalide" }, 400, cors); }
 
-  const newPlan = body.plan === "pro" ? "pro" : "free";
+  const validPlans = ["libre", "createur", "studio"];
+  const newPlan = validPlans.includes(body.plan ?? "") ? (body.plan as string) : "libre";
 
   // Mise à jour avec service role (bypass RLS)
   const updateRes = await fetch(`${supabaseUrl}/rest/v1/profiles?user_id=eq.${userId}`, {

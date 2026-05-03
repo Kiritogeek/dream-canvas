@@ -215,7 +215,7 @@ export default function ChapterDetail() {
   const progressiveRedirectRef = useRef(false);
   const { plan, usageInfo, goToCheckout } = useUserPlan();
   const navigate = useNavigate();
-  const isPro = plan === "pro";
+  const isPro = plan === "createur" || plan === "studio";
   const { data: scenarioChapters = [] } = useScenarioChapters(projectId);
   const updateChapter = useUpdateChapter(projectId ?? "");
   const { data: assets = [] } = useAssets(projectId);
@@ -1720,7 +1720,7 @@ export default function ChapterDetail() {
           <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
             {generatedCasesCount} case{generatedCasesCount !== 1 ? "s" : ""} générée{generatedCasesCount !== 1 ? "s" : ""}
           </span>
-          {plan === "pro" && detectedCasesCount !== null && (
+          {isPro && detectedCasesCount !== null && (
             <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-muted text-muted-foreground border border-border">
               {detectedCasesCount} détectée{detectedCasesCount !== 1 ? "s" : ""}
             </span>
@@ -1901,8 +1901,8 @@ export default function ChapterDetail() {
             </CollapsibleContent>
           </Collapsible>
 
-          {/* Cases section — Pro uniquement */}
-          {plan === "pro" && linkedScenarioChapter && detectedCasesCount !== null && detectedCasesCount > 0 && (
+          {/* Cases section — Créateur/Studio uniquement */}
+          {isPro && linkedScenarioChapter && detectedCasesCount !== null && detectedCasesCount > 0 && (
             <div className="border-b border-border">
               <div className="flex items-center gap-2 px-4 py-3">
                 <Layers className="h-4 w-4 text-primary" />
@@ -2083,7 +2083,9 @@ export default function ChapterDetail() {
                 <div className="hidden md:flex items-center gap-1.5">
                   <span
                     className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold border ${
-                      plan === "pro"
+                      plan === "studio"
+                        ? "bg-gradient-to-r from-violet-500/20 to-purple-500/20 text-violet-600 dark:text-violet-400 border-violet-500/30"
+                        : isPro
                         ? "bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-600 dark:text-amber-400 border-amber-500/30"
                         : "bg-muted text-muted-foreground border-border"
                     }`}
@@ -2231,14 +2233,14 @@ export default function ChapterDetail() {
           <div className="space-y-5 py-2">
             <p className="text-muted-foreground text-sm leading-relaxed">
               Tu as utilisé <span className="font-semibold text-foreground">{usageInfo.count} / {usageInfo.limit}</span> générations ce mois-ci.
-              <br />Passez au plan {planDisplayName("pro")} pour continuer à créer sans limite.
+              <br />Passez au plan {planDisplayName("createur")} pour continuer à créer sans limite.
             </p>
             <div className="flex flex-col gap-2">
               <Button
                 className="w-full gradient-primary text-primary-foreground gap-2"
                 onClick={() => { setShowQuotaModal(false); goToCheckout(); }}
               >
-                Passer au plan {planDisplayName("pro")} →
+                Passer au plan {planDisplayName("createur")} →
               </Button>
               <Button variant="ghost" className="w-full text-sm" asChild>
                 <Link to="/dashboard/plans">Voir les plans</Link>

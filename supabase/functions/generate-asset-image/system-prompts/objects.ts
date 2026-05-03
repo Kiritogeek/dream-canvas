@@ -9,23 +9,9 @@ export const buildObjectPrompt = (
   userDescription: string,
   styleText?: string,
   styleImageUrls?: string[],
-  plan: "free" | "pro" = "pro"
+  _plan?: string
 ) => {
-  if (plan === "free") {
-    let prompt = `Single object illustration, centered, full object visible, transparent background, no cropping.
-
-${userDescription}`;
-
-    if (styleText) {
-      prompt += `\n\n${styleText}`;
-    }
-
-    prompt += `\n\nHigh quality, detailed, clean lines, manga style, clear materials and textures.`;
-
-    return prompt;
-  }
-
-  // Pro — prompt riche FLUX.2 Pro
+  // FLUX.2 Pro — prompt riche
   let prompt = `masterpiece, best quality, ultra-detailed, product design quality, clean render, professional illustration.
 
 Crée un objet en PNG avec fond transparent.
@@ -71,23 +57,9 @@ ATTENTION :
 export const buildObjectSheetPrompt = (
   userDescription: string,
   styleText?: string,
-  plan: "free" | "pro" = "pro"
+  _plan?: string
 ) => {
-  if (plan === "free") {
-    let prompt = `Object reference sheet, 2x2 grid, same object in 4 views: front, 3/4 left, 3/4 right, back or top. Transparent background.
-
-${userDescription}`;
-
-    if (styleText) {
-      prompt += `\n\n${styleText}`;
-    }
-
-    prompt += `\n\nHigh quality, detailed, manga style, consistent design across all views.`;
-
-    return prompt;
-  }
-
-  // Pro — prompt riche FLUX.2 Pro
+  // FLUX.2 Pro — prompt riche
   let prompt = `masterpiece, best quality, ultra-detailed, product design quality, professional illustration.
 
 Crée une sheet d'objet en une seule image composite, format carré ou paysage (jamais format webtoon vertical).

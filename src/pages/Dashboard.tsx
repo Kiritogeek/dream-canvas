@@ -183,16 +183,18 @@ export default function Dashboard() {
             <div className="flex items-center gap-2 flex-wrap">
               <span
                 className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${
-                  plan === "pro"
+                  plan === "studio"
+                    ? "bg-gradient-to-r from-violet-500/20 to-purple-500/20 text-violet-600 dark:text-violet-400 border border-violet-500/30"
+                    : plan === "createur"
                     ? "bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30"
                     : "bg-muted text-muted-foreground border border-border"
                 }`}
               >
-                {plan === "pro" && <Zap className="h-3 w-3" />}
+                {plan !== "libre" && <Zap className="h-3 w-3" />}
                 Plan {planDisplayName(plan)}
               </span>
               <span className="text-xs sm:text-sm text-muted-foreground">
-                {plan === "free" ? "Schnell" : "FLUX.2 Pro"}
+                {"FLUX.2 Pro"}
               </span>
             </div>
             <span className="text-xs sm:text-sm font-medium">
@@ -211,9 +213,9 @@ export default function Dashboard() {
               style={{ width: `${usagePercent}%` }}
             />
           </div>
-          {plan === "free" && (
+          {plan === "libre" && (
             <p className="text-xs text-muted-foreground mt-2">
-              Passez au plan {planDisplayName("pro")} pour les images de référence, vues multiples et 300 générations/mois.
+              Passez au plan {planDisplayName("createur")} pour le découpage IA, l'export PNG et 150 générations/mois.
             </p>
           )}
         </div>

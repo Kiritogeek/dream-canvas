@@ -90,8 +90,7 @@ export function useAssetGeneration(styleInfo: StyleInfo) {
 
     setGeneratingAssetId(asset.id);
 
-    const isFree = styleInfo.userPlan === "free" || !styleInfo.userPlan;
-    const modelLabel = isFree ? "Schnell (rapide)" : "FLUX.2 Pro (haute qualité)";
+    const modelLabel = "FLUX.2 Pro (haute qualité)";
     const presetKey = hasStyleText
       ? extractStyleKeyFromTemplateText(currentStyleText)
       : null;
@@ -110,11 +109,9 @@ export function useAssetGeneration(styleInfo: StyleInfo) {
     toast({
       title: "Génération en cours…",
       description: [
-        isFree
-          ? `Modèle : ${modelLabel}`
-          : hasStyleImages
-            ? `${modelLabel} — ${styleInfo.project!.style_image_urls!.length} image${styleInfo.project!.style_image_urls!.length > 1 ? "s" : ""} de référence (projet)`
-            : `Modèle : ${modelLabel}`,
+        hasStyleImages
+          ? `${modelLabel} — ${styleInfo.project!.style_image_urls!.length} image${styleInfo.project!.style_image_urls!.length > 1 ? "s" : ""} de référence (projet)`
+          : `Modèle : ${modelLabel}`,
         isCharacter
           ? "Vue de face + sheet 4 angles (cohérence panels)"
           : null,

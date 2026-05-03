@@ -258,7 +258,7 @@ export default function ScenarioChapterEditor() {
   const updateProject = useUpdateProject();
   const chapterAI = useScenarioAI();
   const { plan } = useUserPlan();
-  const isPro = plan === "pro";
+  const isPro = plan === "createur" || plan === "studio";
   const { schedule: scheduleNarraMind } = useNarraMindDebounce();
 
   // Highlight via ?highlight= param (navigation depuis Fil d'Ariane)
@@ -1024,7 +1024,7 @@ export default function ScenarioChapterEditor() {
                 </button>
                 <button
                   onClick={isPro ? () => setViewMode("visuels") : () => navigate("/dashboard/plans")}
-                  title={!isPro ? `Réservé au plan ${planDisplayName("pro")} — cliquez pour vous abonner` : undefined}
+                  title={!isPro ? `Réservé au plan ${planDisplayName("createur")} — cliquez pour vous abonner` : undefined}
                   className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
                     isPro
                       ? viewMode === "visuels"
@@ -1448,7 +1448,7 @@ export default function ScenarioChapterEditor() {
           <button
             onClick={isPro ? handleDetectBlocks : () => navigate("/dashboard/plans")}
             disabled={isDetecting || (isPro && !content.trim()) || (isPro && cases.length > 0 && detectedAtContent !== "" && content === detectedAtContent)}
-            title={!isPro ? `Réservé au plan ${planDisplayName("pro")} — cliquez pour vous abonner` : undefined}
+            title={!isPro ? `Réservé au plan ${planDisplayName("createur")} — cliquez pour vous abonner` : undefined}
             className={`flex items-center gap-2 pl-4 pr-5 h-12 rounded-full text-sm font-semibold transition-[box-shadow,transform,opacity] duration-200 disabled:opacity-50 disabled:pointer-events-none ${
               isPro
                 ? "gradient-primary text-primary-foreground shadow-dream hover:scale-[1.03]"

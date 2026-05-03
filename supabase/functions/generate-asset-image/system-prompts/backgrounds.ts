@@ -9,28 +9,14 @@ export const buildBackgroundPrompt = (
   userDescription: string,
   styleText?: string,
   styleImageUrls?: string[],
-  plan: "free" | "pro" = "pro"
+  _plan?: string
 ) => {
   const FULLBLEED =
     `Full-bleed illustration, edge-to-edge, fills 100% of canvas. ` +
     `NO white border, NO white margin, NO frame, NO letterbox, NO empty corners. ` +
     `Scene content bleeds to every pixel of all four edges.`;
 
-  const FULLBLEED_CLOSE =
-    `\n\nSTRICT: zero white border, zero margin, zero frame — every pixel on all 4 edges must be scene content.`;
-
-  if (plan === "free") {
-    let prompt = styleText
-      ? `${FULLBLEED}\n\nSTYLE ARTISTIQUE (prioritaire) : ${styleText}\n\nDESCRIPTION : ${userDescription}`
-      : `${FULLBLEED}\n\nBackground illustration, full frame.\n\n${userDescription}`;
-
-    prompt += `\n\nEnvironnement uniquement — aucun personnage, aucune créature. Composition lisible, profondeur de champ, lumière bien définie.`;
-    prompt += FULLBLEED_CLOSE;
-
-    return prompt;
-  }
-
-  // Pro — prompt riche FLUX.2 Pro
+  // FLUX.2 Pro — prompt riche
   let prompt = styleText
     ? `STYLE ARTISTIQUE (PRIORITAIRE) : ${styleText}\n\n`
     : "";
@@ -74,19 +60,9 @@ ATTENTION :
 export const buildBackgroundSheetPrompt = (
   userDescription: string,
   styleText?: string,
-  plan: "free" | "pro" = "pro"
+  _plan?: string
 ) => {
-  if (plan === "free") {
-    let prompt = styleText
-      ? `Background reference sheet, 2x2 grid, 4 angles of the same location (wide shot, side angle, close foreground, elevated view). No characters.\n\nSTYLE ARTISTIQUE :\n${styleText}\n\nDESCRIPTION :\n${userDescription}`
-      : `Background reference sheet, 2x2 grid, 4 angles of the same location. No characters.\n\n${userDescription}`;
-
-    prompt += `\n\nHigh quality, detailed, consistent palette and style across all 4 panels. No white borders, no empty space between panels.`;
-
-    return prompt;
-  }
-
-  // Pro — prompt riche FLUX.2 Pro
+  // FLUX.2 Pro — prompt riche
   let prompt = `masterpiece, best quality, ultra-detailed, cinematic composition, professional background art.
 
 Crée une sheet de décor en une seule image composite, format carré ou paysage (jamais format webtoon vertical).

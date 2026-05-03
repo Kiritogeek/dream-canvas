@@ -9,23 +9,9 @@ export const buildCharacterPrompt = (
   userDescription: string,
   styleText?: string,
   styleImageUrls?: string[],
-  plan: "free" | "pro" = "pro"
+  _plan?: string
 ) => {
-  if (plan === "free") {
-    let prompt = `Full body character, facing forward, neutral pose, white background, no cropping.
-
-${userDescription}`;
-
-    if (styleText) {
-      prompt += `\n\n${styleText}`;
-    }
-
-    prompt += `\n\nHigh quality, clean manga illustration, detailed face and outfit, pure solid white background (#FFFFFF), no shadow, no scenery, no backdrop.`;
-
-    return prompt;
-  }
-
-  // Pro — prompt riche FLUX.2 Pro
+  // FLUX.2 Pro — prompt riche
   let prompt = `masterpiece, best quality, ultra-detailed, anatomically correct, perfect proportions, professional webtoon art.
 
 Crée un personnage complet (corps entier de la tête aux pieds) isolé sur un fond BLANC PUR (#FFFFFF), sans aucun décor.

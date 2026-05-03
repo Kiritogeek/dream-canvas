@@ -1,6 +1,6 @@
 // Hook — Plan utilisateur et usage mensuel
 // Le changement de plan passe OBLIGATOIREMENT par Stripe :
-//   goToCheckout() → Stripe Checkout (Amateur → Artiste)
+//   goToCheckout() → Stripe Checkout (Libre → Créateur ou Studio)
 //   goToPortal()   → Stripe Customer Portal (annulation, moyen de paiement, etc.)
 // La colonne profiles.plan n'est jamais modifiée côté client (cf. migration 20260418120000).
 
@@ -20,10 +20,13 @@ async function fetchUserPlan(userId: string): Promise<UserPlan> {
 
   if (error) {
     console.warn("Erreur lecture plan:", error.message);
-    return "free";
+    return "libre";
   }
 
-  return (data?.plan === "pro" ? "pro" : "free") as UserPlan;
+  const p = data?.plan;
+  if (p === "createur") return "createur";
+  if (p === "studio") return "studio";
+  return "libre";
 }
 
 /** Compte les générations du mois en cours */
@@ -99,7 +102,7 @@ export function useUserPlan() {
     staleTime: 30_000,
   });
 
-  const plan: UserPlan = planQuery.data ?? "free";
+  const plan: UserPlan = planQuery.data ?? "libre";
   const limits: TierLimits = TIER_CONFIG[plan];
   const monthlyUsage = usageQuery.data ?? 0;
 

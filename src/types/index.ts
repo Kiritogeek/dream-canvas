@@ -7,34 +7,60 @@ import type { Tables, TablesInsert, TablesUpdate, Enums } from "@/integrations/s
 export type AssetType = Enums<"asset_type">; // "character" | "background" | "object"
 
 // ── Tiers / Plans ────────────────────────────────────────────────
-export type UserPlan = "free" | "pro";
+export type UserPlan = "libre" | "createur" | "studio";
 
 export interface TierLimits {
   maxGenerationsPerMonth: number;
+  maxProjects: number | null;
   allowReferenceImages: boolean;
-  allowMultipleViews: boolean;
+  allowScenarioAI: boolean;
+  allowFullExport: boolean;
+  allowLongMemory: boolean;
+  filArianeLimit: number | null;
   model: string;
   label: string;
+  price: number;
 }
 
 export const TIER_CONFIG: Record<UserPlan, TierLimits> = {
-  free: {
+  libre: {
     maxGenerationsPerMonth: 20,
-    allowReferenceImages: false,
-    allowMultipleViews: false,
-    model: "schnell",
-    label: "Amateur",
-  },
-  pro: {
-    maxGenerationsPerMonth: 300,
+    maxProjects: 1,
     allowReferenceImages: true,
-    allowMultipleViews: true,
+    allowScenarioAI: false,
+    allowFullExport: false,
+    allowLongMemory: false,
+    filArianeLimit: 3,
     model: "flux-2-pro",
-    label: "Artiste",
+    label: "Libre",
+    price: 0,
+  },
+  createur: {
+    maxGenerationsPerMonth: 150,
+    maxProjects: null,
+    allowReferenceImages: true,
+    allowScenarioAI: true,
+    allowFullExport: true,
+    allowLongMemory: false,
+    filArianeLimit: null,
+    model: "flux-2-pro",
+    label: "Créateur",
+    price: 7.99,
+  },
+  studio: {
+    maxGenerationsPerMonth: 500,
+    maxProjects: null,
+    allowReferenceImages: true,
+    allowScenarioAI: true,
+    allowFullExport: true,
+    allowLongMemory: true,
+    filArianeLimit: null,
+    model: "flux-2-pro",
+    label: "Studio",
+    price: 19.99,
   },
 };
 
-/** Libellé interface (Amateur / Artiste) — les slugs BDD restent free / pro. */
 export function planDisplayName(plan: UserPlan): string {
   return TIER_CONFIG[plan].label;
 }

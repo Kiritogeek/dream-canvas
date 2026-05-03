@@ -318,13 +318,15 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
             <Link
               to="/dashboard/plans"
               className={`inline-flex items-center gap-1 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full text-xs font-semibold transition-opacity hover:opacity-80 ${
-                plan === "pro"
+                plan === "studio"
+                  ? "bg-gradient-to-r from-violet-500/20 to-purple-500/20 text-violet-600 dark:text-violet-400 border border-violet-500/30"
+                  : plan === "createur"
                   ? "bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30"
                   : "bg-muted text-muted-foreground border border-border"
               }`}
               title="Voir les plans"
             >
-              {plan === "pro" && <Zap className="h-3 w-3" />}
+              {plan !== "libre" && <Zap className="h-3 w-3" />}
               {planDisplayName(plan)}
             </Link>
             <span className="hidden md:inline-flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/50 px-2.5 py-1 rounded-full border border-border/50">

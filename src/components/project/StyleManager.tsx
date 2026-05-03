@@ -54,7 +54,7 @@ export function StyleManager({
   styleTemplate,
   onStyleTemplateChange,
   onStyleSaveSuccess,
-  userPlan = "free",
+  userPlan = "libre",
 }: StyleManagerProps) {
   const STYLE_OPTIONS = [
     {
@@ -471,26 +471,26 @@ export function StyleManager({
               <h2 className="text-base sm:text-lg font-display font-semibold">
                 Images de référence
               </h2>
-              {userPlan === "pro" && (
+              {userPlan !== "libre" && (
                 <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-medium">
                   {styleImageUrls.length}/{MAX_STYLE_IMAGES}
                 </span>
               )}
-              {userPlan === "free" && (
+              {userPlan === "libre" && (
                 <span className="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 text-xs font-medium">
-                  {planDisplayName("pro")}
+                  {planDisplayName("createur")}
                 </span>
               )}
             </div>
             <p className="text-sm text-muted-foreground">
-              {userPlan === "pro"
+              {userPlan !== "libre"
                 ? "2 images de référence pour renforcer la cohérence visuelle du style sélectionné"
-                : `Les images de référence sont réservées au plan ${planDisplayName("pro")}. Le style texte sera utilisé pour vos générations.`}
+                : `Les images de référence sont disponibles dès le plan ${planDisplayName("createur")}. Le style texte sera utilisé pour vos générations.`}
             </p>
           </div>
         </div>
 
-        {userPlan === "pro" ? (
+        {userPlan !== "libre" ? (
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {styleImageUrls.map((url) => (
@@ -556,14 +556,14 @@ export function StyleManager({
             <p className="text-sm text-muted-foreground">
               Passez au plan{" "}
               <span className="font-semibold text-amber-600 dark:text-amber-400">
-                {planDisplayName("pro")}
+                {planDisplayName("createur")}
               </span>{" "}
               pour ajouter des images de référence et améliorer la cohérence graphique de vos générations.
             </p>
           </div>
         )}
 
-        {userPlan === "pro" && styleImageUrls.length > 0 && savedKey === "manga" && (
+        {userPlan !== "libre" && styleImageUrls.length > 0 && savedKey === "manga" && (
           <p className="text-xs text-amber-700 dark:text-amber-300">
             Preset Manga : les images de référence colorées peuvent tirer le rendu vers du webtoon. Pour du noir et blanc pur, retirez-les ou utilisez des refs monochrome.
           </p>

@@ -5,9 +5,8 @@
 // Style : uniquement `projects.style_template` et `projects.style_image_urls` (lues en service role).
 // Le corps de requête ne doit pas servir de source de vérité pour le style (évite brouillon UI / cache).
 //
-// Trois modes selon le tier utilisateur :
-//   Free → FLUX.1 Schnell (text-to-image uniquement, pas d'images de référence)
-//   Pro  → FLUX.2 Pro (text-to-image) ou FLUX.2 Pro Edit (multi-référence)
+// FLUX.2 Pro pour tous les tiers (libre/createur/studio).
+// Sans références → FLUX.2 Pro text-to-image. Avec références → FLUX.2 Pro Edit.
 
 declare const Deno: {
   serve: (handler: (req: Request) => Promise<Response> | Response) => void;
@@ -20,8 +19,7 @@ declare const Deno: {
 // CONFIGURATION
 // ═══════════════════════════════════════════════════════════════
 
-const FAL_SCHNELL = "https://fal.run/fal-ai/flux/schnell";     // Free tier
-const FAL_TEXT_TO_IMAGE = "https://fal.run/fal-ai/flux-2-pro"; // Pro tier
+const FAL_TEXT_TO_IMAGE = "https://fal.run/fal-ai/flux-2-pro";
 const FAL_IMAGE_EDIT = "https://fal.run/fal-ai/flux-2-pro/edit"; // Pro + refs
 const BUCKET = "dreamweave";
 const FAL_TIMEOUT_MS = 100_000; // 100 secondes max par appel FAL
@@ -35,26 +33,28 @@ const NO_BORDER_NEGATIVE_PROMPT =
   "collage, grid, reference sheet, contact sheet, color chart";
 
 // ── Limites par tier ──────────────────────────────────────────
-type UserPlan = "free" | "pro";
+type UserPlan = "libre" | "createur" | "studio";
 
 interface TierLimits {
   maxGenerationsPerMonth: number;
   allowReferenceImages: boolean;
-  allowMultipleViews: boolean;
   model: string;
 }
 
 const TIER_LIMITS: Record<UserPlan, TierLimits> = {
-  free: {
+  libre: {
     maxGenerationsPerMonth: 20,
-    allowReferenceImages: false,
-    allowMultipleViews: false,
-    model: "schnell",
-  },
-  pro: {
-    maxGenerationsPerMonth: 300,
     allowReferenceImages: true,
-    allowMultipleViews: true,
+    model: "flux-2-pro",
+  },
+  createur: {
+    maxGenerationsPerMonth: 150,
+    allowReferenceImages: true,
+    model: "flux-2-pro",
+  },
+  studio: {
+    maxGenerationsPerMonth: 500,
+    allowReferenceImages: true,
     model: "flux-2-pro",
   },
 };
@@ -414,88 +414,6 @@ async function generateWithReferences(
   return { url: imageUrl };
 }
 
-async function generateSchnell(
-  prompt: string,
-  falKey: string,
-  width: number,
-  height: number,
-  kind: "character" | "background" | "object" = "character"
-): Promise<{ url: string } | { error: string }> {
-  const payload = {
-    prompt,
-    negative_prompt: NO_BORDER_NEGATIVE_PROMPT,
-    image_size: { width, height },
-    num_images: 1,
-    num_inference_steps: 4,
-    output_format: "png",
-    enable_safety_checker: true,
-  };
-
-  let res = await fetchWithRetry(FAL_SCHNELL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Key ${falKey}`,
-    },
-    body: JSON.stringify(payload),
-  });
-
-  let text = await res.text();
-  if (!res.ok) {
-    const details = extractFalErrorDetails(text);
-    if (res.status === 422 && isFalPolicyViolation(details)) {
-      const safePrompt = buildSafeFallbackPrompt(prompt);
-      console.warn("[generate-asset-image] Policy violation (schnell), retry with safe prompt", {
-        status: res.status,
-      });
-      res = await fetchWithRetry(FAL_SCHNELL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Key ${falKey}`,
-        },
-        body: JSON.stringify({ ...payload, prompt: safePrompt }),
-      });
-      text = await res.text();
-      if (!res.ok) {
-        const retriedDetails = extractFalErrorDetails(text);
-        const ultraSafePrompt = buildUltraSafePrompt(kind);
-        console.warn("[generate-asset-image] Second retry with ultra-safe prompt (schnell)");
-        res = await fetchWithRetry(FAL_SCHNELL, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Key ${falKey}`,
-          },
-          body: JSON.stringify({ ...payload, prompt: ultraSafePrompt }),
-        });
-        text = await res.text();
-        if (!res.ok) {
-          return { error: `Contenu bloqué par la politique FAL (422): ${retriedDetails}` };
-        }
-      }
-    } else {
-      console.error("[generate-asset-image] FAL.ai schnell error", {
-        status: res.status,
-        details,
-      });
-      return { error: `FAL.ai erreur ${res.status}: ${details}` };
-    }
-  }
-
-  let json: { images?: Array<{ url: string }> };
-  try {
-    json = JSON.parse(text);
-  } catch {
-    return { error: "Réponse invalide de l'API de génération" };
-  }
-
-  const imageUrl = json.images?.[0]?.url;
-  if (!imageUrl) return { error: "FAL.ai n'a pas retourné d'image" };
-
-  return { url: imageUrl };
-}
-
 async function cropWhiteBorders(buffer: ArrayBuffer): Promise<ArrayBuffer> {
   try {
     // @ts-expect-error -- import npm résolu par Deno Deploy au runtime
@@ -677,7 +595,7 @@ Deno.serve(async (req) => {
     }
 
     // 3b. Récupérer le plan de l'utilisateur
-    let userPlan: UserPlan = "free";
+    let userPlan: UserPlan = "libre";
     try {
       const profileRes = await fetch(
         `${supabaseUrl}/rest/v1/profiles?user_id=eq.${userId}&select=plan`,
@@ -691,15 +609,14 @@ Deno.serve(async (req) => {
       );
       if (profileRes.ok) {
         const profiles = (await profileRes.json()) as { plan?: string }[];
-        if (
-          profiles?.[0]?.plan === "pro"
-        ) {
-          userPlan = "pro";
+        const p = profiles?.[0]?.plan;
+        if (p === "createur" || p === "studio") {
+          userPlan = p as UserPlan;
         }
       }
     } catch {
-      // En cas d'erreur, on reste sur "free" par sécurité
-      console.warn("[generate-asset-image] Impossible de lire le plan utilisateur, défaut: free");
+      // En cas d'erreur, on reste sur "libre" par sécurité
+      console.warn("[generate-asset-image] Impossible de lire le plan utilisateur, défaut: libre");
     }
 
     const limits = TIER_LIMITS[userPlan];
@@ -732,7 +649,7 @@ Deno.serve(async (req) => {
           return jsonResponse(
             {
               error: "Limite de générations atteinte",
-              details: `Vous avez utilisé ${usageCount}/${limits.maxGenerationsPerMonth} générations ce mois-ci. ${userPlan === "free" ? "Passez au plan Pro pour plus de générations." : "Votre quota mensuel sera réinitialisé le 1er du mois prochain."}`,
+              details: `Vous avez utilisé ${usageCount}/${limits.maxGenerationsPerMonth} générations ce mois-ci. ${userPlan === "libre" ? "Passez au plan Créateur pour plus de générations." : "Votre quota mensuel sera réinitialisé le 1er du mois prochain."}`,
               quota_exceeded: true,
               current_usage: usageCount,
               max_usage: limits.maxGenerationsPerMonth,
@@ -965,9 +882,6 @@ Deno.serve(async (req) => {
     const sheetPath = `${asset.user_id}/assets/${asset_id}_sheet.png`;
 
     const generateFace = async (): Promise<{ url: string } | { error: string }> => {
-      if (userPlan === "free") {
-        return generateSchnell(viewPrompt, falKey, width, height, type_);
-      }
       if (hasStyleImages && style_image_urls && style_image_urls.length > 0) {
         return generateWithReferences(
           viewPrompt,
@@ -982,11 +896,9 @@ Deno.serve(async (req) => {
     };
 
     const modelUsed: string =
-      userPlan === "free"
-        ? "schnell"
-        : hasStyleImages && style_image_urls && style_image_urls.length > 0
-          ? "flux-2-pro-edit"
-          : "flux-2-pro";
+      hasStyleImages && style_image_urls && style_image_urls.length > 0
+        ? "flux-2-pro-edit"
+        : "flux-2-pro";
 
     const shouldGenerateSheet = type_ === "character";
 
@@ -1038,33 +950,18 @@ Deno.serve(async (req) => {
 
     if (shouldGenerateSheet) {
       const sheetResult: { url: string } | { error: string } = await (async () => {
-        if (userPlan === "free") {
-          const sheetPromptFree = buildCharacterSheetPrompt(
-            prompt.trim(),
-            hasStyleText ? userStyleText : undefined,
-            false
-          );
-          return generateSchnell(
-            sheetPromptFree,
-            falKey,
-            SHEET_WIDTH,
-            SHEET_HEIGHT,
-            type_
-          );
-        }
-
-        // Pro : face en première référence d'identité, images de style ensuite.
+        // Face en première référence d'identité, images de style ensuite.
         const sheetRefs: string[] = [publicUrl];
         if (hasStyleImages && style_image_urls && style_image_urls.length > 0) {
           sheetRefs.push(...style_image_urls);
         }
-        const sheetPromptPro = buildCharacterSheetPrompt(
+        const sheetPrompt = buildCharacterSheetPrompt(
           prompt.trim(),
           hasStyleText ? userStyleText : undefined,
           true
         );
         return generateWithReferences(
-          sheetPromptPro,
+          sheetPrompt,
           sheetRefs,
           falKey,
           SHEET_WIDTH,

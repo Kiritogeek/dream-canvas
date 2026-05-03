@@ -46,7 +46,7 @@ import { useScenarioChapters } from "@/hooks/useScenarioChapters";
 import { useUserPlan } from "@/hooks/useUserPlan";
 import { supabase } from "@/integrations/supabase/client";
 import type { Chapter, ScenarioChapter } from "@/types";
-import { planDisplayName } from "@/types";
+import { planDisplayName, TIER_CONFIG } from "@/types";
 
 // ── ChapterEditionCard ────────────────────────────────────────────────────────
 
@@ -61,7 +61,7 @@ interface ChapterCardProps {
   onDelete: (chapter: Chapter) => void;
   panelBlocksForChapter: Array<{ chapter_id: string; layout: unknown }>;
   scenarioChaptersData: ScenarioChapter[];
-  plan: string | null;
+  allowScenarioAI: boolean;
 }
 
 const ChapterEditionCard = memo(function ChapterEditionCard({
@@ -75,7 +75,7 @@ const ChapterEditionCard = memo(function ChapterEditionCard({
   onDelete,
   panelBlocksForChapter,
   scenarioChaptersData,
-  plan,
+  allowScenarioAI,
 }: ChapterCardProps) {
   const navigate = useNavigate();
 
@@ -185,8 +185,8 @@ const ChapterEditionCard = memo(function ChapterEditionCard({
             {generatedImages} générée{generatedImages !== 1 ? "s" : ""}
           </span>
 
-          {/* Cases détectées — Pro seulement */}
-          {plan === "pro" ? (
+          {/* Cases détectées — Créateur/Studio seulement */}
+          {allowScenarioAI ? (
             detectedCases !== null && (
               <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-[hsl(var(--lavender)/0.12)] text-[hsl(275,45%,55%)] border border-[hsl(var(--lavender)/0.2)]">
                 <Layers className="h-3 w-3" />
@@ -194,14 +194,14 @@ const ChapterEditionCard = memo(function ChapterEditionCard({
               </span>
             )
           ) : (
-            <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-400/10 text-amber-600 border border-amber-400/20 cursor-default" title={`Réservé au plan ${planDisplayName("pro")}`}>
+            <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-400/10 text-amber-600 border border-amber-400/20 cursor-default" title={`Réservé au plan ${planDisplayName("createur")}`}>
               <Crown className="h-3 w-3 text-amber-500" />
-              Cases — {planDisplayName("pro")}
+              Cases — {planDisplayName("createur")}
             </span>
           )}
 
-          {/* % complété — Pro seulement */}
-          {plan === "pro" && pct !== null && (
+          {/* % complété — Créateur/Studio seulement */}
+          {allowScenarioAI && pct !== null && (
             <span className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${
               pct === 100
                 ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20"
@@ -488,7 +488,7 @@ export function EditionSection({ projectId }: EditionSectionProps) {
               onDelete={handleDeleteTarget}
               panelBlocksForChapter={allPanelBlocks.filter((p) => p.chapter_id === chapter.id)}
               scenarioChaptersData={scenarioChapters}
-              plan={plan}
+              allowScenarioAI={TIER_CONFIG[plan].allowScenarioAI}
             />
           ))}
         </div>

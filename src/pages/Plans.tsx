@@ -289,7 +289,7 @@ export default function Plans() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className={`glass rounded-xl sm:rounded-2xl p-5 sm:p-6 space-y-4 sm:space-y-5 border-2 transition-colors ${
+            className={`glass rounded-xl sm:rounded-2xl p-5 sm:p-6 flex flex-col gap-4 sm:gap-5 border-2 transition-colors ${
               plan === "libre" ? "border-primary shadow-dream" : "border-transparent"
             }`}
           >
@@ -329,7 +329,7 @@ export default function Plans() {
                 </li>
               ))}
             </ul>
-            <Button variant="outline" className="w-full" disabled>
+            <Button variant="outline" className="w-full mt-auto" disabled>
               {plan === "libre" ? "Plan actuel" : "Plan de base"}
             </Button>
           </motion.div>
@@ -339,7 +339,7 @@ export default function Plans() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className={`relative glass rounded-xl sm:rounded-2xl p-5 sm:p-6 space-y-4 sm:space-y-5 border-2 transition-colors ${
+            className={`relative glass rounded-xl sm:rounded-2xl p-5 sm:p-6 flex flex-col gap-4 sm:gap-5 border-2 transition-colors ${
               plan === "createur"
                 ? "border-amber-500 shadow-dream"
                 : "border-amber-500/30"
@@ -390,7 +390,7 @@ export default function Plans() {
             {plan === "createur" ? (
               <Button
                 variant="outline"
-                className="w-full"
+                className="w-full mt-auto"
                 onClick={handlePortal}
                 disabled={isRedirecting}
               >
@@ -408,7 +408,7 @@ export default function Plans() {
               </Button>
             ) : (
               <Button
-                className="w-full bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:from-amber-600 hover:to-orange-600 shadow-lg"
+                className="w-full mt-auto bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:from-amber-600 hover:to-orange-600 shadow-lg"
                 onClick={handleCheckout}
                 disabled={isRedirecting || plan === "studio"}
               >
@@ -432,7 +432,7 @@ export default function Plans() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            className={`relative glass rounded-xl sm:rounded-2xl p-5 sm:p-6 space-y-4 sm:space-y-5 border-2 transition-colors ${
+            className={`relative glass rounded-xl sm:rounded-2xl p-5 sm:p-6 flex flex-col gap-4 sm:gap-5 border-2 transition-colors ${
               plan === "studio"
                 ? "border-violet-500 shadow-dream"
                 : "border-violet-500/20"
@@ -476,7 +476,7 @@ export default function Plans() {
             {plan === "studio" ? (
               <Button
                 variant="outline"
-                className="w-full"
+                className="w-full mt-auto"
                 onClick={handlePortal}
                 disabled={isRedirecting}
               >
@@ -494,7 +494,7 @@ export default function Plans() {
               </Button>
             ) : (
               <Button
-                className="w-full bg-gradient-to-r from-violet-500 to-purple-500 text-white hover:from-violet-600 hover:to-purple-600 shadow-lg"
+                className="w-full mt-auto bg-gradient-to-r from-violet-500 to-purple-500 text-white hover:from-violet-600 hover:to-purple-600 shadow-lg"
                 onClick={handleCheckout}
                 disabled={isRedirecting}
               >

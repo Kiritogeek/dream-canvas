@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Plus, FolderOpen, Sparkles, Image, Zap } from "lucide-react";
+import { Plus, FolderOpen, Sparkles, Image, Zap, Brain } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -190,7 +190,7 @@ export default function Dashboard() {
                     : "bg-muted text-muted-foreground border border-border"
                 }`}
               >
-                {plan !== "libre" && <Zap className="h-3 w-3" />}
+                {plan === "studio" ? <Brain className="h-3 w-3" /> : plan === "createur" ? <Zap className="h-3 w-3" /> : null}
                 Plan {planDisplayName(plan)}
               </span>
               <span className="text-xs sm:text-sm text-muted-foreground">

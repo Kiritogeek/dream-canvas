@@ -2,7 +2,7 @@ import { ReactNode, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Link, useLocation, useNavigate, useMatch } from "react-router-dom";
 import {
-  Sparkles, LayoutDashboard, LogOut, User, Zap, Crown, Menu, X,
+  Sparkles, LayoutDashboard, LogOut, User, Zap, Brain, Crown, Menu, X,
   Palette, Image as ImageIcon, BookOpen, Layers, Plus, Pencil, Globe, FlaskConical,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -326,7 +326,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
               }`}
               title="Voir les plans"
             >
-              {plan !== "libre" && <Zap className="h-3 w-3" />}
+              {plan === "studio" ? <Brain className="h-3 w-3" /> : plan === "createur" ? <Zap className="h-3 w-3" /> : null}
               {planDisplayName(plan)}
             </Link>
             <span className="hidden md:inline-flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/50 px-2.5 py-1 rounded-full border border-border/50">

@@ -36,10 +36,9 @@ import {
   useReorderScenarioChapters,
 } from "@/hooks/useScenarioChapters";
 import { useScenarioAI } from "@/hooks/useScenarioAI";
-import { ScenarioTextHighlighter } from "@/components/project/ScenarioTextHighlighter";
 import { AIChapterPreviewModal } from "@/components/project/AIChapterPreviewModal";
 import { estimatePanelCount } from "@/services/panels";
-import type { Project, ScenarioChapter, Asset, AssetType } from "@/types";
+import type { Project, ScenarioChapter, AssetType } from "@/types";
 
 // ── Props ─────────────────────────────────────────────────────
 
@@ -51,58 +50,6 @@ interface ScenarioSectionProps {
 }
 
 const SCENARIO_RECENT_CHAPTERS_FOR_IA = 5;
-
-// ── Exemple « Chapitre Type » (en dur) ────────────────────────
-
-const CHAPITRE_TYPE_EXEMPLE = `### Scène 1 — La rencontre
-> Lieu : Café bondé, fin d'après-midi — lumière chaude orangée, tables en bois usé
-> Personnages : Yuki, Marcus
-
-Yuki pousse la porte du café. L'air chaud la frappe d'un coup.
-Elle repère Marcus dans son coin habituel, le nez dans un livre qu'il ne lit pas.
-
-« Tu es venue. » Sa voix est neutre, ni soulagée ni surprise.
-
-Elle s'assied sans répondre. Long silence. La cafetière grésille derrière le comptoir.
-
----
-
-### Scène 2 — La confrontation
-> Lieu : Même café — lumière d'après-midi découpée en zones d'ombre et de clarté
-> Personnages : Yuki, Marcus
-
-Marcus referme son livre lentement. Il boutonne son manteau sans la regarder.
-
-« Qu'est-ce qui s'est passé cette nuit-là ? »
-
-Yuki fixe sa tasse. Ses mains sont immobiles sur la table. Elle sait qu'il sait.
-La question n'est pas une question — c'est une dernière chance.
-
-« J'ai fait ce que tu m'as demandé. »
-
-Il se lève. « Je ne t'ai rien demandé. »
-
-La porte du café claque. Yuki reste seule avec sa tasse froide et une réponse qu'elle n'a pas donnée.
-
----
-
-### Scène 3 — Le lendemain
-> Lieu : Appartement de Yuki, matin gris — lumière diffuse, fenêtre embuée
-> Personnages : Yuki
-
-Le réveil sonne. Yuki ne l'a pas attendu.
-Elle est déjà assise au bord du lit, les yeux sur ses mains.
-Sur la table de nuit, un message non lu. Le nom de Marcus sur l'écran.
-
-Elle ne l'ouvre pas.`;
-
-const CHAPITRE_TYPE_DEMO_ASSETS: Asset[] = [
-  { id: "demo-yuki", name: "Yuki", asset_type: "character", project_id: "", user_id: "", created_at: "", image_url: null, image_url_back: null, image_url_profile_left: null, image_url_profile_right: null, image_url_sheet: null, metadata: null, prompt: null },
-  { id: "demo-marcus", name: "Marcus", asset_type: "character", project_id: "", user_id: "", created_at: "", image_url: null, image_url_back: null, image_url_profile_left: null, image_url_profile_right: null, image_url_sheet: null, metadata: null, prompt: null },
-  { id: "demo-cafe", name: "café", asset_type: "background", project_id: "", user_id: "", created_at: "", image_url: null, image_url_back: null, image_url_profile_left: null, image_url_profile_right: null, image_url_sheet: null, metadata: null, prompt: null },
-  { id: "demo-tasse", name: "tasse", asset_type: "object", project_id: "", user_id: "", created_at: "", image_url: null, image_url_back: null, image_url_profile_left: null, image_url_profile_right: null, image_url_sheet: null, metadata: null, prompt: null },
-  { id: "demo-livre", name: "livre", asset_type: "object", project_id: "", user_id: "", created_at: "", image_url: null, image_url_back: null, image_url_profile_left: null, image_url_profile_right: null, image_url_sheet: null, metadata: null, prompt: null },
-];
 
 // ── Composant principal ───────────────────────────────────────
 
@@ -418,28 +365,6 @@ export function ScenarioSection({ projectId, project }: ScenarioSectionProps) {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* ── Lien vers Assets ─────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 rounded-xl border border-[hsl(var(--lavender)/0.25)] bg-[hsl(var(--lavender)/0.05)] px-4 py-3">
-        <div className="flex items-center gap-3 flex-1 min-w-0">
-          <div className="p-1.5 rounded-lg bg-[hsl(var(--lavender)/0.15)] shrink-0">
-            <Package className="h-4 w-4 text-[hsl(var(--lavender))]" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-sm font-semibold leading-snug">Personnages, décors et objets</p>
-            <p className="text-xs text-muted-foreground mt-0.5 leading-snug">
-              Les noms créés dans <strong className="text-foreground">Assets</strong> sont automatiquement surlignés dans votre texte et alimentent la génération d'images.
-            </p>
-          </div>
-        </div>
-        <Link
-          to={`/dashboard/projects/${projectId}?tab=assets`}
-          className="inline-flex items-center gap-1.5 shrink-0 rounded-lg border border-[hsl(var(--lavender)/0.35)] px-3 py-1.5 text-xs font-medium text-[hsl(var(--lavender))] hover:bg-[hsl(var(--lavender)/0.1)] transition-colors"
-        >
-          Gérer mes assets
-          <ArrowRight className="h-3 w-3" />
-        </Link>
-      </div>
-
       {/* ── Chapitres ────────────────────────────────────────── */}
       <div className="rounded-2xl p-6 sm:p-8 space-y-5 border border-[hsl(var(--peach)/0.3)] bg-white/50 dark:bg-card/30 shadow-sm">
         <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -663,20 +588,6 @@ export function ScenarioSection({ projectId, project }: ScenarioSectionProps) {
               <span className="text-xs text-muted-foreground italic">
                 prompt de génération
               </span>
-            </div>
-          </div>
-
-          <div className="flex-1 min-h-0 flex flex-col overflow-hidden rounded-lg bg-background/80 border border-border/50">
-            <p className="text-xs text-muted-foreground px-4 pt-3 pb-1 uppercase tracking-wide font-medium shrink-0">
-              Exemple complet — 3 séquences dans un seul chapitre
-            </p>
-            <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-4 pt-0">
-              <ScenarioTextHighlighter
-                text={CHAPITRE_TYPE_EXEMPLE}
-                assets={CHAPITRE_TYPE_DEMO_ASSETS}
-                hideIndicator
-                className="text-sm leading-relaxed whitespace-pre-wrap"
-              />
             </div>
           </div>
 

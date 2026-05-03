@@ -44,7 +44,7 @@ export default function Dashboard() {
   const { data: projects = [], isLoading } = useRecentProjects(6);
   const { data: projectCount = 0 } = useProjectCount();
   const { data: assetCount = 0 } = useAssetCount();
-  const { plan, usageInfo, limits: _limits } = useUserPlan();
+  const { plan, usageInfo, limits } = useUserPlan();
   const createProject = useCreateProject();
 
   const [createOpen, setCreateOpen] = useState(false);
@@ -61,6 +61,14 @@ export default function Dashboard() {
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle.trim()) return;
+    if (limits.maxProjects !== null && projectCount >= limits.maxProjects) {
+      toast({
+        title: "Limite de projets atteinte",
+        description: `Le plan ${planDisplayName(plan)} est limité à ${limits.maxProjects} projet. Passez au plan Créateur pour des projets illimités.`,
+        variant: "destructive",
+      });
+      return;
+    }
     const panelsNum = newPanelsTarget.trim()
       ? Math.max(1, Math.min(99, parseInt(newPanelsTarget, 10) || 10))
       : null;

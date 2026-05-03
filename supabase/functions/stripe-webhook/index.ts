@@ -12,10 +12,10 @@
 //   - La signature Stripe est la SEULE source d'authenticité : elle DOIT être vérifiée
 //
 // Events gérés :
-//   - checkout.session.completed           → active Pro (plan='pro')
-//   - customer.subscription.created        → active Pro si status=active
+//   - checkout.session.completed           → active Créateur (plan='createur')
+//   - customer.subscription.created        → active Créateur si status=active
 //   - customer.subscription.updated        → active ou désactive selon status
-//   - customer.subscription.deleted        → désactive (plan='free')
+//   - customer.subscription.deleted        → désactive (plan='libre')
 //
 // La modification de profiles.plan est faite en service_role (bypass RLS).
 
@@ -27,7 +27,7 @@ declare const Deno: {
   env: { get: (key: string) => string | undefined };
 };
 
-type Plan = "free" | "pro";
+type Plan = "libre" | "createur" | "studio";
 
 function textResponse(body: string, status: number) {
   return new Response(body, {
@@ -101,10 +101,16 @@ Deno.serve(async (req) => {
     return data?.user_id ?? null;
   }
 
-  async function updatePlan(userId: string, plan: Plan): Promise<void> {
+  async function updatePlan(
+    userId: string,
+    plan: Plan,
+    billingPeriodStart: string | null = null
+  ): Promise<void> {
+    const update: Record<string, unknown> = { plan };
+    if (billingPeriodStart !== undefined) update.billing_period_start = billingPeriodStart;
     const { error } = await supabaseAdmin
       .from("profiles")
-      .update({ plan })
+      .update(update)
       .eq("user_id", userId);
     if (error) {
       console.error(
@@ -131,7 +137,7 @@ Deno.serve(async (req) => {
           );
           break;
         }
-        await updatePlan(userId, "pro");
+        await updatePlan(userId, "createur", new Date().toISOString());
         break;
       }
 
@@ -153,8 +159,12 @@ Deno.serve(async (req) => {
           "active",
           "trialing",
         ];
-        const plan: Plan = activeStatuses.includes(sub.status) ? "pro" : "free";
-        await updatePlan(userId, plan);
+        const isActive = activeStatuses.includes(sub.status);
+        const plan: Plan = isActive ? "createur" : "libre";
+        const billingPeriodStart = isActive
+          ? new Date(sub.current_period_start * 1000).toISOString()
+          : null;
+        await updatePlan(userId, plan, billingPeriodStart);
         break;
       }
 
@@ -171,7 +181,7 @@ Deno.serve(async (req) => {
           );
           break;
         }
-        await updatePlan(userId, "free");
+        await updatePlan(userId, "libre", null);
         break;
       }
 

@@ -10,36 +10,67 @@ import { useAuth } from "@/hooks/useAuth";
 import type { UserPlan, UsageInfo, TierLimits } from "@/types";
 import { TIER_CONFIG } from "@/types";
 
-/** Récupère le plan de l'utilisateur depuis la table profiles */
-async function fetchUserPlan(userId: string): Promise<UserPlan> {
+interface ProfileData {
+  plan: UserPlan;
+  billingPeriodStart: string | null;
+}
+
+/** Récupère le plan et la date d'abonnement depuis profiles */
+async function fetchUserPlan(userId: string): Promise<ProfileData> {
   const { data, error } = await supabase
     .from("profiles")
-    .select("plan")
+    .select("plan, billing_period_start")
     .eq("user_id", userId)
     .maybeSingle();
 
   if (error) {
     console.warn("Erreur lecture plan:", error.message);
-    return "libre";
+    return { plan: "libre", billingPeriodStart: null };
   }
 
   const p = data?.plan;
-  if (p === "createur") return "createur";
-  if (p === "studio") return "studio";
-  return "libre";
+  const plan: UserPlan = p === "createur" ? "createur" : p === "studio" ? "studio" : "libre";
+  return { plan, billingPeriodStart: data?.billing_period_start ?? null };
 }
 
-/** Compte les générations du mois en cours */
-async function fetchMonthlyUsage(userId: string): Promise<number> {
+/**
+ * Calcule le début de la période d'usage courante.
+ * Plans payants : jour d'abonnement du mois courant (ou précédent si pas encore passé).
+ * Libre : 1er du mois calendaire.
+ */
+function computeUsagePeriodStart(billingPeriodStart: string | null): Date {
   const now = new Date();
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+  if (!billingPeriodStart) {
+    return new Date(now.getFullYear(), now.getMonth(), 1);
+  }
+  const billingDay = new Date(billingPeriodStart).getDate();
+  const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), billingDay);
+  if (thisMonthStart <= now) return thisMonthStart;
+  return new Date(now.getFullYear(), now.getMonth() - 1, billingDay);
+}
 
+/**
+ * Calcule la prochaine date de renouvellement / reset de quota.
+ */
+function computeNextResetDate(billingPeriodStart: string | null): Date {
+  const now = new Date();
+  if (!billingPeriodStart) {
+    return new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  }
+  const billingDay = new Date(billingPeriodStart).getDate();
+  const thisMonthReset = new Date(now.getFullYear(), now.getMonth(), billingDay);
+  if (thisMonthReset > now) return thisMonthReset;
+  return new Date(now.getFullYear(), now.getMonth() + 1, billingDay);
+}
+
+/** Compte les générations depuis le début de la période d'usage */
+async function fetchMonthlyUsage(userId: string, periodStart: Date): Promise<number> {
   const { count, error } = await supabase
     .from("usage")
     .select("id", { count: "exact", head: true })
     .eq("user_id", userId)
     .eq("action", "image_generation")
-    .gte("created_at", startOfMonth);
+    .gte("created_at", periodStart.toISOString());
 
   if (error) {
     console.warn("Erreur lecture usage:", error.message);
@@ -95,14 +126,18 @@ export function useUserPlan() {
     staleTime: 60_000,
   });
 
+  const plan: UserPlan = planQuery.data?.plan ?? "libre";
+  const billingPeriodStart = planQuery.data?.billingPeriodStart ?? null;
+  const usagePeriodStart = computeUsagePeriodStart(billingPeriodStart);
+  const nextResetDate = computeNextResetDate(billingPeriodStart);
+
   const usageQuery = useQuery({
-    queryKey: ["monthlyUsage", user?.id],
-    queryFn: () => fetchMonthlyUsage(user!.id),
+    queryKey: ["monthlyUsage", user?.id, usagePeriodStart.toISOString()],
+    queryFn: () => fetchMonthlyUsage(user!.id, usagePeriodStart),
     enabled: !!user,
     staleTime: 30_000,
   });
 
-  const plan: UserPlan = planQuery.data ?? "libre";
   const limits: TierLimits = TIER_CONFIG[plan];
   const monthlyUsage = usageQuery.data ?? 0;
 
@@ -138,6 +173,7 @@ export function useUserPlan() {
     plan,
     limits,
     usageInfo,
+    nextResetDate,
     isLoading: planQuery.isLoading || usageQuery.isLoading,
     goToCheckout,
     goToPortal,

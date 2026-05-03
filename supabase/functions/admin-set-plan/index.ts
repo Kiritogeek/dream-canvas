@@ -49,6 +49,7 @@ Deno.serve(async (req) => {
 
   const validPlans = ["libre", "createur", "studio"];
   const newPlan = validPlans.includes(body.plan ?? "") ? (body.plan as string) : "libre";
+  const billingPeriodStart = newPlan !== "libre" ? new Date().toISOString() : null;
 
   // Mise à jour avec service role (bypass RLS)
   const updateRes = await fetch(`${supabaseUrl}/rest/v1/profiles?user_id=eq.${userId}`, {
@@ -59,7 +60,7 @@ Deno.serve(async (req) => {
       Authorization: `Bearer ${serviceKey}`,
       Prefer: "return=minimal",
     },
-    body: JSON.stringify({ plan: newPlan }),
+    body: JSON.stringify({ plan: newPlan, billing_period_start: billingPeriodStart }),
   });
 
   if (!updateRes.ok) {

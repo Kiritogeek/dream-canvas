@@ -11,6 +11,7 @@ import { useUserPlan } from "@/hooks/useUserPlan";
 import { useNarraMindAlerts } from "@/hooks/useNarramindAlerts";
 import { useNarramindMissingAssets } from "@/hooks/useNarramindMissingAssets";
 import type { AssetType } from "@/types";
+import { TIER_CONFIG } from "@/types";
 import { useScenarioChapters } from "@/hooks/useScenarioChapters";
 import DashboardLayout from "@/components/DashboardLayout";
 import { AssetLibrary } from "@/components/project/AssetLibrary";
@@ -565,6 +566,7 @@ export default function ProjectDetail() {
               }))}
               onNavigateToChapter={handleNavigateToChapter}
               onCreateMissingAsset={handleCreateMissingAsset}
+              filArianeLimit={TIER_CONFIG[userPlan].filArianeLimit}
             />
           )}
         </SheetContent>

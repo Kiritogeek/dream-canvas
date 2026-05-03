@@ -13,8 +13,9 @@ import { scrollChapterEditorToExcerpt } from "@/lib/arianeScroll";
 import { cn } from "@/lib/utils";
 import type { NarrativeAlertSeverity, NarraMindAlertView } from "@/types";
 import type { NarramindMissingAsset } from "@/types";
-import { AlertTriangle, Check, Eye, Loader2, Plus, X } from "lucide-react";
+import { AlertTriangle, Check, Eye, Loader2, Plus, Sparkles, X } from "lucide-react";
 import { ARIANE_DISPLAY_NAME } from "@/constants/ariane";
+import { Link } from "react-router-dom";
 import { ArianeOrbitIcon } from "./ArianeOrbitIcon";
 
 const SEVERITY_LABEL: Record<NarrativeAlertSeverity, string> = {
@@ -46,6 +47,7 @@ type ArianeContinuityPanelProps = {
   textareaRef?: React.RefObject<HTMLTextAreaElement | null>;
   scrollContainerRef?: React.RefObject<HTMLElement | null>;
   onCreateMissingAsset?: (name: string) => void;
+  filArianeLimit?: number | null;
 };
 
 export function ArianeContinuityPanel({
@@ -57,6 +59,7 @@ export function ArianeContinuityPanel({
   textareaRef,
   scrollContainerRef,
   onCreateMissingAsset,
+  filArianeLimit,
 }: ArianeContinuityPanelProps) {
   const isScoped = !!chapterId;
 
@@ -77,6 +80,9 @@ export function ArianeContinuityPanel({
     if (filter === "all") return alerts;
     return alerts.filter((a) => a.severity === filter);
   }, [alerts, filter]);
+
+  const limitedFiltered = filArianeLimit != null ? filtered.slice(0, filArianeLimit) : filtered;
+  const isAlertsCapped = filArianeLimit != null && filtered.length > filArianeLimit;
 
   const filters: Array<{ id: FilterSeverity; label: string }> = [
     { id: "all", label: "Tout" },
@@ -205,7 +211,7 @@ export function ArianeContinuityPanel({
             {!isLoading && !isError && filtered.length > 0 && (
               <ScrollArea className="flex-1 min-h-[50vh] pr-2">
                 <ul className="space-y-3 pb-4" role="list">
-                  {filtered.map((a) => (
+                  {limitedFiltered.map((a) => (
                     <ContinuityAlertCard
                       key={a.id}
                       alert={a}
@@ -252,6 +258,20 @@ export function ArianeContinuityPanel({
                     />
                   ))}
                 </ul>
+                {isAlertsCapped && (
+                  <div className="mx-1 mb-4 rounded-xl border border-amber-500/30 bg-amber-500/8 p-3 space-y-2">
+                    <p className="text-xs text-amber-700 dark:text-amber-300 font-medium">
+                      {filtered.length - filArianeLimit!} alerte{filtered.length - filArianeLimit! > 1 ? "s" : ""} masquée{filtered.length - filArianeLimit! > 1 ? "s" : ""} — plan Libre limité à {filArianeLimit} alertes.
+                    </p>
+                    <Link
+                      to="/dashboard/plans"
+                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-600 dark:text-amber-400 hover:underline"
+                    >
+                      <Sparkles className="h-3 w-3" />
+                      Passer au plan Créateur
+                    </Link>
+                  </div>
+                )}
               </ScrollArea>
             )}
           </>

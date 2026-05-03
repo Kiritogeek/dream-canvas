@@ -1736,11 +1736,16 @@ export default function ChapterDetail() {
           )}
           <button
             type="button"
-            onClick={() => setSliceModalOpen(true)}
+            onClick={() => isPro ? setSliceModalOpen(true) : navigate("/dashboard/plans")}
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border bg-muted/50 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-            title="Découper & télécharger ZIP"
+            title={isPro ? "Découper & télécharger ZIP" : "Export disponible en plan Créateur"}
           >
             <Download className="h-3.5 w-3.5" />
+            {!isPro && (
+              <span className="text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 rounded px-1 py-0.5 leading-none">
+                Pro
+              </span>
+            )}
           </button>
         </div>
       </header>

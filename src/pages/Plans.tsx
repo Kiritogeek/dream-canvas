@@ -124,7 +124,7 @@ const PLAN_ORDER: UserPlan[] = ["libre", "createur", "studio"];
 export default function Plans() {
   const { toast } = useToast();
   const { user } = useAuth();
-  const { plan, usageInfo, goToCheckout, goToPortal, invalidate } = useUserPlan();
+  const { plan, usageInfo, nextResetDate, goToCheckout, goToPortal, invalidate } = useUserPlan();
   const [searchParams, setSearchParams] = useSearchParams();
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [isTogglingPlan, setIsTogglingPlan] = useState(false);
@@ -608,7 +608,9 @@ export default function Plans() {
             />
           </div>
           <p className="text-xs text-muted-foreground">
-            Le compteur est réinitialisé le 1er de chaque mois.
+            {plan === "libre"
+              ? "Le compteur est réinitialisé le 1er de chaque mois."
+              : `Prochain renouvellement : ${nextResetDate.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}`}
           </p>
         </motion.div>
 

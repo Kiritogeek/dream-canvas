@@ -616,6 +616,25 @@ async function persistNarramindAlerts(
   });
   if (!r1.ok) console.error("narramind-update: resolve stale alerts", await r1.text());
 
+  // Récupère les alertes existantes pour ce chapitre afin d'exclure celles
+  // déjà traitées (resolved/dismissed) — sans ce filtre, l'upsert réécrirait
+  // status → "active" même pour les alertes que l'utilisateur a fermées.
+  const existingRes = await fetch(
+    `${supabaseUrl}/rest/v1/narramind_alerts?chapter_id=eq.${chapterId}&dedupe_key=in.${notIn}&select=dedupe_key,status`,
+    { headers: dbHeaders }
+  );
+  const existingAlerts: Array<{ dedupe_key: string; status: string }> = existingRes.ok
+    ? await existingRes.json()
+    : [];
+  const skipKeys = new Set(
+    existingAlerts
+      .filter((r) => r.status === "dismissed" || r.status === "resolved")
+      .map((r) => r.dedupe_key)
+  );
+
+  const rowsToUpsert = rows.filter((r) => !skipKeys.has(r.dedupe_key as string));
+  if (rowsToUpsert.length === 0) return;
+
   const upsertRes = await fetch(
     `${supabaseUrl}/rest/v1/narramind_alerts?on_conflict=project_id,chapter_id,dedupe_key`,
     {
@@ -624,7 +643,7 @@ async function persistNarramindAlerts(
         ...dbHeaders,
         Prefer: "resolution=merge-duplicates,return=minimal",
       },
-      body: JSON.stringify(rows),
+      body: JSON.stringify(rowsToUpsert),
     }
   );
   if (!upsertRes.ok) {

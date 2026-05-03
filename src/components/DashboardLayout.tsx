@@ -116,7 +116,7 @@ function ProjectStepsSection({ projectId, onLinkClick }: { projectId: string; on
           </h2>
           <button
             onClick={openEdit}
-            className="p-1 rounded-md text-muted-foreground/50 hover:text-primary transition-colors shrink-0"
+            className="p-1 rounded-md text-muted-foreground/75 hover:text-primary transition-colors shrink-0"
             title="Modifier le projet"
           >
             <Pencil className="h-3.5 w-3.5" />
@@ -124,7 +124,7 @@ function ProjectStepsSection({ projectId, onLinkClick }: { projectId: string; on
         </div>
       )}
 
-      <nav className="border-l border-border/30 ml-4">
+      <nav className="border-l border-border/60 ml-4">
         {sidebarSteps.map((step) => {
           const Icon = step.icon;
           const isActive = activeTab === step.key;
@@ -134,7 +134,7 @@ function ProjectStepsSection({ projectId, onLinkClick }: { projectId: string; on
           const className = `flex items-center gap-3 pl-4 pr-3 py-2.5 text-sm font-medium transition-colors duration-150 border-l-2 -ml-px ${
             isActive
               ? "border-primary text-foreground bg-primary/8"
-              : "border-transparent text-muted-foreground hover:text-foreground hover:border-border hover:bg-muted/20"
+              : "border-transparent text-muted-foreground hover:text-foreground hover:border-border hover:bg-muted/50"
           }`;
           const newBadge =
             showNew[step.key as keyof typeof showNew] &&
@@ -217,7 +217,7 @@ function ProjectsListSection({ onLinkClick }: { onLinkClick?: () => void }) {
         <Link
           to="/dashboard/projects"
           onClick={onLinkClick}
-          className="p-1 rounded-md text-muted-foreground/50 hover:text-primary transition-colors"
+          className="p-1 rounded-md text-muted-foreground/75 hover:text-primary transition-colors"
           title="Voir tous les projets"
         >
           <Plus className="h-3.5 w-3.5" />
@@ -226,7 +226,7 @@ function ProjectsListSection({ onLinkClick }: { onLinkClick?: () => void }) {
 
       <nav className="space-y-0.5 px-2">
         {projects.length === 0 ? (
-          <p className="text-xs text-muted-foreground/60 px-3 py-2">Aucun projet</p>
+          <p className="text-xs text-muted-foreground px-3 py-2">Aucun projet</p>
         ) : (
           projects.map((p) => {
             const isActive = location.pathname.startsWith(`/dashboard/projects/${p.id}`);
@@ -238,10 +238,10 @@ function ProjectsListSection({ onLinkClick }: { onLinkClick?: () => void }) {
                 className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors duration-150 ${
                   isActive
                     ? "bg-primary/10 text-foreground font-medium"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                 }`}
               >
-                <Sparkles className="h-3.5 w-3.5 flex-shrink-0 opacity-40" />
+                <Sparkles className="h-3.5 w-3.5 flex-shrink-0 opacity-60" />
                 <span className="truncate">{p.title}</span>
               </Link>
             );
@@ -377,7 +377,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                 );
               })}
 
-              <div className="pt-2 border-t border-border/30 animate-menu-item-in [animation-fill-mode:both] stagger-4">
+              <div className="pt-2 border-t border-border/60 animate-menu-item-in [animation-fill-mode:both] stagger-4">
                 <SidebarContextSection onLinkClick={() => setMobileMenuOpen(false)} />
               </div>
 
@@ -401,9 +401,9 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
       <div className="flex flex-1 pt-14 sm:pt-16">
         {/* Desktop sidebar — lg+ only */}
-        <aside className="hidden lg:flex flex-col fixed left-0 top-16 w-[260px] h-[calc(100vh-4rem)] border-r border-border/30 bg-background/80 backdrop-blur-sm z-40 overflow-y-auto">
+        <aside className="hidden lg:flex flex-col fixed left-0 top-16 w-[260px] h-[calc(100vh-4rem)] border-r border-border/60 bg-sidebar z-40 overflow-y-auto">
           <div className="py-4 flex flex-col h-full">
-            <nav className="border-l border-border/30 ml-4">
+            <nav className="border-l border-border/60 ml-4">
               {navLinks.map((item) => {
                 const isActive =
                   item.to === "/dashboard"
@@ -416,7 +416,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                     className={`flex items-center gap-3 pl-4 pr-3 py-2.5 text-sm font-medium transition-colors duration-150 border-l-2 -ml-px ${
                       isActive
                         ? "border-primary text-foreground bg-primary/8"
-                        : "border-transparent text-muted-foreground hover:text-foreground hover:border-border hover:bg-muted/20"
+                        : "border-transparent text-muted-foreground hover:text-foreground hover:border-border hover:bg-muted/50"
                     }`}
                   >
                     <item.icon className={`h-4 w-4 flex-shrink-0 transition-colors ${isActive ? "text-primary" : ""}`} />
@@ -430,8 +430,8 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
             <div className="flex-1" />
 
-            <div className="px-4 pt-3 border-t border-border/30">
-              <p className="text-xs text-muted-foreground/60 truncate mb-2">{user?.email}</p>
+            <div className="px-4 pt-3 border-t border-border/60">
+              <p className="text-xs text-muted-foreground truncate mb-2">{user?.email}</p>
               <Button
                 variant="ghost"
                 size="sm"

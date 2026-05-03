@@ -209,7 +209,7 @@ export default function Dashboard() {
               {usageInfo.count}/{usageInfo.limit} générations
             </span>
           </div>
-          <div className="w-full bg-muted rounded-full h-2 sm:h-2.5">
+          <div className="w-full bg-foreground/10 rounded-full h-2 sm:h-2.5">
             <div
               className={`h-2 sm:h-2.5 rounded-full transition-all duration-500 ${
                 usagePercent >= 90

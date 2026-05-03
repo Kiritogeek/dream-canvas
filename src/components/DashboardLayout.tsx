@@ -57,30 +57,19 @@ function ProjectStepsSection({ projectId, onLinkClick }: { projectId: string; on
 
   const [editOpen, setEditOpen] = useState(false);
   const [editTitle, setEditTitle] = useState("");
-  const [editPanelsTarget, setEditPanelsTarget] = useState("");
-
   const openEdit = () => {
     if (!project) return;
     setEditTitle(project.title);
-    setEditPanelsTarget(
-      project.panels_target_per_chapter != null
-        ? String(project.panels_target_per_chapter)
-        : ""
-    );
     setEditOpen(true);
   };
 
   const handleEdit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!project || !editTitle.trim()) return;
-    const panelsTargetNum =
-      editPanelsTarget.trim() === ""
-        ? null
-        : Math.max(1, Math.min(99, parseInt(editPanelsTarget, 10) || 10));
     updateProject.mutate(
       {
         id: projectId,
-        updates: { title: editTitle.trim(), panels_target_per_chapter: panelsTargetNum },
+        updates: { title: editTitle.trim() },
       },
       {
         onSuccess: () => { toast({ title: "Projet mis à jour !" }); setEditOpen(false); },
@@ -178,20 +167,7 @@ function ProjectStepsSection({ projectId, onLinkClick }: { projectId: string; on
                 required
               />
             </div>
-            <div className="space-y-2">
-              <Label>Panels cible par chapitre (optionnel)</Label>
-              <Input
-                type="number"
-                min={1}
-                max={99}
-                value={editPanelsTarget}
-                onChange={(e) => setEditPanelsTarget(e.target.value)}
-                placeholder="ex. 10"
-              />
-              <p className="text-xs text-muted-foreground">
-                Référence pour l'estimation du découpage (indicatif).
-              </p>
-            </div>
+
             <Button
               type="submit"
               disabled={updateProject.isPending}

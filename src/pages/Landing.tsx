@@ -191,27 +191,6 @@ export default function Landing() {
                 </div>
               </motion.div>
 
-              {/* Ariane — présence hero */}
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9, y: 10 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                transition={{ duration: 0.55, ease: "easeOut", delay: 0.2 }}
-                className="flex-shrink-0 w-full max-w-sm lg:max-w-xs xl:max-w-sm"
-              >
-                <div className="flex flex-col items-center gap-5">
-                  <ArianeOrbitIcon size={80} />
-                  <ArianeBubble variant="onboarding" caption="Votre muse narrative">
-                    <p className="font-semibold text-sm mb-1">
-                      Bonjour, je suis {ARIANE_DISPLAY_NAME}&nbsp;✨
-                    </p>
-                    <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
-                      Je veille sur la cohérence de votre histoire, détecte les assets
-                      manquants et vous guide à chaque étape de la création.
-                    </p>
-                  </ArianeBubble>
-                </div>
-              </motion.div>
-
             </div>
           </div>
         </div>
@@ -295,7 +274,7 @@ export default function Landing() {
                 <img
                   src={arianeImg}
                   alt={ARIANE_DISPLAY_NAME}
-                  className="h-64 sm:h-80 lg:h-[420px] w-auto object-contain object-bottom drop-shadow-2xl select-none"
+                  className="h-80 sm:h-[440px] lg:h-[580px] w-auto object-contain object-bottom drop-shadow-2xl select-none"
                   loading="lazy"
                   decoding="async"
                 />

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Users, MapPin, Box, Plus, Save, RefreshCw, Search, HelpCircle } from "lucide-react";
+import { Users, MapPin, Box, Plus, Save, RefreshCw, Search, HelpCircle, Coins } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -449,11 +449,16 @@ export function AssetLibrary({
                   ? "Création..."
                   : !newAssetType
                     ? "Choisir un type"
-                    : newAssetType === "character"
-                      ? "Créer le personnage"
-                      : newAssetType === "background"
-                        ? "Créer le décor"
-                        : "Créer l'objet"}
+                    : <>
+                        {newAssetType === "character"
+                          ? "Créer le personnage"
+                          : newAssetType === "background"
+                            ? "Créer le décor"
+                            : "Créer l'objet"}
+                        <span className="ml-2 inline-flex items-center gap-0.5 rounded-full bg-white/20 px-1.5 py-0.5 text-[10px] font-semibold leading-none">
+                          <Coins className="h-2.5 w-2.5" />1
+                        </span>
+                      </>}
               </Button>
             </form>
           </DialogContent>
@@ -637,6 +642,9 @@ export function AssetLibrary({
             >
               <RefreshCw className="h-4 w-4 mr-1.5" />
               Régénérer
+              <span className="ml-2 inline-flex items-center gap-0.5 rounded-full bg-white/20 px-1.5 py-0.5 text-[10px] font-semibold leading-none">
+                <Coins className="h-2.5 w-2.5" />1
+              </span>
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -744,6 +752,9 @@ export function AssetLibrary({
                 >
                   <RefreshCw className="h-4 w-4 mr-1.5" />
                   Sauvegarder et régénérer
+                  <span className="ml-2 inline-flex items-center gap-0.5 rounded-full bg-white/20 px-1.5 py-0.5 text-[10px] font-semibold leading-none">
+                    <Coins className="h-2.5 w-2.5" />1
+                  </span>
                 </Button>
               </>
             )}

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Trash2, Loader2, Sparkles } from "lucide-react";
+import { Trash2, Loader2, Sparkles, Coins } from "lucide-react";
 import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   DreamWeaveColorPicker,
@@ -246,7 +246,14 @@ function ImageBlockToolbar(props: ImageVariant) {
                 className="inline-flex items-center gap-1.5 h-8 px-4 rounded-lg text-xs font-semibold gradient-primary text-white disabled:opacity-40 transition-all flex-1 justify-center shadow-sm"
               >
                 {isGenerating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <DreamWeaveLogo size={13} />}
-                {isGenerating ? "Génération…" : "Générer"}
+                {isGenerating ? "Génération…" : (
+                  <>
+                    Générer
+                    <span className="ml-1.5 inline-flex items-center gap-0.5 rounded-full bg-white/20 px-1.5 py-0.5 text-[10px] font-semibold leading-none">
+                      <Coins className="h-2.5 w-2.5" />1
+                    </span>
+                  </>
+                )}
               </button>
             </div>
 

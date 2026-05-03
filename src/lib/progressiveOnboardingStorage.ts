@@ -98,8 +98,8 @@ export function resetProgressiveOnboardingSimulation(userId: string | undefined)
     for (const step of ["scenario", "assets", "universe", "edition"] as const) {
       localStorage.removeItem(menuNewKey(userId, step));
     }
-    localStorage.removeItem("dw.ariane_onboarding_v1_dismissed");
-    localStorage.removeItem("dw.ariane_style_onboarding_v1_dismissed");
+    localStorage.removeItem(`dw.ariane_onboarding_v1_dismissed_${userId}`);
+    localStorage.removeItem(`dw.ariane_style_onboarding_v1_dismissed_${userId}`);
     clearArianeTabToursForUser(userId);
     sessionStorage.removeItem(ARIANE_STYLE_ONBOARDING_PENDING_PROJECT_ID_KEY);
     sessionStorage.setItem(ARIANE_STYLE_ONBOARDING_NEXT_CREATE_SESSION_KEY, "1");

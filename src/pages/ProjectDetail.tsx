@@ -55,6 +55,10 @@ export default function ProjectDetail() {
   const { data: assets = [], isLoading: loadingAssets } = useAssets(id);
   const { plan: userPlan, usageInfo } = useUserPlan();
   const { user } = useAuth();
+  // Clé par utilisateur — même logique que l'onboarding bienvenue
+  const styleOnboardingKey = user?.id
+    ? `${ARIANE_STYLE_ONBOARDING_STORAGE_KEY}_${user.id}`
+    : null;
   const { isResolved, appliesProgressiveFlow, accessible } = useProgressiveMenuAccess(id);
 
   const [searchParams, setSearchParams] = useSearchParams();
@@ -143,10 +147,10 @@ export default function ProjectDetail() {
   }, [project?.id]);
 
   useEffect(() => {
-    if (activeTab !== "style" || !project?.id) return;
+    if (activeTab !== "style" || !project?.id || !styleOnboardingKey) return;
     let dismissed = false;
     try {
-      dismissed = localStorage.getItem(ARIANE_STYLE_ONBOARDING_STORAGE_KEY) === "1";
+      dismissed = localStorage.getItem(styleOnboardingKey) === "1";
     } catch {
       dismissed = false;
     }
@@ -157,17 +161,17 @@ export default function ProjectDetail() {
     } catch {
       /* ignore */
     }
-  }, [activeTab, project?.id]);
+  }, [activeTab, project?.id, styleOnboardingKey]);
 
   const handleStyleOnboardingDismiss = useCallback(() => {
     try {
       sessionStorage.removeItem(ARIANE_STYLE_ONBOARDING_PENDING_PROJECT_ID_KEY);
-      localStorage.setItem(ARIANE_STYLE_ONBOARDING_STORAGE_KEY, "1");
+      if (styleOnboardingKey) localStorage.setItem(styleOnboardingKey, "1");
     } catch {
       /* ignore */
     }
     setStyleOnboardingOpen(false);
-  }, []);
+  }, [styleOnboardingKey]);
 
   const handleJourneyCompleteFinished = useCallback(() => {
     if (user?.id) dismissJourneyFinal(user.id);
@@ -253,7 +257,7 @@ export default function ProjectDetail() {
     if (activeTab === "style") {
       try {
         sessionStorage.setItem(ARIANE_STYLE_ONBOARDING_PENDING_PROJECT_ID_KEY, project.id);
-        localStorage.removeItem(ARIANE_STYLE_ONBOARDING_STORAGE_KEY);
+        if (styleOnboardingKey) localStorage.removeItem(styleOnboardingKey);
       } catch {
         /* ignore */
       }
@@ -272,6 +276,7 @@ export default function ProjectDetail() {
     activeTab,
     progressiveTourTab,
     tabTourKeyStable,
+    styleOnboardingKey,
   ]);
 
   useEffect(() => {

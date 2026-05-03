@@ -178,9 +178,9 @@
   .gradient-dream {
     background: linear-gradient(
       135deg,
-      hsl(var(--lavender) / 0.45) 0%,
-      hsl(var(--peach) / 0.35) 50%,
-      hsl(var(--mint) / 0.40) 100%
+      hsl(var(--lavender) / 0.84) 0%,
+      hsl(var(--peach) / 0.74) 50%,
+      hsl(var(--mint) / 0.80) 100%
     );
   }
   .dark .gradient-dream {

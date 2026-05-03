@@ -1,12 +1,13 @@
 import React, { useState, useMemo } from "react";
-import { LayoutPanelTop, Palette, MessageCircle, X, Download, Package, History } from "lucide-react";
+import { LayoutPanelTop, Palette, MessageCircle, X, Download, History, LayoutList } from "lucide-react";
+import { CaseLayers } from "@/components/chapter/CaseLayers";
+import { getPanelBlocks, getPanelColorBlocks, getPanelSpeechBubbles } from "@/services/panels";
 import type { ChapterCanvasImageHistoryRow } from "@/services/chapterCanvasImageHistory";
 import { ChapterImageHistoryList } from "@/components/chapter/ChapterImageHistoryList";
 import { BubblePreview } from "@/components/chapter/SpeechBubbleShape";
 import { BLOCK_PRESETS } from "@/services/panels";
 import { SPEECH_BUBBLE_TYPE_LABELS } from "@/types";
-import { getDetectedAssets } from "@/components/project/ScenarioTextHighlighter";
-import type { Panel, ColorBlockFill, SpeechBubbleType, Asset } from "@/types";
+import type { Panel, ColorBlockFill, SpeechBubbleType } from "@/types";
 import { cn } from "@/lib/utils";
 import {
   CHAPTER_EDITOR_RAIL_ASIDE_CLASS,
@@ -25,47 +26,20 @@ const COLOR_PRESETS_SIDEBAR = [
   { label: "Jaune",  color: "#fbbf24" },
 ] as const;
 
-export type SidebarTab = "blocs" | "couleurs" | "dialogue" | "assets" | "historique";
+export type SidebarTab = "blocs" | "couleurs" | "dialogue" | "historique" | "calques";
 
-/** Bibliothèque (Cases, Couleurs, Dialogue, Assets) — chrome flyout lisible comme Couleurs/Assets ; historique gardé compact. */
+/** Bibliothèque (Cases, Couleurs, Dialogue, Calques) — chrome flyout lisible comme Couleurs ; historique gardé compact. */
 function isLibraryContentSidebarTab(
   tab: SidebarTab | null,
 ): tab is Exclude<SidebarTab, "historique"> {
-  return tab === "blocs" || tab === "couleurs" || tab === "dialogue" || tab === "assets";
-}
-
-const ASSET_TYPE_LABELS: Record<string, string> = {
-  character: "Personnage",
-  background: "Décor",
-  object: "Objet",
-};
-
-const ASSET_TYPE_COLORS: Record<string, string> = {
-  character: "hsl(var(--lavender) / 0.25)",
-  background: "hsl(var(--mint) / 0.2)",
-  object: "hsl(230 55% 88% / 0.25)",
-};
-
-const ASSET_TYPE_BORDER: Record<string, string> = {
-  character: "hsl(var(--lavender) / 0.5)",
-  background: "hsl(var(--mint) / 0.5)",
-  object: "hsl(230 50% 55% / 0.4)",
-};
-
-function getAssetThumbnail(asset: Asset): string | null {
-  if (asset.asset_type === "character") {
-    return asset.image_url ?? asset.image_url_profile_left ?? asset.image_url_profile_right ?? null;
-  }
-  return asset.image_url ?? null;
+  return tab === "blocs" || tab === "couleurs" || tab === "dialogue" || tab === "calques";
 }
 
 interface EditorLeftSidebarProps {
   panel: Panel;
   activeSidebarTab: SidebarTab | null;
   onTabChange: (tab: SidebarTab | null) => void;
-  assets: Asset[];
-  scenarioContent?: string | null;
-  project: { style_template?: string | null; title?: string | null } | undefined;
+  onScrollToY?: (logicalY: number) => void;
   isUpdating: boolean;
   newBlockDragGhostRef: React.RefObject<HTMLDivElement | null>;
   onSliceOpen: () => void;
@@ -78,14 +52,19 @@ interface EditorLeftSidebarProps {
   /** Si x/y sont omis ou `undefined`, le parent positionne sous le centre visible du canvas. */
   onAddColorBlock: (x: number | undefined, y: number | undefined, width: number, height: number, fill?: ColorBlockFill) => void;
   onAddSpeechBubble: (type: SpeechBubbleType, x?: number, y?: number) => void;
+  selectedBlockId: { panelId: string; blockId: string } | null;
+  selectedColorBlockId: { panelId: string; colorBlockId: string } | null;
+  selectedSpeechBubbleId: { panelId: string; bubbleId: string } | null;
+  onSelectBlock: (v: { panelId: string; blockId: string } | null) => void;
+  onSelectColorBlock: (v: { panelId: string; colorBlockId: string } | null) => void;
+  onSelectSpeechBubble: (v: { panelId: string; bubbleId: string } | null) => void;
 }
 
 export function EditorLeftSidebar({
-  panel: _panel,
+  panel,
   activeSidebarTab,
   onTabChange,
-  assets,
-  scenarioContent,
+  onScrollToY,
   isUpdating: _isUpdating,
   newBlockDragGhostRef,
   onSliceOpen,
@@ -97,24 +76,22 @@ export function EditorLeftSidebar({
   onAddBlock,
   onAddColorBlock,
   onAddSpeechBubble,
+  selectedBlockId,
+  selectedColorBlockId,
+  selectedSpeechBubbleId,
+  onSelectBlock,
+  onSelectColorBlock,
+  onSelectSpeechBubble,
 }: EditorLeftSidebarProps) {
   const [draggingKey, setDraggingKey] = useState<string | null>(null);
 
-  // Assets détectés dans le chapitre scénario lié (ou tous si pas de contenu)
-  const detectedAssets = useMemo(() => {
-    if (!scenarioContent?.trim()) return assets;
-    const detected = getDetectedAssets(scenarioContent, assets);
-    return detected.length > 0 ? detected : assets;
-  }, [scenarioContent, assets]);
-
-  const assetsByType = useMemo(() => {
-    const groups: Record<string, Asset[]> = { character: [], background: [], object: [] };
-    for (const a of detectedAssets) {
-      const t = a.asset_type in groups ? a.asset_type : "object";
-      groups[t].push(a);
-    }
-    return groups;
-  }, [detectedAssets]);
+  const totalElements = useMemo(
+    () =>
+      getPanelBlocks(panel).length +
+      getPanelColorBlocks(panel).length +
+      getPanelSpeechBubbles(panel).length,
+    [panel],
+  );
 
   return (
     <aside
@@ -130,10 +107,10 @@ export function EditorLeftSidebar({
           { id: "couleurs" as const, icon: Palette, label: "Couleurs" },
           { id: "dialogue" as const, icon: MessageCircle, label: "Dialogue" },
           {
-            id: "assets" as const,
-            icon: Package,
-            label: "Assets",
-            badge: detectedAssets.length > 0 ? detectedAssets.length : undefined,
+            id: "calques" as const,
+            icon: LayoutList,
+            label: "Calques",
+            badge: totalElements > 0 ? totalElements : undefined,
           },
         ] as const).map(({ id, icon: Icon, label, badge }) => (
           <button
@@ -162,7 +139,7 @@ export function EditorLeftSidebar({
         ))}
       </div>
 
-      {/* Espace libre jusqu’au bas de la fenêtre */}
+      {/* Espace libre jusqu'au bas de la fenêtre */}
       <div className="flex-1 min-h-0" aria-hidden />
 
       {/* Historique (même pattern flyout que Cases / Dialogue) */}
@@ -235,21 +212,7 @@ export function EditorLeftSidebar({
                 <kbd className="text-[10px] font-mono bg-muted text-muted-foreground border border-border px-1.5 py-px rounded-md leading-none">D</kbd>
               </>
             )}
-            {activeSidebarTab === "assets" && (
-              <>
-                Assets
-                {detectedAssets.length > 0 && (
-                  <span className="inline-flex items-center gap-2.5 rounded-lg border border-[hsl(var(--lavender)/0.38)] bg-[hsl(var(--lavender)/0.12)] px-3 py-1.5 shadow-sm dark:bg-[hsl(var(--lavender)/0.18)]">
-                    <span className="text-xl font-bold tabular-nums leading-none text-[hsl(275,38%,35%)] dark:text-[hsl(280,42%,88%)]">
-                      {detectedAssets.length}
-                    </span>
-                    <span className="text-sm font-semibold text-muted-foreground leading-tight">
-                      référence{detectedAssets.length > 1 ? "s" : ""}
-                    </span>
-                  </span>
-                )}
-              </>
-            )}
+            {activeSidebarTab === "calques" && <>Calques</>}
             {activeSidebarTab === "historique" && <>Historique</>}
           </span>
           <button
@@ -270,6 +233,18 @@ export function EditorLeftSidebar({
             isLibraryContentSidebarTab(activeSidebarTab) ? "p-5 space-y-4" : "p-4 space-y-3",
           )}
         >
+          {activeSidebarTab === "calques" && (
+            <CaseLayers
+              panel={panel}
+              selectedBlockId={selectedBlockId}
+              selectedColorBlockId={selectedColorBlockId}
+              selectedSpeechBubbleId={selectedSpeechBubbleId}
+              onSelectBlock={onSelectBlock}
+              onSelectColorBlock={onSelectColorBlock}
+              onSelectSpeechBubble={onSelectSpeechBubble}
+              onScrollToY={onScrollToY}
+            />
+          )}
           {activeSidebarTab === "historique" && (
             <ChapterImageHistoryList
               entries={imageHistoryEntries}
@@ -386,76 +361,6 @@ export function EditorLeftSidebar({
                   </div>
                 ))}
               </div>
-            </div>
-          )}
-          {activeSidebarTab === "assets" && (
-            <div className="space-y-5">
-              {detectedAssets.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 text-center gap-3">
-                  <Package className="h-9 w-9 text-muted-foreground/25" />
-                  <p className="text-sm text-muted-foreground leading-relaxed px-2">
-                    Aucun asset dans ce projet.
-                  </p>
-                </div>
-              ) : (
-                <>
-                  {scenarioContent?.trim() && (
-                    <p className="text-sm text-muted-foreground leading-relaxed">
-                      Assets détectés dans le chapitre scénario lié
-                    </p>
-                  )}
-                  {(["character", "background", "object"] as const).map((type) => {
-                    const group = assetsByType[type];
-                    if (!group || group.length === 0) return null;
-                    const label = ASSET_TYPE_LABELS[type] ?? type;
-                    return (
-                      <div key={type} className="space-y-2">
-                        <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider px-0.5">
-                          {label}
-                          {group.length > 1 ? "s" : ""} ({group.length})
-                        </p>
-                        <div className="flex flex-col gap-2">
-                          {group.map((asset) => {
-                            const thumb = getAssetThumbnail(asset);
-                            const bg = ASSET_TYPE_COLORS[type] ?? "hsl(var(--muted)/0.3)";
-                            const border = ASSET_TYPE_BORDER[type] ?? "hsl(var(--border))";
-                            return (
-                              <div
-                                key={asset.id}
-                                className="flex items-center gap-3 rounded-xl border p-3 transition-colors hover:bg-muted/35"
-                                style={{ borderColor: border, backgroundColor: bg }}
-                              >
-                                <div className="shrink-0 w-14 h-14 rounded-xl overflow-hidden bg-muted/50 border border-border/40 flex items-center justify-center">
-                                  {thumb ? (
-                                    <img
-                                      src={thumb}
-                                      alt={asset.name}
-                                      className="w-full h-full object-cover"
-                                      loading="lazy"
-                                    />
-                                  ) : (
-                                    <Package className="h-6 w-6 text-muted-foreground/30" />
-                                  )}
-                                </div>
-                                <div className="flex-1 min-w-0 py-0.5">
-                                  <p className="text-sm font-semibold text-foreground truncate leading-snug">
-                                    {asset.name}
-                                  </p>
-                                  {asset.prompt && (
-                                    <p className="text-xs text-muted-foreground leading-snug line-clamp-3 mt-1">
-                                      {asset.prompt.slice(0, 100)}
-                                    </p>
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </>
-              )}
             </div>
           )}
 

@@ -16,6 +16,8 @@ import {
   Download,
   Layers,
   CheckCircle2,
+  Undo2,
+  Redo2,
 } from "lucide-react";
 import { BubbleToolbar } from "@/components/chapter/BubbleToolbar";
 import { BlockToolbar } from "@/components/chapter/BlockToolbar";
@@ -84,6 +86,7 @@ import { BubbleLayer } from "@/components/chapter/BubbleLayer";
 import { PanelExportSpeechBubbles } from "@/components/chapter/PanelExportSpeechBubbles";
 import { EditorRightPanel } from "@/components/chapter/EditorRightPanel";
 import { EditorLeftSidebar, type SidebarTab } from "@/components/chapter/EditorLeftSidebar";
+import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import type { Json } from "@/integrations/supabase/types";
 import type { Panel, PanelBlock, PanelLayout, ColorBlock, ColorBlockFill, SpeechBubble, Asset } from "@/types";
 import {
@@ -321,7 +324,7 @@ export default function ChapterDetail() {
   /** Panel ouvert en modale « Edition » (id ou null) */
   const [expandedPanelId, setExpandedPanelId] = useState<string | null>(null);
   /** Outil à droite dans la modale d'édition — null = panel rétracté. */
-  const [panelEditorRightTool, setPanelEditorRightTool] = useState<"chapter-text" | "cases" | null>("chapter-text");
+  const [panelEditorRightTool, setPanelEditorRightTool] = useState<"chapter-text" | "assets" | "cases" | null>("chapter-text");
   /** Bloc sélectionné dans la modale (mode Personalisation) pour afficher le panneau droit ou gauche */
   const [selectedBlockIdInModal, setSelectedBlockIdInModal] = useState<{ panelId: string; blockId: string } | null>(null);
   /** Bloc de couleur sélectionné (onglet Couleurs) pour éditer la couleur */
@@ -356,6 +359,20 @@ export default function ChapterDetail() {
     setActiveSidebarTab(null);
     resetPanelEditorUiState();
   }, [resetPanelEditorUiState]);
+
+  const handleScrollToCanvasY = useCallback((logicalY: number) => {
+    const scrollEl = panelEditorCanvasScrollRef.current;
+    const zoomFrameEl = panelEditorZoomFrameRef.current;
+    if (!scrollEl || !zoomFrameEl) return;
+    const zoom = zoomRef.current ?? 1;
+    const scrollRect = scrollEl.getBoundingClientRect();
+    const frameRect = zoomFrameEl.getBoundingClientRect();
+    const canvasTopInContent = frameRect.top - scrollRect.top + scrollEl.scrollTop;
+    const targetScrollTop = canvasTopInContent + logicalY * zoom - scrollEl.clientHeight / 2;
+    scrollEl.scrollTo({ top: Math.max(0, targetScrollTop), behavior: "smooth" });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   /** Valeur sentinelle pour "Aucun" (Radix Select n'accepte pas value="") */
   const SCENARIO_NONE_VALUE = "__none__";
   /** undefined = pas encore choisi (afficher la suggestion par numéro), null = "Aucun", string = id choisi */
@@ -555,170 +572,25 @@ export default function ChapterDetail() {
     );
   };
 
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      const tag = (e.target as HTMLElement).tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA" || (e.target as HTMLElement).isContentEditable) return;
-      if (!expandedPanelId) return;
-
-      const panel = panels.find((p) => p.id === expandedPanelId);
-      if (!panel) return;
-      const layout = getPanelLayout(panel);
-      const panelH = getPanelHeight(panel);
-
-      if (e.key === "Escape") {
-        setSelectedBlockIdInModal(null);
-        setSelectedColorBlockIdInModal(null);
-        setSelectedSpeechBubbleIdInModal(null);
-        return;
-      }
-
-      if ((e.ctrlKey || e.metaKey) && String(e.key).toLowerCase() === "z" && !e.altKey) {
-        e.preventDefault();
-        if (e.shiftKey) redoPanelCanvas(expandedPanelId);
-        else undoPanelCanvas(expandedPanelId);
-        return;
-      }
-
-      if (e.key === "b" || e.key === "B") {
-        e.preventDefault();
-        const w = DEFAULT_BLOCK_WIDTH;
-        const h = DEFAULT_BLOCK_HEIGHT;
-        const { x, y } = canvasPlacementFromViewportCenter(
-          canvasRefByPanel.current[panel.id] ?? null,
-          panelEditorCanvasScrollRef.current,
-          PANEL_WIDTH,
-          panelH,
-          w,
-          h,
-        );
-        const newBlock: PanelBlock = {
-          id: crypto.randomUUID(),
-          x, y, width: w, height: h,
-          name: `Case ${layout.blocks.length + 1}`,
-          prompt: null, image_url: null,
-        };
-        recordCanvasUndoBeforeChange(panel.id);
-        updatePanelMutation.mutate(
-          { id: panel.id, updates: { layout: { ...layout, blocks: [...layout.blocks, newBlock] } as unknown as Json } },
-          {
-            onSuccess: () => {
-              setSelectedBlockIdInModal({ panelId: panel.id, blockId: newBlock.id });
-              toast({ title: "Case ajoutée", description: "Raccourci B" });
-            },
-            onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }),
-          }
-        );
-        return;
-      }
-
-      if (e.key === "c" || e.key === "C") {
-        e.preventDefault();
-        const w = 300,
-          h = 300;
-        const { x, y } = canvasPlacementFromViewportCenter(
-          canvasRefByPanel.current[panel.id] ?? null,
-          panelEditorCanvasScrollRef.current,
-          PANEL_WIDTH,
-          panelH,
-          w,
-          h,
-        );
-        const colorBlocks = getPanelColorBlocks(panel);
-        const newCb: ColorBlock = {
-          id: crypto.randomUUID(),
-          x, y, width: w, height: h,
-          fill: { ...DEFAULT_COLOR_BLOCK_FILL },
-        };
-        recordCanvasUndoBeforeChange(panel.id);
-        updatePanelMutation.mutate(
-          { id: panel.id, updates: { color_blocks: [...colorBlocks, newCb] as unknown as Json } },
-          {
-            onSuccess: () => {
-              setSelectedColorBlockIdInModal({ panelId: panel.id, colorBlockId: newCb.id });
-              toast({ title: "Bloc couleur ajouté", description: "Raccourci C" });
-            },
-            onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }),
-          }
-        );
-        return;
-      }
-
-      if (e.key === "d" || e.key === "D") {
-        e.preventDefault();
-        const w = DEFAULT_SPEECH_BUBBLE_WIDTH;
-        const h = DEFAULT_SPEECH_BUBBLE_HEIGHT;
-        const { x, y } = canvasPlacementFromViewportCenter(
-          canvasRefByPanel.current[panel.id] ?? null,
-          panelEditorCanvasScrollRef.current,
-          PANEL_WIDTH,
-          panelH,
-          w,
-          h,
-        );
-        const bubbles = getPanelSpeechBubbles(panel);
-        const newBubble: SpeechBubble = {
-          id: crypto.randomUUID(),
-          type: "text",
-          text: "",
-          position: { x, y },
-          width: w,
-          height: h,
-          style: {},
-        };
-        recordCanvasUndoBeforeChange(panel.id);
-        updatePanelMutation.mutate(
-          { id: panel.id, updates: { speech_bubbles: [...bubbles, newBubble] as unknown as Json } },
-          {
-            onSuccess: () => {
-              setSelectedSpeechBubbleIdInModal({ panelId: panel.id, bubbleId: newBubble.id });
-              toast({ title: "Bulle ajoutée", description: "Raccourci D" });
-            },
-            onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }),
-          }
-        );
-        return;
-      }
-
-      if (e.key !== "Delete" && e.key !== "Backspace") return;
-
-      if (selectedBlockIdInModal?.panelId === expandedPanelId && selectedBlockIdInModal.blockId) {
-        const blocks = getPanelBlocks(panel);
-        const block = blocks.find((b) => b.id === selectedBlockIdInModal.blockId);
-        if (block) {
-          e.preventDefault();
-          setCanvasDeleteIntent({ panelId: panel.id, kind: "image", blockId: block.id });
-        }
-      } else if (selectedColorBlockIdInModal?.panelId === expandedPanelId && selectedColorBlockIdInModal.colorBlockId) {
-        const colorBlocks = getPanelColorBlocks(panel);
-        const cb = colorBlocks.find((c) => c.id === selectedColorBlockIdInModal.colorBlockId);
-        if (cb) {
-          e.preventDefault();
-          setCanvasDeleteIntent({ panelId: panel.id, kind: "color", colorBlockId: cb.id });
-        }
-      } else if (selectedSpeechBubbleIdInModal?.panelId === expandedPanelId && selectedSpeechBubbleIdInModal.bubbleId) {
-        const speechBubbles = getPanelSpeechBubbles(panel);
-        const bubble = speechBubbles.find((b) => b.id === selectedSpeechBubbleIdInModal.bubbleId);
-        if (bubble) {
-          e.preventDefault();
-          setCanvasDeleteIntent({ panelId: panel.id, kind: "bubble", bubbleId: bubble.id });
-        }
-      }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [
+  useKeyboardShortcuts({
     expandedPanelId,
+    panels,
     selectedBlockIdInModal,
     selectedColorBlockIdInModal,
     selectedSpeechBubbleIdInModal,
-    panels,
+    canvasRefByPanel,
+    panelEditorCanvasScrollRef,
     updatePanelMutation,
-    toast,
     undoPanelCanvas,
     redoPanelCanvas,
     recordCanvasUndoBeforeChange,
-  ]);
+    setSelectedBlockIdInModal,
+    setSelectedColorBlockIdInModal,
+    setSelectedSpeechBubbleIdInModal,
+    setCanvasDeleteIntent,
+    PANEL_WIDTH,
+    canvasPlacementFromViewportCenter,
+  });
 
   const handleColorBlockMoveCommit = useCallback((panelId: string, colorBlockId: string, x: number, y: number) => {
     const currentPanels = queryClient.getQueryData<Panel[]>(panelsQueryKey) ?? [];
@@ -1536,9 +1408,7 @@ export default function ChapterDetail() {
           panel={panel}
           activeSidebarTab={activeSidebarTab}
           onTabChange={setActiveSidebarTab}
-          assets={assets}
-          scenarioContent={scenarioChapter?.content}
-          project={project}
+          onScrollToY={handleScrollToCanvasY}
           isUpdating={updatePanelMutation.isPending}
           newBlockDragGhostRef={newBlockDragGhostRef}
           onSliceOpen={() => setSliceModalOpen(true)}
@@ -1550,6 +1420,12 @@ export default function ChapterDetail() {
           onAddBlock={handleAddBlock}
           onAddColorBlock={handleAddColorBlock}
           onAddSpeechBubble={handleAddSpeechBubble}
+          selectedBlockId={selectedBlockIdInModal}
+          selectedColorBlockId={selectedColorBlockIdInModal}
+          selectedSpeechBubbleId={selectedSpeechBubbleIdInModal}
+          onSelectBlock={setSelectedBlockIdInModal}
+          onSelectColorBlock={setSelectedColorBlockIdInModal}
+          onSelectSpeechBubble={setSelectedSpeechBubbleIdInModal}
         />
         {/* Centre : panel 800px de large exactement, zoomable via contrôles header ou Ctrl+Scroll */}
         <div
@@ -2220,6 +2096,25 @@ export default function ChapterDetail() {
                     {usageInfo.count}/{usageInfo.limit}
                   </span>
                 </div>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 w-7 p-0"
+                  onClick={() => expandedPanelId && undoPanelCanvas(expandedPanelId)}
+                  title="Annuler (Ctrl+Z)"
+                >
+                  <Undo2 className="h-3.5 w-3.5" />
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 w-7 p-0"
+                  onClick={() => expandedPanelId && redoPanelCanvas(expandedPanelId)}
+                  title="Rétablir (Ctrl+Maj+Z)"
+                >
+                  <Redo2 className="h-3.5 w-3.5" />
+                </Button>
+                <div className="w-px h-4 bg-border/60" />
                 <Button
                   size="sm"
                   variant="ghost"

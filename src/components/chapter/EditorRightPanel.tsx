@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { BookOpen, Loader2, Layers, GripVertical, CheckCircle2 } from "lucide-react";
+import React, { useMemo, useState } from "react";
+import { BookOpen, Loader2, Layers, GripVertical, CheckCircle2, Package } from "lucide-react";
 import { ScenarioFormattedPreview } from "@/components/project/ScenarioFormattedPreview";
 import type { Asset } from "@/types";
 import { planDisplayName } from "@/types";
@@ -22,9 +22,34 @@ type ValidatedCase = {
   caseNumber: number;
 };
 
+const ASSET_TYPE_LABELS: Record<string, string> = {
+  character: "Personnage",
+  background: "Décor",
+  object: "Objet",
+};
+
+const ASSET_TYPE_COLORS: Record<string, string> = {
+  character: "hsl(var(--lavender) / 0.25)",
+  background: "hsl(var(--mint) / 0.2)",
+  object: "hsl(230 55% 88% / 0.25)",
+};
+
+const ASSET_TYPE_BORDER: Record<string, string> = {
+  character: "hsl(var(--lavender) / 0.5)",
+  background: "hsl(var(--mint) / 0.5)",
+  object: "hsl(230 50% 55% / 0.4)",
+};
+
+function getAssetThumbnail(asset: Asset): string | null {
+  if (asset.asset_type === "character") {
+    return asset.image_url ?? asset.image_url_profile_left ?? asset.image_url_profile_right ?? null;
+  }
+  return asset.image_url ?? null;
+}
+
 interface EditorRightPanelProps {
-  activeTool: "chapter-text" | "cases" | null;
-  onToolChange: (tool: "chapter-text" | "cases" | null) => void;
+  activeTool: "chapter-text" | "assets" | "cases" | null;
+  onToolChange: (tool: "chapter-text" | "assets" | "cases" | null) => void;
   loadingScenario: boolean;
   scenarioContent: string | null | undefined;
   assets: Asset[];
@@ -42,7 +67,7 @@ export function EditorRightPanel({
   onToolChange,
   loadingScenario,
   scenarioContent,
-  assets: _assets,
+  assets,
   validatedCases,
   existingBlockPrompts,
   isUpdating: _isUpdating,
@@ -56,6 +81,15 @@ export function EditorRightPanel({
   const unaddedCount = validatedCases.filter(
     (c) => c.description?.trim() && !existingBlockPrompts.some((p) => p.trim() === c.description?.trim())
   ).length;
+
+  const assetsByType = useMemo(() => {
+    const groups: Record<string, Asset[]> = { character: [], background: [], object: [] };
+    for (const a of assets) {
+      const t = a.asset_type in groups ? a.asset_type : "object";
+      groups[t].push(a);
+    }
+    return groups;
+  }, [assets]);
 
   return (
     <>
@@ -81,6 +115,61 @@ export function EditorRightPanel({
               </div>
             ) : (
               <p className="text-sm text-muted-foreground italic py-2">Aucun chapitre scénario lié.</p>
+            )}
+          </div>
+        )}
+
+        {activeTool === "assets" && (
+          <div className="p-4 space-y-4 flex-1 min-h-0 overflow-y-auto">
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Assets du projet</span>
+            {assets.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center gap-3">
+                <Package className="h-9 w-9 text-muted-foreground/25" />
+                <p className="text-sm text-muted-foreground leading-relaxed px-2">Aucun asset dans ce projet.</p>
+              </div>
+            ) : (
+              <div className="space-y-5">
+                {(["character", "background", "object"] as const).map((type) => {
+                  const group = assetsByType[type];
+                  if (!group || group.length === 0) return null;
+                  const label = ASSET_TYPE_LABELS[type] ?? type;
+                  return (
+                    <div key={type} className="space-y-2">
+                      <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider px-0.5">
+                        {label}{group.length > 1 ? "s" : ""} ({group.length})
+                      </p>
+                      <div className="flex flex-col gap-2">
+                        {group.map((asset) => {
+                          const thumb = getAssetThumbnail(asset);
+                          const bg = ASSET_TYPE_COLORS[type] ?? "hsl(var(--muted)/0.3)";
+                          const border = ASSET_TYPE_BORDER[type] ?? "hsl(var(--border))";
+                          return (
+                            <div
+                              key={asset.id}
+                              className="flex items-center gap-3 rounded-xl border p-3 transition-colors hover:bg-muted/35"
+                              style={{ borderColor: border, backgroundColor: bg }}
+                            >
+                              <div className="shrink-0 w-14 h-14 rounded-xl overflow-hidden bg-muted/50 border border-border/40 flex items-center justify-center">
+                                {thumb ? (
+                                  <img src={thumb} alt={asset.name} className="w-full h-full object-cover" loading="lazy" />
+                                ) : (
+                                  <Package className="h-6 w-6 text-muted-foreground/30" />
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0 py-0.5">
+                                <p className="text-sm font-semibold text-foreground truncate leading-snug">{asset.name}</p>
+                                {asset.prompt && (
+                                  <p className="text-xs text-muted-foreground leading-snug line-clamp-3 mt-1">{asset.prompt.slice(0, 100)}</p>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             )}
           </div>
         )}
@@ -232,6 +321,24 @@ export function EditorRightPanel({
           title="Scénario"
         >
           <BookOpen className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" strokeWidth={1.75} />
+        </button>
+
+        <button
+          type="button"
+          onClick={() => onToolChange(activeTool === "assets" ? null : "assets")}
+          className={cn(
+            "relative",
+            CHAPTER_EDITOR_RAIL_BTN_BASE,
+            activeTool === "assets" ? CHAPTER_EDITOR_RAIL_BTN_ACTIVE : CHAPTER_EDITOR_RAIL_BTN_IDLE,
+          )}
+          title="Assets du projet"
+        >
+          <Package className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" strokeWidth={1.75} />
+          {assets.length > 0 && (
+            <span className={cn(CHAPTER_EDITOR_RAIL_COUNT_BADGE_CLASS, assets.length > 99 && "min-w-7 px-1")}>
+              {assets.length > 99 ? "99+" : assets.length}
+            </span>
+          )}
         </button>
 
         <button

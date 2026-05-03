@@ -128,71 +128,63 @@ export default function Landing() {
       {/* ── HERO ── */}
       <section className="relative pt-24 sm:pt-32 pb-16 sm:pb-24 overflow-hidden">
         <div className="container px-4 sm:px-6 lg:px-8 relative z-10">
-          <div className="max-w-6xl mx-auto">
-            <div className="flex flex-col lg:flex-row items-center gap-10 lg:gap-16">
-
-              {/* Copy */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.45, ease: "easeOut" }}
-                className="flex-1 text-center lg:text-left space-y-5 sm:space-y-6"
-              >
-                <div className="inline-flex items-center gap-2 rounded-full gradient-primary text-primary-foreground px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium shadow-dream">
-                  <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                  IA générative de webtoons
-                </div>
-
-                <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-display font-bold leading-tight text-foreground drop-shadow-sm">
-                  Tissez vos{" "}
-                  <span className="text-gradient drop-shadow-sm">rêves</span>
-                  <br className="hidden sm:block" />
-                  {" "}en webtoons
-                </h1>
-
-                <p className="text-base sm:text-lg text-foreground/80 max-w-lg mx-auto lg:mx-0 drop-shadow-sm leading-relaxed">
-                  DreamWeave transforme vos idées en webtoons verticaux grâce à l'IA.{" "}
-                  <span className="text-foreground font-medium">{ARIANE_DISPLAY_NAME}</span>{" "}
-                  veille sur la cohérence de votre récit. Aucun talent artistique requis.
-                </p>
-
-                <div className="flex flex-wrap gap-3 justify-center lg:justify-start">
-                  <Button
-                    size="lg"
-                    asChild
-                    className="gradient-primary text-primary-foreground shadow-dream text-sm sm:text-base px-6 sm:px-8"
-                  >
-                    <Link to="/auth?tab=signup">
-                      <Wand2 className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
-                      Créer gratuitement
-                    </Link>
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="lg"
-                    asChild
-                    className="text-sm sm:text-base px-6 sm:px-8 backdrop-blur-sm bg-background/30 hover:bg-background/50"
-                  >
-                    <Link to="/auth">
-                      Se connecter
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </Link>
-                  </Button>
-                </div>
-
-                {/* Bande de garanties */}
-                <div className="flex flex-wrap gap-x-5 gap-y-2 justify-center lg:justify-start text-xs sm:text-sm text-foreground/65">
-                  {["20 crédits offerts", "FLUX.2 Pro pour tous", "Sans carte bancaire"].map((s) => (
-                    <span key={s} className="flex items-center gap-1.5">
-                      <Check className="h-3.5 w-3.5 text-primary shrink-0" />
-                      {s}
-                    </span>
-                  ))}
-                </div>
-              </motion.div>
-
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.45, ease: "easeOut" }}
+            className="max-w-2xl mx-auto text-center space-y-5 sm:space-y-6"
+          >
+            <div className="inline-flex items-center gap-2 rounded-full gradient-primary text-primary-foreground px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium shadow-dream">
+              <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              IA générative de webtoons
             </div>
-          </div>
+
+            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-display font-bold leading-tight text-foreground drop-shadow-sm">
+              Tissez vos{" "}
+              <span className="text-gradient drop-shadow-sm">rêves</span>
+              <br className="hidden sm:block" />
+              {" "}en webtoons
+            </h1>
+
+            <p className="text-base sm:text-lg text-foreground/80 max-w-lg mx-auto drop-shadow-sm leading-relaxed">
+              DreamWeave transforme vos idées en webtoons verticaux grâce à l'IA.{" "}
+              <span className="text-foreground font-medium">{ARIANE_DISPLAY_NAME}</span>{" "}
+              veille sur la cohérence de votre récit. Aucun talent artistique requis.
+            </p>
+
+            <div className="flex flex-wrap gap-3 justify-center">
+              <Button
+                size="lg"
+                asChild
+                className="gradient-primary text-primary-foreground shadow-dream text-sm sm:text-base px-6 sm:px-8"
+              >
+                <Link to="/auth?tab=signup">
+                  <Wand2 className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
+                  Créer gratuitement
+                </Link>
+              </Button>
+              <Button
+                variant="ghost"
+                size="lg"
+                asChild
+                className="text-sm sm:text-base px-6 sm:px-8 backdrop-blur-sm bg-background/30 hover:bg-background/50"
+              >
+                <Link to="/auth">
+                  Se connecter
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Link>
+              </Button>
+            </div>
+
+            <div className="flex flex-wrap gap-x-5 gap-y-2 justify-center text-xs sm:text-sm text-foreground/65">
+              {["20 crédits offerts", "FLUX.2 Pro pour tous", "Sans carte bancaire"].map((s) => (
+                <span key={s} className="flex items-center gap-1.5">
+                  <Check className="h-3.5 w-3.5 text-primary shrink-0" />
+                  {s}
+                </span>
+              ))}
+            </div>
+          </motion.div>
         </div>
       </section>
 
@@ -261,7 +253,7 @@ export default function Landing() {
             transition={{ duration: 0.5, ease: "easeOut" }}
             className="gradient-dream rounded-2xl sm:rounded-3xl max-w-5xl mx-auto overflow-hidden"
           >
-            <div className="flex flex-col lg:flex-row items-end">
+            <div className="flex flex-col lg:flex-row items-stretch">
 
               {/* Portrait Ariane */}
               <motion.div
@@ -269,12 +261,12 @@ export default function Landing() {
                 whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.6, ease: "easeOut", delay: 0.1 }}
-                className="flex-shrink-0 flex justify-center lg:justify-start w-full lg:w-auto"
+                className="flex-shrink-0 overflow-hidden w-full min-h-[280px] sm:min-h-[360px] lg:w-60 xl:w-72"
               >
                 <img
                   src={arianeImg}
                   alt={ARIANE_DISPLAY_NAME}
-                  className="h-80 sm:h-[440px] lg:h-[580px] w-auto object-contain object-bottom drop-shadow-2xl select-none"
+                  className="w-full h-full object-cover object-center drop-shadow-2xl select-none"
                   loading="lazy"
                   decoding="async"
                 />

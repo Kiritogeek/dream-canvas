@@ -11,6 +11,7 @@ import { layoutSpeechBubbleNoTailTextRect } from "@/components/chapter/speechBub
 import {
   ARIANE_WELCOME_REPLAY_EVENT,
 } from "@/constants/ariane";
+import { useAuth } from "@/hooks/useAuth";
 import { ArianeGlyph } from "./ArianeGlyph";
 import {
   ARIANE_BUBBLE_CONTENT_REVEAL_DELAY_MS,
@@ -27,13 +28,16 @@ import {
 } from "./arianeOverlayMotion";
 import { cn } from "@/lib/utils";
 
-const STORAGE_KEY = "dw.ariane_onboarding_v1_dismissed";
+const STORAGE_KEY_PREFIX = "dw.ariane_onboarding_v1_dismissed";
 
 export type ArianeOnboardingCardProps = {
   className?: string;
 };
 
 export function ArianeOnboardingCard({ className }: ArianeOnboardingCardProps) {
+  const { user } = useAuth();
+  // Clé par utilisateur : évite que le flag d'un compte supprimé bloque l'onboarding d'un nouveau compte
+  const storageKey = user?.id ? `${STORAGE_KEY_PREFIX}_${user.id}` : null;
   const [welcomeReplayEpoch, setWelcomeReplayEpoch] = useState(0);
   const [open, setOpen] = useState(false);
   const [exiting, setExiting] = useState(false);
@@ -57,7 +61,7 @@ export function ArianeOnboardingCard({ className }: ArianeOnboardingCardProps) {
     clearExitFallback();
     exitingRef.current = false;
     try {
-      localStorage.setItem(STORAGE_KEY, "1");
+      if (storageKey) localStorage.setItem(storageKey, "1");
     } catch {
       /* ignore */
     }
@@ -90,12 +94,16 @@ export function ArianeOnboardingCard({ className }: ArianeOnboardingCardProps) {
       exitingRef.current = false;
       return;
     }
+    if (!storageKey) {
+      setOpen(false);
+      return;
+    }
     try {
-      setOpen(localStorage.getItem(STORAGE_KEY) !== "1");
+      setOpen(localStorage.getItem(storageKey) !== "1");
     } catch {
       setOpen(true);
     }
-  }, [welcomeReplayEpoch]);
+  }, [welcomeReplayEpoch, storageKey]);
 
   useEffect(() => {
     if (!open) {

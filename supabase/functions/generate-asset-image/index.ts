@@ -795,8 +795,9 @@ Deno.serve(async (req) => {
     }
 
     const MANGA_RENDER_LOCK =
-      " Sortie STRICTEMENT monochrome noir et blanc (encre, trames / screentone). " +
-      "Interdit : couleurs, peau coloree, degrades peints type webtoon, digital painting full-color, rendu 3D lisse.";
+      " OUTPUT STRICTLY monochrome black and white ink style (screentone / hatching allowed). " +
+      "FORBIDDEN: any color, colored skin, painted color gradients, webtoon full-color digital painting, smooth 3D render. " +
+      "Every panel must be pure black ink on white paper — no exceptions.";
 
     // Convertit le format STYLE_SYSTEM_V1 en résumé compact lisible par FLUX (modèle de diffusion)
     function summarizeStyle(raw: string): string {
@@ -932,12 +933,32 @@ Deno.serve(async (req) => {
       );
     }
 
+    // --- Garde CDN : s'assure que la face est accessible avant d'être passée
+    //     à FAL.ai comme référence d'identité pour la sheet.
+    //     Sans cette vérification, FAL ignore silencieusement une URL non encore
+    //     propagée et génère un personnage arbitraire depuis son training data.
+    async function waitForFaceUrl(url: string, maxAttempts = 5): Promise<void> {
+      const baseUrl = url.split("?")[0]; // ignore cache-buster pour le HEAD
+      for (let i = 0; i < maxAttempts; i++) {
+        try {
+          const r = await fetchWithTimeout(baseUrl, { method: "HEAD" }, 8_000);
+          if (r.ok) return;
+        } catch {
+          // réseau temporairement indisponible
+        }
+        const delay = 800 * (i + 1); // 800ms, 1600ms, 2400ms…
+        console.warn(`[generate-asset-image] Face URL not yet accessible (attempt ${i + 1}/${maxAttempts}), retrying in ${delay}ms`);
+        await new Promise((r) => setTimeout(r, delay));
+      }
+      console.warn("[generate-asset-image] Face URL still unreachable after retries — proceeding anyway");
+    }
+
+    await waitForFaceUrl(publicUrl);
+
     // --- Étape 2 : génération de la sheet avec la face comme référence ---
-    //     Pro : flux-2-pro/edit, la face publique URL en 1ère position + style
-    //           images éventuelles derrière. useFaceReference=true ajoute dans
-    //           le prompt l'instruction "la 1ère image est le personnage".
-    //     Free : Schnell ne supporte pas le mode edit → prompt texte renforcé,
-    //           cohérence un peu moins stricte mais sheet produite quand même.
+    //     flux-2-pro/edit, la face publique URL en 1ère position + style
+    //     images éventuelles derrière. useFaceReference=true ajoute dans
+    //     le prompt l'instruction "la 1ère image est le personnage".
     //
     // Sheet = strip horizontal 2560×768 → 4 panneaux verticaux 640×768 chacun.
     //   Ratio 3.33:1 : rend 4 panneaux portrait (0.83) beaucoup plus naturels

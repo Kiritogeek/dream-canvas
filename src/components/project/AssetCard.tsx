@@ -48,39 +48,54 @@ export function AssetCard({
       animate={{ opacity: 1, scale: 1 }}
       className="glass rounded-lg sm:rounded-xl p-3 sm:p-4 group relative flex flex-col h-full"
     >
-      {isGenerating ? (
-        <div className="w-full aspect-[2/3] rounded-lg mb-2 sm:mb-3 gradient-dream flex items-center justify-center relative">
-          <Sparkles className="h-6 w-6 sm:h-8 sm:w-8 text-primary animate-pulse" />
-          <span className="absolute bottom-6 text-xs text-muted-foreground">
-            Génération…
+      <div
+        className={`w-full aspect-[2/3] mb-2 sm:mb-3 relative overflow-hidden rounded-lg${onImageClick && asset.image_url && !isGenerating ? " cursor-pointer" : ""}`}
+        onClick={onImageClick && asset.image_url && !isGenerating ? onImageClick : undefined}
+      >
+        <ImageWithFallback
+          src={asset.image_url}
+          alt={asset.name}
+          className="w-full h-full object-contain rounded-lg"
+          fallbackClassName="w-full h-full rounded-lg"
+        />
+        {typeBadge && !isGenerating && (
+          <span
+            className={`absolute bottom-1.5 left-1.5 ${typeBadge.bg} text-[10px] font-medium px-1.5 py-0.5 rounded-full text-white`}
+          >
+            {typeBadge.label}
           </span>
-          <span className="absolute bottom-2 text-[10px] text-muted-foreground/90 text-center px-2">
-            {isCharacter
-              ? `~30-90s • ${elapsedSeconds}s`
-              : `~15-45s • ${elapsedSeconds}s`}
-          </span>
-        </div>
-      ) : (
-        <div
-          className={`w-full aspect-[2/3] mb-2 sm:mb-3 relative${onImageClick && asset.image_url && !isGenerating ? " cursor-pointer" : ""}`}
-          onClick={onImageClick && asset.image_url && !isGenerating ? onImageClick : undefined}
-        >
-          <ImageWithFallback
-            src={asset.image_url}
-            alt={asset.name}
-            className="w-full h-full object-cover rounded-lg"
-            fallbackClassName="w-full h-full rounded-lg"
-          />
-          {/* Badge type */}
-          {typeBadge && (
-            <span
-              className={`absolute bottom-1.5 left-1.5 ${typeBadge.bg} text-[10px] font-medium px-1.5 py-0.5 rounded-full text-white`}
-            >
-              {typeBadge.label}
-            </span>
-          )}
-        </div>
-      )}
+        )}
+        {isGenerating && (
+          <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm rounded-lg">
+            <div className="flex flex-col items-center gap-2">
+              <div className="relative w-10 h-10">
+                <svg className="animate-spin absolute inset-0" viewBox="0 0 40 40" fill="none">
+                  <circle
+                    cx="20" cy="20" r="16"
+                    stroke={`url(#dw-spin-grad-${asset.id})`}
+                    strokeWidth="3"
+                    strokeLinecap="round"
+                    strokeDasharray="60 40"
+                  />
+                  <defs>
+                    <linearGradient id={`dw-spin-grad-${asset.id}`} x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stopColor="hsl(var(--primary))" />
+                      <stop offset="100%" stopColor="hsl(var(--primary) / 0.2)" />
+                    </linearGradient>
+                  </defs>
+                </svg>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <Sparkles className="h-4 w-4 text-primary" />
+                </div>
+              </div>
+              <span className="text-[11px] font-medium text-primary/80 tracking-wide">Génération…</span>
+              <span className="text-[10px] text-muted-foreground text-center px-2">
+                {isCharacter ? `~30-90s • ${elapsedSeconds}s` : `~15-45s • ${elapsedSeconds}s`}
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
 
       <div className="mt-0.5 sm:mt-1 space-y-0.5 sm:space-y-1 min-h-[2.75rem] sm:min-h-[3.25rem] flex flex-col">
         <h4 className="font-display font-semibold text-xs sm:text-sm line-clamp-1">

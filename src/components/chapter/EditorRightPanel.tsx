@@ -358,7 +358,7 @@ export function EditorRightPanel({
               ? unaddedCount > 0
                 ? `${unaddedCount} case${unaddedCount > 1 ? "s" : ""} à ajouter au canvas · ${validatedCases.length} validée${validatedCases.length > 1 ? "s" : ""} au total`
                 : `Cases · ${validatedCases.length} validée${validatedCases.length > 1 ? "s" : ""}`
-              : `Réservé au plan ${planDisplayName("pro")} — cliquez pour vous abonner`
+              : `Réservé au plan ${planDisplayName("createur")} — cliquez pour vous abonner`
           }
         >
           <Layers className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" strokeWidth={1.75} />

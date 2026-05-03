@@ -9,6 +9,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { ArianeOrbitIcon, ArianeBubble } from "@/components/ariane";
 import { ARIANE_DISPLAY_NAME } from "@/constants/ariane";
 import { TIER_CONFIG, planDisplayName, type UserPlan } from "@/types";
+import arianeImg from "@/assets/Ariane_Nero_AI_Background_Remover_transparent.png";
 
 const steps = [
   {
@@ -272,50 +273,55 @@ export default function Landing() {
       </section>
 
       {/* ── ARIANE ── */}
-      <section className="relative z-20 py-16 sm:py-24">
+      <section className="relative z-20 py-16 sm:py-24 overflow-hidden">
         <div className="container px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, scale: 0.97 }}
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5, ease: "easeOut" }}
-            className="gradient-dream rounded-2xl sm:rounded-3xl p-8 sm:p-12 max-w-4xl mx-auto"
+            className="gradient-dream rounded-2xl sm:rounded-3xl max-w-5xl mx-auto overflow-hidden"
           >
-            <div className="flex flex-col lg:flex-row items-center gap-8 lg:gap-12">
+            <div className="flex flex-col lg:flex-row items-end">
 
-              {/* Texte */}
-              <div className="flex-1 text-center lg:text-left space-y-4">
-                <div className="flex items-center justify-center lg:justify-start gap-3 mb-2">
-                  <ArianeOrbitIcon size={44} />
+              {/* Portrait Ariane */}
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.6, ease: "easeOut", delay: 0.1 }}
+                className="flex-shrink-0 flex justify-center lg:justify-start w-full lg:w-auto"
+              >
+                <img
+                  src={arianeImg}
+                  alt={ARIANE_DISPLAY_NAME}
+                  className="h-64 sm:h-80 lg:h-[420px] w-auto object-contain object-bottom drop-shadow-2xl select-none"
+                  loading="lazy"
+                  decoding="async"
+                />
+              </motion.div>
+
+              {/* Contenu */}
+              <div className="flex-1 p-7 sm:p-10 lg:p-12 pb-8 sm:pb-10 space-y-5 text-center lg:text-left">
+                <div className="flex items-center justify-center lg:justify-start gap-2.5">
+                  <ArianeOrbitIcon size={36} />
                   <span className="text-xs font-semibold uppercase tracking-widest bg-gradient-to-r from-amber-400 to-yellow-300 bg-clip-text text-transparent">
                     Fil d'Ariane
                   </span>
                 </div>
-                <h2 className="text-2xl sm:text-3xl font-display font-bold">
+
+                <h2 className="text-2xl sm:text-3xl font-display font-bold leading-snug">
                   Rencontrez{" "}
                   <span className="text-gradient">{ARIANE_DISPLAY_NAME}</span>,
                   <br />votre muse narrative
                 </h2>
-                <p className="text-foreground/75 text-sm sm:text-base leading-relaxed max-w-sm mx-auto lg:mx-0">
-                  {ARIANE_DISPLAY_NAME} analyse votre histoire en arrière-plan après chaque
-                  sauvegarde. Elle repère les incohérences, signale les personnages manquants
-                  et génère des résumés compacts pour nourrir vos prochaines générations IA.
-                </p>
-                <div className="flex flex-wrap gap-2 justify-center lg:justify-start">
-                  {["Continuité narrative", "Assets manquants", "Résumés IA"].map((chip) => (
-                    <span
-                      key={chip}
-                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full glass border border-primary/25 text-xs font-medium"
-                    >
-                      <Check className="h-3 w-3 text-primary shrink-0" />
-                      {chip}
-                    </span>
-                  ))}
-                </div>
-              </div>
 
-              {/* Bubble exemple */}
-              <div className="flex-shrink-0 w-full max-w-xs sm:max-w-sm">
+                <p className="text-foreground/75 text-sm sm:text-base leading-relaxed">
+                  {ARIANE_DISPLAY_NAME} analyse votre histoire en arrière-plan après chaque
+                  sauvegarde. Elle repère les incohérences, signale les personnages
+                  manquants et génère des résumés compacts pour nourrir chaque génération IA.
+                </p>
+
                 <ArianeBubble variant="continuity" caption="Fil d'Ariane — alerte continuité">
                   <p className="font-semibold text-sm mb-1.5">
                     Incohérence détectée — Chapitre 5
@@ -328,6 +334,18 @@ export default function Landing() {
                     chapitre&nbsp;5. Souhaitez-vous harmoniser&nbsp;?
                   </p>
                 </ArianeBubble>
+
+                <div className="flex flex-wrap gap-2 justify-center lg:justify-start">
+                  {["Continuité narrative", "Assets manquants", "Résumés IA"].map((chip) => (
+                    <span
+                      key={chip}
+                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full glass border border-primary/25 text-xs font-medium"
+                    >
+                      <Check className="h-3 w-3 text-primary shrink-0" />
+                      {chip}
+                    </span>
+                  ))}
+                </div>
               </div>
 
             </div>

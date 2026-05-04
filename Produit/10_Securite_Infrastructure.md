@@ -122,9 +122,37 @@ Row Level Security (RLS) est activé sur **toutes les tables**. Chaque ligne est
 | UPDATE | Modifier ses projets | `auth.uid() = user_id` |
 | DELETE | Supprimer ses projets | `auth.uid() = user_id` |
 
-#### `assets`, `chapters`, `panels`
+#### `assets`, `chapter_canvases`, `scenario_chapters`
 
-Mêmes politiques que `projects` : accès restreint au propriétaire via `auth.uid() = user_id`.
+Mêmes politiques que `projects` : SELECT/INSERT/UPDATE/DELETE restreint au propriétaire via `auth.uid() = user_id`.
+
+> **Note** : La table `panels` a été renommée en `chapter_canvases` (migration 20260424).
+
+#### `memory_entities`, `memory_summaries`
+
+| Opération | Politique | Condition |
+|-----------|----------|-----------|
+| ALL | Accès total au propriétaire | `auth.uid() = user_id` |
+
+#### `narramind_alerts`
+
+| Opération | Politique | Condition |
+|-----------|----------|-----------|
+| ALL | Accès total au propriétaire | `auth.uid() = user_id` |
+
+#### Durcissement RLS `profiles.plan` (migration 20260418)
+
+La colonne `plan` dans `profiles` est protégée contre toute modification par un JWT utilisateur :
+```sql
+CREATE POLICY "Users can update own profile" ON public.profiles
+  FOR UPDATE
+  USING (auth.uid() = user_id)
+  WITH CHECK (
+    auth.uid() = user_id
+    AND plan = (SELECT plan FROM public.profiles WHERE user_id = auth.uid())
+  );
+```
+Seul le `service_role` (webhook Stripe) peut modifier `profiles.plan`. Ceci corrige le bug B3 (audit 17/04/2026 : un user pouvait passer Pro gratuitement côté client).
 
 #### `usage`
 
@@ -166,14 +194,25 @@ panels           CRUD            CRUD        R           ✗
 
 ## 4. Protection des secrets
 
-### 4.1 Classification des secrets
+### 4.1 Classification des secrets (données réelles — `.env.example` + grep Deno.env)
 
 | Secret | Type | Exposition | Localisation |
 |--------|------|-----------|-------------|
 | `VITE_SUPABASE_URL` | URL publique | Client (OK) | `.env` frontend |
 | `VITE_SUPABASE_PUBLISHABLE_KEY` | Clé anon (publique) | Client (OK) | `.env` frontend |
+| `VITE_SUPABASE_PROJECT_ID` | Référence projet (publique) | Client (OK, optionnel) | `.env` frontend |
+| `VITE_ADMIN_EMAIL` | Email admin (optionnel) | Client (OK, optionnel) | `.env` frontend |
 | `SUPABASE_SERVICE_ROLE_KEY` | Clé admin | Serveur UNIQUEMENT | Supabase Edge Function Secrets |
-| `FAL_API_KEY` | Clé API IA | Serveur UNIQUEMENT | Supabase Edge Function Secrets |
+| `SUPABASE_URL` | URL interne Supabase | Serveur UNIQUEMENT | Supabase Edge Function Secrets |
+| `SUPABASE_ANON_KEY` | Clé anon Supabase (Deno) | Serveur UNIQUEMENT | Supabase Edge Function Secrets |
+| `FAL_API_KEY` | Clé API FAL.ai | Serveur UNIQUEMENT | Supabase Edge Function Secrets |
+| `GEMINI_API_KEY` | Clé API Google Gemini | Serveur UNIQUEMENT | Supabase Edge Function Secrets |
+| `GROQ_API_KEY` | Clé API Groq (fallback) | Serveur UNIQUEMENT | Supabase Edge Function Secrets |
+| `STRIPE_SECRET_KEY` | Clé secrète Stripe | Serveur UNIQUEMENT | Supabase Edge Function Secrets |
+| `STRIPE_WEBHOOK_SECRET` | Secret signature webhook Stripe | Serveur UNIQUEMENT | Supabase Edge Function Secrets |
+| `STRIPE_PRO_PRICE_ID` | ID prix Stripe abonnement | Serveur UNIQUEMENT | Supabase Edge Function Secrets |
+| `APP_URL` | URL app (redirect Stripe) | Serveur UNIQUEMENT | Supabase Edge Function Secrets |
+| `ALLOWED_ORIGIN` | Domaine autorisé CORS | Serveur UNIQUEMENT | Supabase Edge Function Secrets |
 | `JWT_SECRET` | Secret de signature JWT | Serveur UNIQUEMENT | Supabase interne |
 
 ### 4.2 Bonnes pratiques appliquées
@@ -272,6 +311,10 @@ const corsHeaders = {
 - [ ] Droit à la portabilité : Export en format standard (JSON)
 - [ ] Politique de confidentialité : Page dédiée
 
+> **État réel (2026-05-04)** : Aucune page de politique de confidentialité ni CGU n'est présente dans `/src/` ou `/public/`. Non trouvé dans le code.
+
+**URL de déploiement** : Non trouvé dans le code. Aucun `vercel.json` ni `netlify.toml` présent dans le dépôt. Les URLs `dreamweave.app` et `staging.dreamweave.app` sont mentionnées dans la documentation mais pas confirmées par des fichiers de configuration.
+
 ---
 
 ## 7. Infrastructure
@@ -354,27 +397,30 @@ const corsHeaders = {
 
 ### 7.3 CI/CD Pipeline
 
-```
-┌──────────┐     ┌──────────┐     ┌──────────┐     ┌──────────┐
-│  Git     │────►│  Build   │────►│  Test    │────►│  Deploy  │
-│  Push    │     │  (Vite)  │     │  (Vitest)│     │  (CDN)   │
-└──────────┘     └──────────┘     └──────────┘     └──────────┘
-                                                         │
-                                                         ▼
-                                                  ┌──────────┐
-                                                  │ Edge Fn   │
-                                                  │ Deploy    │
-                                                  │ (manual)  │
-                                                  └──────────┘
+**Pipeline réel** : `.github/workflows/ci.yml` — GitHub Actions
+
+```yaml
+# Déclenché sur : push → main, pull_request (toutes branches)
+# Timeout : 15 minutes
+# Environnement : ubuntu-latest, Node 22
+
+jobs:
+  quality:
+    1. actions/checkout@v4
+    2. actions/setup-node@v4 (Node 22, cache npm)
+    3. npm ci
+    4. npm run lint          # ESLint (max-warnings 0)
+    5. npx tsc --noEmit      # Typecheck TypeScript
+    6. npm test              # Vitest (tests unitaires)
+    7. npm run build         # Build Vite production
+       env:
+         VITE_SUPABASE_URL: placeholder (CI uniquement)
+         VITE_SUPABASE_PUBLISHABLE_KEY: placeholder (CI uniquement)
 ```
 
-**Pipeline recommandé** :
-1. **Git push** → Déclenchement automatique
-2. **Build** → `npm run build` (Vite, TypeScript, Tailwind)
-3. **Lint** → `npm run lint` (ESLint)
-4. **Test** → `npm run test` (Vitest)
-5. **Deploy frontend** → Vercel/Netlify (automatique)
-6. **Deploy Edge Functions** → `npx supabase functions deploy` (manuel ou CI)
+**Déploiement frontend** : Non automatisé dans le CI (aucun step deploy/Vercel dans ci.yml). Déploiement manuel ou via intégration Vercel/Netlify séparée.
+
+**Déploiement Edge Functions** : Manuel — `npx supabase functions deploy <nom>`. Non automatisé dans le CI.
 
 ### 7.4 Monitoring recommandé
 
@@ -494,4 +540,4 @@ const corsHeaders = {
 
 ---
 
-*Dernière mise à jour : 14 février 2026*
+*Dernière mise à jour : 4 mai 2026 — RLS nouvelles tables (memory_entities/summaries/narramind_alerts), durcissement profiles.plan, CI/CD réel (GitHub Actions ci.yml), secrets complets, note privacy/CGU absente.*

@@ -358,6 +358,96 @@ Jan     Fév     Mar     Avr     Mai     Juin    Jul     Aoû     Sep     Oct   
 
 ---
 
+## Annexe : État réel du code (2026-05-04)
+
+> Section basée sur l'analyse du code source — source de vérité : git log + fichiers src/.
+
+### Pages réellement présentes dans `/src/pages/`
+
+| Fichier | Présent dans doc | Notes |
+|---------|-----------------|-------|
+| `Landing.tsx` | ✅ | Page marketing |
+| `Auth.tsx` | ✅ | Inscription / Connexion |
+| `Dashboard.tsx` | ✅ | Tableau de bord |
+| `Projects.tsx` | ✅ | Liste des projets |
+| `ProjectDetail.tsx` | ✅ | Éditeur projet (Style/Assets/Scénario/Édition) |
+| `ChapterDetail.tsx` | ✅ | Éditeur chapitre visuel |
+| `Profile.tsx` | ✅ | Profil utilisateur |
+| `Plans.tsx` | ✅ | Page plans Free/Pro/Studio |
+| `NotFound.tsx` | ✅ | Page 404 |
+| `ResetPassword.tsx` | ⚠️ absent du doc | Réinitialisation de mot de passe |
+| `EmailVerification.tsx` | ⚠️ absent du doc | Vérification email post-inscription |
+| `ScenarioChapterEditor.tsx` | ⚠️ absent du doc | Éditeur dédié d'un chapitre de scénario (vue standalone) |
+
+### Composants majeurs réellement présents dans `/src/components/project/`
+
+| Fichier | Présent dans doc | Notes |
+|---------|-----------------|-------|
+| `AssetLibrary.tsx` | ✅ | Bibliothèque d'assets |
+| `AssetCard.tsx` | ✅ | Carte asset |
+| `StyleManager.tsx` | ✅ | Gestion style |
+| `ScenarioSection.tsx` | ✅ | Section scénario |
+| `EditionSection.tsx` | ✅ | Section édition |
+| `ScenarioTextHighlighter.tsx` | ✅ | Surbrillance assets dans scénario |
+| `CharacterViewDialog.tsx` | ✅ | Vues multiples personnage |
+| `SpeechBubbleEditor.tsx` | ⚠️ absent du doc | Éditeur de bulles de dialogue |
+| `AIChapterPreviewModal.tsx` | ⚠️ absent du doc | Aperçu chapitre IA |
+| `ScenarioFormattedPreview.tsx` | ⚠️ absent du doc | Prévisualisation scénario formaté |
+| `UniverseSection.tsx` | ⚠️ absent du doc | Section univers narratif (lore) |
+| `TestSection.tsx` | ⚠️ absent du doc | Section de test (dev) |
+
+### Features implémentées vs documentées — état réel
+
+| Feature | Statut roadmap | État réel dans le code |
+|---------|---------------|----------------------|
+| **Sheet System** (image_url_sheet) | 🔜 | ✅ Migration 20260416, EF generate-asset-image |
+| **NarraMind** (mémoire narrative) | 🔜 | ✅ EF narramind-update, tables memory_entities/summaries/narramind_alerts |
+| **3 tiers (libre/createur/studio)** | 📋 | ✅ Migration 20260503, useUserPlan.ts |
+| **billing_period_start** | 📋 | ✅ Migration 20260503 |
+| **Stripe infrastructure** | 📋 | ✅ EFs create-checkout-session, stripe-webhook, profiles.stripe_customer_id — non déployé en prod |
+| **Export PNG panel + chapitre** | 📋 | ✅ Livré (html2canvas, commit a9f1279) |
+| **universe_lore** | non documenté | ✅ Table + UniverseSection.tsx |
+| **Reset Password** | non documenté | ✅ ResetPassword.tsx |
+| **Email Verification** | non documenté | ✅ EmailVerification.tsx |
+
+### TODOs dans le code
+
+Aucun commentaire `TODO` ou `FIXME` trouvé dans `/src/` (grep négatif — code propre).
+
+### Branches git actives
+
+| Branche | Type | Objectif |
+|---------|------|---------|
+| `main` | Production | Branche principale |
+| `worktree-agent-*` | Temporaire | Worktrees d'agents Claude Code (nettoyage automatique) |
+
+> Pas de branche `feat/` ou `fix/` active. Tout le développement se fait directement sur `main`.
+
+### 30 derniers commits significatifs (git log --oneline -30)
+
+| Hash | Message |
+|------|---------|
+| `0774aea` | Supprime le champ 'Panels cible' du dialog de modification de projet |
+| `0c27c56` | Supprime la bannière Assets et l'exemple complet du dialog Chapitre type |
+| `c3b5620` | Améliore l'UX scénario — chapitre suivant, lien Assets, onboarding Ariane |
+| `63ba603` | Ajoute l'indicateur de coût crédit sur les boutons de génération |
+| `a48376f` | Corrige la sheet asset et l'affichage des cards personnages |
+| `5f85eeb` | Corrige l'onboarding Style — clé localStorage par user.id |
+| `50d07b0` | Corrige l'onboarding Ariane — clé localStorage par user.id |
+| `2317ba3` | Landing — gradient-dream light mode plus opaque |
+| `d8e01c7` | Améliore le contraste light mode — tokens, glass, sidebar |
+| `583f876` | Landing — centre le hero, corrige portrait Ariane |
+| `4cb5027` | Refonte Landing — 7 sections, Ariane hero + section dédiée, plans aperçu |
+| `7a18842` | Corrige NarraMind : ne réactive pas les alertes resolved/dismissed |
+| `01811bd` | Plans — box shadow coloré via --glass-shadow CSS var |
+| `43c295b` | Chantier 4 — gates features, billing_period_start, quota reset abonnement |
+| `1290761` | Passe de 2 tiers (free/pro) à 3 tiers (libre/createur/studio) |
+| `742b0dd` | Refonte Éditeur Option A — CaseLayers, raccourcis clavier extraits |
+| `c071258` | Fil d'Ariane V2 — assets manquants, navigation avec highlight, FAB 64px |
+| `cf8295c` | Corrige le label chapitre, supprime bouton Continuité, améliore NarraMind |
+| `6d776d3` | Ajoute animation de vague sinusoïdale aux fils du fil d'Ariane |
+| `b4a1391` | Remplace la pelote par des fils dorés animés qui orbitent |
+
 ## Références
 
 - **UX et parcours** : `UX.md`, `04_User_Stories_Parcours.md`
@@ -366,4 +456,4 @@ Jan     Fév     Mar     Avr     Mai     Juin    Jul     Aoû     Sep     Oct   
 
 ---
 
-*Dernière mise à jour : 17 avril 2026 (v4) — commit a9f1279 : PanelCountBadge ✅, Texte brut sans bulle ✅, Touche Suppr blocs/bulles ✅, Landing hero-bg.jpg ✅, Export PNG panel + chapitre 800×ΣH ✅. Commit 4059f79 : Assets UX 13 fixes ✅, prompts Free/Pro différenciés ✅. Stripe reste P0 critique non implémenté.*
+*Dernière mise à jour : 4 mai 2026 (v5) — Annexe "État réel du code" ajoutée : pages manquantes (ResetPassword, EmailVerification, ScenarioChapterEditor), composants manquants, features réellement implémentées (Sheet System ✅, NarraMind ✅, 3 tiers ✅, Stripe infra ✅), git log -30.*

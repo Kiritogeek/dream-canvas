@@ -67,20 +67,40 @@ DreamWeave est une application web monopage (SPA) basée sur une architecture **
 
 | Technologie | Version | Rôle |
 |-------------|---------|------|
-| **React** | 18.x | Framework UI, composants réactifs |
-| **TypeScript** | 5.x | Typage statique, fiabilité du code |
-| **Vite** | 7.x | Build tool, HMR rapide, dev server |
-| **Tailwind CSS** | 3.x | Utility-first CSS, design système |
-| **shadcn/ui** | latest | Composants UI (Radix Primitives + Tailwind) |
-| **Framer Motion** | latest | Animations et transitions |
-| **React Router** | 6.x | Routing côté client (SPA) |
-| **TanStack Query** | 5.x | Cache serveur, mutations, invalidation (utilisé partout) |
-| **Lucide React** | latest | Icônes SVG |
-| **React Hook Form** | latest | Gestion de formulaires |
-| **Zod** | latest | Validation de schémas |
-| **date-fns** | latest | Manipulation de dates |
+| **React** | 18.3.1 | Framework UI, composants réactifs |
+| **TypeScript** | 5.8.3 | Typage statique, fiabilité du code |
+| **Vite** | 7.3.1 | Build tool, HMR rapide, dev server |
+| **Tailwind CSS** | 3.4.17 | Utility-first CSS, design système |
+| **shadcn/ui** | — | Composants UI (Radix Primitives + Tailwind) — pas de package unique, composants Radix individuels |
+| **Framer Motion** | 12.34.0 | Animations et transitions |
+| **React Router DOM** | 6.30.1 | Routing côté client (SPA) |
+| **TanStack React Query** | 5.83.0 | Cache serveur, mutations, invalidation (utilisé partout) |
+| **Lucide React** | 0.462.0 | Icônes SVG |
+| **React Hook Form** | 7.61.1 | Gestion de formulaires |
+| **Zod** | 3.25.76 | Validation de schémas |
+| **date-fns** | 3.6.0 | Manipulation de dates |
+| **jszip** | 3.10.1 | Export ZIP chapitres complets |
+| **html2canvas** | 1.4.1 | Export PNG panels/chapitres |
+| **recharts** | 2.15.4 | Graphiques Dashboard (barre d'usage) |
+| **sonner** | 1.7.4 | Notifications toast |
+| **next-themes** | 0.3.0 | Thème clair/sombre avec persistance |
+| **vitest** | 3.2.4 | Tests unitaires |
+| **eslint** | 9.32.0 | Linting TypeScript/React |
+| **husky** | 9.1.7 | Git hooks (lint-staged avant commit) |
 
-### 2.2 Backend (Supabase)
+### 2.2 Dépendances de développement (devDependencies — package.json)
+
+| Package | Version | Rôle |
+|---------|---------|------|
+| **@vitejs/plugin-react-swc** | 3.11.0 | Build React avec SWC (Vite plugin) |
+| **@testing-library/react** | 16.0.0 | Tests composants React |
+| **@testing-library/jest-dom** | 6.6.0 | Assertions DOM dans les tests |
+| **typescript-eslint** | 8.38.0 | ESLint rules TypeScript |
+| **lovable-tagger** | 1.1.13 | Tagger Lovable (AI platform) |
+| **lint-staged** | 16.4.0 | Linting fichiers stagés uniquement |
+| **@tailwindcss/typography** | 0.5.16 | Plugin Tailwind pour le texte formaté |
+
+### 2.3 Backend (Supabase)
 
 | Service | Rôle |
 |---------|------|
@@ -91,7 +111,7 @@ DreamWeave est une application web monopage (SPA) basée sur une architecture **
 | **Row Level Security** | Isolation des données par utilisateur |
 | **Realtime** | (Disponible, non encore utilisé) Temps réel WebSocket |
 
-### 2.3 IA / Génération d'images
+### 2.4 IA / Génération d'images
 
 | Composant | Détail |
 |-----------|--------|
@@ -103,7 +123,7 @@ DreamWeave est une application web monopage (SPA) basée sur une architecture **
 | **Résolution** | 1024×1024 pixels |
 | **Format** | PNG |
 
-### 2.4 Infrastructure & Déploiement
+### 2.5 Infrastructure & Déploiement
 
 | Composant | Détail |
 |-----------|--------|
@@ -111,7 +131,60 @@ DreamWeave est une application web monopage (SPA) basée sur une architecture **
 | **Hébergement Backend** | Supabase Cloud (AWS) |
 | **CDN Images** | Supabase Storage (CDN intégré) |
 | **DNS** | Domaine personnalisable |
-| **CI/CD** | Git push → déploiement automatique |
+| **CI/CD** | GitHub Actions (`.github/workflows/ci.yml`) — lint + typecheck + tests + build sur push/PR |
+
+### 2.6 Edge Functions — liste complète (supabase/functions/)
+
+| Fonction | Rôle réel | Secrets utilisés |
+|----------|-----------|-----------------|
+| `generate-asset-image` | Génère image asset (FAL.ai FLUX.2 Pro), upload Storage, log usage | `FAL_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY` |
+| `generate-panel-image` | Génère image case/bloc (dimensions personnalisées), FAL.ai | `FAL_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY` |
+| `generate-scenario-ai` | Génère scénario/chapitre/découpage cases (Google Gemini Flash + fallback Groq Llama 3.3 70B) | `GEMINI_API_KEY`, `GROQ_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY` |
+| `narramind-update` | Mémoire narrative : entités, résumés, détection anomalies (Gemini Flash + fallback Groq) | `GEMINI_API_KEY`, `GROQ_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY` |
+| `generate-style-template-images` | Génère images de prévisualisation du style (FAL.ai) | `FAL_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY` |
+| `generate-landing-showcase` | Génère images hero pour la landing page (FAL.ai) | `FAL_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY` |
+| `create-checkout-session` | Crée une session Stripe Checkout (abonnement mensuel) | `STRIPE_SECRET_KEY`, `STRIPE_PRO_PRICE_ID`, `APP_URL`, `SUPABASE_SERVICE_ROLE_KEY` |
+| `create-portal-session` | Crée un lien Stripe Customer Portal (gestion abonnement) | `STRIPE_SECRET_KEY`, `SUPABASE_SERVICE_ROLE_KEY` |
+| `stripe-webhook` | Gère les événements Stripe (subscription.created/updated/deleted → update profiles.plan) | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `SUPABASE_SERVICE_ROLE_KEY` |
+| `admin-set-plan` | Endpoint admin pour changer manuellement le plan d'un utilisateur | `SUPABASE_SERVICE_ROLE_KEY` |
+
+### 2.7 Intégrations tierces — données réelles
+
+| Intégration | Version / Endpoint | Rôle | Côté |
+|-------------|-------------------|------|------|
+| **FAL.ai** | FLUX.2 Pro (`fal-ai/flux-2-pro`), FLUX.2 Pro Edit (`fal-ai/flux-2-pro/edit`) | Génération d'images | Serveur (Edge Functions) |
+| **Google Gemini Flash** | `gemini-2.0-flash` (via REST API) | Génération scénario, NarraMind | Serveur |
+| **Groq / Llama 3.3 70B** | Fallback scénario/NarraMind | Génération texte (fallback) | Serveur |
+| **Stripe** | REST API v1 (sans SDK npm) | Paiements, abonnements | Serveur |
+| **Supabase JS** | `@supabase/supabase-js` ^2.95.3 | BDD, Auth, Storage | Client + Serveur |
+| **Google OAuth 2.0** | Via Supabase Auth | Connexion Google | Client → Supabase |
+
+### 2.8 Variables d'environnement — données réelles
+
+#### Frontend (`.env` — voir `.env.example`)
+
+| Variable | Exposition | Rôle |
+|----------|-----------|------|
+| `VITE_SUPABASE_URL` | Client (publique) | URL du projet Supabase |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | Client (publique — clé anon) | Clé anon Supabase |
+| `VITE_SUPABASE_PROJECT_ID` | Client (publique, optionnel) | Référence projet Supabase |
+| `VITE_ADMIN_EMAIL` | Client (optionnel) | Email admin pour lien Stripe manuel |
+
+#### Serveur (Supabase Edge Function Secrets — jamais dans le code)
+
+| Variable | Rôle | Utilisé par |
+|----------|------|------------|
+| `FAL_API_KEY` | Clé API FAL.ai | generate-asset-image, generate-panel-image, generate-style-template-images, generate-landing-showcase |
+| `GEMINI_API_KEY` | Clé API Google Gemini | generate-scenario-ai, narramind-update |
+| `GROQ_API_KEY` | Clé API Groq (fallback) | generate-scenario-ai, narramind-update |
+| `STRIPE_SECRET_KEY` | Clé secrète Stripe | create-checkout-session, create-portal-session, stripe-webhook |
+| `STRIPE_WEBHOOK_SECRET` | Secret de signature webhook Stripe | stripe-webhook |
+| `STRIPE_PRO_PRICE_ID` | ID du prix Stripe (abonnement créateur) | create-checkout-session |
+| `APP_URL` | URL de l'application (redirect Stripe) | create-checkout-session |
+| `SUPABASE_SERVICE_ROLE_KEY` | Clé service Supabase (bypass RLS) | Toutes les Edge Functions |
+| `SUPABASE_URL` | URL Supabase interne (Deno) | Toutes les Edge Functions |
+| `SUPABASE_ANON_KEY` | Clé anon Supabase (Deno) | Certaines Edge Functions |
+| `ALLOWED_ORIGIN` | Domaine autorisé CORS | Toutes les Edge Functions |
 
 ---
 
@@ -335,6 +408,25 @@ src/
                            │  at      │     │
                            └──────────┘     │ 
 ```
+
+#### Tables réelles (source de vérité : supabase/migrations/)
+
+| Table | Colonnes clés réelles | Migration source |
+|-------|----------------------|-----------------|
+| `profiles` | id, user_id, display_name, avatar_url, plan ('libre'/'createur'/'studio'), email, stripe_customer_id, billing_period_start | 20260209, 20260213, 20260417, 20260418, 20260503 |
+| `projects` | id, user_id, title, description, style_template, style_image_urls (JSONB), cover_url, narra_summary | 20260209, 20260430 |
+| `assets` | id, user_id, project_id, name, asset_type (ENUM), prompt, image_url, image_url_profile_left, image_url_profile_right, image_url_back, image_url_sheet, lore | 20260209, 20260416, 20260423 |
+| `scenario_chapters` | id, project_id, chapter_number, title, content, panels_outline (JSONB), narramind_anomalies (JSONB), narramind_checked_at | 20260214, 20260418, 20260430 |
+| `chapter_canvases` | id, user_id, chapter_id, panel_number, prompt, image_url, layout (JSONB), speech_bubbles (JSONB), color_blocks (JSONB), image_history (JSONB) | 20260215, 20260218, 20260221, 20260424, 20260502 |
+| `usage` | id, user_id, action ('image_generation'), created_at | 20260213 |
+| `memory_entities` | id, project_id, user_id, asset_id, name, entity_type, traits (JSONB), relations (JSONB), lore_summary, last_seen_chapter | 20260423 |
+| `memory_summaries` | id, project_id, user_id, chapter_id, chapter_number, summary, token_estimate | 20260423 |
+| `narramind_alerts` | id, project_id, user_id, type, message, chapter_number, status | 20260430 |
+| `scenario_versions` | Versions des scénarios (accepter/rejeter) | 20260214 |
+| `word_mappings` | Mappings pour détection assets dans scénario | 20260421 |
+| `universe_lore` | Lore de l'univers narratif | 20260423 |
+
+> **Note de migration clé** : La table `panels` a été renommée en `chapter_canvases` (migration 20260424). Le doc antérieur à cette date peut encore mentionner `panels`.
 
 #### Enum
 
@@ -724,4 +816,4 @@ VITE_SUPABASE_PUBLISHABLE_KEY="eyJ..."
 
 ---
 
-*Dernière mise à jour : 30 avril 2026 — schéma `generate-scenario-ai` Gemini + fallback Groq ; reste du doc inchangé depuis fév.*
+*Dernière mise à jour : 4 mai 2026 — versions exactes package.json, devDependencies, 10 Edge Functions réelles (Stripe, NarraMind, admin), tables DB complètes (chapter_canvases, memory_entities/summaries, narramind_alerts, etc.), secrets réels (Gemini, Groq, Stripe), variables env complètes.*

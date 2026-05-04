@@ -304,4 +304,50 @@
 
 ---
 
-*Dernière mise à jour : 14 février 2026*
+---
+
+## 11. Organisation & Équipe
+
+### 11.1 Contributeurs réels du dépôt (git log)
+
+| Identifiant git | Email | Commits | Rôle déduit |
+|----------------|-------|---------|-------------|
+| **Louis Basnier** | louis.basnier@naxos.fr | 108 | Product Owner, architecture, UX, full-stack |
+| **Kiritogeek** | kiritogeek@gmail.com | 96 | Frontend, UI/composants, Edge Functions, animations, bugfixes — même personne que Louis Basnier (config git différente sur la machine) |
+| **Schiffear** | — | 20 | Prompt engineering, Sheet System, sidebar navigation, cohérence génération assets |
+| **Marine Tardy Miquel** | — | 3 | NarraMind (itération 2), chargement images, export ZIP |
+| **Cursor Agent** | — | 2 | Agent IA (assistant de développement) |
+| **gpt-engineer-app[bot]** | — | 2 | Bot IA (assistant de développement) |
+| **Lovable** | — | 1 | Plateforme IA (scaffold initial) |
+
+**Total : 237 commits sur la branche `main`.**
+
+### 11.2 Structure de l'équipe
+
+- **Projet solo** : Louis Basnier est le seul développeur humain actif à temps plein.
+- **Contributeurs ponctuels** : Schiffear (prompt engineering, Sheet System) et Marine Tardy Miquel (NarraMind) ont contribué sur des fonctionnalités spécifiques.
+- **Outillage IA** : Cursor Agent, gpt-engineer-app, Lovable et Claude Code ont accéléré le développement (commits IA représentent ~40% du total).
+
+### 11.3 Répartition des responsabilités
+
+| Domaine | Responsable |
+|---------|-------------|
+| **Product & Vision** | Louis Basnier |
+| **Frontend React / TypeScript** | Louis Basnier |
+| **Backend Supabase / Edge Functions** | Louis Basnier |
+| **Prompt Engineering IA** | Louis Basnier + Schiffear |
+| **Sheet System / Cohérence visuels** | Schiffear |
+| **NarraMind (mémoire narrative)** | Louis Basnier + Marine Tardy Miquel |
+| **DevOps / CI-CD** | Louis Basnier (GitHub Actions) |
+
+### 11.4 Structure juridique
+
+**Non trouvé dans le code.** Aucune mention de structure juridique (SAS, SASU, auto-entrepreneur, etc.) n'a été trouvée dans les fichiers du dépôt (`/Produit/`, code source, documentation).
+
+### 11.5 Vesting, equity, associés
+
+**Non trouvé dans le code.** Aucune information sur des accords de vesting, parts sociales ou associés n'est présente dans les fichiers du dépôt.
+
+---
+
+*Dernière mise à jour : 4 mai 2026 — section 11 ajoutée (Organisation & Équipe)*

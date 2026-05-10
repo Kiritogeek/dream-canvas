@@ -270,6 +270,35 @@ Quand Louis écrit **"Initialisation"**, exécuter ce protocole sans attendre :
 
 ---
 
+## ⚠️ ULTRA IMPORTANT — Règle Mémoire de fin d'études
+
+Le fichier `Produit/Memoire_DreamWeave.md` est le **mémoire de fin d'études de Louis**.
+
+**Toute décision, implémentation ou changement qui peut impacter ce mémoire doit être signalé explicitement**, avec une proposition concrète de mise à jour du fichier.
+
+### Ce qui déclenche la règle (exemples)
+- Changement d'architecture technique (stack, Edge Functions, schéma BDD)
+- Nouvelle feature livrée significative (scénario IA, éditeur, plans, Stripe)
+- Changement de positionnement produit ou de modèle tarifaire
+- Ajout de KPIs ou de métriques produit
+- Décisions stratégiques (cible, différenciation, concurrence)
+- Résultats de tests utilisateurs
+
+### Format de signalement obligatoire
+
+À chaque fois que cette règle se déclenche, ajouter dans la réponse :
+
+> 📝 **Impact Mémoire** : [ce qui change dans le projet]
+> **Section concernée** : [ex : Architecture technique / Modèle économique / Fonctionnalités]
+> **Proposition** : [paragraphe ou bullet point à intégrer dans Memoire_DreamWeave.md]
+
+### Ce qui NE déclenche PAS la règle
+- Corrections de bugs < 5 lignes sans impact fonctionnel
+- Refactoring purement technique sans nouvelle feature
+- Modifications de style CSS/tokens
+
+---
+
 ## Contexte utilisateur
 
 - Utilisateur principal : **Louis** Basnier (louis.basnier@naxos.fr) — appeler par son prénom

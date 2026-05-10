@@ -4,6 +4,7 @@ import { Link, useLocation, useNavigate, useMatch } from "react-router-dom";
 import {
   Sparkles, LayoutDashboard, LogOut, User, Zap, Brain, Crown, Menu, X,
   Palette, Image as ImageIcon, BookOpen, Layers, Plus, Pencil, Globe, FlaskConical,
+  BarChart2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,10 +23,11 @@ import { ArianeOnboardingCard } from "@/components/ariane";
 import { PROJECT_MENU_LABEL } from "@/lib/projectMenuLabels";
 import { ARIANE_ONBOARDING_ADMIN_EMAIL } from "@/constants/ariane";
 
-const navLinks = [
-  { to: "/dashboard",         icon: LayoutDashboard, label: "Tableau de bord" },
-  { to: "/dashboard/plans",   icon: Crown,           label: "Plans"           },
-  { to: "/dashboard/profile", icon: User,            label: "Profil"          },
+const ALL_NAV_LINKS = [
+  { to: "/dashboard",          icon: LayoutDashboard, label: "Tableau de bord", adminOnly: false },
+  { to: "/dashboard/plans",    icon: Crown,           label: "Plans",           adminOnly: false },
+  { to: "/dashboard/profile",  icon: User,            label: "Profil",          adminOnly: false },
+  { to: "/dashboard/pilotage", icon: BarChart2,       label: "Pilotage",        adminOnly: true  },
 ];
 
 const projectSteps = [
@@ -268,6 +270,9 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const isAdmin = user?.email?.trim().toLowerCase() === ARIANE_ONBOARDING_ADMIN_EMAIL;
+  const navLinks = ALL_NAV_LINKS.filter((item) => !item.adminOnly || isAdmin);
 
   const handleSignOut = async () => {
     await signOut();

@@ -1,5 +1,5 @@
 // Edge Function: génération d'image par bloc de case (Étape 5)
-// Body: panel_id (id de la case), block_id, width, height, prompt, context_chapter?, block_asset_*
+// Body: panel_id (id de la case), block_id, width, height, prompt, block_asset_*
 // Style : uniquement `projects.style_template` en BDD (pas le corps de requête).
 // Stockage: {user_id}/projects/{project_id}/cases/{panel_id}/blocks/{block_id}.png
 // Secrets: FAL_API_KEY
@@ -169,7 +169,6 @@ function sanitizeAssetLabels(assetNames: string[]): string[] {
 function buildPolicySafePanelPrompt(params: {
   styleSummary: string;
   scenePrompt: string;
-  contextChapter?: string;
   assetNames?: string[];
   width: number;
   height: number;
@@ -177,7 +176,6 @@ function buildPolicySafePanelPrompt(params: {
 }): string {
   const safeStyle = clip(params.styleSummary.trim(), 520);
   const safeScene = sanitizePolicySensitiveText(params.scenePrompt, 1200);
-  const safeContext = sanitizePolicySensitiveText(params.contextChapter ?? "", 320);
   const safeAssets = params.assetNames ? sanitizeAssetLabels(params.assetNames) : [];
 
   const FULLBLEED_OPEN =
@@ -211,10 +209,6 @@ function buildPolicySafePanelPrompt(params: {
     }
   }
 
-  if (safeContext) {
-    parts.push(`Contexte narratif : ${safeContext}`);
-  }
-
   let fullPrompt = parts.join("\n\n") + FULLBLEED_CLOSE;
 
   if (params.withReferences) {
@@ -225,6 +219,13 @@ function buildPolicySafePanelPrompt(params: {
   }
 
   return clip(fullPrompt, 2800);
+}
+
+function resizeSupabaseStorageUrl(url: string, supabaseUrl: string, maxDim = 512): string {
+  const prefix = `${supabaseUrl}/storage/v1/object/public/`;
+  if (!url.startsWith(prefix)) return url;
+  const path = url.slice(prefix.length).split("?")[0];
+  return `${supabaseUrl}/storage/v1/render/image/public/${path}?width=${maxDim}&height=${maxDim}&resize=contain&quality=80`;
 }
 
 function isUuid(value: string): boolean {
@@ -667,7 +668,6 @@ Deno.serve(async (req) => {
       width?: number;
       height?: number;
       prompt?: string;
-      context_chapter?: string;
       block_asset_image_urls?: string[];
       block_asset_names?: string[];
     };
@@ -683,7 +683,6 @@ Deno.serve(async (req) => {
       width: w,
       height: h,
       prompt,
-      context_chapter,
       block_asset_names,
       block_asset_image_urls,
     } = body;
@@ -790,12 +789,14 @@ Deno.serve(async (req) => {
       ? block_asset_image_urls.filter((u) => typeof u === "string" && u.trim().length > 0)
       : [];
     const limitedReferenceImageUrls = referenceImageUrls.slice(0, 5);
-    const useReferences = limitedReferenceImageUrls.length > 0;
+    const resizedReferenceImageUrls = limitedReferenceImageUrls.map((u) =>
+      resizeSupabaseStorageUrl(u, supabaseUrl)
+    );
+    const useReferences = resizedReferenceImageUrls.length > 0;
 
     const fullPrompt = buildPolicySafePanelPrompt({
       styleSummary: effectiveStyleTemplate,
       scenePrompt: prompt.trim(),
-      contextChapter: context_chapter?.trim(),
       assetNames: Array.isArray(block_asset_names) ? block_asset_names : undefined,
       width,
       height,
@@ -805,7 +806,7 @@ Deno.serve(async (req) => {
     const result = useReferences
       ? await generateImageWithReferences(
           fullPrompt,
-          limitedReferenceImageUrls,
+          resizedReferenceImageUrls,
           falKey,
           width,
           height,

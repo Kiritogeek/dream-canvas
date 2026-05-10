@@ -1330,14 +1330,13 @@ export default function ChapterDetail() {
         toast({ title: "Prompt requis", description: "Saisissez un prompt pour ce bloc (ou une description au panel).", variant: "destructive" });
         return;
       }
-      const contextChapter = scenarioChapter?.content?.slice(0, 500).trim() || null;
       const refAssets = getDetectedAssets(promptToUse, assets);
       const blockAssetImageUrls = refAssets
         .map(getAssetReferenceImageUrl)
         .filter((u): u is string => !!u);
       const blockAssetNames = refAssets.map(getAssetReferencePromptLabel);
       generatePanelImage.mutate(
-        { panel: { id: panel.id, prompt: promptToUse }, block: { id: block.id, width: block.width, height: block.height }, project, contextChapter: contextChapter ?? undefined, blockAssetImageUrls: blockAssetImageUrls.length ? blockAssetImageUrls : undefined, blockAssetNames: blockAssetNames.length ? blockAssetNames : undefined },
+        { panel: { id: panel.id, prompt: promptToUse }, block: { id: block.id, width: block.width, height: block.height }, project, blockAssetImageUrls: blockAssetImageUrls.length ? blockAssetImageUrls : undefined, blockAssetNames: blockAssetNames.length ? blockAssetNames : undefined },
         {
           onSuccess: (result) => {
             toast({ title: "Image générée" });

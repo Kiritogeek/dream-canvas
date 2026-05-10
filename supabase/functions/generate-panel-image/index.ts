@@ -221,12 +221,6 @@ function buildPolicySafePanelPrompt(params: {
   return clip(fullPrompt, 2800);
 }
 
-function resizeSupabaseStorageUrl(url: string, supabaseUrl: string, maxDim = 512): string {
-  const prefix = `${supabaseUrl}/storage/v1/object/public/`;
-  if (!url.startsWith(prefix)) return url;
-  const path = url.slice(prefix.length).split("?")[0];
-  return `${supabaseUrl}/storage/v1/render/image/public/${path}?width=${maxDim}&height=${maxDim}&resize=contain&quality=80`;
-}
 
 function isUuid(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
@@ -789,10 +783,7 @@ Deno.serve(async (req) => {
       ? block_asset_image_urls.filter((u) => typeof u === "string" && u.trim().length > 0)
       : [];
     const limitedReferenceImageUrls = referenceImageUrls.slice(0, 5);
-    const resizedReferenceImageUrls = limitedReferenceImageUrls.map((u) =>
-      resizeSupabaseStorageUrl(u, supabaseUrl)
-    );
-    const useReferences = resizedReferenceImageUrls.length > 0;
+    const useReferences = limitedReferenceImageUrls.length > 0;
 
     const fullPrompt = buildPolicySafePanelPrompt({
       styleSummary: effectiveStyleTemplate,
@@ -806,7 +797,7 @@ Deno.serve(async (req) => {
     const result = useReferences
       ? await generateImageWithReferences(
           fullPrompt,
-          resizedReferenceImageUrls,
+          limitedReferenceImageUrls,
           falKey,
           width,
           height,

@@ -10,7 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useRecentProjects, useProjectCount, useCreateProject } from "@/hooks/useProjects";
 import { useAssetCount } from "@/hooks/useAssets";
 import { useUserPlan } from "@/hooks/useUserPlan";
-import { planDisplayName } from "@/types";
+import { planDisplayName, TIER_CONFIG } from "@/types";
 import DashboardLayout from "@/components/DashboardLayout";
 import {
   ARIANE_DISPLAY_NAME,
@@ -223,7 +223,7 @@ export default function Dashboard() {
           </div>
           {plan === "libre" && (
             <p className="text-xs text-muted-foreground mt-2">
-              Passez au plan {planDisplayName("createur")} pour le découpage IA, l'export PNG et 150 générations/mois.
+              Passez au plan {planDisplayName("createur")} pour le découpage IA, l'export PNG et {TIER_CONFIG.createur.maxGenerationsPerMonth} générations/mois.
             </p>
           )}
         </div>

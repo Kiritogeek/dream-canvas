@@ -36,7 +36,7 @@ export const TIER_CONFIG: Record<UserPlan, TierLimits> = {
     price: 0,
   },
   createur: {
-    maxGenerationsPerMonth: 150,
+    maxGenerationsPerMonth: 100,
     maxProjects: null,
     allowReferenceImages: true,
     allowScenarioAI: true,
@@ -45,10 +45,10 @@ export const TIER_CONFIG: Record<UserPlan, TierLimits> = {
     filArianeLimit: null,
     model: "flux-2-pro",
     label: "Créateur",
-    price: 7.99,
+    price: 12.99,
   },
   studio: {
-    maxGenerationsPerMonth: 500,
+    maxGenerationsPerMonth: 250,
     maxProjects: null,
     allowReferenceImages: true,
     allowScenarioAI: true,
@@ -57,7 +57,7 @@ export const TIER_CONFIG: Record<UserPlan, TierLimits> = {
     filArianeLimit: null,
     model: "flux-2-pro",
     label: "Studio",
-    price: 19.99,
+    price: 29.99,
   },
 };
 

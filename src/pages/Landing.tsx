@@ -71,12 +71,12 @@ const plans: Array<{ id: UserPlan; recommended: boolean; highlights: string[] }>
   {
     id: "createur",
     recommended: true,
-    highlights: ["150 crédits / mois", "Projets illimités", "Découpage IA + Export PNG"],
+    highlights: ["100 crédits / mois", "Projets illimités", "Découpage IA + Export PNG"],
   },
   {
     id: "studio",
     recommended: false,
-    highlights: ["500 crédits / mois", "Mémoire narrative longue", "Priorité de traitement"],
+    highlights: ["250 crédits / mois", "Mémoire narrative longue", "Priorité de traitement"],
   },
 ];
 

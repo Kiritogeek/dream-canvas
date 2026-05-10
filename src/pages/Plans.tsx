@@ -378,7 +378,7 @@ export default function Plans() {
             </div>
             <ul className="space-y-2.5">
               {[
-                "150 crédits / mois",
+                "100 crédits / mois",
                 "Projets illimités",
                 "Tout le plan Libre",
                 "Découpage Chapitre → Cases (IA)",
@@ -466,7 +466,7 @@ export default function Plans() {
             </div>
             <ul className="space-y-2.5">
               {[
-                "500 crédits / mois",
+                "250 crédits / mois",
                 "Projets illimités",
                 "Tout le plan Créateur",
                 "Mémoire narrative longue",

@@ -368,7 +368,7 @@ export default function Plans() {
                 )}
               </div>
               <div className="flex items-baseline gap-1">
-                <span className="text-3xl font-display font-bold">7,99 €</span>
+                <span className="text-3xl font-display font-bold">12,99 €</span>
                 <span className="text-muted-foreground text-sm">/ mois</span>
               </div>
               <p className="text-sm text-muted-foreground">
@@ -456,7 +456,7 @@ export default function Plans() {
                 )}
               </div>
               <div className="flex items-baseline gap-1">
-                <span className="text-3xl font-display font-bold">19,99 €</span>
+                <span className="text-3xl font-display font-bold">29,99 €</span>
                 <span className="text-muted-foreground text-sm">/ mois</span>
               </div>
               <p className="text-sm text-muted-foreground">

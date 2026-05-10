@@ -175,7 +175,6 @@ function buildPolicySafePanelPrompt(params: {
   height: number;
   withReferences: boolean;
 }): string {
-  // Les styles et prompts ne contiennent pas de contenu explicite — on ne sanitize pas agressivement.
   const safeStyle = clip(params.styleSummary.trim(), 520);
   const safeScene = sanitizePolicySensitiveText(params.scenePrompt, 1200);
   const safeContext = sanitizePolicySensitiveText(params.contextChapter ?? "", 320);
@@ -199,13 +198,16 @@ function buildPolicySafePanelPrompt(params: {
 
   if (safeAssets.length > 0) {
     if (params.withReferences) {
+      // Chaque image de référence est indexée par son nom d'asset pour que le modèle sache quelle image correspond à quel élément.
+      const indexedRefs = safeAssets
+        .map((name, i) => `image de référence ${i + 1} = "${name}"`)
+        .join(", ");
       parts.push(
-        `Éléments visuels (utiliser les images de référence fournies pour conserver leur apparence exacte) : ${safeAssets.join(", ")}.`
+        `CORRESPONDANCE DES RÉFÉRENCES : ${indexedRefs}. ` +
+        `Reproduire fidèlement l'apparence visuelle de chaque élément en utilisant uniquement l'image de référence qui lui correspond.`
       );
     } else {
-      parts.push(
-        `Inclure dans la scène : ${safeAssets.join(", ")}.`
-      );
+      parts.push(`Inclure dans la scène : ${safeAssets.join(", ")}.`);
     }
   }
 
@@ -217,8 +219,9 @@ function buildPolicySafePanelPrompt(params: {
 
   if (params.withReferences) {
     fullPrompt +=
-      "\n\nRÉFÉRENCES VISUELLES : Reproduire fidèlement l'apparence (visage, coiffure, costume, couleurs, style graphique) des personnages et éléments à partir des images fournies. " +
-      "Ne pas rendre de fiche, grille, collage ou cadre de présentation — une seule scène composite.";
+      "\n\nRÈGLE ABSOLUE : chaque image de référence fournie représente un élément précis de la scène (voir correspondance ci-dessus). " +
+      "Reproduire l'apparence exacte (visage, coiffure, costume, couleurs, style graphique, forme) de chaque élément à partir de son image de référence. " +
+      "Composer une scène unique et cohérente — pas de fiche, grille, collage, cadre ou montage.";
   }
 
   return clip(fullPrompt, 2800);
@@ -637,7 +640,7 @@ Deno.serve(async (req) => {
     }
 
     // Plan utilisateur : détermine si on peut utiliser les images de référence (cohérence graphique).
-    let userPlan: "free" | "pro" = "free";
+    let userPlan: "libre" | "createur" | "studio" = "libre";
     try {
       const profileRes = await fetch(
         `${supabaseUrl}/rest/v1/profiles?user_id=eq.${encodeURIComponent(userId)}&select=plan`,
@@ -651,11 +654,11 @@ Deno.serve(async (req) => {
       );
       if (profileRes.ok) {
         const profiles = (await profileRes.json()) as { plan?: string }[];
-        if (profiles?.[0]?.plan === "pro") userPlan = "pro";
+        const p = profiles?.[0]?.plan;
+        if (p === "createur" || p === "studio") userPlan = p;
       }
     } catch {
-      // Dégradé : si on ne peut pas lire le plan, on reste en "free".
-      userPlan = "free";
+      userPlan = "libre";
     }
 
     let body: {
@@ -787,8 +790,7 @@ Deno.serve(async (req) => {
       ? block_asset_image_urls.filter((u) => typeof u === "string" && u.trim().length > 0)
       : [];
     const limitedReferenceImageUrls = referenceImageUrls.slice(0, 5);
-    const useReferences =
-      userPlan === "pro" && limitedReferenceImageUrls.length > 0;
+    const useReferences = limitedReferenceImageUrls.length > 0;
 
     const fullPrompt = buildPolicySafePanelPrompt({
       styleSummary: effectiveStyleTemplate,

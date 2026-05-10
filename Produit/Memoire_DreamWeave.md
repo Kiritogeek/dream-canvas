@@ -338,7 +338,7 @@ Backend
 Supabase Cloud — PostgreSQL (10 tables, RLS native) — Auth (email + Google OAuth) — Storage bucket dreamweave — Edge Functions Deno
 BDD, authentification, stockage images, logique métier serverless
 IA Images
-FAL.ai : FLUX.1 Schnell (~0,003$/img Libre) | FLUX.2 Pro (~0,03$/img Créateur) | FLUX.2 Pro Edit (~0,09$/img avec 2 refs Sheet)
+FAL.ai : FLUX.2 Pro tous plans — coûts réels testés (10/05/2026) : personnage $0,06 | décor $0,09 | objet $0,05 | bloc 3 refs ~$0,025 (après resize 512px) | moyenne pondérée ~$0,065/crédit avec marge sécurité 50 %
 Génération d'images IA — cohérence via Sheet System
 IA Texte
 Google Gemini Flash (primaire) — Groq Llama 3.3 70B (fallback si erreur 429)
@@ -376,7 +376,7 @@ B2C : créateurs individuels (auteurs, YouTubers, amateurs passionnés) — B2B 
 Flux de revenus
 Abonnements freemium SaaS (Libre/Créateur/Studio/Enterprise) — Packs de crédits supplémentaires (6 mois) — Marketplace de styles commission 30 % (12 mois) — API B2B (12 mois)
 Structure de coûts
-Fixes : ~100 €/mois (Supabase 25 € + Vercel + domaine + outils) — Variables : FAL.ai par génération (0,003–0,09 €) — Croissance : marketing 10–20 % du CA
+Fixes : ~60 €/mois (Supabase Pro 25 € + Vercel Pro 20 € + domaine + outils) — Variables : FAL.ai ~0,065 $/crédit (moyenne pondérée avec marge sécurité) — Gemini Flash ~0,005 $/appel scénario — Croissance : marketing 10–20 % du CA
 
 3.2 — Pricing Argumenté
 Le modèle de tarification repose sur une logique Spotify : même qualité FLUX.2 Pro pour tous les plans, seule la quantité de générations mensuelles diffère. L'utilisateur Libre accède à la pleine valeur du produit, se convainc de son utilité, puis upgrade pour disposer de plus de volume.
@@ -388,13 +388,13 @@ Studio
 Enterprise
 Prix
 0 €
-14,99 €/mois
-39,99 €/mois
+12,99 €/mois
+29,99 €/mois
 Sur devis
 Crédits/mois
 20
-300
-1 000
+100
+250
 Illimités
 Modèle IA
 FLUX.2 Pro
@@ -406,8 +406,8 @@ Sheet System
 ✅
 ✅
 ✅
-Scénario IA basique
-✅
+Scénario IA
+❌
 ✅
 ✅
 ✅
@@ -416,28 +416,33 @@ Découpage Chapitre → Panels
 ✅
 ✅
 ✅
-Export PDF/PNG
+Export chapitre PNG
+❌
+✅
+✅
+✅
+Mémoire narrative longue
 ❌
 ❌
 ✅
 ✅
-Collaboration
-❌
-❌
-5 membres
-Illimitée
+Fil d'Ariane
+3 alertes max
+Complet
+Complet
+Complet
 Support
 Communauté
 Email
 Prioritaire
 Dédié
-Marge brute estimée
-–0,04 $/mois
-~50–60 %
-~60–70 %
+Marge brute estimée (100 % utilisation)
+–$1,30/mois
+~54 %
+~51 %
 Sur devis
 
-Note : 1 crédit = 1 génération, qu'il s'agisse d'un asset, d'une sheet ou d'un bloc de panel. Le code Stripe est implémenté depuis le 18 avril 2026 — déploiement prévu après finalisation du Sheet System et du scénario.
+Note : 1 crédit = 1 génération (asset, sheet ou bloc de panel). Grille tarifaire révisée le 10/05/2026 sur base des coûts FAL réels testés (~0,065 $/crédit en usage mixte). Break-even : 10–15 Créateurs couvrent l'ensemble des coûts fixes mensuels. Le code Stripe est implémenté — déploiement conditionné à la création de l'auto-entreprise (étape préalable obligatoire).
 
 3.3 — Projections Financières — Année 1
 Métrique
@@ -532,30 +537,39 @@ Besoins de recrutement — Phase de croissance
     • Développeur Frontend junior — accélération des fonctionnalités UI
 
 4.2 — Structure Juridique
-Structure recommandée : SAS (Société par Actions Simplifiée)
-    • Flexibilité statutaire maximale — gouvernance libre et adaptable
-    • Facilite l'entrée d'investisseurs et la levée de fonds future
-    • Pas de capital minimum — démarrage immédiat
-    • Structure standard pour les startups tech françaises
+La structuration juridique suit une progression par phases alignée sur le niveau de revenus.
 
-Alternative pour le démarrage solo
-En phase de démarrage solo, la SASU (Soci été par Actions Simplifiée Unipersonnelle) est envisageable avant toute association. La transformation SASU → SAS est simple en cas d'arrivée d'associés.
+Phase 1 — Lancement (immédiat) : Auto-entrepreneur
+    • Création en 15 minutes sur autoentrepreneur.urssaf.fr, gratuit, obtention d'un SIRET
+    • Permet de recevoir des paiements Stripe légalement dès le 1er abonné
+    • Cotisations sociales : 22 % du CA déclaré trimestriellement
+    • Seuil : jusqu'à 77 700 €/an de CA pour les prestations de services
+    • Compte bancaire dédié recommandé (Shine, Qonto ou Nickel)
+    • Break-even : 10–15 abonnés Créateur suffisent à couvrir tous les coûts fixes
+
+Phase 2 — Croissance (> 30 000 €/an de CA) : SASU
+    • Société par Actions Simplifiée Unipersonnelle — structure solo standard
+    • Transformation auto-entrepreneur → SASU simple via un expert-comptable
+    • Optimisation fiscale via IS + rémunération dividendes
+    • Éligible au Crédit Impôt Recherche (développements IA considérés R&D)
+
+Phase 3 — Scale (levée de fonds / associés) : SAS
+    • Transformation SASU → SAS simple en cas d'arrivée d'associés ou d'investisseurs
+    • Flexibilité statutaire maximale, standard français pour startups tech
+    • Vesting : cliff 1 an, acquisition linéaire sur 4 ans
 
 Élément
 Recommandation
 Justification
-Structure
-SAS (ou SASU en phase solo)
-Standard SaaS early-stage français
-Vesting
-Cliff 1 an, acquisition linéaire sur 4 ans
-Aligne les intérêts des fondateurs et futurs associés
-Régime fiscal
-IS (Impôt sur les Sociétés)
-Optimisation possible via CIR
-CIR
-Crédit Impôt Recherche applicable
-Développements IA considérés comme R&D
+Phase 1 (maintenant)
+Auto-entrepreneur
+Immédiat, gratuit, légal pour Stripe
+Phase 2 (> 30K€ CA)
+SASU
+Optimisation fiscale IS + CIR
+Phase 3 (associés / levée)
+SAS
+Standard investisseurs, flexibilité statutaire
 Siège social
 France — Île-de-France
 Accès aux aides Bpifrance, French Tech

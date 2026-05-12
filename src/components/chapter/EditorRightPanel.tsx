@@ -1,5 +1,10 @@
 import React, { useMemo, useState } from "react";
-import { BookOpen, Loader2, Layers, GripVertical, CheckCircle2, Package } from "lucide-react";
+import { BookOpen, Loader2, Layers, GripVertical, CheckCircle2, Package, ChevronDown } from "lucide-react";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { ScenarioFormattedPreview } from "@/components/project/ScenarioFormattedPreview";
 import type { Asset } from "@/types";
 import { planDisplayName } from "@/types";
@@ -40,6 +45,12 @@ const ASSET_TYPE_BORDER: Record<string, string> = {
   object: "hsl(230 50% 55% / 0.4)",
 };
 
+const ASSET_TYPE_TRIGGER_CLASS: Record<string, string> = {
+  character: "text-violet-500 dark:text-violet-400",
+  background: "text-emerald-500 dark:text-emerald-400",
+  object: "text-indigo-500 dark:text-indigo-400",
+};
+
 function getAssetThumbnail(asset: Asset): string | null {
   if (asset.asset_type === "character") {
     return asset.image_url ?? asset.image_url_profile_left ?? asset.image_url_profile_right ?? null;
@@ -76,6 +87,11 @@ export function EditorRightPanel({
   onNavigateToPlans,
 }: EditorRightPanelProps) {
   const [draggingCaseNumber, setDraggingCaseNumber] = useState<number | null>(null);
+  const [openAssetGroups, setOpenAssetGroups] = useState<Record<string, boolean>>({
+    character: true,
+    background: true,
+    object: true,
+  });
 
   // Nombre de cases pas encore sur le canvas
   const unaddedCount = validatedCases.filter(
@@ -128,45 +144,56 @@ export function EditorRightPanel({
                 <p className="text-sm text-muted-foreground leading-relaxed px-2">Aucun asset dans ce projet.</p>
               </div>
             ) : (
-              <div className="space-y-5">
+              <div className="space-y-3">
                 {(["character", "background", "object"] as const).map((type) => {
                   const group = assetsByType[type];
                   if (!group || group.length === 0) return null;
                   const label = ASSET_TYPE_LABELS[type] ?? type;
+                  const triggerClass = ASSET_TYPE_TRIGGER_CLASS[type] ?? "text-muted-foreground";
+                  const isOpen = openAssetGroups[type] ?? true;
                   return (
-                    <div key={type} className="space-y-2">
-                      <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider px-0.5">
-                        {label}{group.length > 1 ? "s" : ""} ({group.length})
-                      </p>
-                      <div className="flex flex-col gap-2">
-                        {group.map((asset) => {
-                          const thumb = getAssetThumbnail(asset);
-                          const bg = ASSET_TYPE_COLORS[type] ?? "hsl(var(--muted)/0.3)";
-                          const border = ASSET_TYPE_BORDER[type] ?? "hsl(var(--border))";
-                          return (
-                            <div
-                              key={asset.id}
-                              className="flex items-center gap-3 rounded-xl border p-3 transition-colors hover:bg-muted/35"
-                              style={{ borderColor: border, backgroundColor: bg }}
-                            >
-                              <div className="shrink-0 w-14 h-14 rounded-xl overflow-hidden bg-muted/50 border border-border/40 flex items-center justify-center">
-                                {thumb ? (
-                                  <img src={thumb} alt={asset.name} className="w-full h-full object-cover" loading="lazy" />
-                                ) : (
-                                  <Package className="h-6 w-6 text-muted-foreground/30" />
-                                )}
+                    <Collapsible
+                      key={type}
+                      open={isOpen}
+                      onOpenChange={(v) => setOpenAssetGroups((prev) => ({ ...prev, [type]: v }))}
+                    >
+                      <CollapsibleTrigger className="flex items-center justify-between w-full py-1 px-0.5 hover:opacity-80 transition-opacity">
+                        <span className={cn("text-xs font-bold uppercase tracking-wider", triggerClass)}>
+                          {label}{group.length > 1 ? "s" : ""} ({group.length})
+                        </span>
+                        <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", triggerClass, isOpen ? "rotate-0" : "-rotate-90")} />
+                      </CollapsibleTrigger>
+                      <CollapsibleContent className="mt-1">
+                        <div className="flex flex-col gap-2">
+                          {group.map((asset) => {
+                            const thumb = getAssetThumbnail(asset);
+                            const bg = ASSET_TYPE_COLORS[type] ?? "hsl(var(--muted)/0.3)";
+                            const border = ASSET_TYPE_BORDER[type] ?? "hsl(var(--border))";
+                            return (
+                              <div
+                                key={asset.id}
+                                className="flex items-center gap-3 rounded-xl border p-3 transition-colors hover:bg-muted/35"
+                                style={{ borderColor: border, backgroundColor: bg }}
+                              >
+                                <div className="shrink-0 w-14 h-14 rounded-xl overflow-hidden bg-muted/50 border border-border/40 flex items-center justify-center">
+                                  {thumb ? (
+                                    <img src={thumb} alt={asset.name} className="w-full h-full object-cover" loading="lazy" />
+                                  ) : (
+                                    <Package className="h-6 w-6 text-muted-foreground/30" />
+                                  )}
+                                </div>
+                                <div className="flex-1 min-w-0 py-0.5">
+                                  <p className="text-sm font-semibold text-foreground truncate leading-snug">{asset.name}</p>
+                                  {asset.prompt && (
+                                    <p className="text-xs text-muted-foreground leading-snug line-clamp-3 mt-1">{asset.prompt.slice(0, 100)}</p>
+                                  )}
+                                </div>
                               </div>
-                              <div className="flex-1 min-w-0 py-0.5">
-                                <p className="text-sm font-semibold text-foreground truncate leading-snug">{asset.name}</p>
-                                {asset.prompt && (
-                                  <p className="text-xs text-muted-foreground leading-snug line-clamp-3 mt-1">{asset.prompt.slice(0, 100)}</p>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
+                            );
+                          })}
+                        </div>
+                      </CollapsibleContent>
+                    </Collapsible>
                   );
                 })}
               </div>

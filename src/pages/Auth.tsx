@@ -493,7 +493,7 @@ export default function Auth() {
                   <Input
                     id="password"
                     type={showPassword ? "text" : "password"}
-                    placeholder="••••••••"
+                    placeholder=""
                     value={password}
                     onChange={(e) => {
                       setPassword(e.target.value);
@@ -542,7 +542,7 @@ export default function Auth() {
                     <Input
                       id="confirmPassword"
                       type={showConfirmPassword ? "text" : "password"}
-                      placeholder="••••••••"
+                      placeholder=""
                       value={confirmPassword}
                       onChange={(e) => {
                         setConfirmPassword(e.target.value);

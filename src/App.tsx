@@ -7,20 +7,31 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import ProtectedRoute from "@/components/ProtectedRoute";
 
-// Lazy loading des pages
-const Landing = lazy(() => import("./pages/Landing"));
-const Auth = lazy(() => import("./pages/Auth"));
-const EmailVerification = lazy(() => import("./pages/EmailVerification"));
-const ResetPassword = lazy(() => import("./pages/ResetPassword"));
-const Dashboard = lazy(() => import("./pages/Dashboard"));
-const Projects = lazy(() => import("./pages/Projects"));
-const ProjectDetail = lazy(() => import("./pages/ProjectDetail"));
-const Profile = lazy(() => import("./pages/Profile"));
-const Plans = lazy(() => import("./pages/Plans"));
-const ChapterDetail = lazy(() => import("./pages/ChapterDetail"));
-const ScenarioChapterEditor = lazy(() => import("./pages/ScenarioChapterEditor"));
-const Pilotage = lazy(() => import("./pages/Pilotage"));
-const NotFound = lazy(() => import("./pages/NotFound"));
+// Recharge la page si un chunk JS est introuvable après un nouveau déploiement (hash périmé en cache).
+function lazyWithReload<T extends React.ComponentType<unknown>>(
+  factory: () => Promise<{ default: T }>
+) {
+  return lazy(() =>
+    factory().catch(() => {
+      window.location.reload();
+      return new Promise<{ default: T }>(() => {});
+    })
+  );
+}
+
+const Landing = lazyWithReload(() => import("./pages/Landing"));
+const Auth = lazyWithReload(() => import("./pages/Auth"));
+const EmailVerification = lazyWithReload(() => import("./pages/EmailVerification"));
+const ResetPassword = lazyWithReload(() => import("./pages/ResetPassword"));
+const Dashboard = lazyWithReload(() => import("./pages/Dashboard"));
+const Projects = lazyWithReload(() => import("./pages/Projects"));
+const ProjectDetail = lazyWithReload(() => import("./pages/ProjectDetail"));
+const Profile = lazyWithReload(() => import("./pages/Profile"));
+const Plans = lazyWithReload(() => import("./pages/Plans"));
+const ChapterDetail = lazyWithReload(() => import("./pages/ChapterDetail"));
+const ScenarioChapterEditor = lazyWithReload(() => import("./pages/ScenarioChapterEditor"));
+const Pilotage = lazyWithReload(() => import("./pages/Pilotage"));
+const NotFound = lazyWithReload(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient({
   defaultOptions: {

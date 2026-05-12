@@ -52,6 +52,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { QuotaReachedDialog } from "@/components/shared/QuotaReachedDialog";
 import { getDetectedAssets } from "@/components/project/ScenarioTextHighlighter";
 import { ScenarioFormattedPreview } from "@/components/project/ScenarioFormattedPreview";
 import { useChapter, useUpdateChapter } from "@/hooks/useChapters";
@@ -213,7 +214,7 @@ export default function ChapterDetail() {
   const { data: project } = useProject(projectId);
   const { isResolved, appliesProgressiveFlow, accessible } = useProgressiveMenuAccess(projectId);
   const progressiveRedirectRef = useRef(false);
-  const { plan, usageInfo, goToCheckout } = useUserPlan();
+  const { plan, usageInfo, nextResetDate } = useUserPlan();
   const navigate = useNavigate();
   const isPro = plan === "createur" || plan === "studio";
   const { data: scenarioChapters = [] } = useScenarioChapters(projectId);
@@ -1386,7 +1387,7 @@ export default function ChapterDetail() {
               },
             );
           },
-          onError: (err) => toast({ title: "Génération échouée", description: err.message, variant: "destructive" }),
+          onError: () => toast({ title: "Génération IA indisponible", description: "Service temporairement indisponible. Réessayez dans quelques instants.", variant: "destructive" }),
         }
       );
     };
@@ -2228,31 +2229,13 @@ export default function ChapterDetail() {
         </DialogContent>
       </Dialog>
 
-      {/* Modal quota dépassé */}
-      <Dialog open={showQuotaModal} onOpenChange={setShowQuotaModal}>
-        <DialogContent className="max-w-sm text-center">
-          <DialogHeader>
-            <DialogTitle className="text-lg">Quota mensuel atteint</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-5 py-2">
-            <p className="text-muted-foreground text-sm leading-relaxed">
-              Tu as utilisé <span className="font-semibold text-foreground">{usageInfo.count} / {usageInfo.limit}</span> générations ce mois-ci.
-              <br />Passez au plan {planDisplayName("createur")} pour continuer à créer sans limite.
-            </p>
-            <div className="flex flex-col gap-2">
-              <Button
-                className="w-full gradient-primary text-primary-foreground gap-2"
-                onClick={() => { setShowQuotaModal(false); goToCheckout(); }}
-              >
-                Passer au plan {planDisplayName("createur")} →
-              </Button>
-              <Button variant="ghost" className="w-full text-sm" asChild>
-                <Link to="/dashboard/plans">Voir les plans</Link>
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <QuotaReachedDialog
+        open={showQuotaModal}
+        onOpenChange={setShowQuotaModal}
+        plan={plan}
+        usageInfo={usageInfo}
+        nextResetDate={nextResetDate}
+      />
     </div>
   );
 }

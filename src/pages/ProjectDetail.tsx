@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
+import { QuotaReachedDialog } from "@/components/shared/QuotaReachedDialog";
 import { useParams, useSearchParams, Link, useNavigate } from "react-router-dom";
 import { Palette, Image as ImageIcon, BookOpen, Globe, Layers, FlaskConical } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -53,7 +54,7 @@ export default function ProjectDetail() {
   const navigate = useNavigate();
   const { data: project, isLoading: loadingProject } = useProject(id);
   const { data: assets = [], isLoading: loadingAssets } = useAssets(id);
-  const { plan: userPlan, usageInfo } = useUserPlan();
+  const { plan: userPlan, usageInfo, nextResetDate } = useUserPlan();
   const { user } = useAuth();
   // Clé par utilisateur — même logique que l'onboarding bienvenue
   const styleOnboardingKey = user?.id
@@ -78,6 +79,7 @@ export default function ProjectDetail() {
   const [styleDraft, setStyleDraft] = useState<string | undefined>(undefined);
   const [journeyCompleteOpen, setJourneyCompleteOpen] = useState(false);
   const [filArianePanelOpen, setFilArianePanelOpen] = useState(false);
+  const [showQuotaModal, setShowQuotaModal] = useState(false);
 
   const { data: allAlerts = [] } = useNarraMindAlerts(id, { statuses: ["active"] });
   const { data: allMissingAssets = [] } = useNarramindMissingAssets(id);
@@ -134,6 +136,7 @@ export default function ProjectDetail() {
     project: project ?? null,
     userPlan,
     usageInfo,
+    onQuotaReached: () => setShowQuotaModal(true),
   });
 
   const [pendingAssetName, setPendingAssetName] = useState("");
@@ -576,6 +579,14 @@ export default function ProjectDetail() {
           )}
         </SheetContent>
       </Sheet>
+
+      <QuotaReachedDialog
+        open={showQuotaModal}
+        onOpenChange={setShowQuotaModal}
+        plan={userPlan}
+        usageInfo={usageInfo}
+        nextResetDate={nextResetDate}
+      />
     </DashboardLayout>
   );
 }

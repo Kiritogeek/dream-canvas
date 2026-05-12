@@ -196,12 +196,11 @@ export default function Plans() {
     try {
       setIsRedirecting(true);
       await goToCheckout();
-    } catch (err) {
+    } catch {
       setIsRedirecting(false);
       toast({
-        title: "Erreur",
-        description:
-          err instanceof Error ? err.message : "Impossible de lancer le paiement.",
+        title: "Paiement indisponible",
+        description: "La connexion Stripe n'est pas encore activée. Réessayez plus tard ou contactez le support.",
         variant: "destructive",
       });
     }
@@ -211,12 +210,11 @@ export default function Plans() {
     try {
       setIsRedirecting(true);
       await goToPortal();
-    } catch (err) {
+    } catch {
       setIsRedirecting(false);
       toast({
-        title: "Erreur",
-        description:
-          err instanceof Error ? err.message : "Impossible d'ouvrir le portail.",
+        title: "Portail indisponible",
+        description: "Impossible d'accéder au portail de gestion. Réessayez plus tard.",
         variant: "destructive",
       });
     }

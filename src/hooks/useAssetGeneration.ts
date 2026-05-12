@@ -14,6 +14,7 @@ interface StyleInfo {
   project: Project | null;
   userPlan?: UserPlan;
   usageInfo?: UsageInfo;
+  onQuotaReached?: () => void;
 }
 
 function checkStyleDefined(
@@ -62,11 +63,15 @@ export function useAssetGeneration(styleInfo: StyleInfo) {
 
   const canGenerate = (): boolean => {
     if (styleInfo.usageInfo && styleInfo.usageInfo.count >= styleInfo.usageInfo.limit) {
-      toast({
-        title: "Quota atteint",
-        description: `Vous avez utilisé ${styleInfo.usageInfo.count}/${styleInfo.usageInfo.limit} générations ce mois-ci.`,
-        variant: "destructive",
-      });
+      if (styleInfo.onQuotaReached) {
+        styleInfo.onQuotaReached();
+      } else {
+        toast({
+          title: "Quota atteint",
+          description: `Vous avez utilisé ${styleInfo.usageInfo.count}/${styleInfo.usageInfo.limit} générations ce mois-ci.`,
+          variant: "destructive",
+        });
+      }
       return false;
     }
     return checkStyleDefined(styleInfo, toast) !== null;
@@ -148,8 +153,8 @@ export function useAssetGeneration(styleInfo: StyleInfo) {
         err
       );
       toast({
-        title: "Échec de la génération",
-        description: `Raison : ${reason}`,
+        title: "Génération IA indisponible",
+        description: `Raison : ${reason}. Réessayez dans quelques instants.`,
         variant: "destructive",
       });
     } finally {

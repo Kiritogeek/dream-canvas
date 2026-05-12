@@ -144,8 +144,8 @@ export function ScenarioSection({ projectId, project }: ScenarioSectionProps) {
             setAiResult(data.text);
             toast({ title: "Scénario généré par l'IA" });
           },
-          onError: (err) =>
-            toast({ title: "Erreur IA", description: err.message, variant: "destructive" }),
+          onError: () =>
+            toast({ title: "Génération IA indisponible", description: "Le service IA est temporairement indisponible. Réessayez dans quelques instants.", variant: "destructive" }),
         }
       );
     },

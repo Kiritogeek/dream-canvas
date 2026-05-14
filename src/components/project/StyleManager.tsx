@@ -92,7 +92,7 @@ export function StyleManager({
     },
     {
       key: "europeen",
-      label: "Européen",
+      label: "Bande dessinée",
       description:
         "Style BD franco-belge : trait encre lisible et gras, aplats de couleur francs (pas de gradient photoréaliste), compositions narratives claires. INTERDIT : rendu photoréaliste, textures hyperréalistes, rendu 3D, esthétique photographique. Illustration stylisée non-réaliste uniquement.",
       images: {

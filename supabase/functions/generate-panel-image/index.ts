@@ -30,20 +30,7 @@ function snapToFluxDim(v: number): number {
   return Math.max(256, Math.min(MAX_DIMENSION, snapped));
 }
 
-function getCorsHeaders(): Record<string, string> {
-  const origin = Deno.env.get("ALLOWED_ORIGIN")?.trim();
-  return {
-    ...(origin ? { "Access-Control-Allow-Origin": origin } : {}),
-    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  };
-}
-
-function jsonResponse(body: object, status: number) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...getCorsHeaders(), "Content-Type": "application/json" },
-  });
-}
+import { getCorsHeaders, makeJsonResponse, isAllowedOriginConfigured } from "../_shared/cors.ts";
 
 function clip(value: string, max = 1200): string {
   if (value.length <= max) return value;
@@ -597,19 +584,18 @@ async function downloadAndUpload(
 
 Deno.serve(async (req) => {
   const requestId = crypto.randomUUID();
-  const allowedOrigin = Deno.env.get("ALLOWED_ORIGIN")?.trim();
-  if (!allowedOrigin) {
+  const origin = req.headers.get("origin");
+  const jsonResponse = makeJsonResponse(origin);
+
+  if (!isAllowedOriginConfigured()) {
     return jsonResponse(
-      {
-        error:
-          "ALLOWED_ORIGIN non configurée. Configurez ce secret pour autoriser les requêtes CORS.",
-      },
+      { error: "ALLOWED_ORIGIN non configurée. Configurez ce secret Supabase." },
       500
     );
   }
 
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: getCorsHeaders() });
+    return new Response("ok", { headers: getCorsHeaders(origin) });
   }
 
   try {

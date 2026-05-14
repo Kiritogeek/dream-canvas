@@ -1,17 +1,11 @@
+import { getCorsHeaders } from "../_shared/cors.ts";
+
 declare const Deno: {
   serve: (handler: (req: Request) => Promise<Response> | Response) => void;
   env: { get: (key: string) => string | undefined };
 };
 
 const ADMIN_EMAIL = "kiritogeek@gmail.com";
-
-function getCors(req: Request): Record<string, string> {
-  const origin = Deno.env.get("ALLOWED_ORIGIN")?.trim() ?? req.headers.get("origin") ?? "*";
-  return {
-    "Access-Control-Allow-Origin": origin,
-    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  };
-}
 
 function json(body: object, status: number, cors: Record<string, string>) {
   return new Response(JSON.stringify(body), {
@@ -188,7 +182,8 @@ async function handleSetPlan(
 }
 
 Deno.serve(async (req) => {
-  const cors = getCors(req);
+  const origin = req.headers.get("origin");
+  const cors = getCorsHeaders(origin);
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL");

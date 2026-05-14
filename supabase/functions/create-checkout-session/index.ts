@@ -19,32 +19,12 @@
 
 import Stripe from "npm:stripe@14";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getCorsHeaders, makeJsonResponse } from "../_shared/cors.ts";
 
 declare const Deno: {
   serve: (handler: (req: Request) => Promise<Response> | Response) => void;
   env: { get: (key: string) => string | undefined };
 };
-
-// ═══════════════════════════════════════════════════════════════
-// CORS + helpers
-// ═══════════════════════════════════════════════════════════════
-
-function getCorsHeaders(): Record<string, string> {
-  const allowedOrigin = Deno.env.get("ALLOWED_ORIGIN")?.trim();
-  return {
-    ...(allowedOrigin ? { "Access-Control-Allow-Origin": allowedOrigin } : {}),
-    "Access-Control-Allow-Headers":
-      "authorization, x-client-info, apikey, content-type",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-  };
-}
-
-function jsonResponse(body: object, status: number) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...getCorsHeaders(), "Content-Type": "application/json" },
-  });
-}
 
 // ═══════════════════════════════════════════════════════════════
 // Vérification JWT via Supabase Auth
@@ -90,8 +70,11 @@ async function verifyUserFromToken(
 // ═══════════════════════════════════════════════════════════════
 
 Deno.serve(async (req) => {
+  const origin = req.headers.get("origin");
+  const jsonResponse = makeJsonResponse(origin);
+
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: getCorsHeaders() });
+    return new Response("ok", { headers: getCorsHeaders(origin) });
   }
 
   if (req.method !== "POST") {

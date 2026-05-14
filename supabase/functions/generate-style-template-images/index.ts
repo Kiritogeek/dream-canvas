@@ -1,13 +1,15 @@
+import { getCorsHeaders as getCorsHeadersShared, makeJsonResponse, isAllowedOriginConfigured } from "../_shared/cors.ts";
+
 declare const Deno: {
   serve: (handler: (req: Request) => Promise<Response> | Response) => void;
   env: { get: (key: string) => string | undefined };
 };
 
+import { STYLE_TEMPLATE_IMAGE_DEFINITIONS } from "../_shared/style-template-image-prompts.ts";
+
 const FAL_TEXT_TO_IMAGE = "https://fal.run/fal-ai/flux-2-pro";
 const BUCKET = "dreamweave";
 const FAL_TIMEOUT_MS = 120_000;
-
-import { STYLE_TEMPLATE_IMAGE_DEFINITIONS } from "../_shared/style-template-image-prompts.ts";
 
 const DEFINITIONS = STYLE_TEMPLATE_IMAGE_DEFINITIONS;
 
@@ -15,20 +17,13 @@ type GenerateRequestBody = {
   targets?: string[];
 };
 
-function getCorsHeaders(): Record<string, string> {
-  const origin = Deno.env.get("ALLOWED_ORIGIN")?.trim();
+function getCorsHeaders(requestOrigin?: string | null): Record<string, string> {
+  const base = getCorsHeadersShared(requestOrigin);
   return {
-    ...(origin ? { "Access-Control-Allow-Origin": origin } : {}),
+    ...base,
     "Access-Control-Allow-Headers":
       "authorization, x-client-info, apikey, content-type, x-template-admin-token",
   };
-}
-
-function jsonResponse(body: object, status: number) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...getCorsHeaders(), "Content-Type": "application/json" },
-  });
 }
 
 async function fetchWithTimeout(
@@ -114,19 +109,18 @@ async function uploadToStorage(
 }
 
 Deno.serve(async (req) => {
-  const allowedOrigin = Deno.env.get("ALLOWED_ORIGIN")?.trim();
-  if (!allowedOrigin) {
+  const origin = req.headers.get("origin");
+  const jsonResponse = makeJsonResponse(origin);
+
+  if (!isAllowedOriginConfigured()) {
     return jsonResponse(
-      {
-        error:
-          "ALLOWED_ORIGIN non configurée. Configurez ce secret pour autoriser les requêtes CORS.",
-      },
+      { error: "ALLOWED_ORIGIN non configurée. Configurez ce secret Supabase." },
       500
     );
   }
 
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: getCorsHeaders() });
+    return new Response("ok", { headers: getCorsHeaders(origin) });
   }
 
   if (req.method !== "POST") {

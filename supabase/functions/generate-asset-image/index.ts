@@ -353,6 +353,15 @@ async function generateWithReferences(
   if (!res.ok) {
     const details = extractFalErrorDetails(text);
     if (res.status === 422 && isFalPolicyViolation(details)) {
+      // Si la violation porte sur image_urls, changer le prompt ne suffit pas —
+      // les images elles-mêmes sont flaggées. On bascule directement en text-only.
+      if (details.includes("image_urls")) {
+        console.warn("[generate-asset-image] Policy violation on image_urls, fallback text-only (ultra-safe)", {
+          reference_images_count: referenceImageUrls.length,
+        });
+        return generateTextToImage(buildUltraSafePrompt(kind), falKey, width, height, kind);
+      }
+
       const safePrompt = buildSafeFallbackPrompt(prompt);
       console.warn("[generate-asset-image] Policy violation (edit), retry with safe prompt", {
         status: res.status,

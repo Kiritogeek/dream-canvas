@@ -123,12 +123,12 @@ function buildSafeFallbackPrompt(prompt: string): string {
 
 function buildUltraSafePrompt(kind: "character" | "background" | "object"): string {
   if (kind === "character") {
-    return "Adult character design sheet, fully clothed, neutral pose, clean studio lighting, non-sexual, non-violent, family-friendly comic style, original content.";
+    return "Generic character design, fully clothed, neutral standing pose, clean studio lighting, non-sexual, non-violent, family-friendly comic illustration style, original content.";
   }
   if (kind === "background") {
-    return "Safe environment concept art, no people, no violence, no explicit content, family-friendly, original comic style background.";
+    return "Generic environment concept art, no people, no violence, no explicit content, family-friendly, original comic style background.";
   }
-  return "Safe object concept art, clean product-like composition, no violence, no explicit content, family-friendly, original comic style.";
+  return "Generic object concept art, clean product-like composition, no violence, no explicit content, family-friendly, original comic illustration style.";
 }
 
 function isUuid(value: string): boolean {
@@ -356,10 +356,12 @@ async function generateWithReferences(
       // Si la violation porte sur image_urls, changer le prompt ne suffit pas —
       // les images elles-mêmes sont flaggées. On bascule directement en text-only.
       if (details.includes("image_urls")) {
-        console.warn("[generate-asset-image] Policy violation on image_urls, fallback text-only (ultra-safe)", {
+        // Les images de style sont flaggées — on abandonne les refs et génère
+        // en text-only avec le prompt original (préserve l'intention utilisateur).
+        console.warn("[generate-asset-image] Policy violation on image_urls, fallback text-only (original prompt)", {
           reference_images_count: referenceImageUrls.length,
         });
-        return generateTextToImage(buildUltraSafePrompt(kind), falKey, width, height, kind);
+        return generateTextToImage(prompt, falKey, width, height, kind);
       }
 
       const safePrompt = buildSafeFallbackPrompt(prompt);
@@ -860,9 +862,11 @@ Deno.serve(async (req) => {
 
     if (hasStyleImages) {
       fullPrompt +=
-        "\n\nIMPORTANT : Les images de référence guident surtout trait, ombrage et matière. " +
-        "Le bloc STYLE_SYSTEM (style_key, style_principal, description_style) ci-dessus définit le GENRE et la direction artistique : il est prioritaire si une ambiguïté apparaît avec les visuels. " +
-        "Reproduis un rendu cohérent avec ces consignes. Crée un contenu 100% original.";
+        "\n\nRÈGLE ABSOLUE — IMAGES DE RÉFÉRENCE STYLE UNIQUEMENT :" +
+        "\nCes images définissent UNIQUEMENT le style graphique : type et épaisseur des traits, technique d'ombrage, palette de couleurs, niveau de détail, rendu des matériaux." +
+        "\nINTERDIT STRICTEMENT : copier, reproduire ou intégrer les sujets, personnages, objets, scènes ou éléments visuels présents dans ces images." +
+        "\nLe contenu à générer est EXCLUSIVEMENT celui décrit dans la DESCRIPTION ci-dessus — rien d'autre." +
+        "\nRésultat attendu : l'élément décrit rendu dans le style graphique extrait des références. Contenu 100% original.";
     }
 
     if (assetRefImageUrl) {

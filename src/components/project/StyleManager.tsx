@@ -156,6 +156,7 @@ export function StyleManager({
   const [styleNotes, setStyleNotes] = useState("");
   const [styleInitialized, setStyleInitialized] = useState(false);
   const [styleChangeWarningOpen, setStyleChangeWarningOpen] = useState(false);
+  const [isDraggingStyle, setIsDraggingStyle] = useState(false);
   const STYLE_NEXT_STEP_LINK_GUARD_MS = 750;
   const [nextStepLinksSuppressed, setNextStepLinksSuppressed] = useState(false);
   const linkGuardTimerRef = useRef<ReturnType<typeof window.setTimeout> | null>(null);
@@ -281,11 +282,7 @@ export function StyleManager({
   const MAX_STYLE_IMAGES = 2;
   const canAddMore = styleImageUrls.length < MAX_STYLE_IMAGES;
 
-  const addStyleImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file?.type.startsWith("image/")) return;
-    e.target.value = "";
-
+  const uploadStyleFile = async (file: File) => {
     if (!canAddMore) {
       toast({
         title: "Limite atteinte",
@@ -311,6 +308,13 @@ export function StyleManager({
     } finally {
       setStyleImageUploading(false);
     }
+  };
+
+  const addStyleImage = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file?.type.startsWith("image/")) return;
+    e.target.value = "";
+    uploadStyleFile(file);
   };
 
   const removeStyleImage = async (url: string) => {
@@ -531,13 +535,29 @@ export function StyleManager({
                   type="button"
                   onClick={() => styleFileInputRef.current?.click()}
                   disabled={styleImageUploading}
-                  className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-border bg-muted/40 hover:bg-muted/70 transition-colors text-muted-foreground py-6 px-3 text-center text-xs sm:text-sm disabled:opacity-50 h-64"
+                  onDragOver={(e) => { e.preventDefault(); }}
+                  onDragEnter={(e) => { e.preventDefault(); setIsDraggingStyle(true); }}
+                  onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setIsDraggingStyle(false); }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setIsDraggingStyle(false);
+                    const file = e.dataTransfer.files?.[0];
+                    if (!file?.type.startsWith("image/")) return;
+                    uploadStyleFile(file);
+                  }}
+                  className={`flex flex-col items-center justify-center gap-2 rounded-2xl border border-dashed transition-colors text-muted-foreground py-6 px-3 text-center text-xs sm:text-sm disabled:opacity-50 h-64 ${
+                    isDraggingStyle
+                      ? "border-primary bg-primary/10"
+                      : "border-border bg-muted/40 hover:bg-muted/70"
+                  }`}
                 >
                   <ImagePlus className="h-7 w-7" />
                   <span>
                     {styleImageUploading
                       ? "Import en cours..."
-                      : `Ajouter une image (${styleImageUrls.length}/${MAX_STYLE_IMAGES})`}
+                      : isDraggingStyle
+                        ? "Déposer ici"
+                        : `Glisser ou cliquer (${styleImageUrls.length}/${MAX_STYLE_IMAGES})`}
                   </span>
                 </button>
               )}

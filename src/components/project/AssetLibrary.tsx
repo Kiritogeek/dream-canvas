@@ -104,6 +104,7 @@ export function AssetLibrary({
   const [newAssetLore, setNewAssetLore] = useState("");
   const [newAssetRefFile, setNewAssetRefFile] = useState<File | null>(null);
   const [newAssetRefPreview, setNewAssetRefPreview] = useState<string | null>(null);
+  const [newAssetRefDragging, setNewAssetRefDragging] = useState(false);
   const [activeFilter, setActiveFilter] = useState<(typeof assetFilters)[number]["value"]>("all");
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -470,9 +471,29 @@ export function AssetLibrary({
                     </button>
                   </div>
                 ) : (
-                  <label className="flex flex-col items-center justify-center gap-1.5 cursor-pointer py-4 rounded-lg border border-dashed border-[hsl(var(--lavender)/0.3)] bg-[hsl(var(--lavender)/0.04)] hover:bg-[hsl(var(--lavender)/0.08)] transition-colors">
+                  <label
+                    className={`flex flex-col items-center justify-center gap-1.5 cursor-pointer py-4 rounded-lg border border-dashed transition-colors ${
+                      newAssetRefDragging
+                        ? "border-[hsl(var(--lavender)/0.7)] bg-[hsl(var(--lavender)/0.12)]"
+                        : "border-[hsl(var(--lavender)/0.3)] bg-[hsl(var(--lavender)/0.04)] hover:bg-[hsl(var(--lavender)/0.08)]"
+                    }`}
+                    onDragOver={(e) => { e.preventDefault(); }}
+                    onDragEnter={(e) => { e.preventDefault(); setNewAssetRefDragging(true); }}
+                    onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setNewAssetRefDragging(false); }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setNewAssetRefDragging(false);
+                      const f = e.dataTransfer.files?.[0];
+                      if (!f?.type.startsWith("image/")) return;
+                      if (newAssetRefPreview) URL.revokeObjectURL(newAssetRefPreview);
+                      setNewAssetRefFile(f);
+                      setNewAssetRefPreview(URL.createObjectURL(f));
+                    }}
+                  >
                     <ImagePlus className="h-5 w-5 text-[hsl(var(--lavender)/0.6)]" />
-                    <span className="text-xs text-muted-foreground">Ajouter une image de référence</span>
+                    <span className="text-xs text-muted-foreground">
+                      {newAssetRefDragging ? "Déposer ici" : "Glisser ou cliquer pour ajouter"}
+                    </span>
                     <input
                       type="file"
                       accept="image/*"

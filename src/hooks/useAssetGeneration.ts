@@ -44,7 +44,7 @@ function summarizeGenerationError(message: string): string {
   const normalized = message.trim();
   if (!normalized) return "Raison inconnue";
   if (normalized.includes("Contenu bloqué par la politique FAL")) {
-    return "contenu refusé par la politique de sécurité";
+    return "contenu refusé par la politique de sécurité. Reformulez : ex. \"marques d'usure\" plutôt que \"traces de combat\"";
   }
   if (normalized.includes("Session expirée") || normalized.includes("JWT")) {
     return "session expirée, reconnectez-vous";

@@ -24,6 +24,7 @@ export type Database = {
           image_url_profile_left: string | null
           image_url_profile_right: string | null
           image_url_sheet: string | null
+          reference_image_url: string | null
           lore: string | null
           metadata: Json | null
           name: string
@@ -40,6 +41,7 @@ export type Database = {
           image_url_profile_left?: string | null
           image_url_profile_right?: string | null
           image_url_sheet?: string | null
+          reference_image_url?: string | null
           lore?: string | null
           metadata?: Json | null
           name: string
@@ -56,6 +58,7 @@ export type Database = {
           image_url_profile_left?: string | null
           image_url_profile_right?: string | null
           image_url_sheet?: string | null
+          reference_image_url?: string | null
           lore?: string | null
           metadata?: Json | null
           name?: string

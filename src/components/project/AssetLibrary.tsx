@@ -452,27 +452,27 @@ export function AssetLibrary({
                   </p>
                 )}
               </div>
-              {/* Image de référence réelle */}
-              <div className="space-y-2">
+              {/* Image de référence */}
+              <div className="space-y-1.5">
                 <Label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
                   <ImagePlus className="h-3.5 w-3.5" />
-                  Image de référence réelle <span className="text-muted-foreground/60">(optionnel)</span>
+                  Image de référence <span className="text-muted-foreground/50">(optionnel)</span>
                 </Label>
                 {newAssetRefPreview ? (
-                  <div className="relative w-full h-24 rounded-lg overflow-hidden border border-[hsl(var(--lavender)/0.3)] bg-black/20">
+                  <div className="relative w-full h-28 rounded-lg overflow-hidden border border-[hsl(var(--lavender)/0.3)] bg-black/20">
                     <img src={newAssetRefPreview} alt="Référence" className="w-full h-full object-contain" />
                     <button
                       type="button"
-                      className="absolute top-1 right-1 bg-black/60 rounded-full p-0.5 hover:bg-black/80"
+                      className="absolute top-1.5 right-1.5 bg-black/70 rounded-full p-1 hover:bg-black/90 transition-colors"
                       onClick={() => { if (newAssetRefPreview) URL.revokeObjectURL(newAssetRefPreview); setNewAssetRefFile(null); setNewAssetRefPreview(null); }}
                     >
-                      <X className="h-3.5 w-3.5 text-white" />
+                      <X className="h-3 w-3 text-white" />
                     </button>
                   </div>
                 ) : (
-                  <label className="flex items-center gap-2 cursor-pointer px-3 py-2 rounded-lg border border-dashed border-[hsl(var(--lavender)/0.3)] bg-[hsl(var(--lavender)/0.04)] hover:bg-[hsl(var(--lavender)/0.08)] transition-colors text-xs text-muted-foreground">
-                    <ImagePlus className="h-4 w-4 text-[hsl(var(--lavender)/0.7)]" />
-                    <span>Ajouter une photo réelle (tank, monument, célébrité…)</span>
+                  <label className="flex flex-col items-center justify-center gap-1.5 cursor-pointer py-4 rounded-lg border border-dashed border-[hsl(var(--lavender)/0.3)] bg-[hsl(var(--lavender)/0.04)] hover:bg-[hsl(var(--lavender)/0.08)] transition-colors">
+                    <ImagePlus className="h-5 w-5 text-[hsl(var(--lavender)/0.6)]" />
+                    <span className="text-xs text-muted-foreground">Ajouter une image de référence</span>
                     <input
                       type="file"
                       accept="image/*"
@@ -487,8 +487,8 @@ export function AssetLibrary({
                     />
                   </label>
                 )}
-                <p className="text-[10px] text-muted-foreground/60">
-                  L'IA reproduira la forme exacte de l'objet/lieu/personnage réel avec le style de votre projet.
+                <p className="text-[10px] text-muted-foreground/50">
+                  Guide l'IA sur la forme et les proportions de l'asset.
                 </p>
               </div>
               <div className="space-y-2">

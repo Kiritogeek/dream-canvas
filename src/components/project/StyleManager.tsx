@@ -94,7 +94,7 @@ export function StyleManager({
       key: "europeen",
       label: "Européen",
       description:
-        "Trait lisible, compositions claires et couleurs maitrisees, avec une mise en scene narrative proche de la BD europeenne.",
+        "Style BD franco-belge : trait encre lisible et gras, aplats de couleur francs (pas de gradient photoréaliste), compositions narratives claires. INTERDIT : rendu photoréaliste, textures hyperréalistes, rendu 3D, esthétique photographique. Illustration stylisée non-réaliste uniquement.",
       images: {
         character: getTemplateStyleImageUrl("europeen", "character"),
         background: getTemplateStyleImageUrl("europeen", "background"),

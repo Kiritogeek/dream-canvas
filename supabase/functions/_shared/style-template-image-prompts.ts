@@ -75,19 +75,19 @@ export const STYLE_TEMPLATE_IMAGE_DEFINITIONS: StyleTemplateImageDefinition[] = 
     style: "europeen",
     type: "character",
     prompt:
-      "Premium European comic style reference character. Clear ligne claire inspired linework, elegant silhouette, balanced proportions, nuanced facial expression, refined costume details, soft pastel grading with subtle texture. Editorial-quality finish, readable anatomy, cinematic half-body framing. Full-bleed composition with no white margins, no blank borders, no matte frame, no empty padding. No text, no watermark.",
+      "Premium European BD comic style reference character. Bold clean ink outlines, flat comic-book color fills, stylized non-realistic anatomy, expressive face, Franco-Belgian ligne claire illustration aesthetic. STRICTLY non-photorealistic: NO realistic skin textures, NO 3D render, NO photography aesthetic, NO hyperrealistic lighting or shading. Graphic flat colors, visible ink contours. Full-bleed composition with no white margins, no blank borders, no matte frame, no empty padding. No text, no watermark.",
   },
   {
     style: "europeen",
     type: "background",
     prompt:
-      "Premium European comic style reference background. Atmospheric old-town street with strong perspective, rich architectural details, handcrafted textures, gentle pastel color harmony, light watercolor-like shading and clean contour hierarchy. No characters. Full-bleed edge-to-edge artwork with environment details touching all borders. No white margins, no blank borders, no matte frame, no empty padding. No text, no watermark.",
+      "Premium European BD comic style reference background. Old-town street with strong perspective, flat color areas separated by bold ink outlines, graphic architecture, vivid non-realistic color harmony, clean contour hierarchy. STRICTLY non-photorealistic: NO realistic textures, NO photographic lighting, NO 3D render, NO hyperrealistic detail. Flat graphic illustration, visible line art. No characters. Full-bleed edge-to-edge artwork with environment details touching all borders. No white margins, no blank borders, no matte frame, no empty padding. No text, no watermark.",
   },
   {
     style: "europeen",
     type: "scene",
     prompt:
-      "Premium European comic style reference scene. Two characters interacting in a narrative moment, cinematic composition, expressive gesture language, clear staging, pastel yet vivid palette, clean European BD rendering with tasteful texture. Full-bleed edge-to-edge artwork, no white margins, no blank borders, no matte frame, no empty padding. No speech bubbles, no text, no watermark.",
+      "Premium European BD comic style reference scene. Two characters interacting, expressive gestures, clear narrative staging, bold ink outlines, flat graphic color fills, Franco-Belgian illustration style. STRICTLY non-photorealistic: NO realistic rendering, NO 3D look, NO photography aesthetic, NO hyperrealistic skin or lighting. Graphic stylized illustration, visible contour lines. Full-bleed edge-to-edge artwork, no white margins, no blank borders, no matte frame, no empty padding. No speech bubbles, no text, no watermark.",
   },
 ];
 

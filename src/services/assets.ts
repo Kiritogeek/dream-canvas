@@ -68,6 +68,16 @@ export async function countAssets(): Promise<number> {
   return count ?? 0;
 }
 
+/** Upload une image de référence réelle dans Storage et retourne son URL publique */
+export async function uploadReferenceImage(file: File, userId: string): Promise<string> {
+  const ext = file.name.split(".").pop() ?? "png";
+  const path = `${userId}/references/${Date.now()}_ref.${ext}`;
+  const { error } = await supabase.storage.from("dreamweave").upload(path, file, { upsert: true });
+  if (error) throw new Error(error.message);
+  const { data: { publicUrl } } = supabase.storage.from("dreamweave").getPublicUrl(path);
+  return publicUrl;
+}
+
 /** Appelle l'Edge Function pour générer une image d'asset */
 export async function generateAssetImage(
   payload: GenerateAssetPayload

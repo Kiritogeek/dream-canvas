@@ -1,3 +1,5 @@
+import { getCorsHeaders, makeJsonResponse, isAllowedOriginConfigured } from "../_shared/cors.ts";
+
 declare const Deno: {
   serve: (handler: (req: Request) => Promise<Response> | Response) => void;
   env: {
@@ -36,21 +38,6 @@ const NARRA_COMPRESSION_BATCH = 8;
 const NARRA_COMPRESSION_MIN_ROWS = 4;
 const GEMINI_PLAIN_TIMEOUT_MS = 45_000;
 
-function getCorsHeaders(): Record<string, string> {
-  const allowedOrigin = Deno.env.get("ALLOWED_ORIGIN")?.trim();
-  return {
-    ...(allowedOrigin ? { "Access-Control-Allow-Origin": allowedOrigin } : {}),
-    "Access-Control-Allow-Headers":
-      "authorization, x-client-info, apikey, content-type",
-  };
-}
-
-function jsonResponse(body: object, status: number) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...getCorsHeaders(), "Content-Type": "application/json" },
-  });
-}
 
 function estimateTokens(text: string): number {
   return Math.ceil(text.length / 4);
@@ -757,16 +744,18 @@ async function verifyUserFromToken(
 }
 
 Deno.serve(async (req) => {
-  const allowedOrigin = Deno.env.get("ALLOWED_ORIGIN")?.trim();
-  if (!allowedOrigin) {
+  const origin = req.headers.get("origin");
+  const jsonResponse = makeJsonResponse(origin);
+
+  if (!isAllowedOriginConfigured()) {
     return jsonResponse(
-      { error: "ALLOWED_ORIGIN non configurée." },
+      { error: "ALLOWED_ORIGIN non configurée. Configurez ce secret Supabase." },
       500
     );
   }
 
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: getCorsHeaders() });
+    return new Response("ok", { headers: getCorsHeaders(origin) });
   }
 
   try {

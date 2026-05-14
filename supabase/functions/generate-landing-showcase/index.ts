@@ -1,3 +1,5 @@
+import { getCorsHeaders as getCorsHeadersShared } from "../_shared/cors.ts";
+
 declare const Deno: {
   serve: (handler: (req: Request) => Promise<Response> | Response) => void;
   env: { get: (key: string) => string | undefined };
@@ -7,19 +9,19 @@ const FAL_IMAGE_EDIT = "https://fal.run/fal-ai/flux-2-pro/edit";
 const BUCKET = "dreamweave";
 const FAL_TIMEOUT_MS = 120_000;
 
-function corsHeaders() {
-  const origin = Deno.env.get("ALLOWED_ORIGIN")?.trim();
+function corsHeaders(requestOrigin?: string | null) {
+  const base = getCorsHeadersShared(requestOrigin);
   return {
-    ...(origin ? { "Access-Control-Allow-Origin": origin } : {}),
+    ...base,
     "Access-Control-Allow-Headers":
       "authorization, x-client-info, apikey, content-type, x-template-admin-token",
   };
 }
 
-function json(body: object, status = 200) {
+function json(body: object, status = 200, requestOrigin?: string | null) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...corsHeaders(), "Content-Type": "application/json" },
+    headers: { ...corsHeaders(requestOrigin), "Content-Type": "application/json" },
   });
 }
 
@@ -98,20 +100,21 @@ async function uploadPublicImage(
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders() });
-  if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
+  const origin = req.headers.get("origin");
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders(origin) });
+  if (req.method !== "POST") return json({ error: "Method not allowed" }, 405, origin);
 
   const adminToken = Deno.env.get("TEMPLATE_STYLE_ADMIN_TOKEN");
   const providedToken = req.headers.get("x-template-admin-token");
   if (!adminToken || !providedToken || providedToken !== adminToken) {
-    return json({ error: "Forbidden" }, 403);
+    return json({ error: "Forbidden" }, 403, origin);
   }
 
   const falKey = Deno.env.get("FAL_API_KEY");
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   if (!falKey || !supabaseUrl || !serviceRoleKey) {
-    return json({ error: "Configuration manquante" }, 500);
+    return json({ error: "Configuration manquante" }, 500, origin);
   }
 
   let referenceImageUrl = "";
@@ -127,9 +130,9 @@ Deno.serve(async (req) => {
     startIndex = typeof body.start_index === "number" ? body.start_index : 0;
     countFromBody = typeof body.count === "number" ? body.count : undefined;
   } catch {
-    return json({ error: "Body JSON invalide" }, 400);
+    return json({ error: "Body JSON invalide" }, 400, origin);
   }
-  if (!referenceImageUrl) return json({ error: "reference_image_url requis" }, 400);
+  if (!referenceImageUrl) return json({ error: "reference_image_url requis" }, 400, origin);
 
   // 12 images = 3 styles (Manga/Coréen/Chinois) x 3 types (Personnages/Décors/Objets)
   // + une variante supplémentaire sur "Objets" (pour plus de diversité sans faire exploser le coût).
@@ -189,18 +192,19 @@ Deno.serve(async (req) => {
   const uploaded: string[] = [];
   for (let i = safeStart; i < end; i++) {
     const generated = await generateWithReference(prompts[i], referenceImageUrl, falKey);
-    if ("error" in generated) return json({ error: generated.error, failed_on: i + 1 }, 502);
+    if ("error" in generated) return json({ error: generated.error, failed_on: i + 1 }, 502, origin);
 
     const storagePath = `landing-showcase/card-${i + 1}.png`;
     const uploadedUrl = await uploadPublicImage(generated.url, storagePath, supabaseUrl, serviceRoleKey);
     if (!uploadedUrl)
       return json(
         { error: "Upload storage échoué", failed_on: i + 1 },
-        502
+        502,
+        origin
       );
     uploaded.push(uploadedUrl);
   }
 
-  return json({ success: true, images: uploaded });
+  return json({ success: true, images: uploaded }, 200, origin);
 });
 

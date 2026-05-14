@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Users, MapPin, Box, Plus, Save, RefreshCw, Search, HelpCircle, Coins } from "lucide-react";
+import { Users, MapPin, Box, Plus, Save, RefreshCw, Search, HelpCircle, Coins, ImagePlus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,10 +23,12 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { useCreateAsset, useDeleteAsset, useUpdateAsset } from "@/hooks/useAssets";
 import { useUpdateScenarioChapter } from "@/hooks/useScenarioChapters";
 import { useUserPlan } from "@/hooks/useUserPlan";
 import * as scenarioService from "@/services/scenarioChapters";
+import { uploadReferenceImage } from "@/services/assets";
 import { AssetCard } from "./AssetCard";
 import { CharacterViewDialog } from "./CharacterViewDialog";
 import type { Asset, AssetType, AssetTabConfig, Project, ScenarioChapter } from "@/types";
@@ -85,6 +87,7 @@ export function AssetLibrary({
   onPendingAssetConsumed,
 }: AssetLibraryProps) {
   const { toast } = useToast();
+  const { user } = useAuth();
   const createAssetMutation = useCreateAsset();
   const deleteAssetMutation = useDeleteAsset();
   const updateAssetMutation = useUpdateAsset();
@@ -99,6 +102,8 @@ export function AssetLibrary({
   const [newAssetName, setNewAssetName] = useState("");
   const [newAssetPrompt, setNewAssetPrompt] = useState("");
   const [newAssetLore, setNewAssetLore] = useState("");
+  const [newAssetRefFile, setNewAssetRefFile] = useState<File | null>(null);
+  const [newAssetRefPreview, setNewAssetRefPreview] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<(typeof assetFilters)[number]["value"]>("all");
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -180,12 +185,24 @@ export function AssetLibrary({
 
     try {
       const loreText = newAssetLore.trim() || null;
+
+      let referenceImageUrl: string | null = null;
+      if (newAssetRefFile && user?.id) {
+        try {
+          referenceImageUrl = await uploadReferenceImage(newAssetRefFile, user.id);
+        } catch {
+          toast({ title: "Erreur upload référence", description: "L'image de référence n'a pas pu être uploadée.", variant: "destructive" });
+          return;
+        }
+      }
+
       const newAsset = await createAssetMutation.mutateAsync({
         project_id: projectId,
         name: nameTrim,
         asset_type: newAssetType,
         prompt: promptText,
         ...(loreText ? { lore: loreText } as Record<string, unknown> : {}),
+        ...(referenceImageUrl ? { reference_image_url: referenceImageUrl } as Record<string, unknown> : {}),
       } as Parameters<typeof createAssetMutation.mutateAsync>[0]);
 
       setAssetDialogOpen(false);
@@ -193,6 +210,9 @@ export function AssetLibrary({
       setNewAssetName("");
       setNewAssetPrompt("");
       setNewAssetLore("");
+      if (newAssetRefPreview) URL.revokeObjectURL(newAssetRefPreview);
+      setNewAssetRefFile(null);
+      setNewAssetRefPreview(null);
 
       // Lancer la génération automatiquement si prompt défini
       if (promptText) {
@@ -355,7 +375,12 @@ export function AssetLibrary({
             <span className="hidden sm:inline">Qu'est-ce qu'un asset ?</span>
           </Button>
           <Dialog open={assetDialogOpen} onOpenChange={(open) => {
-            if (!open) setNewAssetType("character");
+            if (!open) {
+              setNewAssetType("character");
+              if (newAssetRefPreview) URL.revokeObjectURL(newAssetRefPreview);
+              setNewAssetRefFile(null);
+              setNewAssetRefPreview(null);
+            }
             setAssetDialogOpen(open);
           }}>
             <Button
@@ -426,6 +451,45 @@ export function AssetLibrary({
                     Le prompt est requis pour générer l'image.
                   </p>
                 )}
+              </div>
+              {/* Image de référence réelle */}
+              <div className="space-y-2">
+                <Label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                  <ImagePlus className="h-3.5 w-3.5" />
+                  Image de référence réelle <span className="text-muted-foreground/60">(optionnel)</span>
+                </Label>
+                {newAssetRefPreview ? (
+                  <div className="relative w-full h-24 rounded-lg overflow-hidden border border-[hsl(var(--lavender)/0.3)] bg-black/20">
+                    <img src={newAssetRefPreview} alt="Référence" className="w-full h-full object-contain" />
+                    <button
+                      type="button"
+                      className="absolute top-1 right-1 bg-black/60 rounded-full p-0.5 hover:bg-black/80"
+                      onClick={() => { if (newAssetRefPreview) URL.revokeObjectURL(newAssetRefPreview); setNewAssetRefFile(null); setNewAssetRefPreview(null); }}
+                    >
+                      <X className="h-3.5 w-3.5 text-white" />
+                    </button>
+                  </div>
+                ) : (
+                  <label className="flex items-center gap-2 cursor-pointer px-3 py-2 rounded-lg border border-dashed border-[hsl(var(--lavender)/0.3)] bg-[hsl(var(--lavender)/0.04)] hover:bg-[hsl(var(--lavender)/0.08)] transition-colors text-xs text-muted-foreground">
+                    <ImagePlus className="h-4 w-4 text-[hsl(var(--lavender)/0.7)]" />
+                    <span>Ajouter une photo réelle (tank, monument, célébrité…)</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="sr-only"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (!f) return;
+                        if (newAssetRefPreview) URL.revokeObjectURL(newAssetRefPreview);
+                        setNewAssetRefFile(f);
+                        setNewAssetRefPreview(URL.createObjectURL(f));
+                      }}
+                    />
+                  </label>
+                )}
+                <p className="text-[10px] text-muted-foreground/60">
+                  L'IA reproduira la forme exacte de l'objet/lieu/personnage réel avec le style de votre projet.
+                </p>
               </div>
               <div className="space-y-2">
                 <Label>LORE</Label>

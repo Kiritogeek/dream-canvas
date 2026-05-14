@@ -69,23 +69,7 @@ import {
 import {
   buildObjectPrompt,
 } from "./system-prompts/objects.ts";
-
-// CORS — Restreindre en production via ALLOWED_ORIGIN
-function getCorsHeaders(): Record<string, string> {
-  const allowedOrigin = Deno.env.get("ALLOWED_ORIGIN")?.trim();
-  return {
-    ...(allowedOrigin ? { "Access-Control-Allow-Origin": allowedOrigin } : {}),
-    "Access-Control-Allow-Headers":
-      "authorization, x-client-info, apikey, content-type",
-  };
-}
-
-function jsonResponse(body: object, status: number) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...getCorsHeaders(), "Content-Type": "application/json" },
-  });
-}
+import { getCorsHeaders, makeJsonResponse, isAllowedOriginConfigured } from "../_shared/cors.ts";
 
 function clip(value: string, max = 1200): string {
   if (value.length <= max) return value;
@@ -116,16 +100,25 @@ function isFalPolicyViolation(details: string): boolean {
   return (
     lower.includes("content_policy_violation") ||
     lower.includes("content policy") ||
-    lower.includes("safety checker")
+    lower.includes("safety checker") ||
+    lower.includes("safety filter") ||
+    lower.includes("flagged") ||
+    lower.includes("nsfw") ||
+    lower.includes("blocked") ||
+    lower.includes("moderation")
   );
 }
 
 function buildSafeFallbackPrompt(prompt: string): string {
   const softened = prompt
     .replace(/\b(nude|naked|nsfw|gore|blood|violent|violence|sexy|erotic)\b/gi, "")
+    .replace(/\btraces? de combat\b/gi, "marques d'usure")
+    .replace(/\bblessures?\b/gi, "détails")
+    .replace(/\bsang\b/gi, "")
+    .replace(/\bmeurtri[eè]re?\b/gi, "")
     .replace(/\s{2,}/g, " ")
     .trim();
-  return `${softened}\n\nSafety constraints: fully clothed, non-sexual, non-violent, family-friendly, no gore, no explicit content.`;
+  return `${softened}\n\nSafety constraints: fully clothed, non-sexual, non-violent, family-friendly, no gore. Artistic military vehicle / historical illustration style.`;
 }
 
 function buildUltraSafePrompt(kind: "character" | "background" | "object"): string {
@@ -544,19 +537,18 @@ async function downloadAndUploadToStorage(
 
 Deno.serve(async (req) => {
   const requestId = crypto.randomUUID();
-  const allowedOrigin = Deno.env.get("ALLOWED_ORIGIN")?.trim();
-  if (!allowedOrigin) {
+  const origin = req.headers.get("origin");
+  const jsonResponse = makeJsonResponse(origin);
+
+  if (!isAllowedOriginConfigured()) {
     return jsonResponse(
-      {
-        error:
-          "ALLOWED_ORIGIN non configurée. Configurez ce secret pour autoriser les requêtes CORS.",
-      },
+      { error: "ALLOWED_ORIGIN non configurée. Configurez ce secret Supabase." },
       500
     );
   }
 
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: getCorsHeaders() });
+    return new Response("ok", { headers: getCorsHeaders(origin) });
   }
 
   try {
@@ -687,7 +679,7 @@ Deno.serve(async (req) => {
 
     // 5a. Asset + projet — style = uniquement la ligne projet en BDD
     const assetRes = await fetch(
-      `${supabaseUrl}/rest/v1/assets?id=eq.${encodeURIComponent(asset_id)}&select=id,user_id,project_id`,
+      `${supabaseUrl}/rest/v1/assets?id=eq.${encodeURIComponent(asset_id)}&select=id,user_id,project_id,reference_image_url`,
       {
         headers: {
           apikey: serviceKey,
@@ -707,6 +699,7 @@ Deno.serve(async (req) => {
       id: string;
       user_id: string;
       project_id: string;
+      reference_image_url?: string | null;
     }[];
     const asset = assets?.[0];
     if (!asset || asset.user_id !== userId) {
@@ -715,6 +708,11 @@ Deno.serve(async (req) => {
         403
       );
     }
+
+    const assetRefImageUrl: string | null =
+      typeof asset.reference_image_url === "string" && asset.reference_image_url.trim()
+        ? asset.reference_image_url.trim()
+        : null;
 
     const projectRes = await fetch(
       `${supabaseUrl}/rest/v1/projects?id=eq.${encodeURIComponent(asset.project_id)}&select=id,user_id,style_template,style_image_urls`,
@@ -858,6 +856,14 @@ Deno.serve(async (req) => {
         "Reproduis un rendu cohérent avec ces consignes. Crée un contenu 100% original.";
     }
 
+    if (assetRefImageUrl) {
+      fullPrompt +=
+        "\n\nRÉFÉRENCE RÉELLE (PRIORITÉ MAXIMALE) : La PREMIÈRE image fournie est une photo ou illustration réelle de cet objet/lieu/personnage. " +
+        "Reproduis EXACTEMENT sa forme, ses proportions, sa silhouette et ses caractéristiques visuelles distinctives. " +
+        "Applique le style artistique par-dessus en conservant une fidélité maximale à la référence réelle. " +
+        "Le style graphique habille la référence — la forme ne change pas.";
+    }
+
     const viewPrompt = fullPrompt;
 
     // ═══════════════════════════════════════════════════════════
@@ -883,21 +889,19 @@ Deno.serve(async (req) => {
     const sheetPath = `${asset.user_id}/assets/${asset_id}_sheet.png`;
 
     const generateFace = async (): Promise<{ url: string } | { error: string }> => {
+      const refs: string[] = [];
+      if (assetRefImageUrl) refs.push(assetRefImageUrl);
       if (hasStyleImages && style_image_urls && style_image_urls.length > 0) {
-        return generateWithReferences(
-          viewPrompt,
-          style_image_urls,
-          falKey,
-          width,
-          height,
-          type_
-        );
+        refs.push(...style_image_urls);
+      }
+      if (refs.length > 0) {
+        return generateWithReferences(viewPrompt, refs, falKey, width, height, type_);
       }
       return generateTextToImage(viewPrompt, falKey, width, height, type_);
     };
 
     const modelUsed: string =
-      hasStyleImages && style_image_urls && style_image_urls.length > 0
+      (assetRefImageUrl || (hasStyleImages && style_image_urls && style_image_urls.length > 0))
         ? "flux-2-pro-edit"
         : "flux-2-pro";
 
@@ -973,6 +977,7 @@ Deno.serve(async (req) => {
       const sheetResult: { url: string } | { error: string } = await (async () => {
         // Face en première référence d'identité, images de style ensuite.
         const sheetRefs: string[] = [publicUrl];
+        if (assetRefImageUrl) sheetRefs.push(assetRefImageUrl);
         if (hasStyleImages && style_image_urls && style_image_urls.length > 0) {
           sheetRefs.push(...style_image_urls);
         }

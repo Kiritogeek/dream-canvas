@@ -210,6 +210,7 @@ export function AssetLibrary({
       setNewAssetName("");
       setNewAssetPrompt("");
       setNewAssetLore("");
+      if (newAssetRefPreview) URL.revokeObjectURL(newAssetRefPreview);
       setNewAssetRefFile(null);
       setNewAssetRefPreview(null);
 
@@ -376,6 +377,7 @@ export function AssetLibrary({
           <Dialog open={assetDialogOpen} onOpenChange={(open) => {
             if (!open) {
               setNewAssetType("character");
+              if (newAssetRefPreview) URL.revokeObjectURL(newAssetRefPreview);
               setNewAssetRefFile(null);
               setNewAssetRefPreview(null);
             }
@@ -462,7 +464,7 @@ export function AssetLibrary({
                     <button
                       type="button"
                       className="absolute top-1 right-1 bg-black/60 rounded-full p-0.5 hover:bg-black/80"
-                      onClick={() => { setNewAssetRefFile(null); setNewAssetRefPreview(null); }}
+                      onClick={() => { if (newAssetRefPreview) URL.revokeObjectURL(newAssetRefPreview); setNewAssetRefFile(null); setNewAssetRefPreview(null); }}
                     >
                       <X className="h-3.5 w-3.5 text-white" />
                     </button>
@@ -478,6 +480,7 @@ export function AssetLibrary({
                       onChange={(e) => {
                         const f = e.target.files?.[0];
                         if (!f) return;
+                        if (newAssetRefPreview) URL.revokeObjectURL(newAssetRefPreview);
                         setNewAssetRefFile(f);
                         setNewAssetRefPreview(URL.createObjectURL(f));
                       }}

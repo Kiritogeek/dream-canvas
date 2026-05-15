@@ -1,7 +1,7 @@
 // Éditeur de bulles avancé — types dialogue, pensée, cri, narrative ; bulles connectées ; queue ; style texte complet.
 import { useState, useRef, useCallback, useEffect } from "react";
 import type { CSSProperties } from "react";
-import type { SpeechBubble, SpeechBubbleConnected, SpeechBubbleTextStyle } from "@/types";
+import type { SpeechBubble, SpeechBubbleTextStyle } from "@/types";
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -349,7 +349,7 @@ function textStyleCSS(ts: TextStyle): CSSProperties {
 }
 
 const DEFAULT_TEXT_STYLE: TextStyle = {
-  fontSize: 15, fontWeight: "bold", fontStyle: "normal",
+  fontSize: 30, fontWeight: "bold", fontStyle: "normal",
   textAlign: "center", textTransform: "none",
   letterSpacing: 0, textShadow: false, textShadowColor: "#000000",
   textShadowBlur: 3, textColor: "#000000",
@@ -379,7 +379,7 @@ const DEFAULT_CONNECTED = (parentW: number, parentH: number): ConnectedBubble =>
     height: cH,
     borderRadius: 50,
     text: "Aah...",
-    textStyle: { ...DEFAULT_TEXT_STYLE, fontSize: 12 },
+    textStyle: { ...DEFAULT_TEXT_STYLE, fontSize: 24 },
     bgFill: "solid",
     bgColor: "#ffffff",
     bgColor2: "#e0e0ff",
@@ -431,7 +431,7 @@ function panelTypeToEditorType(t: SpeechBubble["type"]): BubbleType {
 
 function fullTextStyle(ts?: SpeechBubbleTextStyle | null, style?: { font?: string; size?: number; color?: string }): TextStyle {
   return {
-    fontSize: ts?.fontSize ?? style?.size ?? 15,
+    fontSize: ts?.fontSize ?? style?.size ?? 30,
     fontWeight: (ts?.fontWeight as "normal" | "bold") ?? "bold",
     fontStyle: (ts?.fontStyle as "normal" | "italic") ?? "normal",
     textAlign: (ts?.textAlign as "left" | "center" | "right") ?? "center",
@@ -446,6 +446,7 @@ function fullTextStyle(ts?: SpeechBubbleTextStyle | null, style?: { font?: strin
 }
 
 /** Convertit les bulles du panel (speech_bubbles) vers le format éditeur. */
+// eslint-disable-next-line react-refresh/only-export-components
 export function speechBubblesToEditorBubbles(panelBubbles: SpeechBubble[]): Bubble[] {
   return panelBubbles.map((sb) => {
     const editorType = panelTypeToEditorType(sb.type);
@@ -497,6 +498,7 @@ export function speechBubblesToEditorBubbles(panelBubbles: SpeechBubble[]): Bubb
 }
 
 /** Convertit les bulles de l'éditeur vers le format panel (speech_bubbles). */
+// eslint-disable-next-line react-refresh/only-export-components
 export function editorBubblesToSpeechBubbles(editorBubbles: Bubble[]): SpeechBubble[] {
   return editorBubbles.map((b) => {
     const panelType = editorTypeToPanelType(b.type);
@@ -622,7 +624,7 @@ function DialogueSVG({ b, isSel, isConnSel, onTailDown, onConnDragDown, onConnRe
         {conn ? (() => {
           const ccx = conn.offsetX, ccy = conn.offsetY;
           const cw = conn.width, ch = conn.height, cBr = conn.borderRadius;
-          const { mergedPath, parentPath, childPath } = buildConnectedPath(
+          const { mergedPath, parentPath: _parentPath, childPath } = buildConnectedPath(
             w, h, br, ccx, ccy, cw, ch, cBr, conn.neckWidth
           );
           const fillP = fillAttr(bgFill, bgColor, gId);
@@ -715,7 +717,7 @@ function ThoughtSVG({ b, isSel, isConnSel, onTailDown, onConnDragDown, onConnRes
         {conn ? (() => {
           const ccx = conn.offsetX, ccy = conn.offsetY;
           const cw = conn.width, ch = conn.height, cBr = conn.borderRadius;
-          const { mergedPath, parentPath, childPath } = buildConnectedPath(
+          const { mergedPath, parentPath: _parentPath, childPath } = buildConnectedPath(
             w, h, br, ccx, ccy, cw, ch, cBr, conn.neckWidth
           );
           const fillP = fillAttr(bgFill, bgColor, gId);
@@ -783,14 +785,14 @@ function ThoughtSVG({ b, isSel, isConnSel, onTailDown, onConnDragDown, onConnRes
 
 function ShoutSVG({ b, isSel, onTailDown }: BubbleSVGProps) {
   const { width: w, height: h, bgFill, bgColor, bgColor2, gradientDir,
-    borderColor, borderWidth: bw, tailX: tx, tailY: ty, tailBaseWidth,
+    borderColor, borderWidth: bw, tailX: tx, tailY: ty, tailBaseWidth: _tailBaseWidth,
     textStyle: ts, text, spikes } = b;
   const p = PAD;
   const gId = `grad-${b.id}`;
   const cx = w / 2, cy = h / 2;
   const outerR = Math.min(w, h) / 2 - 4, innerR = outerR * 0.78;
   const n = spikes;
-  const pts = Array.from({ length: n * 2 }, (_, i) => {
+  const _pts = Array.from({ length: n * 2 }, (_, i) => {
     const angle = (Math.PI * i) / n - Math.PI / 2;
     const r = i % 2 === 0 ? outerR : innerR;
     return `${fx(cx + r * Math.cos(angle))},${fx(cy + r * Math.sin(angle))}`;

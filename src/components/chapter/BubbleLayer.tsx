@@ -258,7 +258,7 @@ export function BubbleLayer({
               width: Math.round(bw),
               height: Math.round(bh),
             };
-        const fontSize = bubble.style?.size ?? 14;
+        const fontSize = bubble.style?.size ?? 30;
         const fontFamily = bubble.style?.font ?? "inherit";
         const color = bubble.style?.color ?? "#000000";
         const fontWeight = bubble.style?.bold ? "bold" : "normal";

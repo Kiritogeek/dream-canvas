@@ -298,19 +298,19 @@ export function BubbleToolbar({ bubble, speechBubbles, onUpdate, onDuplicate, on
         {/* Taille : - [valeur] + */}
         <div className="flex items-center shrink-0 rounded-lg border border-border/80 overflow-hidden bg-background/90 shadow-sm">
           <button type="button"
-            onMouseDown={(e) => { e.preventDefault(); patchStyle({ size: Math.max(8, (bubble.style?.size ?? 14) - 1) }); }}
+            onMouseDown={(e) => { e.preventDefault(); patchStyle({ size: Math.max(8, (bubble.style?.size ?? 30) - 1) }); }}
             className="h-8 w-7 flex items-center justify-center border-r border-border/70 text-foreground/80 hover:bg-muted/70 transition-colors"
             title="Réduire la taille">
             <Minus className="h-3 w-3" />
           </button>
           <input
-            type="number" min={8} max={72} value={bubble.style?.size ?? 14}
+            type="number" min={8} max={72} value={bubble.style?.size ?? 30}
             onChange={(e) => { const n = parseInt(e.target.value, 10); if (!Number.isNaN(n)) patchStyle({ size: n }); }}
             className="h-8 w-11 border-0 bg-transparent text-xs font-semibold text-center tabular-nums text-foreground focus:outline-none focus:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             title="Taille de police"
           />
           <button type="button"
-            onMouseDown={(e) => { e.preventDefault(); patchStyle({ size: Math.min(72, (bubble.style?.size ?? 14) + 1) }); }}
+            onMouseDown={(e) => { e.preventDefault(); patchStyle({ size: Math.min(72, (bubble.style?.size ?? 30) + 1) }); }}
             className="h-8 w-7 flex items-center justify-center border-l border-border/70 text-foreground/80 hover:bg-muted/70 transition-colors"
             title="Augmenter la taille">
             <Plus className="h-3 w-3" />

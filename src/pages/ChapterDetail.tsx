@@ -1174,7 +1174,7 @@ export default function ChapterDetail() {
         tailOn: false,
         style: {
           font: "inherit",
-          size: 14,
+          size: 30,
           color: "#000000",
           fill: defaultStyle.fill,
           stroke: defaultStyle.stroke,

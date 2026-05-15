@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { GripVertical, Eye, EyeOff, Image2, Palette, MessageCircle } from "lucide-react";
+import { GripVertical, Eye, EyeOff, ImageIcon, Palette, MessageCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { LayerItem, LayerElementType } from "@/types";
 
@@ -13,7 +13,7 @@ interface PanelLayersPanelProps {
 }
 
 function LayerTypeIcon({ type }: { type: LayerElementType }) {
-  if (type === "block") return <Image2 className="h-3.5 w-3.5 shrink-0 text-violet-400" strokeWidth={1.75} />;
+  if (type === "block") return <ImageIcon className="h-3.5 w-3.5 shrink-0 text-violet-400" strokeWidth={1.75} />;
   if (type === "colorBlock") return <Palette className="h-3.5 w-3.5 shrink-0 text-amber-400" strokeWidth={1.75} />;
   return <MessageCircle className="h-3.5 w-3.5 shrink-0 text-blue-400" strokeWidth={1.75} />;
 }

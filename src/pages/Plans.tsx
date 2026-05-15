@@ -18,6 +18,13 @@ import {
   Star,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useUserPlan } from "@/hooks/useUserPlan";
 import { useAuth } from "@/hooks/useAuth";
@@ -128,6 +135,8 @@ export default function Plans() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [isTogglingPlan, setIsTogglingPlan] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [purchasedPlan, setPurchasedPlan] = useState<UserPlan>("createur");
   const isAdmin =
     !!import.meta.env.VITE_ADMIN_EMAIL &&
     user?.email === import.meta.env.VITE_ADMIN_EMAIL;
@@ -173,10 +182,9 @@ export default function Plans() {
 
   useEffect(() => {
     if (searchParams.get("success") === "true") {
-      toast({
-        title: `Bienvenue dans le plan ${planDisplayName(plan)} !`,
-        description: "Votre abonnement est actif.",
-      });
+      const p = searchParams.get("plan");
+      if (p === "studio" || p === "createur") setPurchasedPlan(p);
+      setShowSuccessModal(true);
       invalidate();
       searchParams.delete("success");
       setSearchParams(searchParams, { replace: true });
@@ -192,10 +200,10 @@ export default function Plans() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleCheckout = async () => {
+  const handleCheckout = async (targetPlan: "createur" | "studio") => {
     try {
       setIsRedirecting(true);
-      await goToCheckout();
+      await goToCheckout(targetPlan);
     } catch {
       setIsRedirecting(false);
       toast({
@@ -222,6 +230,28 @@ export default function Plans() {
 
   return (
     <DashboardLayout>
+      <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
+        <DialogContent className="sm:max-w-md text-center">
+          <DialogHeader>
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/10">
+              <Check className="h-8 w-8 text-emerald-500" />
+            </div>
+            <DialogTitle className="text-xl font-display text-center">
+              Bienvenue dans le plan {planDisplayName(purchasedPlan)} !
+            </DialogTitle>
+            <DialogDescription className="text-center text-base">
+              Votre abonnement est actif. Vous pouvez maintenant profiter de toutes les fonctionnalités de votre plan.
+            </DialogDescription>
+          </DialogHeader>
+          <Button
+            className="w-full mt-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white hover:from-emerald-600 hover:to-teal-600"
+            onClick={() => setShowSuccessModal(false)}
+          >
+            Commencer à créer
+          </Button>
+        </DialogContent>
+      </Dialog>
+
       <div className="space-y-6 sm:space-y-8 max-w-5xl mx-auto">
         {/* Header */}
         <motion.div
@@ -411,7 +441,7 @@ export default function Plans() {
             ) : (
               <Button
                 className="w-full mt-auto bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:from-amber-600 hover:to-orange-600 shadow-lg"
-                onClick={handleCheckout}
+                onClick={() => handleCheckout("createur")}
                 disabled={isRedirecting || plan === "studio"}
               >
                 {isRedirecting ? (
@@ -495,10 +525,28 @@ export default function Plans() {
                   </>
                 )}
               </Button>
+            ) : plan === "createur" ? (
+              <Button
+                className="w-full mt-auto bg-gradient-to-r from-violet-500 to-purple-500 text-white hover:from-violet-600 hover:to-purple-600 shadow-lg"
+                onClick={handlePortal}
+                disabled={isRedirecting}
+              >
+                {isRedirecting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Redirection…
+                  </>
+                ) : (
+                  <>
+                    <Zap className="h-4 w-4 mr-2" />
+                    Passer au plan Studio
+                  </>
+                )}
+              </Button>
             ) : (
               <Button
                 className="w-full mt-auto bg-gradient-to-r from-violet-500 to-purple-500 text-white hover:from-violet-600 hover:to-purple-600 shadow-lg"
-                onClick={handleCheckout}
+                onClick={() => handleCheckout("studio")}
                 disabled={isRedirecting}
               >
                 {isRedirecting ? (

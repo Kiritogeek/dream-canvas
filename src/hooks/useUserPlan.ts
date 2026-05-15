@@ -81,7 +81,10 @@ async function fetchMonthlyUsage(userId: string, periodStart: Date): Promise<num
 }
 
 /** Crée une session Stripe Checkout → retourne l'URL de paiement */
-async function createCheckoutSession(accessToken: string): Promise<string> {
+async function createCheckoutSession(
+  accessToken: string,
+  plan: "createur" | "studio"
+): Promise<string> {
   const res = await fetch(
     `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-checkout-session`,
     {
@@ -90,6 +93,7 @@ async function createCheckoutSession(accessToken: string): Promise<string> {
         "Content-Type": "application/json",
         Authorization: `Bearer ${accessToken}`,
       },
+      body: JSON.stringify({ plan }),
     }
   );
   if (!res.ok) throw new Error("Erreur création session Stripe");
@@ -147,14 +151,14 @@ export function useUserPlan() {
     plan,
   };
 
-  /** Redirige vers Stripe Checkout pour passer au plan Artiste */
-  const goToCheckout = async () => {
+  /** Redirige vers Stripe Checkout pour passer au plan choisi */
+  const goToCheckout = async (targetPlan: "createur" | "studio") => {
     await supabase.auth.refreshSession();
     const {
       data: { session },
     } = await supabase.auth.getSession();
     if (!session) throw new Error("Session Supabase introuvable");
-    const url = await createCheckoutSession(session.access_token);
+    const url = await createCheckoutSession(session.access_token, targetPlan);
     window.location.href = url;
   };
 

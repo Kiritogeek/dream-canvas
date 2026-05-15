@@ -11,11 +11,24 @@ export interface AdminGlobalKPIs {
   activationRate: number;
   conversionRate: number;
   paidUsers: number;
-  arpuEstimated: number;
+  mrrEstimated: number;
   dauMauRatio: number;
   planDistribution: { libre: number; createur: number; studio: number };
   dailyGenerations: { date: string; count: number }[];
+  dailyNewUsers: { date: string; count: number }[];
   subscriptionsByMonth: { month: string; createur: number; studio: number; total: number }[];
+  kpiTrends: {
+    totalUsers: number;
+    newUsers7d: number;
+    active7d: number;
+    active30d: number;
+    paidUsers: number;
+    mrrEstimated: number;
+  };
+  totalGenerations: number;
+  retentionD7: number;
+  quotaSaturation: { libre: number; createur: number; studio: number };
+  churnEstimated: number;
 }
 
 export interface AdminUserRow {
@@ -24,8 +37,10 @@ export interface AdminUserRow {
   display_name: string;
   plan: string;
   created_at: string;
+  excluded_from_stats: boolean;
   generationsThisMonth: number;
   projectsCount: number;
+  lastActiveAt: string | null;
 }
 
 export interface AdminUsersListResult {
@@ -50,6 +65,7 @@ export interface AdminUserDetail {
     plan: string;
     billing_period_start: string | null;
     created_at: string;
+    excluded_from_stats: boolean;
   };
   generationsThisMonth: number;
   generationsTotal: number;
@@ -107,9 +123,13 @@ export async function fetchGlobalKPIs(period: "30d" | "90d" | "1y" = "30d"): Pro
   return callAdminKpis<AdminGlobalKPIs>({ mode: "global", period });
 }
 
+export async function fetchTestKPIs(period: "30d" | "90d" | "1y" = "30d"): Promise<AdminGlobalKPIs> {
+  return callAdminKpis<AdminGlobalKPIs>({ mode: "global", period, testOnly: true });
+}
+
 export async function fetchUsersList(params: {
   search?: string;
-  plan?: string;
+  plan?: string;  // "all" | "libre" | "createur" | "studio" | "unactivated"
   page?: number;
 }): Promise<AdminUsersListResult> {
   return callAdminKpis<AdminUsersListResult>({ mode: "users_list", ...params });
@@ -131,6 +151,13 @@ export async function deleteUser(userId: string): Promise<void> {
     action: "delete_user",
     userId,
   });
+}
+
+export async function toggleExcluded(userId: string): Promise<{ excluded_from_stats: boolean }> {
+  return callAdminAction<{ success: boolean; excluded_from_stats: boolean }>({
+    action: "toggle_excluded",
+    userId,
+  }).then(r => ({ excluded_from_stats: r.excluded_from_stats }));
 }
 
 export async function setUserPlan(

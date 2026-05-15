@@ -35,6 +35,7 @@ export default function PlanDistributionChart({ data, loading }: Props) {
   if (!data) return null;
 
   const chartData = Object.entries(data).map(([name, value]) => ({ name, value }));
+  const total = chartData.reduce((s, d) => s + d.value, 0);
 
   return (
     <div className="flex flex-col items-center gap-3">
@@ -74,7 +75,7 @@ export default function PlanDistributionChart({ data, loading }: Props) {
               style={{ background: PLAN_COLORS[entry.name] }}
             />
             <span className="text-xs text-muted-foreground">
-              {PLAN_LABELS[entry.name]} ({entry.value})
+              {PLAN_LABELS[entry.name]} — {entry.value} ({total > 0 ? Math.round(entry.value / total * 100) : 0} %)
             </span>
           </div>
         ))}

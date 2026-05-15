@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Copy } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
@@ -26,6 +27,7 @@ interface Props {
   onResetQuota: (userId: string, displayName: string) => void;
   onDeleteUser: (userId: string, displayName: string, email: string) => void;
   onPlanChanged: () => void;
+  onToggleExcluded: (userId: string, displayName: string, currentlyExcluded: boolean) => void;
 }
 
 function parseStyleTemplate(raw: string | null): string {
@@ -53,11 +55,18 @@ function aggregateActivity(recentActivity: AdminUserDetail["recentActivity"]): {
   return Object.entries(counts).map(([date, count]) => ({ date, count }));
 }
 
-export default function UserDetailDrawer({ userId, onClose, onResetQuota, onDeleteUser, onPlanChanged }: Props) {
+function planLabel(plan: string): string {
+  if (plan === "createur") return "Créateur";
+  if (plan === "studio") return "Studio";
+  return "Libre";
+}
+
+export default function UserDetailDrawer({ userId, onClose, onResetQuota, onDeleteUser, onPlanChanged, onToggleExcluded }: Props) {
   const [detail, setDetail] = useState<AdminUserDetail | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [showAllProjects, setShowAllProjects] = useState(false);
   const [planLoading, setPlanLoading] = useState(false);
+  const [pendingPlan, setPendingPlan] = useState<string | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -65,6 +74,7 @@ export default function UserDetailDrawer({ userId, onClose, onResetQuota, onDele
     setLoadingDetail(true);
     setDetail(null);
     setShowAllProjects(false);
+    setPendingPlan(null);
     fetchUserDetail(userId)
       .then(setDetail)
       .finally(() => setLoadingDetail(false));
@@ -83,6 +93,27 @@ export default function UserDetailDrawer({ userId, onClose, onResetQuota, onDele
     } finally {
       setPlanLoading(false);
     }
+  };
+
+  const confirmPlanChange = async () => {
+    if (!pendingPlan) return;
+    await handlePlanChange(pendingPlan);
+    setPendingPlan(null);
+  };
+
+  const copyEmail = () => {
+    if (!detail) return;
+    navigator.clipboard.writeText(detail.profile.email);
+    toast({ title: "Email copié" });
+  };
+
+  const handleToggleExcluded = () => {
+    if (!detail) return;
+    onToggleExcluded(detail.profile.user_id, detail.profile.display_name, detail.profile.excluded_from_stats);
+    setDetail((d) => d ? {
+      ...d,
+      profile: { ...d.profile, excluded_from_stats: !d.profile.excluded_from_stats },
+    } : d);
   };
 
   const plan = (detail?.profile.plan ?? "libre") as UserPlan;
@@ -125,7 +156,19 @@ export default function UserDetailDrawer({ userId, onClose, onResetQuota, onDele
                     <p className="font-display font-bold text-lg text-foreground truncate">
                       {detail.profile.display_name || "Sans pseudo"}
                     </p>
-                    <p className="text-sm text-muted-foreground truncate">{detail.profile.email}</p>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <p className="text-sm text-muted-foreground truncate">{detail.profile.email}</p>
+                      <button
+                        onClick={copyEmail}
+                        className="text-muted-foreground/50 hover:text-muted-foreground transition-colors shrink-0"
+                        title="Copier l'email"
+                      >
+                        <Copy className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Inscrit le {formatDate(detail.profile.created_at)}
+                    </p>
                     <div className="flex gap-2 mt-2 flex-wrap">
                       <PlanBadge plan={detail.profile.plan} />
                       <Tooltip>
@@ -146,13 +189,19 @@ export default function UserDetailDrawer({ userId, onClose, onResetQuota, onDele
                             : "Aucune génération dans les 7 derniers jours."}
                         </TooltipContent>
                       </Tooltip>
+                      {detail.profile.excluded_from_stats && (
+                        <Badge variant="outline" className="text-amber-500 border-amber-500/30 text-xs">
+                          Exclu des stats
+                        </Badge>
+                      )}
                     </div>
                   </div>
                 </div>
 
                 {/* KPIs */}
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-3 gap-3">
                   <KpiCard label="Gén. mois" value={String(detail.generationsThisMonth)} />
+                  <KpiCard label="Gén. total" value={String(detail.generationsTotal)} />
                   <KpiCard label="Quota restant" value={String(remaining)} />
                   <KpiCard label="Projets" value={String(detail.projectsCount)} />
                   <KpiCard label="Assets" value={String(detail.assetsCount)} />
@@ -222,11 +271,23 @@ export default function UserDetailDrawer({ userId, onClose, onResetQuota, onDele
                     🔄 Réinitialiser le quota
                   </Button>
 
+                  <Button
+                    variant="outline"
+                    className={`w-full justify-start gap-2 ${
+                      detail.profile.excluded_from_stats
+                        ? "text-amber-500 border-amber-500/30 hover:bg-amber-500/10"
+                        : "text-muted-foreground"
+                    }`}
+                    onClick={handleToggleExcluded}
+                  >
+                    {detail.profile.excluded_from_stats ? "👁️ Inclure dans les stats" : "🙈 Exclure des stats"}
+                  </Button>
+
                   <div className="space-y-1.5">
                     <p className="text-xs text-muted-foreground">Changer le plan</p>
                     <Select
                       value={detail.profile.plan}
-                      onValueChange={handlePlanChange}
+                      onValueChange={(v) => { if (v !== detail.profile.plan) setPendingPlan(v); }}
                       disabled={planLoading}
                     >
                       <SelectTrigger>
@@ -238,6 +299,22 @@ export default function UserDetailDrawer({ userId, onClose, onResetQuota, onDele
                         <SelectItem value="studio">Studio</SelectItem>
                       </SelectContent>
                     </Select>
+                    {pendingPlan && (
+                      <div className="flex items-center justify-between p-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs">
+                        <span className="text-amber-600 dark:text-amber-400">
+                          Passer à <strong>{planLabel(pendingPlan)}</strong> ?
+                        </span>
+                        <div className="flex gap-1">
+                          <Button size="sm" variant="ghost" onClick={() => setPendingPlan(null)}>Annuler</Button>
+                          <Button size="sm" onClick={confirmPlanChange} disabled={planLoading}>Confirmer</Button>
+                        </div>
+                      </div>
+                    )}
+                    {detail.profile.plan !== "libre" && detail.profile.billing_period_start && (
+                      <p className="text-xs text-muted-foreground">
+                        Renouvellement le {formatDate(detail.profile.billing_period_start)}
+                      </p>
+                    )}
                   </div>
 
                   <Button

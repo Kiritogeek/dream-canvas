@@ -1,4 +1,5 @@
-import { Eye, RefreshCw, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { Eye, EyeOff, RefreshCw, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -25,6 +26,7 @@ interface Props {
   onSelectUser: (userId: string) => void;
   onResetQuota: (userId: string, displayName: string) => void;
   onDeleteUser: (userId: string, displayName: string, email: string) => void;
+  onToggleExcluded: (userId: string, displayName: string, currentlyExcluded: boolean) => void;
 }
 
 function PlanBadge({ plan }: { plan: string }) {
@@ -45,8 +47,34 @@ function PlanBadge({ plan }: { plan: string }) {
   return <Badge variant="secondary">Libre</Badge>;
 }
 
+type SortBy = "created_at" | "generationsThisMonth" | "lastActiveAt" | null;
+type SortOrder = "asc" | "desc";
+
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" });
+}
+
+function formatDateCompact(iso: string): string {
+  return new Date(iso).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "2-digit" });
+}
+
+function sortUsers(users: AdminUserRow[], sortBy: SortBy, sortOrder: SortOrder): AdminUserRow[] {
+  if (!sortBy) return users;
+  return [...users].sort((a, b) => {
+    let aVal: number;
+    let bVal: number;
+    if (sortBy === "created_at") {
+      aVal = new Date(a.created_at).getTime();
+      bVal = new Date(b.created_at).getTime();
+    } else if (sortBy === "generationsThisMonth") {
+      aVal = a.generationsThisMonth;
+      bVal = b.generationsThisMonth;
+    } else {
+      aVal = a.lastActiveAt ? new Date(a.lastActiveAt).getTime() : 0;
+      bVal = b.lastActiveAt ? new Date(b.lastActiveAt).getTime() : 0;
+    }
+    return sortOrder === "asc" ? aVal - bVal : bVal - aVal;
+  });
 }
 
 export default function UserListTable({
@@ -62,7 +90,26 @@ export default function UserListTable({
   onSelectUser,
   onResetQuota,
   onDeleteUser,
+  onToggleExcluded,
 }: Props) {
+  const [sortBy, setSortBy] = useState<SortBy>(null);
+  const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
+
+  const handleSort = (col: NonNullable<SortBy>) => {
+    if (sortBy === col) {
+      setSortOrder((o) => (o === "asc" ? "desc" : "asc"));
+    } else {
+      setSortBy(col);
+      setSortOrder("desc");
+    }
+  };
+
+  const sortIndicator = (col: NonNullable<SortBy>) => {
+    if (sortBy !== col) return null;
+    return sortOrder === "asc" ? " ↑" : " ↓";
+  };
+
+  const sortedUsers = sortUsers(users, sortBy, sortOrder);
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
@@ -83,6 +130,7 @@ export default function UserListTable({
             <SelectItem value="libre">Libre</SelectItem>
             <SelectItem value="createur">Créateur</SelectItem>
             <SelectItem value="studio">Studio</SelectItem>
+            <SelectItem value="unactivated">Non activés</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -95,35 +143,58 @@ export default function UserListTable({
         </div>
       ) : (
         <div className="overflow-x-auto rounded-xl">
-          <div className="min-w-[500px] border border-border overflow-hidden rounded-xl">
+          <div className="min-w-[640px] border border-border overflow-hidden rounded-xl">
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Utilisateur</TableHead>
                   <TableHead>Plan</TableHead>
-                  <TableHead>Inscrit</TableHead>
-                  <TableHead className="text-right">Gén. mois</TableHead>
+                  <TableHead
+                    className="cursor-pointer select-none hover:text-foreground"
+                    onClick={() => handleSort("created_at")}
+                  >
+                    Inscrit{sortIndicator("created_at")}
+                  </TableHead>
+                  <TableHead
+                    className="text-right cursor-pointer select-none hover:text-foreground"
+                    onClick={() => handleSort("generationsThisMonth")}
+                  >
+                    Gén. mois{sortIndicator("generationsThisMonth")}
+                  </TableHead>
                   <TableHead className="text-right">Projets</TableHead>
+                  <TableHead
+                    className="text-right cursor-pointer select-none hover:text-foreground"
+                    onClick={() => handleSort("lastActiveAt")}
+                  >
+                    Dernière act.{sortIndicator("lastActiveAt")}
+                  </TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {users.length === 0 ? (
+                {sortedUsers.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center text-muted-foreground py-10">
+                    <TableCell colSpan={7} className="text-center text-muted-foreground py-10">
                       Aucun utilisateur trouvé
                     </TableCell>
                   </TableRow>
                 ) : (
-                  users.map((u) => (
+                  sortedUsers.map((u) => (
                     <TableRow
                       key={u.user_id}
-                      className="hover:bg-muted/30 transition-colors cursor-pointer"
+                      className={`hover:bg-muted/30 transition-colors cursor-pointer ${u.excluded_from_stats ? "opacity-60" : ""}`}
                       onClick={() => onSelectUser(u.user_id)}
                     >
                       <TableCell>
                         <div className="min-w-0">
-                          <p className="font-medium text-foreground truncate">{u.display_name || "—"}</p>
+                          <p className="font-medium text-foreground truncate flex items-center gap-1">
+                            {u.display_name || "—"}
+                            {u.excluded_from_stats && (
+                              <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 ml-1 text-muted-foreground">
+                                Test
+                              </Badge>
+                            )}
+                          </p>
                           <p className="text-xs text-muted-foreground truncate max-w-[200px]">{u.email}</p>
                         </div>
                       </TableCell>
@@ -131,17 +202,11 @@ export default function UserListTable({
                       <TableCell className="text-muted-foreground text-sm">{formatDate(u.created_at)}</TableCell>
                       <TableCell className="text-right font-mono text-sm">{u.generationsThisMonth}</TableCell>
                       <TableCell className="text-right font-mono text-sm">{u.projectsCount}</TableCell>
+                      <TableCell className="text-right text-muted-foreground text-sm">
+                        {u.lastActiveAt ? formatDateCompact(u.lastActiveAt) : "—"}
+                      </TableCell>
                       <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            title="Voir le détail"
-                            onClick={() => onSelectUser(u.user_id)}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
                           <Button
                             variant="ghost"
                             size="icon"
@@ -150,6 +215,15 @@ export default function UserListTable({
                             onClick={() => onResetQuota(u.user_id, u.display_name)}
                           >
                             <RefreshCw className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className={`h-8 w-8 ${u.excluded_from_stats ? "text-amber-500" : ""}`}
+                            title={u.excluded_from_stats ? "Inclure dans les stats" : "Exclure des stats"}
+                            onClick={() => onToggleExcluded(u.user_id, u.display_name, u.excluded_from_stats)}
+                          >
+                            {u.excluded_from_stats ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
                           </Button>
                           <Button
                             variant="ghost"

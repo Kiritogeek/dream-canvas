@@ -258,7 +258,7 @@ export function BubbleLayer({
               width: Math.round(bw),
               height: Math.round(bh),
             };
-        const fontSize = bubble.style?.size ?? 14;
+        const fontSize = bubble.style?.size ?? 30;
         const fontFamily = bubble.style?.font ?? "inherit";
         const color = bubble.style?.color ?? "#000000";
         const fontWeight = bubble.style?.bold ? "bold" : "normal";
@@ -349,7 +349,8 @@ export function BubbleLayer({
               top: geom.y,
               width: geom.width,
               height: geom.height,
-              zIndex: 20,
+              zIndex: bubble.zIndex ?? 20,
+              ...(bubble.hidden ? { opacity: 0, pointerEvents: "none" } : {}),
               ...(isSelected && !isTailContext
                 ? {
                     outline: "4px solid hsl(var(--primary))",

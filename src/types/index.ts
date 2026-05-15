@@ -169,6 +169,8 @@ export interface PanelBlock {
   prompt: string | null;
   asset_refs?: string[];
   image_url?: string | null;
+  zIndex?: number;
+  hidden?: boolean;
 }
 
 /** Layout d'un panel : liste de blocs + hauteur du panel. Stocké dans panels.layout (JSONB). */
@@ -191,6 +193,8 @@ export interface ColorBlock {
   width: number;
   height: number;
   fill: ColorBlockFill;
+  zIndex?: number;
+  hidden?: boolean;
 }
 
 /** Dimensions par défaut d'une nouvelle bulle de dialogue (panel 800px de large). */
@@ -271,6 +275,21 @@ export interface SpeechBubble {
   thoughtTailGap?: number;
   thoughtTailOval?: number;
   thoughtTailDotSize?: number;
+  zIndex?: number;
+  hidden?: boolean;
+}
+
+/** Type d'élément dans le panneau Couches. */
+export type LayerElementType = "block" | "colorBlock" | "bubble";
+
+/** Représentation d'un élément dans le panneau Couches (blocs image, couleur, bulles). */
+export interface LayerItem {
+  id: string;
+  type: LayerElementType;
+  name: string;
+  zIndex: number;
+  hidden?: boolean;
+  preview?: string | null;
 }
 
 /** Libellés UI des types de bulles (alignés Edition-Oeuvre.md § 7.1). */

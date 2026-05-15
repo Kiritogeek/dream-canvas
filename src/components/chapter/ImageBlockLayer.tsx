@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { Plus, Trash2, Square } from "lucide-react";
+import { Plus, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ImageWithFallback } from "@/components/ui/ImageWithFallback";
 import type { Panel, PanelBlock } from "@/types";
@@ -36,7 +36,7 @@ export function ImageBlockLayer({
   onSelectBlock,
   onMoveCommit,
   onResizeCommit,
-  onDelete,
+  onDelete: _onDelete,
   onAddBlock,
   isUpdating,
   generatingBlockId,
@@ -116,19 +116,12 @@ export function ImageBlockLayer({
                 top: geom.y,
                 width: geom.width,
                 height: geom.height,
-                zIndex: 10,
+                zIndex: block.zIndex ?? 10,
+                ...(block.hidden ? { opacity: 0, pointerEvents: "none" } : {}),
               }}
               title={block.name ?? `Case ${blockIndex + 1}`}
             >
-              <button
-                type="button"
-                className="absolute bottom-[25%] left-1/2 z-20 flex h-8 w-8 -translate-x-1/2 items-center justify-center rounded-md bg-destructive/90 text-destructive-foreground opacity-0 shadow-md transition-opacity hover:bg-destructive group-hover:opacity-100"
-                title="Supprimer le bloc"
-                onPointerDown={(e) => e.stopPropagation()}
-                onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDelete(block); }}
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
+
               <div className="w-full h-full overflow-hidden pointer-events-none">
                 {block.image_url ? (
                   <ImageWithFallback src={block.image_url} alt="" className="w-full h-full object-fill" />

@@ -89,7 +89,7 @@ import { EditorRightPanel } from "@/components/chapter/EditorRightPanel";
 import { EditorLeftSidebar, type SidebarTab } from "@/components/chapter/EditorLeftSidebar";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import type { Json } from "@/integrations/supabase/types";
-import type { Panel, PanelBlock, PanelLayout, ColorBlock, ColorBlockFill, SpeechBubble, Asset } from "@/types";
+import type { Panel, PanelBlock, PanelLayout, ColorBlock, ColorBlockFill, SpeechBubble, Asset, LayerItem, LayerElementType } from "@/types";
 import {
   DEFAULT_SPEECH_BUBBLE_WIDTH,
   DEFAULT_SPEECH_BUBBLE_HEIGHT,
@@ -325,7 +325,7 @@ export default function ChapterDetail() {
   /** Panel ouvert en modale « Edition » (id ou null) */
   const [expandedPanelId, setExpandedPanelId] = useState<string | null>(null);
   /** Outil à droite dans la modale d'édition — null = panel rétracté. */
-  const [panelEditorRightTool, setPanelEditorRightTool] = useState<"chapter-text" | "assets" | "cases" | null>("chapter-text");
+  const [panelEditorRightTool, setPanelEditorRightTool] = useState<"chapter-text" | "assets" | "cases" | "layers" | null>("chapter-text");
   /** Bloc sélectionné dans la modale (mode Personalisation) pour afficher le panneau droit ou gauche */
   const [selectedBlockIdInModal, setSelectedBlockIdInModal] = useState<{ panelId: string; blockId: string } | null>(null);
   /** Bloc de couleur sélectionné (onglet Couleurs) pour éditer la couleur */
@@ -1174,7 +1174,7 @@ export default function ChapterDetail() {
         tailOn: false,
         style: {
           font: "inherit",
-          size: 14,
+          size: 30,
           color: "#000000",
           fill: defaultStyle.fill,
           stroke: defaultStyle.stroke,
@@ -1401,6 +1401,71 @@ export default function ChapterDetail() {
         .map((b, idx) => ({ ...b, caseNumber: idx + 1 }));
     })();
 
+    const layers: LayerItem[] = (() => {
+      const items: LayerItem[] = [];
+      layout.blocks.forEach((b, i) => {
+        items.push({
+          id: b.id, type: "block",
+          name: b.name ?? `Bloc image ${i + 1}`,
+          zIndex: b.zIndex ?? 10, hidden: b.hidden ?? false, preview: b.image_url ?? null,
+        });
+      });
+      colorBlocks.forEach((cb, i) => {
+        items.push({
+          id: cb.id, type: "colorBlock",
+          name: `Couleur ${i + 1}`,
+          zIndex: cb.zIndex ?? 0, hidden: cb.hidden ?? false, preview: null,
+        });
+      });
+      speechBubbles.forEach((b) => {
+        items.push({
+          id: b.id, type: "bubble",
+          name: b.text ? b.text.slice(0, 22) : b.type,
+          zIndex: b.zIndex ?? 20, hidden: b.hidden ?? false, preview: null,
+        });
+      });
+      return items.sort((a, b) => b.zIndex - a.zIndex);
+    })();
+
+    const handleReorderLayers = (reordered: LayerItem[]) => {
+      const total = reordered.length;
+      const updated = reordered.map((item, i) => ({ ...item, zIndex: (total - i) * 10 }));
+      const newBlocks = layout.blocks.map((b) => {
+        const found = updated.find((u) => u.id === b.id && u.type === "block");
+        return found ? { ...b, zIndex: found.zIndex } : b;
+      });
+      const newColorBlocks = colorBlocks.map((cb) => {
+        const found = updated.find((u) => u.id === cb.id && u.type === "colorBlock");
+        return found ? { ...cb, zIndex: found.zIndex } : cb;
+      });
+      const newBubbles = speechBubbles.map((bub) => {
+        const found = updated.find((u) => u.id === bub.id && u.type === "bubble");
+        return found ? { ...bub, zIndex: found.zIndex } : bub;
+      });
+      recordCanvasUndoBeforeChange(panel.id);
+      updatePanelMutation.mutate({
+        id: panel.id,
+        updates: {
+          layout: { ...getPanelLayout(panel), blocks: newBlocks } as unknown as Json,
+          color_blocks: newColorBlocks as unknown as Json,
+          speech_bubbles: newBubbles as unknown as Json,
+        },
+      });
+    };
+
+    const handleToggleLayerVisibility = (id: string, type: LayerElementType) => {
+      recordCanvasUndoBeforeChange(panel.id);
+      if (type === "block") {
+        const newBlocks = layout.blocks.map((b) => (b.id === id ? { ...b, hidden: !b.hidden } : b));
+        updatePanelMutation.mutate({ id: panel.id, updates: { layout: { ...getPanelLayout(panel), blocks: newBlocks } as unknown as Json } });
+      } else if (type === "colorBlock") {
+        const newColorBlocks = colorBlocks.map((cb) => (cb.id === id ? { ...cb, hidden: !cb.hidden } : cb));
+        updatePanelMutation.mutate({ id: panel.id, updates: { color_blocks: newColorBlocks as unknown as Json } });
+      } else {
+        const newBubbles = speechBubbles.map((b) => (b.id === id ? { ...b, hidden: !b.hidden } : b));
+        updatePanelMutation.mutate({ id: panel.id, updates: { speech_bubbles: newBubbles as unknown as Json } });
+      }
+    };
 
     return (
       <div className="relative flex flex-1 min-h-0 overflow-hidden bg-gradient-to-b from-background via-background to-muted/20">
@@ -1695,6 +1760,28 @@ export default function ChapterDetail() {
           isPro={isPro}
           newBlockDragGhostRef={newBlockDragGhostRef}
           onNavigateToPlans={() => navigate("/dashboard/plans")}
+          layers={layers}
+          selectedLayerId={
+            selectedBlockIdInModal?.blockId ??
+            selectedColorBlockIdInModal?.colorBlockId ??
+            selectedSpeechBubbleIdInModal?.bubbleId ??
+            null
+          }
+          selectedLayerType={
+            selectedBlockIdInModal ? "block" :
+            selectedColorBlockIdInModal ? "colorBlock" :
+            selectedSpeechBubbleIdInModal ? "bubble" : null
+          }
+          onSelectLayer={(id, type) => {
+            setSelectedBlockIdInModal(null);
+            setSelectedColorBlockIdInModal(null);
+            setSelectedSpeechBubbleIdInModal(null);
+            if (type === "block") setSelectedBlockIdInModal({ panelId: panel.id, blockId: id });
+            else if (type === "colorBlock") setSelectedColorBlockIdInModal({ panelId: panel.id, colorBlockId: id });
+            else setSelectedSpeechBubbleIdInModal({ panelId: panel.id, bubbleId: id });
+          }}
+          onReorderLayers={handleReorderLayers}
+          onToggleLayerVisibility={handleToggleLayerVisibility}
         />
       </div>
     );

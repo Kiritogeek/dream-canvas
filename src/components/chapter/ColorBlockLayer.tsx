@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { Trash2 } from "lucide-react";
+
 import type { Panel, ColorBlock, ColorBlockFill } from "@/types";
 import { getPanelHeight, RESIZE_HANDLE_CORNER_PX, RESIZE_HANDLE_EDGE_PX } from "@/services/panels";
 import { useDragBlock } from "@/hooks/useDragBlock";
@@ -32,7 +32,7 @@ export function ColorBlockLayer({
   onSelectColorBlock,
   onMoveCommit,
   onResizeCommit,
-  onDelete,
+  onDelete: _onDelete,
   onColorChange: _onColorChange,
 }: ColorBlockLayerProps) {
   const ghostRefByPanel = useRef<Record<string, HTMLDivElement | null>>({});
@@ -97,7 +97,8 @@ export function ColorBlockLayer({
               width: geom.width,
               height: geom.height,
               ...bgStyle,
-              zIndex: isSelected ? 50 : 0,
+              zIndex: isSelected ? (cb.zIndex ?? 0) + 50 : (cb.zIndex ?? 0),
+              ...(cb.hidden ? { opacity: 0, pointerEvents: "none" } : {}),
               ...(isSelected
                 ? {
                     outline: "4px solid hsl(var(--primary))",
@@ -121,15 +122,7 @@ export function ColorBlockLayer({
             onClick={(e) => { e.stopPropagation(); onSelectColorBlock(cb.id); }}
           >
             <>
-              <button
-                type="button"
-                className="absolute bottom-[25%] left-1/2 z-20 flex h-8 w-8 -translate-x-1/2 items-center justify-center rounded-md bg-destructive/90 text-destructive-foreground opacity-0 shadow-md transition-opacity hover:bg-destructive group-hover:opacity-100"
-                title="Supprimer le bloc de couleur"
-                onPointerDown={(ev) => ev.stopPropagation()}
-                onClick={(ev) => { ev.preventDefault(); ev.stopPropagation(); onDelete(cb); }}
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
+
               {[
                   { edge: "r" as const, style: { right: 0, top: 0, bottom: 0, width: RESIZE_HANDLE_EDGE_PX }, cursor: "ew-resize" },
                   { edge: "b" as const, style: { bottom: 0, left: 0, right: 0, height: RESIZE_HANDLE_EDGE_PX }, cursor: "ns-resize" },

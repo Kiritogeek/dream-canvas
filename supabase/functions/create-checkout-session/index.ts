@@ -1,17 +1,20 @@
-// Edge Function: crée une session Stripe Checkout pour passer un user Free → Pro.
+// Edge Function: crée une session Stripe Checkout pour passer un user Libre → Créateur ou Studio.
 //
 // Secrets requis :
 //   - STRIPE_SECRET_KEY
-//   - STRIPE_PRO_PRICE_ID  (ID du price Stripe pour le plan Pro 14,99 €/mois)
+//   - STRIPE_CREATEUR_PRICE_ID  (price Stripe DreamWeave Créateur 12,99 €/mois)
+//   - STRIPE_STUDIO_PRICE_ID    (price Stripe DreamWeave Studio 29,99 €/mois)
 //   - SUPABASE_URL
 //   - SUPABASE_SERVICE_ROLE_KEY
-//   - ALLOWED_ORIGIN       (pour CORS)
-//   - APP_URL              (URL publique du front, ex. https://dreamweave.app)
+//   - ALLOWED_ORIGIN            (pour CORS)
+//   - APP_URL                   (URL publique du front, ex. https://dreamweave.app)
+//
+// Body attendu : { plan: "createur" | "studio" }
 //
 // Flow :
 //   1. Vérifie le JWT utilisateur
 //   2. Récupère / crée le stripe_customer_id lié au profile (service role)
-//   3. Crée une session Checkout en mode subscription
+//   3. Crée une session Checkout en mode subscription avec le bon Price ID
 //   4. Retourne { url } → le front redirige vers Stripe
 //
 // La mise à jour effective de profiles.plan se fait UNIQUEMENT dans stripe-webhook,
@@ -82,17 +85,31 @@ Deno.serve(async (req) => {
   }
 
   const stripeSecret = Deno.env.get("STRIPE_SECRET_KEY");
-  const priceId = Deno.env.get("STRIPE_PRO_PRICE_ID");
+  const createurPriceId = Deno.env.get("STRIPE_CREATEUR_PRICE_ID");
+  const studioPriceId = Deno.env.get("STRIPE_STUDIO_PRICE_ID");
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   const appUrl = Deno.env.get("APP_URL");
 
-  if (!stripeSecret || !priceId || !supabaseUrl || !serviceKey || !appUrl) {
+  if (!stripeSecret || !createurPriceId || !studioPriceId || !supabaseUrl || !serviceKey || !appUrl) {
     return jsonResponse(
       { error: "Configuration Stripe incomplète" },
       500
     );
   }
+
+  let targetPlan: "createur" | "studio" = "createur";
+  try {
+    const body = await req.json() as { plan?: string };
+    if (body?.plan === "studio") targetPlan = "studio";
+    else if (body?.plan !== "createur" && body?.plan !== undefined) {
+      return jsonResponse({ error: "Plan invalide" }, 400);
+    }
+  } catch {
+    // body vide ou invalide → plan par défaut createur
+  }
+
+  const priceId = targetPlan === "studio" ? studioPriceId : createurPriceId;
 
   const auth = await verifyUserFromToken(
     req.headers.get("Authorization"),
@@ -124,9 +141,9 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "Erreur lecture profil" }, 500);
     }
 
-    if (profile?.plan === "pro") {
+    if (profile?.plan === targetPlan) {
       return jsonResponse(
-        { error: "Vous avez déjà un abonnement Pro actif." },
+        { error: `Vous avez déjà le plan ${targetPlan} actif.` },
         400
       );
     }
@@ -160,12 +177,12 @@ Deno.serve(async (req) => {
       mode: "subscription",
       customer: stripeCustomerId,
       line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${appUrl}/plans?success=true`,
+      success_url: `${appUrl}/plans?success=true&plan=${targetPlan}`,
       cancel_url: `${appUrl}/plans?canceled=true`,
       allow_promotion_codes: true,
-      metadata: { user_id: userId },
+      metadata: { user_id: userId, plan: targetPlan },
       subscription_data: {
-        metadata: { user_id: userId },
+        metadata: { user_id: userId, plan: targetPlan },
       },
     });
 

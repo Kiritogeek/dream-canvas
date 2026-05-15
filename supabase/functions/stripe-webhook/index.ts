@@ -52,9 +52,25 @@ Deno.serve(async (req) => {
   const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET");
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  const createurPriceId = Deno.env.get("STRIPE_CREATEUR_PRICE_ID") ?? "";
+  const studioPriceId = Deno.env.get("STRIPE_STUDIO_PRICE_ID") ?? "";
 
   if (!stripeSecret || !webhookSecret || !supabaseUrl || !serviceKey) {
     return textResponse("Configuration incomplete", 500);
+  }
+
+  function planFromMetaOrPrice(
+    metaPlan: string | undefined,
+    priceId: string
+  ): Plan {
+    // Price ID = source de vérité (ce qui a réellement été facturé)
+    if (priceId && priceId === studioPriceId) return "studio";
+    if (priceId && priceId === createurPriceId) return "createur";
+    // Fallback métadonnées pour abonnements anciens sans Price ID reconnu
+    if (metaPlan === "studio") return "studio";
+    if (metaPlan === "createur") return "createur";
+    console.warn(`[stripe-webhook] Plan inconnu — priceId=${priceId}, meta=${metaPlan}`);
+    return "createur";
   }
 
   const signature = req.headers.get("stripe-signature");
@@ -137,7 +153,12 @@ Deno.serve(async (req) => {
           );
           break;
         }
-        await updatePlan(userId, "createur", new Date().toISOString());
+        const sessionPriceId = (session as unknown as { line_items?: { data?: Array<{ price?: { id?: string } }> } })?.line_items?.data?.[0]?.price?.id ?? "";
+        const activePlan = planFromMetaOrPrice(
+          session.metadata?.plan as string | undefined,
+          sessionPriceId
+        );
+        await updatePlan(userId, activePlan, new Date().toISOString());
         break;
       }
 
@@ -160,7 +181,10 @@ Deno.serve(async (req) => {
           "trialing",
         ];
         const isActive = activeStatuses.includes(sub.status);
-        const plan: Plan = isActive ? "createur" : "libre";
+        const subPriceId = sub.items?.data?.[0]?.price?.id ?? "";
+        const plan: Plan = isActive
+          ? planFromMetaOrPrice(sub.metadata?.plan as string | undefined, subPriceId)
+          : "libre";
         const billingPeriodStart = isActive
           ? new Date(sub.current_period_start * 1000).toISOString()
           : null;

@@ -349,7 +349,8 @@ export function BubbleLayer({
               top: geom.y,
               width: geom.width,
               height: geom.height,
-              zIndex: 20,
+              zIndex: bubble.zIndex ?? 20,
+              ...(bubble.hidden ? { opacity: 0, pointerEvents: "none" } : {}),
               ...(isSelected && !isTailContext
                 ? {
                     outline: "4px solid hsl(var(--primary))",

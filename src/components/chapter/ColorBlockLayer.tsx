@@ -97,7 +97,8 @@ export function ColorBlockLayer({
               width: geom.width,
               height: geom.height,
               ...bgStyle,
-              zIndex: isSelected ? 50 : 0,
+              zIndex: isSelected ? (cb.zIndex ?? 0) + 50 : (cb.zIndex ?? 0),
+              ...(cb.hidden ? { opacity: 0, pointerEvents: "none" } : {}),
               ...(isSelected
                 ? {
                     outline: "4px solid hsl(var(--primary))",

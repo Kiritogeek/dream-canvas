@@ -116,7 +116,8 @@ export function ImageBlockLayer({
                 top: geom.y,
                 width: geom.width,
                 height: geom.height,
-                zIndex: 10,
+                zIndex: block.zIndex ?? 10,
+                ...(block.hidden ? { opacity: 0, pointerEvents: "none" } : {}),
               }}
               title={block.name ?? `Case ${blockIndex + 1}`}
             >

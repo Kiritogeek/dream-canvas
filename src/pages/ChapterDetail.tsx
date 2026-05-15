@@ -1401,50 +1401,35 @@ export default function ChapterDetail() {
         .map((b, idx) => ({ ...b, caseNumber: idx + 1 }));
     })();
 
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    const layers: LayerItem[] = useMemo(() => {
+    const layers: LayerItem[] = (() => {
       const items: LayerItem[] = [];
       layout.blocks.forEach((b, i) => {
         items.push({
-          id: b.id,
-          type: "block",
+          id: b.id, type: "block",
           name: b.name ?? `Bloc image ${i + 1}`,
-          zIndex: b.zIndex ?? 10,
-          hidden: b.hidden ?? false,
-          preview: b.image_url ?? null,
+          zIndex: b.zIndex ?? 10, hidden: b.hidden ?? false, preview: b.image_url ?? null,
         });
       });
       colorBlocks.forEach((cb, i) => {
         items.push({
-          id: cb.id,
-          type: "colorBlock",
+          id: cb.id, type: "colorBlock",
           name: `Couleur ${i + 1}`,
-          zIndex: cb.zIndex ?? 0,
-          hidden: cb.hidden ?? false,
-          preview: null,
+          zIndex: cb.zIndex ?? 0, hidden: cb.hidden ?? false, preview: null,
         });
       });
       speechBubbles.forEach((b) => {
         items.push({
-          id: b.id,
-          type: "bubble",
+          id: b.id, type: "bubble",
           name: b.text ? b.text.slice(0, 22) : b.type,
-          zIndex: b.zIndex ?? 20,
-          hidden: b.hidden ?? false,
-          preview: null,
+          zIndex: b.zIndex ?? 20, hidden: b.hidden ?? false, preview: null,
         });
       });
       return items.sort((a, b) => b.zIndex - a.zIndex);
-    }, [layout.blocks, colorBlocks, speechBubbles]);
+    })();
 
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    const handleReorderLayers = useCallback((reordered: LayerItem[]) => {
+    const handleReorderLayers = (reordered: LayerItem[]) => {
       const total = reordered.length;
-      const updated = reordered.map((item, i) => ({
-        ...item,
-        zIndex: (total - i) * 10,
-      }));
-
+      const updated = reordered.map((item, i) => ({ ...item, zIndex: (total - i) * 10 }));
       const newBlocks = layout.blocks.map((b) => {
         const found = updated.find((u) => u.id === b.id && u.type === "block");
         return found ? { ...b, zIndex: found.zIndex } : b;
@@ -1457,7 +1442,6 @@ export default function ChapterDetail() {
         const found = updated.find((u) => u.id === bub.id && u.type === "bubble");
         return found ? { ...bub, zIndex: found.zIndex } : bub;
       });
-
       recordCanvasUndoBeforeChange(panel.id);
       updatePanelMutation.mutate({
         id: panel.id,
@@ -1467,33 +1451,21 @@ export default function ChapterDetail() {
           speech_bubbles: newBubbles as unknown as Json,
         },
       });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [layout.blocks, colorBlocks, speechBubbles, panel, recordCanvasUndoBeforeChange, updatePanelMutation]);
+    };
 
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    const handleToggleLayerVisibility = useCallback((id: string, type: LayerElementType) => {
+    const handleToggleLayerVisibility = (id: string, type: LayerElementType) => {
       recordCanvasUndoBeforeChange(panel.id);
       if (type === "block") {
         const newBlocks = layout.blocks.map((b) => (b.id === id ? { ...b, hidden: !b.hidden } : b));
-        updatePanelMutation.mutate({
-          id: panel.id,
-          updates: { layout: { ...getPanelLayout(panel), blocks: newBlocks } as unknown as Json },
-        });
+        updatePanelMutation.mutate({ id: panel.id, updates: { layout: { ...getPanelLayout(panel), blocks: newBlocks } as unknown as Json } });
       } else if (type === "colorBlock") {
         const newColorBlocks = colorBlocks.map((cb) => (cb.id === id ? { ...cb, hidden: !cb.hidden } : cb));
-        updatePanelMutation.mutate({
-          id: panel.id,
-          updates: { color_blocks: newColorBlocks as unknown as Json },
-        });
+        updatePanelMutation.mutate({ id: panel.id, updates: { color_blocks: newColorBlocks as unknown as Json } });
       } else {
         const newBubbles = speechBubbles.map((b) => (b.id === id ? { ...b, hidden: !b.hidden } : b));
-        updatePanelMutation.mutate({
-          id: panel.id,
-          updates: { speech_bubbles: newBubbles as unknown as Json },
-        });
+        updatePanelMutation.mutate({ id: panel.id, updates: { speech_bubbles: newBubbles as unknown as Json } });
       }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [layout.blocks, colorBlocks, speechBubbles, panel, recordCanvasUndoBeforeChange, updatePanelMutation]);
+    };
 
     return (
       <div className="relative flex flex-1 min-h-0 overflow-hidden bg-gradient-to-b from-background via-background to-muted/20">

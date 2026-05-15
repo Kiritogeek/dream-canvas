@@ -181,6 +181,40 @@ async function handleSetPlan(
   return json({ success: true, plan }, 200, cors);
 }
 
+async function handleToggleExcluded(
+  supabaseUrl: string,
+  serviceKey: string,
+  cors: Record<string, string>,
+  userId: string
+) {
+  const profilesRaw = await serviceGet(
+    supabaseUrl, serviceKey,
+    `profiles?select=excluded_from_stats&user_id=eq.${userId}`
+  );
+  const profile = (profilesRaw as Array<{ excluded_from_stats: boolean }>)[0];
+  if (!profile) return json({ error: "Utilisateur introuvable" }, 404, cors);
+
+  const newValue = !profile.excluded_from_stats;
+
+  const patchRes = await fetch(`${supabaseUrl}/rest/v1/profiles?user_id=eq.${userId}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: serviceKey,
+      Authorization: `Bearer ${serviceKey}`,
+      Prefer: "return=minimal",
+    },
+    body: JSON.stringify({ excluded_from_stats: newValue }),
+  });
+
+  if (!patchRes.ok) {
+    const err = await patchRes.text();
+    return json({ error: "Échec mise à jour", details: err }, 502, cors);
+  }
+
+  return json({ success: true, excluded_from_stats: newValue }, 200, cors);
+}
+
 Deno.serve(async (req) => {
   const origin = req.headers.get("origin");
   const cors = getCorsHeaders(origin);
@@ -227,6 +261,9 @@ Deno.serve(async (req) => {
     if (action === "set_plan") {
       if (!plan) return json({ error: "plan requis" }, 400, cors);
       return await handleSetPlan(supabaseUrl, serviceKey, cors, userId, plan);
+    }
+    if (action === "toggle_excluded") {
+      return await handleToggleExcluded(supabaseUrl, serviceKey, cors, userId);
     }
     return json({ error: "Action invalide" }, 400, cors);
   } catch (err) {

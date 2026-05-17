@@ -222,7 +222,7 @@ export function ScenarioSection({ projectId, project }: ScenarioSectionProps) {
       {/* ── Bloc IA Scénario ──────────────────────────────────── */}
       <div
         ref={aiBlockRef}
-        className="rounded-2xl p-6 sm:p-8 space-y-5 border border-[hsl(var(--lavender)/0.2)] bg-gradient-to-br from-[hsl(var(--lavender)/0.08)] via-[hsl(var(--peach)/0.06)] to-[hsl(var(--mint)/0.05)] shadow-sm"
+        className="rounded-2xl p-6 sm:p-8 space-y-5 border border-[hsl(var(--lavender)/0.5)] dark:border-[hsl(var(--lavender)/0.2)] bg-gradient-to-br from-[hsl(var(--lavender)/0.08)] via-[hsl(var(--peach)/0.06)] to-[hsl(var(--mint)/0.05)] shadow-sm"
       >
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <div className="flex items-center gap-3">
@@ -366,7 +366,7 @@ export function ScenarioSection({ projectId, project }: ScenarioSectionProps) {
       </AlertDialog>
 
       {/* ── Chapitres ────────────────────────────────────────── */}
-      <div className="rounded-2xl p-6 sm:p-8 space-y-5 border border-[hsl(var(--peach)/0.3)] bg-white/50 dark:bg-card/30 shadow-sm">
+      <div className="rounded-2xl p-6 sm:p-8 space-y-5 border border-[hsl(var(--peach)/0.65)] dark:border-[hsl(var(--peach)/0.3)] bg-white/85 dark:bg-card/30 shadow-sm">
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-xl bg-[hsl(var(--peach)/0.2)]">
@@ -644,8 +644,8 @@ function ChapterCard({
   return (
     <Link
       to={`/dashboard/projects/${projectId}/scenario/${chapter.id}`}
-      className="relative flex flex-col gap-3 rounded-2xl border border-[hsl(var(--peach)/0.4)] bg-white dark:bg-card p-4 shadow-sm cursor-pointer group
-        hover:shadow-dream hover:border-[hsl(var(--lavender)/0.6)] hover:-translate-y-0.5
+      className="relative flex flex-col gap-3 rounded-2xl border border-[hsl(var(--peach)/0.75)] dark:border-[hsl(var(--peach)/0.4)] bg-white dark:bg-card p-4 shadow-sm cursor-pointer group
+        hover:shadow-dream hover:border-[hsl(var(--lavender)/0.85)] dark:hover:border-[hsl(var(--lavender)/0.6)] hover:-translate-y-0.5
         transition-[box-shadow,border-color,transform] duration-200"
     >
       {/* Actions en haut-droite */}

@@ -120,7 +120,7 @@ const ChapterEditionCard = memo(function ChapterEditionCard({
 
   return (
     <div
-      className="flex flex-col gap-3 p-5 rounded-2xl border border-[hsl(var(--peach)/0.4)] hover:border-[hsl(var(--lavender)/0.5)] bg-white/50 dark:bg-card/30 shadow-sm hover:shadow-md transition-all duration-200 group cursor-pointer"
+      className="flex flex-col gap-3 p-5 rounded-2xl border border-[hsl(var(--peach)/0.75)] dark:border-[hsl(var(--peach)/0.4)] hover:border-[hsl(var(--lavender)/0.85)] dark:hover:border-[hsl(var(--lavender)/0.5)] bg-white/85 dark:bg-card/30 shadow-sm hover:shadow-md transition-all duration-200 group cursor-pointer"
       onClick={handleOpenChapter}
     >
       {/* Numéro + titre + actions */}
@@ -391,7 +391,7 @@ export function EditionSection({ projectId }: EditionSectionProps) {
     <div className="flex flex-col gap-6 min-h-[calc(100vh-12rem)]">
 
       {/* Header */}
-      <div className="rounded-2xl p-6 border border-[hsl(var(--lavender)/0.2)] bg-gradient-to-br from-[hsl(var(--lavender)/0.08)] via-[hsl(var(--peach)/0.05)] to-[hsl(var(--mint)/0.04)]">
+      <div className="rounded-2xl p-6 border border-[hsl(var(--lavender)/0.5)] dark:border-[hsl(var(--lavender)/0.2)] bg-gradient-to-br from-[hsl(var(--lavender)/0.08)] via-[hsl(var(--peach)/0.05)] to-[hsl(var(--mint)/0.04)]">
         <div className="flex items-center justify-between gap-4 mb-4">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-xl gradient-primary">
@@ -447,7 +447,7 @@ export function EditionSection({ projectId }: EditionSectionProps) {
 
       {/* État vide */}
       {!isLoading && chapters.length === 0 && (
-        <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-[hsl(var(--lavender)/0.3)] bg-[hsl(var(--lavender)/0.03)] py-16 px-4 text-center flex-1">
+        <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-[hsl(var(--lavender)/0.55)] dark:border-[hsl(var(--lavender)/0.3)] bg-[hsl(var(--lavender)/0.03)] py-16 px-4 text-center flex-1">
           <LayoutPanelTop
             className="h-12 w-12"
             style={{ color: "hsl(var(--lavender))" }}

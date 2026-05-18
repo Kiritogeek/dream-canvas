@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, memo } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Plus,
   ChevronUp,
@@ -82,6 +82,7 @@ const ChapterEditionCard = memo(function ChapterEditionCard({
   hasGenNotif,
 }: ChapterCardProps) {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const sc = scenarioChaptersData.find((s) => s.id === chapter.linked_scenario_chapter_id);
   const detectedCases = Array.isArray(sc?.panels_outline)
@@ -101,8 +102,11 @@ const ChapterEditionCard = memo(function ChapterEditionCard({
       : null;
 
   const handleOpenChapter = useCallback(
-    () => navigate(`/dashboard/projects/${projectId}/chapter/${chapter.id}`),
-    [navigate, projectId, chapter.id]
+    () => {
+      queryClient.setQueryData(["chapter", chapter.id], chapter);
+      navigate(`/dashboard/projects/${projectId}/chapter/${chapter.id}`);
+    },
+    [navigate, queryClient, projectId, chapter]
   );
 
   const handleMoveUp = useCallback(

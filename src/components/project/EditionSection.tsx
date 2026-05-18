@@ -450,18 +450,6 @@ export function EditionSection({ projectId }: EditionSectionProps) {
         )}
       </div>
 
-      {/* Skeletons */}
-      {isLoading && (
-        <div className="flex flex-col gap-3">
-          {[1, 2].map((i) => (
-            <div
-              key={i}
-              className="rounded-2xl border border-border bg-muted/20 h-24 animate-pulse"
-            />
-          ))}
-        </div>
-      )}
-
       {/* État vide */}
       {!isLoading && chapters.length === 0 && (
         <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-[hsl(var(--lavender)/0.55)] dark:border-[hsl(var(--lavender)/0.3)] bg-[hsl(var(--lavender)/0.03)] py-16 px-4 text-center flex-1">

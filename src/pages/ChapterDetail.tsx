@@ -763,6 +763,8 @@ export default function ChapterDetail() {
       ) {
         setSelectedBlockIdInModal(null);
       }
+      const prevImage = queryClient.getQueryData<Panel[]>(panelsQueryKey);
+      queryClient.setQueryData<Panel[]>(panelsQueryKey, (old) => (!old ? old : old.map((p) => (p.id === intent.panelId ? { ...p, layout: { ...ly, blocks: nextBlocks } as unknown as Json } : p))));
       updatePanelMutation.mutate(
         { id: intent.panelId, updates: { layout: { ...ly, blocks: nextBlocks } as unknown as Json } },
         {
@@ -774,7 +776,7 @@ export default function ChapterDetail() {
             });
             toast({ title: "Case supprimée" });
           },
-          onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }),
+          onError: (err) => { if (prevImage) queryClient.setQueryData(panelsQueryKey, prevImage); toast({ title: "Erreur", description: err.message, variant: "destructive" }); },
         },
       );
       return;
@@ -787,11 +789,13 @@ export default function ChapterDetail() {
       ) {
         setSelectedColorBlockIdInModal(null);
       }
+      const prevColor = queryClient.getQueryData<Panel[]>(panelsQueryKey);
+      queryClient.setQueryData<Panel[]>(panelsQueryKey, (old) => (!old ? old : old.map((p) => (p.id === intent.panelId ? { ...p, color_blocks: nextColor as unknown as Json } : p))));
       updatePanelMutation.mutate(
         { id: intent.panelId, updates: { color_blocks: nextColor as unknown as Json } },
         {
           onSuccess: () => toast({ title: "Bloc de couleur supprimé" }),
-          onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }),
+          onError: (err) => { if (prevColor) queryClient.setQueryData(panelsQueryKey, prevColor); toast({ title: "Erreur", description: err.message, variant: "destructive" }); },
         },
       );
       return;
@@ -801,11 +805,13 @@ export default function ChapterDetail() {
       cur?.panelId === intent.panelId && cur.bubbleId === intent.bubbleId ? null : cur,
     );
     setTailContextBubbleId((t) => (t === intent.bubbleId ? null : t));
+    const prevBubble = queryClient.getQueryData<Panel[]>(panelsQueryKey);
+    queryClient.setQueryData<Panel[]>(panelsQueryKey, (old) => (!old ? old : old.map((p) => (p.id === intent.panelId ? { ...p, speech_bubbles: nextSpeech as unknown as Json } : p))));
     updatePanelMutation.mutate(
       { id: intent.panelId, updates: { speech_bubbles: nextSpeech as unknown as Json } },
       {
         onSuccess: () => toast({ title: "Bulle supprimée" }),
-        onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }),
+        onError: (err) => { if (prevBubble) queryClient.setQueryData(panelsQueryKey, prevBubble); toast({ title: "Erreur", description: err.message, variant: "destructive" }); },
       },
     );
   };
@@ -1153,13 +1159,13 @@ export default function ChapterDetail() {
       };
       const next = [...colorBlocks, newBlock];
       recordCanvasUndoBeforeChange(panel.id);
+      const previousPanels = queryClient.getQueryData<Panel[]>(panelsQueryKey);
+      queryClient.setQueryData<Panel[]>(panelsQueryKey, (old) => (!old ? old : old.map((p) => (p.id === panel.id ? { ...p, color_blocks: next as unknown as Json } : p))));
       updatePanelMutation.mutate(
         { id: panel.id, updates: { color_blocks: next as unknown as Json } },
         {
-          onSuccess: () => {
-            toast({ title: "Bloc de couleur ajouté" });
-          },
-          onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }),
+          onSuccess: () => toast({ title: "Bloc de couleur ajouté" }),
+          onError: (err) => { if (previousPanels) queryClient.setQueryData(panelsQueryKey, previousPanels); toast({ title: "Erreur", description: err.message, variant: "destructive" }); },
         }
       );
     };
@@ -1201,13 +1207,13 @@ export default function ChapterDetail() {
       };
       const next = [...speechBubbles, newBubble];
       recordCanvasUndoBeforeChange(panel.id);
+      const previousPanels = queryClient.getQueryData<Panel[]>(panelsQueryKey);
+      queryClient.setQueryData<Panel[]>(panelsQueryKey, (old) => (!old ? old : old.map((p) => (p.id === panel.id ? { ...p, speech_bubbles: next as unknown as Json } : p))));
       updatePanelMutation.mutate(
         { id: panel.id, updates: { speech_bubbles: next as unknown as Json } },
         {
-          onSuccess: () => {
-            toast({ title: "Bulle ajoutée" });
-          },
-          onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }),
+          onSuccess: () => toast({ title: "Bulle ajoutée" }),
+          onError: (err) => { if (previousPanels) queryClient.setQueryData(panelsQueryKey, previousPanels); toast({ title: "Erreur", description: err.message, variant: "destructive" }); },
         }
       );
     };

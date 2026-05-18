@@ -901,13 +901,13 @@ export default function ChapterDetail() {
       };
       const newLayout: PanelLayout = { ...layout, blocks: [...layout.blocks, newBlock] };
       recordCanvasUndoBeforeChange(panel.id);
+      const previousPanels = queryClient.getQueryData<Panel[]>(panelsQueryKey);
+      queryClient.setQueryData<Panel[]>(panelsQueryKey, (old) => (!old ? old : old.map((p) => (p.id === panel.id ? { ...p, layout: newLayout as unknown as Json } : p))));
       updatePanelMutation.mutate(
         { id: panel.id, updates: { layout: newLayout as unknown as Json } },
         {
-          onSuccess: () => {
-            toast({ title: "Case ajoutée" });
-          },
-          onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }),
+          onSuccess: () => toast({ title: "Case ajoutée" }),
+          onError: (err) => { if (previousPanels) queryClient.setQueryData(panelsQueryKey, previousPanels); toast({ title: "Erreur", description: err.message, variant: "destructive" }); },
         }
       );
     };

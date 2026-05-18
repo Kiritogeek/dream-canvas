@@ -71,8 +71,7 @@ export function useDragBlock(options: UseDragBlockOptions): DragHandlers {
       const cancel = (finalPos?: { x: number; y: number }) => {
         document.removeEventListener("pointermove", onPointerMove, true);
         document.removeEventListener("pointerup", onPointerUp, true);
-        // Si une position finale est fournie, place l'élément avant de cacher le ghost
-        // pour éviter le saut visuel (ghost → ancienne position → nouvelle position).
+        el.style.willChange = "";
         if (finalPos != null) {
           el.style.transition = "none";
           el.style.left = `${finalPos.x}px`;
@@ -83,6 +82,8 @@ export function useDragBlock(options: UseDragBlockOptions): DragHandlers {
         if (g) g.style.display = "none";
         if (finalPos != null) {
           requestAnimationFrame(() => { el.style.transition = ""; });
+        } else if (dragStarted) {
+          el.style.transition = "";
         }
         cancelRef.current = null;
       };
@@ -101,6 +102,8 @@ export function useDragBlock(options: UseDragBlockOptions): DragHandlers {
         if (!dragStarted) {
           if (Math.sqrt(dx * dx + dy * dy) < DRAG_THRESHOLD_PX) return;
           dragStarted = true;
+          el.style.transition = "none";
+          el.style.willChange = "opacity, transform";
           const ghost = ghostRefByPanel.current[panelId];
           if (ghost) {
             ghost.style.display = "block";

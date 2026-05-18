@@ -120,6 +120,7 @@
   html {
     font-size: clamp(13px, 0.5vw + 11px, 16px);
     scrollbar-gutter: stable;
+    background-color: hsl(var(--background));
   }
   * {
     @apply border-border;

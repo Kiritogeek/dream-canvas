@@ -8,6 +8,7 @@ import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { useProject } from "@/hooks/useProjects";
 import { useAssets } from "@/hooks/useAssets";
 import { useAssetGeneration } from "@/hooks/useAssetGeneration";
+import { clearAssetNotif, subscribeToGenerationEvents } from "@/lib/generationPending";
 import { useUserPlan } from "@/hooks/useUserPlan";
 import { useNarraMindAlerts } from "@/hooks/useNarramindAlerts";
 import { useNarramindMissingAssets } from "@/hooks/useNarramindMissingAssets";
@@ -148,6 +149,12 @@ export default function ProjectDetail() {
     setStyleOnboardingOpen(false);
     setStickyTourKey(null);
   }, [project?.id]);
+
+  useEffect(() => {
+    if (activeTab !== "assets" || !id) return;
+    clearAssetNotif(id);
+    return subscribeToGenerationEvents(() => clearAssetNotif(id));
+  }, [activeTab, id]);
 
   useEffect(() => {
     if (activeTab !== "style" || !project?.id || !styleOnboardingKey) return;

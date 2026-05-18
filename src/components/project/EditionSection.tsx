@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, memo } from "react";
+import { useState, useCallback, useMemo, memo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -245,6 +245,10 @@ interface EditionSectionProps {
 export function EditionSection({ projectId }: EditionSectionProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  useEffect(() => {
+    void import("@/pages/ChapterDetail");
+  }, []);
   const { plan } = useUserPlan();
   const { data: chapters = [], isLoading } = useChapters(projectId);
   const blockNotifs = useBlockNotifsForProject(projectId);

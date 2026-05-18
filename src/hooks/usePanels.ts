@@ -73,15 +73,12 @@ export function useReplacePanelsFromOutline(chapterId: string) {
 }
 
 /** Mettre à jour un panel (layout, prompt, etc.). */
-export function useUpdatePanel(chapterId: string) {
-  const queryClient = useQueryClient();
-
+export function useUpdatePanel(_chapterId: string) {
   return useMutation({
     mutationFn: ({ id, updates }: { id: string; updates: Parameters<typeof panelsService.updatePanel>[1] }) =>
       panelsService.updatePanel(id, updates),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: keys.list(chapterId) });
-    },
+    // Pas d'invalidateQueries : toutes les mutations canvas utilisent setQueryData (optimistic update).
+    // Un refetch post-success déclencherait un re-render inutile ~200ms après chaque interaction.
   });
 }
 

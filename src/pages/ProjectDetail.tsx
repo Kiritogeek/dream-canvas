@@ -258,9 +258,7 @@ export default function ProjectDetail() {
   const canShowAdminTriggerOnboardingButton =
     isArianeOnboardingAdmin &&
     (activeTab === "style" ||
-      Boolean(
-        progressiveTourTab && appliesProgressiveFlow && accessible[progressiveTourTab]
-      ));
+      PROGRESSIVE_TOUR_TABS.includes(activeTab as (typeof PROGRESSIVE_TOUR_TABS)[number]));
 
   const handleAdminTriggerOnboarding = useCallback(() => {
     if (!user?.id || !project?.id || !isArianeOnboardingAdmin) return;

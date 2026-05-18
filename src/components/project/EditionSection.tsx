@@ -14,6 +14,7 @@ import {
   Layers,
   Crown,
   ImageIcon,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,6 +46,7 @@ import {
 import { useScenarioChapters } from "@/hooks/useScenarioChapters";
 import { useUserPlan } from "@/hooks/useUserPlan";
 import { supabase } from "@/integrations/supabase/client";
+import { useBlockNotifsForProject } from "@/lib/generationPending";
 import type { Chapter, ScenarioChapter } from "@/types";
 import { planDisplayName, TIER_CONFIG } from "@/types";
 
@@ -62,6 +64,7 @@ interface ChapterCardProps {
   panelBlocksForChapter: Array<{ chapter_id: string; layout: unknown }>;
   scenarioChaptersData: ScenarioChapter[];
   allowScenarioAI: boolean;
+  hasGenNotif: boolean;
 }
 
 const ChapterEditionCard = memo(function ChapterEditionCard({
@@ -76,6 +79,7 @@ const ChapterEditionCard = memo(function ChapterEditionCard({
   panelBlocksForChapter,
   scenarioChaptersData,
   allowScenarioAI,
+  hasGenNotif,
 }: ChapterCardProps) {
   const navigate = useNavigate();
 
@@ -132,6 +136,14 @@ const ChapterEditionCard = memo(function ChapterEditionCard({
           <h3 className="font-semibold font-display text-foreground leading-snug pt-0.5">
             {chapter.title}
           </h3>
+          {hasGenNotif && (
+            <span className="relative shrink-0 inline-flex items-center justify-center w-4 h-4 mt-0.5" title="Génération terminée">
+              <span className="absolute inset-0 rounded-full bg-[hsl(var(--lavender)/0.5)] animate-ping" />
+              <span className="relative inline-flex items-center justify-center w-4 h-4 rounded-full gradient-primary">
+                <Sparkles className="h-2.5 w-2.5 text-white" />
+              </span>
+            </span>
+          )}
         </div>
 
         <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -231,6 +243,7 @@ export function EditionSection({ projectId }: EditionSectionProps) {
   const { toast } = useToast();
   const { plan } = useUserPlan();
   const { data: chapters = [], isLoading } = useChapters(projectId);
+  const blockNotifs = useBlockNotifsForProject(projectId);
   const { data: scenarioChapters = [] } = useScenarioChapters(projectId);
 
   const { data: allPanelBlocks = [] } = useQuery({
@@ -489,6 +502,7 @@ export function EditionSection({ projectId }: EditionSectionProps) {
               panelBlocksForChapter={allPanelBlocks.filter((p) => p.chapter_id === chapter.id)}
               scenarioChaptersData={scenarioChapters}
               allowScenarioAI={TIER_CONFIG[plan].allowScenarioAI}
+              hasGenNotif={blockNotifs.has(chapter.id)}
             />
           ))}
         </div>

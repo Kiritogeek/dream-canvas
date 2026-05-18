@@ -3,8 +3,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import * as panelsService from "@/services/panels";
 import { callSplitChapterIntoPanels } from "@/services/scenarioAI";
-import type { PanelOutlineItem, Project } from "@/types";
+import { startBlockGeneration, endBlockGeneration, notifyBlockDone } from "@/lib/generationPending";
+import type { PanelOutlineItem, Project, PanelLayout } from "@/types";
 import type { PanelsAIRequest } from "@/services/scenarioAI";
+import type { Json } from "@/integrations/supabase/types";
 
 const keys = {
   list: (chapterId: string) => ["panels", chapterId] as const,
@@ -16,7 +18,7 @@ export function usePanels(chapterId: string | undefined) {
     queryKey: keys.list(chapterId!),
     queryFn: () => panelsService.fetchPanels(chapterId!),
     enabled: !!chapterId,
-    staleTime: 5 * 60 * 1000,
+    staleTime: 0,
     gcTime: 15 * 60 * 1000,
   });
 }
@@ -103,6 +105,9 @@ export interface GeneratePanelImageVariables {
   contextChapter?: string | null;
   blockAssetImageUrls?: string[];
   blockAssetNames?: string[];
+  /** Layout courant du panel — si fourni, l'image_url est écrite en DB dans mutationFn
+   *  (hors observer React Query) pour survivre à un démontage de composant. */
+  currentLayout?: PanelLayout;
 }
 
 /** Génération d'image par bloc (dimensions du bloc envoyées à l'API). */
@@ -110,19 +115,41 @@ export function useGeneratePanelImage(chapterId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (vars: GeneratePanelImageVariables) =>
-      panelsService.generatePanelBlockImage({
-        panelId: vars.panel.id,
-        blockId: vars.block.id,
-        width: vars.block.width,
-        height: vars.block.height,
-        prompt: vars.panel.prompt,
-        project: vars.project,
-        contextChapter: vars.contextChapter,
-        blockAssetImageUrls: vars.blockAssetImageUrls,
-        blockAssetNames: vars.blockAssetNames,
-      }),
-    onSuccess: () => {
+    mutationFn: async (vars: GeneratePanelImageVariables) => {
+      startBlockGeneration(vars.panel.id, vars.block.id);
+      try {
+        const result = await panelsService.generatePanelBlockImage({
+          panelId: vars.panel.id,
+          blockId: vars.block.id,
+          width: vars.block.width,
+          height: vars.block.height,
+          prompt: vars.panel.prompt,
+          project: vars.project,
+          contextChapter: vars.contextChapter,
+          blockAssetImageUrls: vars.blockAssetImageUrls,
+          blockAssetNames: vars.blockAssetNames,
+        });
+
+        // Write image_url to panel layout in DB — survit à l'unmount du composant
+        if (vars.currentLayout) {
+          const blockIdx = vars.currentLayout.blocks.findIndex((b) => b.id === vars.block.id);
+          if (blockIdx >= 0) {
+            const updatedBlocks = vars.currentLayout.blocks.map((b, i) =>
+              i === blockIdx ? { ...b, image_url: result.image_url } : b
+            );
+            await panelsService.updatePanel(vars.panel.id, {
+              layout: { ...vars.currentLayout, blocks: updatedBlocks } as unknown as Json,
+            });
+          }
+        }
+
+        return result;
+      } finally {
+        endBlockGeneration(vars.panel.id);
+      }
+    },
+    onSuccess: (_data, variables) => {
+      notifyBlockDone(variables.project.id, chapterId);
       queryClient.invalidateQueries({ queryKey: keys.list(chapterId) });
     },
   });

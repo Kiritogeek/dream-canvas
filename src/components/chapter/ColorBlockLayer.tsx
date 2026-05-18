@@ -1,8 +1,9 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback, memo } from "react";
 
 import type { Panel, ColorBlock, ColorBlockFill } from "@/types";
 import { getPanelHeight, RESIZE_HANDLE_CORNER_PX, RESIZE_HANDLE_EDGE_PX } from "@/services/panels";
 import { useDragBlock } from "@/hooks/useDragBlock";
+import type { DragHandlers } from "@/hooks/useDragBlock";
 import { useResizeBlock } from "@/hooks/useResizeBlock";
 import type { ResizingState } from "@/hooks/useResizeBlock";
 
@@ -21,6 +22,95 @@ interface ColorBlockLayerProps {
 }
 
 type ColorBlockResizingState = ResizingState & { colorBlockId: string };
+
+interface ColorBlockItemProps {
+  cb: ColorBlock;
+  panelId: string;
+  panelHeight: number;
+  isSelected: boolean;
+  isResizingThis: boolean;
+  resizeDraft: { x: number; y: number; width: number; height: number } | null;
+  isResizingRef: React.RefObject<boolean>;
+  resizingColorBlockElRef: React.RefObject<HTMLDivElement | null>;
+  onDragPointerDown: DragHandlers["onPointerDown"];
+  onSelect: (id: string | null) => void;
+  onResizeStart: (ev: React.PointerEvent<HTMLElement>, cb: ColorBlock, edge: ResizingState["edge"]) => void;
+  ghostRefByPanel: React.RefObject<Record<string, HTMLDivElement | null>>;
+}
+
+const ColorBlockItem = memo(function ColorBlockItem({
+  cb,
+  panelId,
+  panelHeight,
+  isSelected,
+  isResizingThis,
+  resizeDraft,
+  isResizingRef,
+  resizingColorBlockElRef,
+  onDragPointerDown,
+  onSelect,
+  onResizeStart,
+  ghostRefByPanel,
+}: ColorBlockItemProps) {
+  const geom = isResizingThis && resizeDraft
+    ? { x: Math.round(resizeDraft.x), y: Math.round(resizeDraft.y), width: Math.round(resizeDraft.width), height: Math.round(resizeDraft.height) }
+    : { x: Math.round(cb.x), y: Math.round(cb.y), width: Math.round(cb.width), height: Math.round(cb.height) };
+  const bgStyle = cb.fill.type === "solid"
+    ? { backgroundColor: cb.fill.color }
+    : { background: `linear-gradient(${cb.fill.angle ?? 90}deg, ${cb.fill.from}, ${cb.fill.to})` };
+
+  return (
+    <div
+      ref={isResizingThis ? (el) => { if (el) resizingColorBlockElRef.current = el; } : undefined}
+      className={`group absolute overflow-visible border shadow-sm transition-[box-shadow,outline,outline-offset,filter,ring] duration-150 cursor-grab active:cursor-grabbing ${isSelected ? "border-transparent brightness-[1.02]" : "border-border/80 ring-1 ring-inset ring-black/25 dark:ring-white/25 hover:ring-[3px] hover:ring-primary/55"}`}
+      style={{
+        left: geom.x,
+        top: geom.y,
+        width: geom.width,
+        height: geom.height,
+        ...bgStyle,
+        zIndex: isSelected ? 99999 : (cb.zIndex ?? 0),
+        ...(cb.hidden ? { opacity: 0, pointerEvents: "none" } : {}),
+        ...(isSelected
+          ? { outline: "4px solid hsl(var(--primary))", outlineOffset: "-4px" }
+          : {}),
+      }}
+      onPointerDown={!isResizingThis && !isResizingRef.current ? (e) => {
+        const ghost = ghostRefByPanel.current[panelId];
+        if (ghost) {
+          if (cb.fill.type === "solid") {
+            ghost.style.backgroundColor = cb.fill.color;
+            ghost.style.background = "";
+          } else {
+            ghost.style.background = `linear-gradient(${cb.fill.angle ?? 90}deg, ${cb.fill.from}, ${cb.fill.to})`;
+            ghost.style.backgroundColor = "";
+          }
+        }
+        onDragPointerDown(e, panelId, cb.id, cb.x, cb.y, cb.width, cb.height, panelHeight);
+      } : undefined}
+      onClick={(e) => { e.stopPropagation(); onSelect(cb.id); }}
+    >
+      {[
+        { edge: "r" as const, style: { right: 0, top: 0, bottom: 0, width: RESIZE_HANDLE_EDGE_PX }, cursor: "ew-resize" },
+        { edge: "b" as const, style: { bottom: 0, left: 0, right: 0, height: RESIZE_HANDLE_EDGE_PX }, cursor: "ns-resize" },
+        { edge: "l" as const, style: { left: 0, top: 0, bottom: 0, width: RESIZE_HANDLE_EDGE_PX }, cursor: "ew-resize" },
+        { edge: "t" as const, style: { top: 0, left: 0, right: 0, height: RESIZE_HANDLE_EDGE_PX }, cursor: "ns-resize" },
+        { edge: "tl" as const, style: { left: 0, top: 0, width: RESIZE_HANDLE_CORNER_PX, height: RESIZE_HANDLE_CORNER_PX }, cursor: "nwse-resize" },
+        { edge: "tr" as const, style: { right: 0, top: 0, width: RESIZE_HANDLE_CORNER_PX, height: RESIZE_HANDLE_CORNER_PX }, cursor: "nesw-resize" },
+        { edge: "br" as const, style: { right: 0, bottom: 0, width: RESIZE_HANDLE_CORNER_PX, height: RESIZE_HANDLE_CORNER_PX }, cursor: "nwse-resize" },
+        { edge: "bl" as const, style: { left: 0, bottom: 0, width: RESIZE_HANDLE_CORNER_PX, height: RESIZE_HANDLE_CORNER_PX }, cursor: "nesw-resize" },
+      ].map(({ edge, style, cursor }) => (
+        <div
+          key={edge}
+          className="absolute z-10 rounded-sm transition-colors hover:bg-primary/30"
+          style={{ ...style, cursor }}
+          onPointerDown={(ev) => onResizeStart(ev, cb, edge)}
+          aria-label="Redimensionner"
+        />
+      ))}
+    </div>
+  );
+});
 
 export function ColorBlockLayer({
   panel,
@@ -45,12 +135,52 @@ export function ColorBlockLayer({
   const lastResizeColorBlockMouseRef = useRef<{ x: number; y: number } | null>(null);
   const resizeColorBlockCaptureTargetRef = useRef<HTMLElement | null>(null);
 
+  // Stable wrappers
+  const onSelectColorBlockRef = useRef(onSelectColorBlock);
+  onSelectColorBlockRef.current = onSelectColorBlock;
+  const stableOnSelect = useCallback((id: string | null) => onSelectColorBlockRef.current(id), []);
+
+  const onMoveCommitRef = useRef(onMoveCommit);
+  onMoveCommitRef.current = onMoveCommit;
+  const stableOnMoveCommit = useCallback((panelId: string, blockId: string, x: number, y: number) => {
+    onMoveCommitRef.current(panelId, blockId, x, y);
+  }, []);
+
+  const onResizeCommitRef = useRef(onResizeCommit);
+  onResizeCommitRef.current = onResizeCommit;
+
+  const stableOnResizeStart = useCallback((ev: React.PointerEvent<HTMLElement>, cb: ColorBlock, edge: ResizingState["edge"]) => {
+    if (ev.button !== 0) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    isResizingColorBlockRef.current = true;
+    resizeColorBlockCaptureTargetRef.current = ev.currentTarget;
+    ev.currentTarget.setPointerCapture(ev.pointerId);
+    setResizingColorBlockState({ panelId: panel.id, colorBlockId: cb.id, edge, start: { x: cb.x, y: cb.y, w: cb.width, h: cb.height }, startMouse: { x: ev.clientX, y: ev.clientY } });
+    setResizeColorBlockDraft({ x: cb.x, y: cb.y, width: cb.width, height: cb.height });
+    resizeColorBlockDraftRef.current = { x: cb.x, y: cb.y, width: cb.width, height: cb.height };
+    saveResizeColorBlockRef.current = (draft) => {
+      const roundedDraft = {
+        x: Math.round(draft.x), y: Math.round(draft.y),
+        width: Math.round(draft.width), height: Math.round(draft.height)
+      };
+      setResizingColorBlockState(null);
+      setResizeColorBlockDraft(null);
+      resizeColorBlockDraftRef.current = null;
+      lastResizeColorBlockMouseRef.current = null;
+      resizeColorBlockCaptureTargetRef.current = null;
+      resizingColorBlockElRef.current = null;
+      isResizingColorBlockRef.current = false;
+      onResizeCommitRef.current(panel.id, cb.id, roundedDraft);
+    };
+  }, [panel.id]);
+
   const dragColorBlock = useDragBlock({
     canvasRefByPanel,
     ghostRefByPanel,
     isResizingRef: isResizingColorBlockRef,
     zoomRef,
-    onCommit: onMoveCommit,
+    onCommit: stableOnMoveCommit,
   });
 
   useResizeBlock({
@@ -75,106 +205,36 @@ export function ColorBlockLayer({
     },
   });
 
+  const panelHeight = getPanelHeight(panel);
+
   return (
     <>
       {colorBlocks.map((cb) => {
         const isResizingThis = resizingColorBlockState?.panelId === panel.id && resizingColorBlockState?.colorBlockId === cb.id;
-        const geom = isResizingThis && resizeColorBlockDraft
-          ? { x: Math.round(resizeColorBlockDraft.x), y: Math.round(resizeColorBlockDraft.y), width: Math.round(resizeColorBlockDraft.width), height: Math.round(resizeColorBlockDraft.height) }
-          : { x: Math.round(cb.x), y: Math.round(cb.y), width: Math.round(cb.width), height: Math.round(cb.height) };
-        const isSelected = selectedColorBlockId === cb.id;
-        const bgStyle = cb.fill.type === "solid"
-          ? { backgroundColor: cb.fill.color }
-          : { background: `linear-gradient(${cb.fill.angle ?? 90}deg, ${cb.fill.from}, ${cb.fill.to})` };
         return (
-          <div
+          <ColorBlockItem
             key={cb.id}
-            ref={isResizingThis ? (el) => { if (el) resizingColorBlockElRef.current = el; } : undefined}
-            className={`group absolute overflow-visible border shadow-sm transition-[box-shadow,outline,outline-offset,filter,ring] duration-150 cursor-grab active:cursor-grabbing ${isSelected ? "border-transparent brightness-[1.02]" : "border-border/80 ring-1 ring-inset ring-black/25 dark:ring-white/25 hover:ring-[3px] hover:ring-primary/55"}`}
-            style={{
-              left: geom.x,
-              top: geom.y,
-              width: geom.width,
-              height: geom.height,
-              ...bgStyle,
-              zIndex: isSelected ? (cb.zIndex ?? 0) + 50 : (cb.zIndex ?? 0),
-              ...(cb.hidden ? { opacity: 0, pointerEvents: "none" } : {}),
-              ...(isSelected
-                ? {
-                    outline: "4px solid hsl(var(--primary))",
-                    outlineOffset: "-4px",
-                  }
-                : {}),
-            }}
-            onPointerDown={!isResizingThis && !isResizingColorBlockRef.current ? (e) => {
-              const ghost = ghostRefByPanel.current[panel.id];
-              if (ghost) {
-                if (cb.fill.type === "solid") {
-                  ghost.style.backgroundColor = cb.fill.color;
-                  ghost.style.background = "";
-                } else {
-                  ghost.style.background = `linear-gradient(${cb.fill.angle ?? 90}deg, ${cb.fill.from}, ${cb.fill.to})`;
-                  ghost.style.backgroundColor = "";
-                }
-              }
-              dragColorBlock.onPointerDown(e, panel.id, cb.id, cb.x, cb.y, cb.width, cb.height, getPanelHeight(panel));
-            } : undefined}
-            onClick={(e) => { e.stopPropagation(); onSelectColorBlock(cb.id); }}
-          >
-            <>
-
-              {[
-                  { edge: "r" as const, style: { right: 0, top: 0, bottom: 0, width: RESIZE_HANDLE_EDGE_PX }, cursor: "ew-resize" },
-                  { edge: "b" as const, style: { bottom: 0, left: 0, right: 0, height: RESIZE_HANDLE_EDGE_PX }, cursor: "ns-resize" },
-                  { edge: "l" as const, style: { left: 0, top: 0, bottom: 0, width: RESIZE_HANDLE_EDGE_PX }, cursor: "ew-resize" },
-                  { edge: "t" as const, style: { top: 0, left: 0, right: 0, height: RESIZE_HANDLE_EDGE_PX }, cursor: "ns-resize" },
-                  { edge: "tl" as const, style: { left: 0, top: 0, width: RESIZE_HANDLE_CORNER_PX, height: RESIZE_HANDLE_CORNER_PX }, cursor: "nwse-resize" },
-                  { edge: "tr" as const, style: { right: 0, top: 0, width: RESIZE_HANDLE_CORNER_PX, height: RESIZE_HANDLE_CORNER_PX }, cursor: "nesw-resize" },
-                  { edge: "br" as const, style: { right: 0, bottom: 0, width: RESIZE_HANDLE_CORNER_PX, height: RESIZE_HANDLE_CORNER_PX }, cursor: "nwse-resize" },
-                  { edge: "bl" as const, style: { left: 0, bottom: 0, width: RESIZE_HANDLE_CORNER_PX, height: RESIZE_HANDLE_CORNER_PX }, cursor: "nesw-resize" },
-                ].map(({ edge, style, cursor }) => (
-                  <div
-                    key={edge}
-                    className="absolute z-10 rounded-sm transition-colors hover:bg-primary/30"
-                    style={{ ...style, cursor }}
-                    onPointerDown={(ev) => {
-                      if (ev.button !== 0) return;
-                      ev.preventDefault();
-                      ev.stopPropagation();
-                      isResizingColorBlockRef.current = true;
-                      resizeColorBlockCaptureTargetRef.current = ev.currentTarget as HTMLElement;
-                      (ev.currentTarget as HTMLElement).setPointerCapture(ev.pointerId);
-                      setResizingColorBlockState({ panelId: panel.id, colorBlockId: cb.id, edge, start: { x: cb.x, y: cb.y, w: cb.width, h: cb.height }, startMouse: { x: ev.clientX, y: ev.clientY } });
-                      setResizeColorBlockDraft({ x: cb.x, y: cb.y, width: cb.width, height: cb.height });
-                      resizeColorBlockDraftRef.current = { x: cb.x, y: cb.y, width: cb.width, height: cb.height };
-                      saveResizeColorBlockRef.current = (draft) => {
-                        const roundedDraft = {
-                          x: Math.round(draft.x), y: Math.round(draft.y),
-                          width: Math.round(draft.width), height: Math.round(draft.height)
-                        };
-                        setResizingColorBlockState(null);
-                        setResizeColorBlockDraft(null);
-                        resizeColorBlockDraftRef.current = null;
-                        lastResizeColorBlockMouseRef.current = null;
-                        resizeColorBlockCaptureTargetRef.current = null;
-                        resizingColorBlockElRef.current = null;
-                        isResizingColorBlockRef.current = false;
-                        onResizeCommit(panel.id, cb.id, roundedDraft);
-                      };
-                    }}
-                    aria-label="Redimensionner"
-                  />
-              ))}
-            </>
-          </div>
+            cb={cb}
+            panelId={panel.id}
+            panelHeight={panelHeight}
+            isSelected={selectedColorBlockId === cb.id}
+            isResizingThis={isResizingThis}
+            resizeDraft={isResizingThis ? resizeColorBlockDraft : null}
+            isResizingRef={isResizingColorBlockRef}
+            resizingColorBlockElRef={resizingColorBlockElRef}
+            onDragPointerDown={dragColorBlock.onPointerDown}
+            onSelect={stableOnSelect}
+            onResizeStart={stableOnResizeStart}
+            ghostRefByPanel={ghostRefByPanel}
+          />
         );
       })}
       {/* Ghost de drag pour blocs de couleur : position mis à jour uniquement en JS (temps réel, aucun re-render) */}
       <div
         ref={(el) => { if (el) ghostRefByPanel.current[panel.id] = el; }}
         aria-hidden
-        className="pointer-events-none absolute z-50 rounded-lg border-2 border-primary shadow-lg box-border"
-        style={{ display: "none", left: 0, top: 0, width: 0, height: 0 }}
+        className="pointer-events-none absolute rounded-lg border-2 border-primary shadow-lg box-border"
+        style={{ display: "none", left: 0, top: 0, width: 0, height: 0, zIndex: 99999 }}
       />
     </>
   );

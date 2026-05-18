@@ -68,6 +68,7 @@ import {
   useDeletePanel,
   useGeneratePanelImage,
 } from "@/hooks/usePanels";
+import { useGeneratingBlocks, useChapterIsViewing } from "@/lib/generationPending";
 import {
   getPanelBlocks,
   getPanelHeight,
@@ -89,7 +90,7 @@ import { EditorRightPanel } from "@/components/chapter/EditorRightPanel";
 import { EditorLeftSidebar, type SidebarTab } from "@/components/chapter/EditorLeftSidebar";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import type { Json } from "@/integrations/supabase/types";
-import type { Panel, PanelBlock, PanelLayout, ColorBlock, ColorBlockFill, SpeechBubble, Asset, LayerItem, LayerElementType } from "@/types";
+import type { Panel, PanelBlock, PanelLayout, ColorBlock, ColorBlockFill, SpeechBubble, Asset } from "@/types";
 import {
   DEFAULT_SPEECH_BUBBLE_WIDTH,
   DEFAULT_SPEECH_BUBBLE_HEIGHT,
@@ -229,6 +230,8 @@ export default function ChapterDetail() {
   const [panelToDeleteId, setPanelToDeleteId] = useState<string | null>(null);
   const [showQuotaModal, setShowQuotaModal] = useState(false);
   const generatePanelImage = useGeneratePanelImage(chapterId ?? "");
+  const generatingBlocks = useGeneratingBlocks();
+  useChapterIsViewing(projectId ?? "", chapterId ?? "");
   const panelsQueryKey = useMemo(() => ["panels", chapterId] as const, [chapterId]);
   const { data: chapterImageHistory = [], isPending: chapterImageHistoryPending } = useChapterCanvasImageHistory(chapterId);
   const [restoringHistoryId, setRestoringHistoryId] = useState<string | null>(null);
@@ -319,13 +322,19 @@ export default function ChapterDetail() {
   const moveDropHandledRef = useRef(false);
   /** Après un drag, un clic parasite peut remonter au scroll parent et tout désélectionner ; le premier onClick sur cette zone est ignoré (ne pas réinitialiser ce flag dans un setTimeout(0) : il courrait avant le clic et cassait l’effet). */
   const skipNextCanvasEmptyClickRef = useRef(false);
+  /** Bloc en cours de déplacement via drag HTML5 (move-block) — null quand useDragBlock gère le mouvement */
+  const [draggingBlock, setDraggingBlock] = useState<{
+    panelId: string; blockId: string;
+    startBlockX: number; startBlockY: number;
+    startMouseX: number; startMouseY: number;
+  } | null>(null);
   /** Panel sur lequel un élément de la sidebar est en train d'être survolé (drag-over) */
   const [isDragOverCanvasId, setIsDragOverCanvasId] = useState<string | null>(null);
   const dragOverCounterRef = useRef<Record<string, number>>({});
   /** Panel ouvert en modale « Edition » (id ou null) */
   const [expandedPanelId, setExpandedPanelId] = useState<string | null>(null);
   /** Outil à droite dans la modale d'édition — null = panel rétracté. */
-  const [panelEditorRightTool, setPanelEditorRightTool] = useState<"chapter-text" | "assets" | "cases" | "layers" | null>("chapter-text");
+  const [panelEditorRightTool, setPanelEditorRightTool] = useState<"chapter-text" | "assets" | "cases" | null>(null);
   /** Bloc sélectionné dans la modale (mode Personalisation) pour afficher le panneau droit ou gauche */
   const [selectedBlockIdInModal, setSelectedBlockIdInModal] = useState<{ panelId: string; blockId: string } | null>(null);
   /** Bloc de couleur sélectionné (onglet Couleurs) pour éditer la couleur */
@@ -876,11 +885,13 @@ export default function ChapterDetail() {
             );
       const x = Math.max(0, Math.min(PANEL_WIDTH - w, placed.x));
       const y = Math.max(0, Math.min(panelHeight - h, placed.y));
+      const maxZ = Math.max(0, ...layout.blocks.map(b => b.zIndex ?? 0));
       const newBlock: PanelBlock = {
         id: crypto.randomUUID(),
         x, y, width: w, height: h,
         name: `Case ${layout.blocks.length + 1}`,
         prompt: null, image_url: null,
+        zIndex: maxZ + 10,
       };
       const newLayout: PanelLayout = { ...layout, blocks: [...layout.blocks, newBlock] };
       recordCanvasUndoBeforeChange(panel.id);
@@ -954,6 +965,7 @@ export default function ChapterDetail() {
           const h = DEFAULT_BLOCK_HEIGHT;
           const { x, y } = getCanvasDropPosition(e, canvasEl, w, h);
           const assetName = data.assetName?.trim() || "Asset";
+          const maxZ = Math.max(0, ...layout.blocks.map(b => b.zIndex ?? 0));
           const newBlock: PanelBlock = {
             id: crypto.randomUUID(),
             x, y, width: w, height: h,
@@ -961,6 +973,7 @@ export default function ChapterDetail() {
             prompt: `[${assetName}] — `,
             image_url: null,
             asset_refs: [data.assetId],
+            zIndex: maxZ + 10,
           };
           const newLayout: PanelLayout = { ...layout, blocks: [...layout.blocks, newBlock] };
           recordCanvasUndoBeforeChange(panel.id);
@@ -992,12 +1005,14 @@ export default function ChapterDetail() {
           const rawCaseNum = (data as { caseNumber?: unknown }).caseNumber;
           const caseNum =
             typeof rawCaseNum === "number" && Number.isFinite(rawCaseNum) ? rawCaseNum : layout.blocks.length + 1;
+          const maxZ = Math.max(0, ...layout.blocks.map(b => b.zIndex ?? 0));
           const newBlock: PanelBlock = {
             id: crypto.randomUUID(),
             x, y, width: w, height: h,
             name: `Case ${caseNum}`,
             prompt: data.description.trim(),
             image_url: null,
+            zIndex: maxZ + 10,
           };
           const newLayout: PanelLayout = { ...layout, blocks: [...layout.blocks, newBlock] };
           recordCanvasUndoBeforeChange(panel.id);
@@ -1129,10 +1144,12 @@ export default function ChapterDetail() {
             );
       const x = Math.max(0, Math.min(PANEL_WIDTH - w, placed.x));
       const y = Math.max(0, Math.min(panelHeight - h, placed.y));
+      const maxZ = Math.max(0, ...colorBlocks.map(cb => cb.zIndex ?? 0));
       const newBlock: ColorBlock = {
         id: crypto.randomUUID(),
         x, y, width: w, height: h,
         fill: fill ?? DEFAULT_COLOR_BLOCK_FILL,
+        zIndex: maxZ + 10,
       };
       const next = [...colorBlocks, newBlock];
       recordCanvasUndoBeforeChange(panel.id);
@@ -1164,6 +1181,7 @@ export default function ChapterDetail() {
       const clampedX = Math.max(0, Math.min(PANEL_WIDTH - w, placed.x));
       const clampedY = Math.max(0, Math.min(panelHeight - h, placed.y));
       const defaultStyle = SPEECH_BUBBLE_DEFAULT_STYLE[bubbleType];
+      const maxZ = Math.max(0, ...speechBubbles.map(b => b.zIndex ?? 0));
       const newBubble: SpeechBubble = {
         id: crypto.randomUUID(),
         type: bubbleType,
@@ -1172,6 +1190,7 @@ export default function ChapterDetail() {
         width: w,
         height: h,
         tailOn: false,
+        zIndex: maxZ + 10,
         style: {
           font: "inherit",
           size: 30,
@@ -1337,55 +1356,38 @@ export default function ChapterDetail() {
         .filter((u): u is string => !!u);
       const blockAssetNames = refAssets.map(getAssetReferencePromptLabel);
       generatePanelImage.mutate(
-        { panel: { id: panel.id, prompt: promptToUse }, block: { id: block.id, width: block.width, height: block.height }, project, blockAssetImageUrls: blockAssetImageUrls.length ? blockAssetImageUrls : undefined, blockAssetNames: blockAssetNames.length ? blockAssetNames : undefined },
+        {
+          panel: { id: panel.id, prompt: promptToUse },
+          block: { id: block.id, width: block.width, height: block.height },
+          project,
+          blockAssetImageUrls: blockAssetImageUrls.length ? blockAssetImageUrls : undefined,
+          blockAssetNames: blockAssetNames.length ? blockAssetNames : undefined,
+          currentLayout: layout,
+        },
         {
           onSuccess: (result) => {
             toast({ title: "Image générée" });
-            const row = (queryClient.getQueryData<Panel[]>(panelsQueryKey) ?? []).find((p) => p.id === panel.id);
-            if (!row) return;
-            const ly = getPanelLayout(row);
-            const blockIndex = ly.blocks.findIndex((b) => b.id === block.id);
-            if (blockIndex < 0) return;
-            const blockRow = ly.blocks[blockIndex];
+            // Snapshot undo AVANT que la query cache soit invalidée (montre l'état pré-image)
             recordCanvasUndoBeforeChange(panel.id);
-            const nextBlocks = ly.blocks.map((b, i) => (i === blockIndex ? { ...b, image_url: result.image_url } : b));
-            updatePanelMutation.mutate(
-              {
-                id: panel.id,
-                updates: { layout: { ...ly, blocks: nextBlocks } as unknown as Json },
-              },
-              {
-                onSuccess: () => {
-                  if (!chapterId || !result.image_url) return;
-                  void (async () => {
-                    try {
-                      await insertChapterCanvasImageHistoryForSession({
-                        chapterId,
-                        panelCanvasId: panel.id,
-                        eventKind: "image_generated",
-                        sourceBlockId: block.id,
-                        prompt: promptToUse,
-                        imageUrl: result.image_url,
-                        blockName: blockRow.name ?? null,
-                        layoutRect: {
-                          x: blockRow.x,
-                          y: blockRow.y,
-                          width: blockRow.width,
-                          height: blockRow.height,
-                        },
-                      });
-                      await queryClient.invalidateQueries({ queryKey: chapterCanvasImageHistoryQueryKey(chapterId) });
-                    } catch (e) {
-                      toast({
-                        title: "Historique non sauvegardé",
-                        description: e instanceof Error ? e.message : String(e),
-                        variant: "destructive",
-                      });
-                    }
-                  })();
-                },
-              },
-            );
+            // Historique — non-critique, fire & forget
+            const blockRow = layout.blocks.find((b) => b.id === block.id);
+            if (chapterId && result.image_url && blockRow) {
+              void (async () => {
+                try {
+                  await insertChapterCanvasImageHistoryForSession({
+                    chapterId,
+                    panelCanvasId: panel.id,
+                    eventKind: "image_generated",
+                    sourceBlockId: block.id,
+                    prompt: promptToUse,
+                    imageUrl: result.image_url,
+                    blockName: blockRow.name ?? null,
+                    layoutRect: { x: blockRow.x, y: blockRow.y, width: blockRow.width, height: blockRow.height },
+                  });
+                  await queryClient.invalidateQueries({ queryKey: chapterCanvasImageHistoryQueryKey(chapterId) });
+                } catch { /* non-critique */ }
+              })();
+            }
           },
           onError: () => toast({ title: "Génération IA indisponible", description: "Service temporairement indisponible. Réessayez dans quelques instants.", variant: "destructive" }),
         }
@@ -1401,74 +1403,8 @@ export default function ChapterDetail() {
         .map((b, idx) => ({ ...b, caseNumber: idx + 1 }));
     })();
 
-    const layers: LayerItem[] = (() => {
-      const items: LayerItem[] = [];
-      layout.blocks.forEach((b, i) => {
-        items.push({
-          id: b.id, type: "block",
-          name: b.name ?? `Bloc image ${i + 1}`,
-          zIndex: b.zIndex ?? 10, hidden: b.hidden ?? false, preview: b.image_url ?? null,
-        });
-      });
-      colorBlocks.forEach((cb, i) => {
-        items.push({
-          id: cb.id, type: "colorBlock",
-          name: `Couleur ${i + 1}`,
-          zIndex: cb.zIndex ?? 0, hidden: cb.hidden ?? false, preview: null,
-        });
-      });
-      speechBubbles.forEach((b) => {
-        items.push({
-          id: b.id, type: "bubble",
-          name: b.text ? b.text.slice(0, 22) : b.type,
-          zIndex: b.zIndex ?? 20, hidden: b.hidden ?? false, preview: null,
-        });
-      });
-      return items.sort((a, b) => b.zIndex - a.zIndex);
-    })();
-
-    const handleReorderLayers = (reordered: LayerItem[]) => {
-      const total = reordered.length;
-      const updated = reordered.map((item, i) => ({ ...item, zIndex: (total - i) * 10 }));
-      const newBlocks = layout.blocks.map((b) => {
-        const found = updated.find((u) => u.id === b.id && u.type === "block");
-        return found ? { ...b, zIndex: found.zIndex } : b;
-      });
-      const newColorBlocks = colorBlocks.map((cb) => {
-        const found = updated.find((u) => u.id === cb.id && u.type === "colorBlock");
-        return found ? { ...cb, zIndex: found.zIndex } : cb;
-      });
-      const newBubbles = speechBubbles.map((bub) => {
-        const found = updated.find((u) => u.id === bub.id && u.type === "bubble");
-        return found ? { ...bub, zIndex: found.zIndex } : bub;
-      });
-      recordCanvasUndoBeforeChange(panel.id);
-      updatePanelMutation.mutate({
-        id: panel.id,
-        updates: {
-          layout: { ...getPanelLayout(panel), blocks: newBlocks } as unknown as Json,
-          color_blocks: newColorBlocks as unknown as Json,
-          speech_bubbles: newBubbles as unknown as Json,
-        },
-      });
-    };
-
-    const handleToggleLayerVisibility = (id: string, type: LayerElementType) => {
-      recordCanvasUndoBeforeChange(panel.id);
-      if (type === "block") {
-        const newBlocks = layout.blocks.map((b) => (b.id === id ? { ...b, hidden: !b.hidden } : b));
-        updatePanelMutation.mutate({ id: panel.id, updates: { layout: { ...getPanelLayout(panel), blocks: newBlocks } as unknown as Json } });
-      } else if (type === "colorBlock") {
-        const newColorBlocks = colorBlocks.map((cb) => (cb.id === id ? { ...cb, hidden: !cb.hidden } : cb));
-        updatePanelMutation.mutate({ id: panel.id, updates: { color_blocks: newColorBlocks as unknown as Json } });
-      } else {
-        const newBubbles = speechBubbles.map((b) => (b.id === id ? { ...b, hidden: !b.hidden } : b));
-        updatePanelMutation.mutate({ id: panel.id, updates: { speech_bubbles: newBubbles as unknown as Json } });
-      }
-    };
-
     return (
-      <div className="relative flex flex-1 min-h-0 overflow-hidden bg-gradient-to-b from-background via-background to-muted/20">
+      <div className="relative flex flex-1 min-h-0 overflow-y-hidden bg-gradient-to-b from-background via-background to-muted/20">
         <EditorLeftSidebar
           panel={panel}
           activeSidebarTab={activeSidebarTab}
@@ -1535,7 +1471,7 @@ export default function ChapterDetail() {
                   const blockKey = `${panel.id}-${selectedBlock.id}`;
                   const nameDraft = blockNameDrafts[blockKey] ?? selectedBlock.name ?? "";
                   const promptDraft = blockPromptDrafts[blockKey] ?? selectedBlock.prompt ?? "";
-                  const isBlockGenerating = generatePanelImage.isPending && generatePanelImage.variables?.panel?.id === panel.id;
+                  const isBlockGenerating = generatingBlocks.has(panel.id);
                   return (
                     <BlockToolbar
                       type="image"
@@ -1661,11 +1597,7 @@ export default function ChapterDetail() {
                         onDelete={handleDeleteBlock}
                         onAddBlock={handleAddBlock}
                         isUpdating={updatePanelMutation.isPending}
-                        generatingBlockId={
-                          generatePanelImage.isPending && generatePanelImage.variables?.panel?.id === panel.id
-                            ? generatePanelImage.variables.block.id
-                            : null
-                        }
+                        generatingBlockId={generatingBlocks.get(panel.id) ?? null}
                       />
                       <BubbleLayer
                         panel={panel}
@@ -1760,28 +1692,6 @@ export default function ChapterDetail() {
           isPro={isPro}
           newBlockDragGhostRef={newBlockDragGhostRef}
           onNavigateToPlans={() => navigate("/dashboard/plans")}
-          layers={layers}
-          selectedLayerId={
-            selectedBlockIdInModal?.blockId ??
-            selectedColorBlockIdInModal?.colorBlockId ??
-            selectedSpeechBubbleIdInModal?.bubbleId ??
-            null
-          }
-          selectedLayerType={
-            selectedBlockIdInModal ? "block" :
-            selectedColorBlockIdInModal ? "colorBlock" :
-            selectedSpeechBubbleIdInModal ? "bubble" : null
-          }
-          onSelectLayer={(id, type) => {
-            setSelectedBlockIdInModal(null);
-            setSelectedColorBlockIdInModal(null);
-            setSelectedSpeechBubbleIdInModal(null);
-            if (type === "block") setSelectedBlockIdInModal({ panelId: panel.id, blockId: id });
-            else if (type === "colorBlock") setSelectedColorBlockIdInModal({ panelId: panel.id, colorBlockId: id });
-            else setSelectedSpeechBubbleIdInModal({ panelId: panel.id, bubbleId: id });
-          }}
-          onReorderLayers={handleReorderLayers}
-          onToggleLayerVisibility={handleToggleLayerVisibility}
         />
       </div>
     );

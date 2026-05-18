@@ -1,14 +1,13 @@
 import React, { useMemo, useState } from "react";
-import { BookOpen, Loader2, Layers, Layers2, GripVertical, CheckCircle2, Package, ChevronDown } from "lucide-react";
+import { BookOpen, Loader2, Layers, GripVertical, CheckCircle2, Package, ChevronDown } from "lucide-react";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { ScenarioFormattedPreview } from "@/components/project/ScenarioFormattedPreview";
-import type { Asset, LayerItem, LayerElementType } from "@/types";
+import type { Asset } from "@/types";
 import { planDisplayName } from "@/types";
-import { PanelLayersPanel } from "@/components/chapter/PanelLayersPanel";
 import { cn } from "@/lib/utils";
 import {
   CHAPTER_EDITOR_RAIL_ASIDE_CLASS,
@@ -60,8 +59,8 @@ function getAssetThumbnail(asset: Asset): string | null {
 }
 
 interface EditorRightPanelProps {
-  activeTool: "chapter-text" | "assets" | "cases" | "layers" | null;
-  onToolChange: (tool: "chapter-text" | "assets" | "cases" | "layers" | null) => void;
+  activeTool: "chapter-text" | "assets" | "cases" | null;
+  onToolChange: (tool: "chapter-text" | "assets" | "cases" | null) => void;
   loadingScenario: boolean;
   scenarioContent: string | null | undefined;
   assets: Asset[];
@@ -72,12 +71,6 @@ interface EditorRightPanelProps {
   /** Ref partagée pour le ghost de drag (même que la sidebar gauche) */
   newBlockDragGhostRef?: React.RefObject<HTMLDivElement | null>;
   onNavigateToPlans: () => void;
-  layers?: LayerItem[];
-  selectedLayerId?: string | null;
-  selectedLayerType?: LayerElementType | null;
-  onSelectLayer?: (id: string, type: LayerElementType) => void;
-  onReorderLayers?: (items: LayerItem[]) => void;
-  onToggleLayerVisibility?: (id: string, type: LayerElementType) => void;
 }
 
 export function EditorRightPanel({
@@ -92,12 +85,6 @@ export function EditorRightPanel({
   isPro,
   newBlockDragGhostRef,
   onNavigateToPlans,
-  layers,
-  selectedLayerId,
-  selectedLayerType,
-  onSelectLayer,
-  onReorderLayers,
-  onToggleLayerVisibility,
 }: EditorRightPanelProps) {
   const [draggingCaseNumber, setDraggingCaseNumber] = useState<number | null>(null);
   const [openAssetGroups, setOpenAssetGroups] = useState<Record<string, boolean>>({
@@ -211,19 +198,6 @@ export function EditorRightPanel({
                 })}
               </div>
             )}
-          </div>
-        )}
-
-        {activeTool === "layers" && (
-          <div className="flex-1 min-h-0 overflow-y-auto">
-            <PanelLayersPanel
-              layers={layers ?? []}
-              selectedId={selectedLayerId ?? null}
-              selectedType={selectedLayerType ?? null}
-              onSelect={onSelectLayer ?? (() => {})}
-              onReorder={onReorderLayers ?? (() => {})}
-              onToggleVisibility={onToggleLayerVisibility ?? (() => {})}
-            />
           </div>
         )}
 
@@ -436,23 +410,6 @@ export function EditorRightPanel({
           )}
         </button>
 
-        <button
-          type="button"
-          onClick={() => onToolChange(activeTool === "layers" ? null : "layers")}
-          className={cn(
-            "relative",
-            CHAPTER_EDITOR_RAIL_BTN_BASE,
-            activeTool === "layers" ? CHAPTER_EDITOR_RAIL_BTN_ACTIVE : CHAPTER_EDITOR_RAIL_BTN_IDLE,
-          )}
-          title="Couches"
-        >
-          <Layers2 className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" strokeWidth={1.75} />
-          {(layers?.length ?? 0) > 0 && activeTool !== "layers" && (
-            <span className={cn(CHAPTER_EDITOR_RAIL_COUNT_BADGE_CLASS)}>
-              {(layers?.length ?? 0) > 99 ? "99+" : layers!.length}
-            </span>
-          )}
-        </button>
       </aside>
     </>
   );

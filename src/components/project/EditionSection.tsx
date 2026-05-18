@@ -46,6 +46,7 @@ import {
 import { useScenarioChapters } from "@/hooks/useScenarioChapters";
 import { useUserPlan } from "@/hooks/useUserPlan";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchPanels } from "@/services/panels";
 import { useBlockNotifsForProject } from "@/lib/generationPending";
 import type { Chapter, ScenarioChapter } from "@/types";
 import { planDisplayName, TIER_CONFIG } from "@/types";
@@ -101,6 +102,14 @@ const ChapterEditionCard = memo(function ChapterEditionCard({
       ? Math.round((generatedImages / detectedCases) * 100)
       : null;
 
+  const handlePrefetchPanels = useCallback(() => {
+    void queryClient.prefetchQuery({
+      queryKey: ["panels", chapter.id],
+      queryFn: () => fetchPanels(chapter.id),
+      staleTime: 30_000,
+    });
+  }, [queryClient, chapter.id]);
+
   const handleOpenChapter = useCallback(
     () => {
       queryClient.setQueryData(["chapter", chapter.id], chapter);
@@ -129,6 +138,7 @@ const ChapterEditionCard = memo(function ChapterEditionCard({
   return (
     <div
       className="flex flex-col gap-3 p-5 rounded-2xl border border-[hsl(var(--peach)/0.75)] dark:border-[hsl(var(--peach)/0.4)] hover:border-[hsl(var(--lavender)/0.85)] dark:hover:border-[hsl(var(--lavender)/0.5)] bg-white/85 dark:bg-card/30 shadow-sm hover:shadow-md transition-all duration-200 group cursor-pointer"
+      onMouseEnter={handlePrefetchPanels}
       onClick={handleOpenChapter}
     >
       {/* Numéro + titre + actions */}

@@ -331,8 +331,11 @@ export default function ChapterDetail() {
   /** Panel sur lequel un élément de la sidebar est en train d'être survolé (drag-over) */
   const [isDragOverCanvasId, setIsDragOverCanvasId] = useState<string | null>(null);
   const dragOverCounterRef = useRef<Record<string, number>>({});
-  /** Panel ouvert en modale « Edition » (id ou null) */
-  const [expandedPanelId, setExpandedPanelId] = useState<string | null>(null);
+  /** Panel ouvert en modale « Edition » (id ou null) — initialisé depuis le cache pour éliminer le flash au premier render */
+  const [expandedPanelId, setExpandedPanelId] = useState<string | null>(() => {
+    const cached = chapterId ? queryClient.getQueryData<Panel[]>(["panels", chapterId]) : undefined;
+    return cached && cached.length > 0 ? cached[0].id : null;
+  });
   /** Outil à droite dans la modale d'édition — null = panel rétracté. */
   const [panelEditorRightTool, setPanelEditorRightTool] = useState<"chapter-text" | "assets" | "cases" | null>(null);
   /** Bloc sélectionné dans la modale (mode Personalisation) pour afficher le panneau droit ou gauche */
@@ -1022,6 +1025,8 @@ export default function ChapterDetail() {
           };
           const newLayout: PanelLayout = { ...layout, blocks: [...layout.blocks, newBlock] };
           recordCanvasUndoBeforeChange(panel.id);
+          const previousPanelsCaseBlock = queryClient.getQueryData<Panel[]>(panelsQueryKey);
+          queryClient.setQueryData<Panel[]>(panelsQueryKey, (old) => (!old ? old : old.map((p) => (p.id === panel.id ? { ...p, layout: newLayout as unknown as Json } : p))));
           updatePanelMutation.mutate(
             { id: panel.id, updates: { layout: newLayout as unknown as Json } },
             {
@@ -1029,7 +1034,7 @@ export default function ChapterDetail() {
                 setSelectedBlockIdInModal({ panelId: panel.id, blockId: newBlock.id });
                 toast({ title: "Case créée", description: "Prompt pré-rempli depuis le scénario." });
               },
-              onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }),
+              onError: (err) => { if (previousPanelsCaseBlock) queryClient.setQueryData(panelsQueryKey, previousPanelsCaseBlock); toast({ title: "Erreur", description: err.message, variant: "destructive" }); },
             }
           );
           setDraggingBlock(null);

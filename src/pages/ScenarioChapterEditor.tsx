@@ -3,7 +3,6 @@ import { useParams, Link, useNavigate, useSearchParams } from "react-router-dom"
 import {
   ArrowLeft,
   ArrowRight,
-  Pencil,
   Save,
   Loader2,
   Check,
@@ -280,8 +279,6 @@ export default function ScenarioChapterEditor() {
 
   // Local state — content / title
   const [content, setContent] = useState("");
-  const [titleDraft, setTitleDraft] = useState("");
-  const [editingTitle, setEditingTitle] = useState(false);
   const [wordMappings, setWordMappings] = useState<Record<string, string>>({});
 
   // Local state — UI
@@ -369,7 +366,6 @@ export default function ScenarioChapterEditor() {
   useEffect(() => {
     if (chapter) {
       setContent(chapter.content ?? "");
-      setTitleDraft(chapter.title);
       setIsWritingManually(false);
       setShowInlineAI(false);
       setInlineAIPrompt("");
@@ -530,37 +526,6 @@ export default function ScenarioChapterEditor() {
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [content]);
-
-  // ── Title save ───────────────────────────────────────────────
-
-  const saveTitle = useCallback(() => {
-    if (!chapter) return;
-    const trimmed = titleDraft.trim();
-    if (!trimmed) {
-      setTitleDraft(chapter.title);
-      setEditingTitle(false);
-      return;
-    }
-    if (trimmed === chapter.title) {
-      setEditingTitle(false);
-      return;
-    }
-    updateChapter.mutate(
-      { id: chapter.id, projectId: projectId!, updates: { title: trimmed } },
-      {
-        onSuccess: () => {
-          toast({ title: "Titre mis à jour" });
-          setEditingTitle(false);
-        },
-        onError: (err) =>
-          toast({
-            title: "Erreur",
-            description: err.message,
-            variant: "destructive",
-          }),
-      }
-    );
-  }, [chapter, titleDraft, projectId, updateChapter, toast]);
 
   // ── Manual save ──────────────────────────────────────────────
 
@@ -911,124 +876,80 @@ export default function ScenarioChapterEditor() {
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">
       {/* HEADER */}
-      <header className="h-12 border-b border-border bg-background/95 backdrop-blur-xl sticky top-0 z-30 flex items-center gap-2 px-4 sm:px-6 shrink-0">
-        {/* Retour scénario — bouton explicite */}
+      <header className="h-12 border-b border-border bg-background/95 backdrop-blur-xl sticky top-0 z-30 grid grid-cols-[1fr_auto_1fr] items-center px-4 sm:px-6 shrink-0">
+        {/* Colonne gauche : retour */}
         <Link
           to={`/dashboard/projects/${projectId}?tab=scenario`}
-          className="flex items-center gap-1.5 shrink-0 px-2.5 py-1.5 rounded-lg border border-border bg-muted/50 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted hover:border-border/80 transition-colors group"
+          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors group w-fit"
         >
-          <ArrowLeft className="h-3.5 w-3.5 group-hover:-translate-x-0.5 transition-transform" />
-          <span>Scénario</span>
+          <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
+          Retour au projet
         </Link>
 
-        <span className="text-muted-foreground/40 text-sm shrink-0">/</span>
-        <span className="text-sm text-muted-foreground truncate max-w-[160px] shrink-0">{project?.title ?? "—"}</span>
-        <span className="text-muted-foreground/40 text-sm shrink-0">/</span>
+        {/* Colonne centre : titre */}
+        <span className="text-sm font-medium text-foreground whitespace-nowrap">
+          Chapitre {chapter.chapter_number}
+        </span>
 
-        <div className="flex-1 min-w-0 group">
-          {editingTitle ? (
-            <Input
-              value={titleDraft}
-              onChange={(e) => setTitleDraft(e.target.value)}
-              onBlur={saveTitle}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  saveTitle();
-                }
-                if (e.key === "Escape") {
-                  setTitleDraft(chapter.title);
-                  setEditingTitle(false);
-                }
-              }}
-              className="h-7 text-sm max-w-sm"
-              autoFocus
-            />
-          ) : (
-            <button
-              onClick={() => setEditingTitle(true)}
-              className="flex items-center gap-1.5 text-sm font-medium hover:text-primary transition-colors truncate"
-              title="Renommer le chapitre"
-            >
-              <span className="text-muted-foreground font-mono text-xs">
-                {String(chapter.chapter_number).padStart(2, "0")}
-              </span>
-              <span className="truncate">{chapter.title}</span>
-              <Pencil className="h-3 w-3 opacity-0 group-hover:opacity-50 transition-opacity shrink-0" />
-            </button>
-          )}
-        </div>
-
-        {/* Zone droite : stats chips — toujours visibles */}
-        <div className="flex items-center gap-2 shrink-0">
+        {/* Colonne droite : stats + save */}
+        <div className="flex items-center justify-end gap-2">
           {readingInfo && (
             <>
-              <span className="flex items-center gap-1 text-xs text-muted-foreground bg-muted/60 rounded-full px-2.5 py-1">
+              <span className="hidden md:flex items-center gap-1 text-xs text-muted-foreground bg-muted/60 rounded-full px-2.5 py-1">
                 <Type className="h-3 w-3" />
                 {readingInfo.words.toLocaleString("fr-FR")} mots
               </span>
-              <span className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400 bg-amber-500/10 rounded-full px-2.5 py-1">
+              <span className="hidden sm:flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400 bg-amber-500/10 rounded-full px-2.5 py-1">
                 <Layers className="h-3 w-3" />
                 {cases.length > 0
                   ? `${cases.length} case${cases.length > 1 ? "s" : ""}`
                   : `~${readingInfo.panels} cases`}
               </span>
               {lockedBlocks.length > 0 && (
-                <span className="flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 rounded-full px-2.5 py-1">
+                <span className="hidden sm:flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 rounded-full px-2.5 py-1">
                   <CheckCircle2 className="h-3 w-3" />
                   {lockedBlocks.length} validée{lockedBlocks.length > 1 ? "s" : ""}
                 </span>
               )}
             </>
           )}
+
+          <div className="text-xs text-muted-foreground flex items-center gap-1 shrink-0">
+            {saveState === "saving" && <><Loader2 className="h-3 w-3 animate-spin" /><span className="hidden sm:inline">Sauvegarde...</span></>}
+            {saveState === "clean" && <Check className="h-3 w-3 text-emerald-500" />}
+            {saveState === "dirty" && <span className="text-amber-500">•</span>}
+          </div>
+
+          <Button
+            size="sm"
+            onClick={handleManualSave}
+            disabled={saveState === "clean" || saveState === "saving"}
+            className="h-7 gap-1.5 gradient-primary text-primary-foreground shrink-0 text-xs"
+          >
+            <Save className="h-3 w-3" />
+            <span className="hidden sm:inline">Sauvegarder</span>
+          </Button>
+
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={createChapter.isPending}
+            onClick={() => {
+              createChapter.mutate(
+                { project_id: projectId!, title: `Chapitre ${nextChapterNumber}`, chapter_number: nextChapterNumber, content: null },
+                {
+                  onSuccess: (newChapter) => navigate(`/dashboard/projects/${projectId}/scenario/${newChapter.id}`),
+                  onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }),
+                }
+              );
+            }}
+            className="h-7 gap-1.5 shrink-0 text-xs border-[hsl(var(--lavender)/0.4)] text-[hsl(var(--lavender))] hover:bg-[hsl(var(--lavender)/0.08)]"
+            title={`Créer et ouvrir le chapitre ${nextChapterNumber}`}
+          >
+            <ArrowRight className="h-3 w-3" />
+            <span className="hidden sm:inline">Ch. {nextChapterNumber}</span>
+          </Button>
         </div>
-
-        {/* Save state + bouton save */}
-        <div className="text-xs text-muted-foreground flex items-center gap-1 shrink-0">
-          {saveState === "saving" && (
-            <>
-              <Loader2 className="h-3 w-3 animate-spin" />
-              Sauvegarde...
-            </>
-          )}
-          {saveState === "clean" && (
-            <>
-              <Check className="h-3 w-3 text-emerald-500" />
-              Sauvegardé
-            </>
-          )}
-          {saveState === "dirty" && <span className="text-amber-500">•</span>}
-        </div>
-
-        <Button
-          size="sm"
-          onClick={handleManualSave}
-          disabled={saveState === "clean" || saveState === "saving"}
-          className="h-7 gap-1.5 gradient-primary text-primary-foreground shrink-0 text-xs"
-        >
-          <Save className="h-3 w-3" />
-          Sauvegarder
-        </Button>
-
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={createChapter.isPending}
-          onClick={() => {
-            createChapter.mutate(
-              { project_id: projectId!, title: `Chapitre ${nextChapterNumber}`, chapter_number: nextChapterNumber, content: null },
-              {
-                onSuccess: (newChapter) => navigate(`/dashboard/projects/${projectId}/scenario/${newChapter.id}`),
-                onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }),
-              }
-            );
-          }}
-          className="h-7 gap-1.5 shrink-0 text-xs border-[hsl(var(--lavender)/0.4)] text-[hsl(var(--lavender))] hover:bg-[hsl(var(--lavender)/0.08)]"
-          title={`Créer et ouvrir le chapitre ${nextChapterNumber}`}
-        >
-          <ArrowRight className="h-3 w-3" />
-          <span className="hidden sm:inline">Ch. {nextChapterNumber}</span>
-        </Button>
       </header>
 
       {/* MAIN ZONE */}

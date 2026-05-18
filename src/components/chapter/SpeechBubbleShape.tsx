@@ -320,7 +320,7 @@ export function SpeechBubbleShape({ type, fill, stroke, tailFlip, strokeWidth, t
   // ── Narration : rectangle, aspect intentionnellement mécanique ───────────
   if (type === "narration") {
     return (
-      <rect x={3} y={3} width={94} height={94} rx={3} ry={3}
+      <rect x={3} y={3} width={94} height={94} rx={0} ry={0}
         fill={fill} stroke={stroke} strokeWidth={sw + 0.5} vectorEffect={NNS} />
     );
   }

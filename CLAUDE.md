@@ -245,15 +245,38 @@ Ordre strict : Scénario IA ✅ → Sheet System ✅ → Audit nav ✅ → Refon
 
 ---
 
+## ⚠️ Zone protégée — Canvas Éditeur (Blocs image / Couleur / Bulles)
+
+Le comportement des éléments canvas est **freezé**. Toute modification demandée qui impacte — directement ou indirectement — le fonctionnement de :
+- **Blocs image** (`ImageBlockLayer`, `useDragBlock`, `handleImageBlockMoveCommit`, `handleAddBlock`, `confirmCanvasElementDelete` kind=image)
+- **Blocs couleur** (`ColorBlockLayer`, `handleColorBlockMoveCommit`, `handleAddColorBlock`, kind=color)
+- **Bulles de dialogue** (`BubbleLayer`, `handleBubbleMoveCommit`, `handleAddSpeechBubble`, kind=bubble)
+
+…doit être **signalée explicitement à Louis** avant toute implémentation, avec :
+1. **Ce qui serait impacté** (comportement exact cassé ou modifié)
+2. **Les conséquences** (régressions potentielles, UX cassée)
+3. **Une alternative** qui évite l'impact
+
+**Louis a le dernier mot.** Aucune modification de cette zone sans son accord explicite dans le message courant.
+
+---
+
 ## Commande Initialisation
 
 Quand Louis écrit **"Initialisation"**, exécuter ce protocole sans attendre :
 
 1. Lire `C:/Users/kirit/OneDrive/Documents/Obsidian Vault/wiki/index.md`
-2. Charger une page wiki spécifique **uniquement si la tâche du jour l'exige** (ex : travail sur Stripe → lire `wiki/Stripe.md`)
-3. Répondre : "✅ Initialisé — [résumé contexte en 3 lignes : état du projet, dernière session, prochaine priorité]"
+2. Lire `Session.md` (à la racine du projet) pour le protocole complet
+3. Charger une page wiki spécifique **uniquement si la tâche du jour l'exige** (ex : travail sur Stripe → lire `wiki/Stripe.md`)
+4. Répondre : "✅ Initialisé — [résumé contexte en 3 lignes : état du projet, dernière session, prochaine priorité]"
 
 **Objectif** : être opérationnel à 100% dès le premier échange, sans devoir redemander le contexte.
+
+---
+
+## Commande Fin de session
+
+Quand Louis écrit **"Fin de session"**, exécuter le protocole dans `Fin-de-session.md` (racine du projet) sans attendre. Cette commande vaut autorisation explicite de pusher vers preprod et main **si et seulement si** l'audit passe sans bug bloquant.
 
 ---
 

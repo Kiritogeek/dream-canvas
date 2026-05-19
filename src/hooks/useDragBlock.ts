@@ -68,12 +68,23 @@ export function useDragBlock(options: UseDragBlockOptions): DragHandlers {
 
       let dragStarted = false;
 
-      const cancel = () => {
+      const cancel = (finalPos?: { x: number; y: number }) => {
         document.removeEventListener("pointermove", onPointerMove, true);
         document.removeEventListener("pointerup", onPointerUp, true);
+        el.style.willChange = "";
+        if (finalPos != null) {
+          el.style.transition = "none";
+          el.style.left = `${finalPos.x}px`;
+          el.style.top = `${finalPos.y}px`;
+        }
         el.style.opacity = "";
         const g = ghostRefByPanel.current[panelId];
         if (g) g.style.display = "none";
+        if (finalPos != null) {
+          requestAnimationFrame(() => { el.style.transition = ""; });
+        } else if (dragStarted) {
+          el.style.transition = "";
+        }
         cancelRef.current = null;
       };
 
@@ -91,6 +102,8 @@ export function useDragBlock(options: UseDragBlockOptions): DragHandlers {
         if (!dragStarted) {
           if (Math.sqrt(dx * dx + dy * dy) < DRAG_THRESHOLD_PX) return;
           dragStarted = true;
+          el.style.transition = "none";
+          el.style.willChange = "opacity, transform";
           const ghost = ghostRefByPanel.current[panelId];
           if (ghost) {
             ghost.style.display = "block";
@@ -110,15 +123,16 @@ export function useDragBlock(options: UseDragBlockOptions): DragHandlers {
 
       const onPointerUp = (ev: PointerEvent) => {
         if (ev.button !== 0) return;
-        cancel();
 
-        if (!dragStarted) return;
+        if (!dragStarted) { cancel(); return; }
 
         const canvas = canvasRefByPanel.current[panelId];
         if (!canvas) return;
         const { x: canvasMouseX, y: canvasMouseY } = viewportToCanvas(canvas, ev.clientX, ev.clientY);
         const clampedX = Math.max(0, Math.min(PANEL_WIDTH - width, Math.round(startX + (canvasMouseX - startMouseX))));
         const clampedY = Math.max(0, Math.min(panelHeight - height, Math.round(startY + (canvasMouseY - startMouseY))));
+        // Passe la position finale à cancel() pour placer l'élément avant de cacher le ghost (pas de saut visuel).
+        cancel({ x: clampedX, y: clampedY });
         onCommit(panelId, entityId, clampedX, clampedY);
       };
 

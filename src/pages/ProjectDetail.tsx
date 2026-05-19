@@ -7,6 +7,7 @@ import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { useProject } from "@/hooks/useProjects";
 import { useAssets } from "@/hooks/useAssets";
+import { useChapters } from "@/hooks/useChapters";
 import { useAssetGeneration } from "@/hooks/useAssetGeneration";
 import { clearAssetNotif, subscribeToGenerationEvents } from "@/lib/generationPending";
 import { useUserPlan } from "@/hooks/useUserPlan";
@@ -55,6 +56,7 @@ export default function ProjectDetail() {
   const navigate = useNavigate();
   const { data: project, isLoading: loadingProject } = useProject(id);
   const { data: assets = [], isLoading: loadingAssets } = useAssets(id);
+  useChapters(id);
   const { plan: userPlan, usageInfo, nextResetDate } = useUserPlan();
   const { user } = useAuth();
   // Clé par utilisateur — même logique que l'onboarding bienvenue

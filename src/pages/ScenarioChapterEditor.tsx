@@ -117,7 +117,7 @@ function renderFormatCHighlight(text: string): React.ReactNode[] {
       const style = { color: "hsl(275, 45%, 60%)", fontWeight: 700 as const };
       nodes.push(
         <span key={wrapKey}>
-          <span style={style}>{scenePrefix}</span>
+          <span style={{ fontSize: 0 }}>{scenePrefix}</span>
           {renderLineSegments(rest, restStart, null, style)}
         </span>
       );
@@ -130,7 +130,7 @@ function renderFormatCHighlight(text: string): React.ReactNode[] {
       const style = { color: restColor };
       nodes.push(
         <span key={wrapKey}>
-          <span style={{ color: "hsl(0, 0%, 58%)" }}>{blockquotePrefix}</span>
+          <span style={{ fontSize: 0 }}>{blockquotePrefix}</span>
           {renderLineSegments(rest, restStart, null, style)}
         </span>
       );
@@ -178,7 +178,7 @@ function FormatCEditor({
     <div className="relative min-h-[300px]">
       <div
         aria-hidden="true"
-        className="pointer-events-none select-none"
+        className="pointer-events-none"
         style={{ ...EDITOR_FONT_STYLE, minHeight: 300 }}
       >
         {value ? (
@@ -1199,7 +1199,7 @@ export default function ScenarioChapterEditor() {
                     onCreateAsset={handleCreateAssetFromText}
                     onDismissMissing={handleDismissMissing}
                     dismissedMissingNames={dismissedMissingNames}
-                    className="text-base leading-[1.8]"
+                    className=""
                     hideIndicator
                   />
                   <div style={{ height: "40vh" }} />

@@ -388,6 +388,8 @@ export function BubbleLayer({
                 if (!dragStarted) {
                   if (Math.sqrt(dx * dx + dy * dy) < THRESHOLD) return;
                   dragStarted = true;
+                  // Désactive toutes les transitions CSS pour que le drag et le relâché soient instantanés.
+                  bubbleDiv.style.transition = "none";
                   bubbleDiv.style.cursor = "grabbing";
                   bubbleDiv.style.filter = "drop-shadow(0 4px 16px rgba(0,0,0,0.35))";
                 }
@@ -398,25 +400,26 @@ export function BubbleLayer({
               };
               const onUp = (ev: PointerEvent) => {
                 if (ev.button !== 0) return;
-                cleanup();
-                if (!dragStarted) return;
+                if (!dragStarted) { cleanup(); return; }
                 const r = canvasEl.getBoundingClientRect();
                 const s = canvasEl.offsetWidth > 0 ? r.width / canvasEl.offsetWidth : 1;
                 const mx = (ev.clientX - r.left) / s;
                 const my = (ev.clientY - r.top) / s;
                 const finalX = Math.max(0, Math.min(PANEL_WIDTH - capturedW, Math.round(capturedGeomX + (mx - startMouseX))));
                 const finalY = Math.max(0, Math.min(capturedPanelH - capturedH, Math.round(capturedGeomY + (my - startMouseY))));
+                // Position finale + nettoyage visuels instantanés (transition déjà désactivée).
                 bubbleDiv.style.left = `${finalX}px`;
                 bubbleDiv.style.top = `${finalY}px`;
                 bubbleDiv.style.cursor = "";
                 bubbleDiv.style.filter = "";
+                cleanup();
+                // Restaure les transitions CSS après que le navigateur a peint la frame finale.
+                requestAnimationFrame(() => { bubbleDiv.style.transition = ""; });
                 onMoveCommit(capturedPanelId, capturedBubbleId, finalX, finalY);
               };
               const cleanup = () => {
                 document.removeEventListener("pointermove", onMove, true);
                 document.removeEventListener("pointerup", onUp, true);
-                bubbleDiv.style.cursor = "";
-                bubbleDiv.style.filter = "";
                 activeBubbleDragCleanupRef.current = null;
               };
               activeBubbleDragCleanupRef.current?.();

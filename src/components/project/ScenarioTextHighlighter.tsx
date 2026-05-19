@@ -653,6 +653,87 @@ function TextSelectionMenu({
   );
 }
 
+// ── Rendu structuré des fragments plain (context-aware) ──────
+
+type LineStyle = "heading" | "bq-violet" | "bq-cyan" | "separator" | "dialogue" | "plain";
+
+function getLineStyle(line: string): LineStyle {
+  if (/^###\s/.test(line)) return "heading";
+  if (/^>\s*Personnages\s*:/i.test(line)) return "bq-violet";
+  if (/^>\s*/.test(line)) return "bq-cyan";
+  if (/^-{3,}\s*$/.test(line)) return "separator";
+  if (/«/.test(line)) return "dialogue";
+  return "plain";
+}
+
+const LINE_STYLE_CSS: Record<LineStyle, React.CSSProperties> = {
+  heading:   { color: "hsl(275, 45%, 60%)", fontWeight: 700 },
+  "bq-violet": { color: "hsl(275, 38%, 55%)" },
+  "bq-cyan": { color: "hsl(170, 40%, 55%)" },
+  separator: { color: "hsl(0, 0%, 58%)" },
+  dialogue:  { fontStyle: "italic", color: "hsl(275, 22%, 52%)" },
+  plain:     { color: "hsl(var(--foreground))" },
+};
+
+/**
+ * Rend un fragment "plain" en connaissant son offset dans le texte complet.
+ * Permet de coloriser correctement les continuations de lignes structurelles
+ * (ex : " du rivage" après un asset sur une ligne ### ).
+ */
+function renderPlainWithContext(
+  fragText: string,
+  fragIdx: number,
+  fullText: string,
+  fragOffset: number,
+  allLines: string[],
+  lineStyles: LineStyle[]
+): React.ReactNode {
+  const parts = fragText.split("\n");
+  const startLineIdx = fragOffset > 0 ? fullText.slice(0, fragOffset).split("\n").length - 1 : 0;
+  const isLineStart = fragOffset === 0 || fullText[fragOffset - 1] === "\n";
+  const result: React.ReactNode[] = [];
+
+  parts.forEach((part, pi) => {
+    const lineIdx = startLineIdx + pi;
+    const key = `${fragIdx}-${pi}`;
+    const atLineStart = pi > 0 || isLineStart;
+
+    if (atLineStart) {
+      const sceneMatch = part.match(/^(###\s)(.*)/s);
+      const blockMatch = part.match(/^(>\s*)(.*)/s);
+      if (sceneMatch) {
+        result.push(
+          <span key={key}>
+            <span style={{ fontSize: 0 }}>{sceneMatch[1]}</span>
+            <span style={LINE_STYLE_CSS.heading}>{sceneMatch[2]}</span>
+          </span>
+        );
+      } else if (blockMatch) {
+        const bStyle = /^Personnages\s*:/i.test(blockMatch[2]) ? "bq-violet" : "bq-cyan";
+        result.push(
+          <span key={key}>
+            <span style={{ fontSize: 0 }}>{blockMatch[1]}</span>
+            <span style={LINE_STYLE_CSS[bStyle]}>{blockMatch[2]}</span>
+          </span>
+        );
+      } else {
+        const s = lineStyles[lineIdx] ?? "plain";
+        result.push(<span key={key} style={LINE_STYLE_CSS[s]}>{part}</span>);
+      }
+    } else {
+      // Milieu de ligne : appliquer le style de la ligne d'origine
+      const s = lineStyles[lineIdx] ?? "plain";
+      result.push(<span key={key} style={LINE_STYLE_CSS[s]}>{part}</span>);
+    }
+
+    if (pi < parts.length - 1) result.push("\n");
+  });
+
+  return <>{result}</>;
+
+  void allLines; // utilisé via lineStyles, référence gardée pour la signature
+}
+
 // ── Composant principal (texte surligné uniquement) ───────────
 
 export function ScenarioTextHighlighter({
@@ -739,12 +820,20 @@ export function ScenarioTextHighlighter({
       {/* Texte surligné */}
       <div
         ref={containerRef}
-        className={`whitespace-pre-wrap text-base leading-relaxed ${className ?? ""}`}
+        className={className ?? ""}
+        style={{ fontFamily: "inherit", fontSize: "1rem", lineHeight: "1.8", whiteSpace: "pre-wrap", wordBreak: "break-word", overflowWrap: "break-word", padding: 0, margin: 0 }}
         onMouseUp={handleMouseUp}
       >
-        {fragments.map((frag, i) => {
+        {(() => {
+          const allLines = text.split("\n");
+          const lineStyles = allLines.map(getLineStyle);
+          let charOffset = 0;
+          return fragments.map((frag, i) => {
+            const fragOffset = charOffset;
+            charOffset += frag.text.length;
+
           if (frag.type === "plain") {
-            return <span key={i}>{frag.text}</span>;
+            return renderPlainWithContext(frag.text, i, text, fragOffset, allLines, lineStyles);
           }
 
           if (frag.type === "missing") {
@@ -763,8 +852,7 @@ export function ScenarioTextHighlighter({
                   className="cursor-pointer rounded-[4px] font-medium"
                   style={{
                     backgroundColor: MISSING_COLOR.bg,
-                    borderBottom: `2.5px solid ${MISSING_COLOR.border}`,
-                    padding: "1px 4px",
+                    boxShadow: `inset 0 -2.5px 0 ${MISSING_COLOR.border}`,
                   }}
                 >
                   {frag.text}
@@ -784,8 +872,7 @@ export function ScenarioTextHighlighter({
                     className="cursor-pointer rounded-[4px] font-medium"
                     style={{
                       backgroundColor: colors.bg,
-                      borderBottom: `2.5px dashed ${colors.border}`,
-                      padding: "1px 4px",
+                      boxShadow: `inset 0 -2.5px 0 ${colors.border}`,
                     }}
                     onClick={(e) => {
                       e.preventDefault();
@@ -863,8 +950,7 @@ export function ScenarioTextHighlighter({
                   className="cursor-pointer rounded-[4px] font-medium"
                   style={{
                     backgroundColor: colors.bg,
-                    borderBottom: `2.5px solid ${colors.border}`,
-                    padding: "1px 4px",
+                    boxShadow: `inset 0 -2.5px 0 ${colors.border}`,
                   }}
                   onClick={(e) => {
                     e.preventDefault();
@@ -925,7 +1011,8 @@ export function ScenarioTextHighlighter({
               </HoverCardContent>
             </HoverCard>
           );
-        })}
+          })}
+        )()}
       </div>
 
       {/* Menu flottant de sélection de texte */}

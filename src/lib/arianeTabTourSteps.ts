@@ -17,35 +17,35 @@ export type ArianeTabTourStep = {
 
 const SCENARIO: ArianeTabTourStep[] = [
   {
-    title: "À quoi sert cet onglet",
+    title: "À quoi sert cet onglet ?",
     paragraphs: [
-      "Ici vous **écrivez et structurez votre histoire** : titres, scènes et dialogues. C’est ce texte qui guidera le découpage en cases et vos choix dans l’éditeur.",
+      "Il est important lors de la création d’une histoire d’avoir un **scénario** auquel se rattacher lorsqu’on crée une Œuvre, c’est exactement à quoi va servir cet onglet.",
     ],
   },
   {
-    title: "Chapitres et rythme",
+    title: "Cadrer votre histoire",
     paragraphs: [
-      "Organisez le récit en **chapitres de scénario**. Pas besoin du texte définitif : un synopsis ou des repères suffisent tant que vous **sauvegardez vos idées**. Vous détaillerez plus tard, avec ou sans aide IA.",
+      "En créant des **chapitres scénaristiques**, cela vous permettra de cadrer votre Œuvre, la cohérence de votre histoire ainsi que la création des **éléments récurrents** de votre histoire qui seront utilisés lors de l’Édition de celui-ci.",
     ],
   },
   {
-    title: "Action concrète",
+    title: "La détection des Assets",
     paragraphs: [
-      "**Créez un premier chapitre** avec un titre et un bloc de texte (même court). C’est ce qui permet de passer aux étapes visuelles du parcours.",
-      "**Conseil** : citez le nom de vos personnages et décors dans le texte — ils seront **surlignés automatiquement** une fois créés dans l’onglet **Assets**.",
+      "Un **asset** est un élément détecté comme récurrent dans votre histoire. Il est important que tous les assets détectés dans votre scénario soient soit **créés** soit **non créés**.",
+      "Ainsi, vous disposerez d’éléments fixes réutilisables lors de la génération de vos futures cases dans l’**Édition**.",
     ],
   },
   {
-    title: "Les Assets : vos personnages et décors",
+    title: "Découper votre scénario",
     paragraphs: [
-      "L’onglet **Assets** (accessible depuis le menu du projet) est là où vous **créez et générez** vos personnages, décors et objets visuels.",
-      "Chaque nom d’asset **apparaît en surbrillance dans votre texte** dès qu’il est créé — c’est le lien visuel entre votre histoire et vos images.",
+      "Si vous passez au **plan Créateur**, vous aurez la possibilité de **découper votre scénario en blocs**. Vous pouvez les valider pour qu’ils apparaissent dans l’Édition — ils vous faciliteront la tâche lors de la construction de vos chapitres.",
     ],
   },
   {
-    title: "La suite dans le projet",
+    title: "Créer votre 1er chapitre",
     paragraphs: [
-      "Une fois **au moins un asset disposant d’une image**, l’onglet **Univers** se débloque pour ancrer votre monde dans une **mémoire narrative durable**.",
+      "**Créez un chapitre** par vous-même ou utilisez l’**IA Scénario** pour vous en générer un automatiquement.",
+      "Après cela, accédez à l’onglet **Assets**.",
     ],
   },
 ];

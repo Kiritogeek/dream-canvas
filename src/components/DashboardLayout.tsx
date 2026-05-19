@@ -22,7 +22,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { ArianeOnboardingCard } from "@/components/ariane";
 import { PROJECT_MENU_LABEL } from "@/lib/projectMenuLabels";
-import { ARIANE_ONBOARDING_ADMIN_EMAIL } from "@/constants/ariane";
+import { ARIANE_ONBOARDING_ADMIN_EMAIL, ARIANE_STYLE_ONBOARDING_STORAGE_KEY } from "@/constants/ariane";
 
 const ALL_NAV_LINKS = [
   { to: "/dashboard",          icon: LayoutDashboard, label: "Tableau de bord", adminOnly: false },
@@ -88,11 +88,16 @@ function ProjectStepsSection({ projectId, onLinkClick }: { projectId: string; on
     ? [...projectSteps, { key: "test", label: "Test", icon: FlaskConical } as const]
     : projectSteps;
 
+  const styleOnboardingDone = user?.id
+    ? (() => { try { return localStorage.getItem(`${ARIANE_STYLE_ONBOARDING_STORAGE_KEY}_${user.id}`) === "1"; } catch { return false; } })()
+    : false;
+
   const sidebarSteps =
     appliesProgressiveFlow
       ? baseSteps.filter((step) => {
           if (step.key === "style") return true;
           if (step.key === "test") return isAdmin;
+          if (!styleOnboardingDone) return false;
           if (!isResolved) return false;
           return accessible[step.key as keyof typeof accessible];
         })

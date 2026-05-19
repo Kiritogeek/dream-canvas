@@ -79,6 +79,20 @@ export default function ProjectDetail() {
         ? "test"
         : "style";
 
+  // Redirige vers edition si onboarding terminé — URL = source de vérité (sidebar + contenu sync)
+  useEffect(() => {
+    if (!user?.id || rawTab) return;
+    // Cas rapide : journey final déjà posé (requiert seulement l'auth)
+    if (isJourneyFinalDismissed(user.id)) {
+      setSearchParams({ tab: "edition" }, { replace: true });
+      return;
+    }
+    // Cas vétéran multi-projets : requiert isResolved pour connaître appliesProgressiveFlow
+    if (!isResolved || appliesProgressiveFlow) return;
+    dismissJourneyFinal(user.id);
+    setSearchParams({ tab: "edition" }, { replace: true });
+  }, [user?.id, rawTab, isResolved, appliesProgressiveFlow, setSearchParams]);
+
   const [styleDraft, setStyleDraft] = useState<string | undefined>(undefined);
   const [journeyCompleteOpen, setJourneyCompleteOpen] = useState(false);
   const [filArianePanelOpen, setFilArianePanelOpen] = useState(false);
@@ -183,6 +197,7 @@ export default function ProjectDetail() {
       /* ignore */
     }
     setStyleOnboardingOpen(false);
+    window.dispatchEvent(new CustomEvent(ARIANE_PROGRESSIVE_SIDEBAR_BUMP_EVENT));
   }, [styleOnboardingKey]);
 
   const handleJourneyCompleteFinished = useCallback(() => {

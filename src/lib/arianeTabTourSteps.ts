@@ -52,63 +52,72 @@ const SCENARIO: ArianeTabTourStep[] = [
 
 const ASSETS: ArianeTabTourStep[] = [
   {
-    title: "Bibliothèque visuelle",
+    title: "Donner un visage à votre scénario",
     paragraphs: [
-      "Chaque fiche (**personnage, décor ou objet**) nourrit vos futures scènes. L’IA s’aligne sur le **style enregistré** pour garder une image cohérente avec le projet.",
+      "Dans le **Scénario**, vous avez identifié les éléments récurrents de votre histoire — personnages, décors, objets.",
+      "C’est ici que vous leur donnez une **image cohérente avec le style de votre projet**, pour qu’ils restent reconnaissables case après case.",
     ],
   },
   {
-    title: "Générer une première image",
+    title: "Créer une fiche, lancer une génération",
     paragraphs: [
-      "**Créez un asset**, décrivez le sujet puis lancez une génération. **Une image enregistrée sur la carte** sert de repère lorsque vous composerez les cases.",
+      "**Créez un asset**, choisissez son type (personnage, décor, objet) et décrivez-le.",
+      "Lancez ensuite une **génération** — l’IA produit une image alignée sur votre style. Cette image devient votre **repère visuel** réutilisable lors de la composition des cases dans l’**Édition**.",
     ],
   },
   {
-    title: "Prochain jalons",
+    title: "Débloquer l’Univers",
     paragraphs: [
-      "Dès qu’**au moins un asset dispose d’une image**, l’onglet **Univers** se débloque pour lier votre intrigue à une **mémoire de monde ou de personnages**.",
+      "Dès qu’**au moins un asset possède une image**, l’onglet **Univers** s’ouvre.",
+      "Vous pourrez y poser les règles de votre monde et enrichir vos fiches — c’est ce socle que je lirai pour veiller à la **cohérence de votre récit** au fil des chapitres.",
     ],
   },
 ];
 
 const UNIVERSE: ArianeTabTourStep[] = [
   {
-    title: "Pourquoi remplir l’Univers",
+    title: "Votre monde, derrière vos assets",
     paragraphs: [
-      "Le lore du **monde du projet** et les précisions sur vos fiches donnent un **socle commun** lorsque vos chapitres grossissent. **Je suis là, moi Ariane, pour vous épauler dans la cohérence de toute l’histoire** : alliances, règles du monde et détails qui doivent rester alignés tout au long du récit.",
+      "Vos assets ont maintenant une image. L’**Univers** va plus loin : il pose les règles de votre monde et les détails de chaque fiche — motivations, alliances, lois de la fiction.",
+      "C’est ce contexte que je lis pour repérer les **incohérences** avant qu’elles ne se propagent dans vos chapitres.",
     ],
   },
   {
-    title: "Où écrire",
+    title: "Deux espaces d’écriture",
     paragraphs: [
-      "Complétez la **zone « monde » du projet**, ou ouvrez un **asset déjà créé** pour détailler motivations, factions ou usages. **Je m’appuie sur ces écrits** pour vous aider à garder une **ligne droite avec le Scénario** — et repérer tôt ce qui pourrait tirer votre récit dans des directions différentes.",
+      "Complétez la **zone « Monde »** pour les règles globales de votre fiction. Ouvrez ensuite chaque **asset** pour y ajouter motivations, factions ou usages.",
+      "Plus vous renseignez, plus je peux vous signaler tôt ce qui risque de **tirer votre récit dans des directions différentes**.",
     ],
   },
   {
     title: "Débloquer l’Édition",
     paragraphs: [
-      "**Enregistrez** au minimum un bloc de lore : monde **ou** fiche. C’est cette **sauvegarde** qui déverrouille l’onglet **Édition** pour la mise en page des cases.",
+      "**Enregistrez au moins un bloc de lore** — monde ou fiche — pour déverrouiller l’onglet **Édition**.",
+      "C’est là que tout ce travail prend vie : **style, scénario, assets et univers** réunis pour composer vos cases.",
     ],
   },
 ];
 
 const EDITION: ArianeTabTourStep[] = [
   {
-    title: "Votre atelier final",
+    title: "Construire chapitre par chapitre",
     paragraphs: [
-      "Construisez chaque **chapitre à publier** : **cases**, **images**, **bulles**. C’est là que votre webtoon devient lisible bloc par bloc.",
+      "C’est ici que votre webtoon prend forme. Pour chaque **chapitre**, vous composez des **cases** : ajoutez des **blocs image**, des **blocs couleur** et des **bulles de dialogue**.",
+      "Si vous avez découpé votre scénario en blocs, ils apparaissent directement dans l’éditeur pour vous guider case par case.",
     ],
   },
   {
-    title: "Réutiliser le travail déjà fait",
+    title: "Tout ce que vous avez construit, ici",
     paragraphs: [
-      "Les **réglages réalisés jusqu’ici** (**style, Scénario, assets, lore**) gardent vos choix cohérents quand vous ajustez **chaque bloc** sous la main.",
+      "Lors de la génération d’un bloc image, l’IA s’appuie sur votre **style** et vos **assets** pour produire des visuels cohérents avec tout ce que vous avez défini.",
+      "Chaque case peut être générée, ajustée ou remplacée à tout moment — la composition reste **entièrement entre vos mains**.",
     ],
   },
   {
-    title: "Fin du tour guidé",
+    title: "L’histoire est entre vos mains",
     paragraphs: [
-      "**Vous êtes prêt à utiliser DreamWeave**, à vous y habituer et à prendre vos repères comme bon vous semble — **navigation**, mise en page, créativité progressive. Adaptez-vous au fil du projet et **exprimez votre personnalité** tout en vous appropriant les outils, à votre rythme, à travers **DREAMWEAVE**.",
+      "Vous avez posé le **style**, créé vos **assets**, écrit le **scénario** et ancré l’**Univers**. Le reste s’écrit ici, case après case.",
+      "Je reste disponible dans le fil **Ariane** pour signaler les incohérences au fil de votre récit.",
     ],
   },
 ];

@@ -8,6 +8,7 @@
 4. **Dernier commit** : `git log -5 --oneline`
 5. **Dernier audit** : dernier fichier dans `Audits/` (date la plus récente)
 6. **État du code** : `git status`
+7. **Log de sessions** : lire la section "Prochaine session" dans `C:/Users/kirit/OneDrive/Documents/Obsidian Vault/log.md` — c'est là que Louis note les tâches prioritaires entre deux sessions
 
 ## Étape 2 — Vérifications techniques
 

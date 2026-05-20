@@ -31,6 +31,8 @@ import {
   ArianeContinuityPanel,
 } from "@/components/ariane";
 import {
+  ARIANE_FORCED_PROGRESSIVE_PENDING,
+  ARIANE_FORCED_PROGRESSIVE_PROJECT_SESSION_KEY,
   ARIANE_ONBOARDING_ADMIN_EMAIL,
   ARIANE_PROGRESSIVE_SIDEBAR_BUMP_EVENT,
   ARIANE_STYLE_ONBOARDING_PENDING_PROJECT_ID_KEY,
@@ -87,7 +89,12 @@ export default function ProjectDetail() {
       setSearchParams({ tab: "edition" }, { replace: true });
       return;
     }
-    // Cas vétéran multi-projets : requiert isResolved pour connaître appliesProgressiveFlow
+    // Cas vétéran multi-projets : ne pas rediriger si la simulation est en attente
+    const simKey =
+      typeof window !== "undefined"
+        ? sessionStorage.getItem(ARIANE_FORCED_PROGRESSIVE_PROJECT_SESSION_KEY)
+        : null;
+    if (simKey === ARIANE_FORCED_PROGRESSIVE_PENDING) return;
     if (!isResolved || appliesProgressiveFlow) return;
     dismissJourneyFinal(user.id);
     setSearchParams({ tab: "edition" }, { replace: true });

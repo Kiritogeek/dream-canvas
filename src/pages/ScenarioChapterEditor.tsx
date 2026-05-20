@@ -36,6 +36,7 @@ import { callDetectBlocks, callGenerateAiSummary } from "@/services/scenarioAI";
 import { useNarraMindDebounce } from "@/hooks/useNarraMindDebounce";
 import { estimatePanelCount } from "@/services/panels";
 import { ScenarioTextHighlighter } from "@/components/project/ScenarioTextHighlighter";
+import { ChapterStatusBar } from "@/components/project/ChapterStatusBar";
 import { useToast } from "@/hooks/use-toast";
 import { scrollChapterEditorToExcerpt } from "@/lib/arianeScroll";
 import { cn } from "@/lib/utils";
@@ -487,6 +488,17 @@ export default function ScenarioChapterEditor() {
     }, 800);
     return () => clearTimeout(t);
   }, [content, lockedBlocks.length]);
+
+  // Assets mentionnés dans ce chapitre (par correspondance de nom)
+  const assetsInChapter = useMemo(() => {
+    if (!content || !assets.length) return assets;
+    return assets.filter((a) => {
+      const name = a.name?.trim();
+      if (!name || name.length < 2) return false;
+      const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      return new RegExp(`\\b${escaped}\\b`, "i").test(content);
+    });
+  }, [assets, content]);
 
   // ── Auto-save (debounce 2s) ──────────────────────────────────
 
@@ -1302,6 +1314,16 @@ export default function ScenarioChapterEditor() {
             )}
           </div>
 
+          <ChapterStatusBar
+            tab={viewMode === "visuels" ? "cases" : "ecriture"}
+            wordCount={readingInfo?.words ?? 0}
+            casesCount={cases.length}
+            validatedCount={lockedBlocks.length}
+            assetsGenerated={assetsInChapter.filter((a) => !!a.image_url).length}
+            assetsUngenerated={assetsInChapter.filter((a) => !a.image_url).length}
+            saveState={saveState}
+            onShowUngenerated={() => setShowAssets(true)}
+          />
         </main>
       </div>
 
@@ -1387,7 +1409,7 @@ export default function ScenarioChapterEditor() {
 
       {/* FABs — pills flottantes bas-droite */}
       {!chapterAIResult && !showIABar && (
-        <div className="fixed bottom-6 right-6 flex flex-col items-end gap-2.5 z-40">
+        <div className="fixed bottom-12 right-6 flex flex-col items-end gap-2.5 z-40">
           <button
             onClick={() => setShowIABar(true)}
             className="flex items-center gap-2 pl-3.5 pr-4 h-10 rounded-full bg-background/95 backdrop-blur-xl border border-border hover:border-primary/50 shadow-md text-sm font-medium text-primary transition-[box-shadow,border-color,transform] duration-200 hover:shadow-glow hover:scale-[1.03]"

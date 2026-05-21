@@ -101,7 +101,11 @@
       "Bash(Get-ChildItem -File)",
       "Bash(Select-Object Name, Extension)",
       "Bash(Sort-Object Name)",
-      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\kirit\\\\OneDrive\\\\Bureau\\\\DreamWeave\" -File | ForEach-Object { $_.Name })"
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\kirit\\\\OneDrive\\\\Bureau\\\\DreamWeave\" -File | ForEach-Object { $_.Name })",
+      "Bash(Get-ChildItem -Path src -Recurse -Filter \"*.tsx\" -o *.ts)",
+      "Bash(Select-Object -ExpandProperty FullName)",
+      "Bash(Sort-Object)",
+      "Bash(grep -E \"\\\\.\\(tsx?|ts\\)$\")"
     ]
   },
   "hooks": {

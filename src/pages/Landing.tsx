@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   Sparkles, Wand2, Palette, BookOpen, Layers,
-  Image as ImageIcon, Check, ArrowRight, Zap, Brain,
+  Image as ImageIcon, Check, ArrowRight, Zap, Brain, Globe,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -11,21 +11,41 @@ import { ARIANE_DISPLAY_NAME } from "@/constants/ariane";
 import { TIER_CONFIG, planDisplayName, type UserPlan } from "@/types";
 import arianeImg from "@/assets/Ariane_Nero_AI_Background_Remover_transparent.png";
 
+// Fil d'Ariane — amplitude ±9px seulement, ondulations légères type "fil tendu"
+// Quadratic bezier : pic réel au centre = (18 + 0.5*cy) → cy=18 → pic y=27, creux y=45
+const THREAD_PATH =
+  "M 0,36 Q 50,18 100,36 Q 150,54 200,36 Q 250,18 300,36 Q 350,54 400,36 Q 450,18 500,36 Q 550,54 600,36 Q 650,18 700,36 Q 750,54 800,36 Q 850,18 900,36 Q 950,54 1000,36";
+
 const steps = [
   {
     icon: Palette,
-    title: "Définissez votre univers",
-    desc: "Choisissez un style visuel (manga, webtoon coréen…) et générez vos premiers assets cohérents en décrivant personnages et décors.",
+    label: "Style",
+    title: "Définissez votre style",
+    desc: "Manga shōnen, webtoon coréen, ligne claire… Choisissez l'ADN visuel de votre univers.",
+  },
+  {
+    icon: Globe,
+    label: "Univers",
+    title: "Construisez votre univers",
+    desc: "Posez les règles de votre monde, vos personnages, leurs motivations. Ariane s'en souvient.",
   },
   {
     icon: BookOpen,
-    title: "Écrivez votre scénario",
-    desc: "Rédigez en prose libre. L'IA vous aide à structurer, résumer et découper vos chapitres en cases numérotées.",
+    label: "Scénario",
+    title: "Écrivez votre récit",
+    desc: "Rédigez en prose libre. Ariane découpe vos chapitres en cases et veille sur la continuité.",
+  },
+  {
+    icon: ImageIcon,
+    label: "Assets",
+    title: "Générez vos assets",
+    desc: "Personnages, décors, objets — tous cohérents avec votre style, en quelques secondes.",
   },
   {
     icon: Layers,
+    label: "Édition",
     title: "Composez vos cases",
-    desc: "Assemblez blocs image, couleurs et bulles de dialogue dans l'éditeur visuel. Exportez en PNG.",
+    desc: "Blocs image, calques couleur, bulles de dialogue. Exportez votre chapitre en PNG.",
   },
 ];
 
@@ -202,38 +222,149 @@ export default function Landing() {
               Comment ça marche
             </h2>
             <p className="text-muted-foreground text-sm sm:text-base max-w-xl mx-auto">
-              De l'idée à la planche publiée en trois étapes
+              De l'idée à la planche publiée en{" "}
+              <span className="text-amber-400 font-medium">cinq étapes</span>
+              {" "}— guidées par Ariane
             </p>
           </motion.div>
 
-          <div className="max-w-4xl mx-auto">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 sm:gap-0 relative">
-              {/* Ligne pointillée desktop */}
-              <div
-                className="hidden sm:block absolute top-9 left-[calc(16.67%+20px)] right-[calc(16.67%+20px)] h-px border-t-2 border-dashed border-primary/20 z-0"
-                aria-hidden
-              />
+          <div className="max-w-6xl mx-auto">
+            {/* ── Rangée d'icônes + fil doré (desktop uniquement) ── */}
+            <div className="hidden lg:block relative mb-10">
+              {/* Hauteur = taille des icônes */}
+              <div className="relative" style={{ height: 72 }}>
+                {/* Fil d'Ariane — pleine largeur viewport via calc(-50vw + 50%) */}
+                <div
+                  className="absolute inset-y-0 pointer-events-none"
+                  style={{ left: "calc(-50vw + 50%)", right: "calc(-50vw + 50%)" }}
+                >
+                <svg
+                  viewBox="0 0 1000 72"
+                  preserveAspectRatio="none"
+                  className="w-full h-full pointer-events-none"
+                  style={{ overflow: "visible" }}
+                  aria-hidden="true"
+                >
+                  <defs>
+                    <filter id="thread-glow" x="-10%" y="-80%" width="120%" height="260%">
+                      <feGaussianBlur in="SourceGraphic" stdDeviation="3.5" result="blur" />
+                      <feColorMatrix
+                        in="blur"
+                        type="matrix"
+                        values="1 0.6 0 0 0.15  0.7 0.4 0 0 0.05  0 0 0 0 0  0 0 0 2.5 0"
+                        result="golden"
+                      />
+                      <feMerge>
+                        <feMergeNode in="golden" />
+                        <feMergeNode in="SourceGraphic" />
+                      </feMerge>
+                    </filter>
+                    <style>{`
+                      @keyframes ariane-shimmer {
+                        0%   { stroke-dashoffset: 2200; opacity: 0; }
+                        5%   { opacity: 0.55; }
+                        46%  { opacity: 0.55; }
+                        52%  { stroke-dashoffset: -200; opacity: 0; }
+                        100% { stroke-dashoffset: -200; opacity: 0; }
+                      }
+                      .ariane-shimmer-path {
+                        stroke-dasharray: 35 2165;
+                        animation: ariane-shimmer 8s ease-in-out 3s infinite;
+                      }
+                    `}</style>
+                  </defs>
+
+                  {/* Halo doux */}
+                  <motion.path
+                    d={THREAD_PATH}
+                    stroke="#F59E0B"
+                    strokeWidth="3"
+                    strokeOpacity="0.1"
+                    fill="none"
+                    filter="url(#thread-glow)"
+                    initial={{ pathLength: 0, opacity: 0 }}
+                    whileInView={{ pathLength: 1, opacity: 1 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 2.4, ease: [0.25, 0.1, 0.25, 1], delay: 0.4 }}
+                  />
+
+                  {/* Fil principal */}
+                  <motion.path
+                    d={THREAD_PATH}
+                    stroke="#F59E0B"
+                    strokeWidth="1.1"
+                    fill="none"
+                    strokeLinecap="round"
+                    initial={{ pathLength: 0, opacity: 0 }}
+                    whileInView={{ pathLength: 1, opacity: 1 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 2.4, ease: [0.25, 0.1, 0.25, 1], delay: 0.4 }}
+                  />
+
+                  {/* Éclat discret — Ariane tisse */}
+                  <path
+                    d={THREAD_PATH}
+                    stroke="#FEF3C7"
+                    strokeWidth="1.8"
+                    fill="none"
+                    strokeLinecap="round"
+                    className="ariane-shimmer-path"
+                    filter="url(#thread-glow)"
+                  />
+                </svg>
+                </div>{/* fin wrapper pleine largeur */}
+
+                {/* Icônes — z-index au-dessus du fil */}
+                <div className="absolute inset-0 flex justify-around items-center">
+                  {steps.map((step, i) => (
+                    <motion.div
+                      key={step.label}
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      whileInView={{ opacity: 1, scale: 1 }}
+                      viewport={{ once: true }}
+                      transition={{ duration: 0.35, ease: "easeOut", delay: 0.5 + i * 0.12 }}
+                      className="relative z-10 flex-shrink-0"
+                    >
+                      <div className="flex h-[72px] w-[72px] items-center justify-center rounded-full glass border border-primary/25 bg-background/60 backdrop-blur-sm">
+                        <step.icon className="h-7 w-7 text-primary" />
+                      </div>
+                      <span className="absolute -top-1.5 -right-1.5 h-6 w-6 rounded-full gradient-primary text-primary-foreground text-xs font-bold flex items-center justify-center shadow-dream">
+                        {i + 1}
+                      </span>
+                    </motion.div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* ── Étiquettes et descriptions (tous écrans) ── */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-8 lg:gap-4">
               {steps.map((step, i) => (
                 <motion.div
-                  key={step.title}
-                  initial={{ opacity: 0, y: 16 }}
+                  key={step.label}
+                  initial={{ opacity: 0, y: 14 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
-                  transition={{ duration: 0.35, ease: "easeOut", delay: i * 0.1 }}
-                  className="relative z-10 flex flex-col items-center sm:items-start text-center sm:text-left sm:px-8"
+                  transition={{ duration: 0.35, ease: "easeOut", delay: 0.6 + i * 0.1 }}
+                  className="flex flex-col items-center text-center lg:px-2"
                 >
-                  <div className="mb-4 relative">
-                    <div className="flex h-[72px] w-[72px] items-center justify-center rounded-full glass border border-primary/25">
-                      <step.icon className="h-7 w-7 text-primary" />
+                  {/* Icône mobile/tablette uniquement */}
+                  <div className="lg:hidden mb-4 relative">
+                    <div className="flex h-[64px] w-[64px] items-center justify-center rounded-full glass border border-primary/25">
+                      <step.icon className="h-6 w-6 text-primary" />
                     </div>
                     <span className="absolute -top-1.5 -right-1.5 h-6 w-6 rounded-full gradient-primary text-primary-foreground text-xs font-bold flex items-center justify-center shadow-dream">
                       {i + 1}
                     </span>
                   </div>
-                  <h3 className="font-display font-semibold text-base sm:text-lg mb-2">
+
+                  <span className="text-xs font-bold uppercase tracking-widest text-amber-400 mb-1.5">
+                    {step.label}
+                  </span>
+                  <h3 className="font-display font-semibold text-base mb-2 leading-snug">
                     {step.title}
                   </h3>
-                  <p className="text-muted-foreground text-sm leading-relaxed max-w-[240px] sm:max-w-none">
+                  <p className="text-muted-foreground text-sm leading-relaxed">
                     {step.desc}
                   </p>
                 </motion.div>
@@ -277,20 +408,21 @@ export default function Landing() {
                 <div className="flex items-center justify-center lg:justify-start gap-2.5">
                   <ArianeOrbitIcon size={36} />
                   <span className="text-xs font-semibold uppercase tracking-widest bg-gradient-to-r from-amber-400 to-yellow-300 bg-clip-text text-transparent">
-                    Fil d'Ariane
+                    La Tisseuse d'Histoires
                   </span>
                 </div>
 
                 <h2 className="text-2xl sm:text-3xl font-display font-bold leading-snug">
                   Rencontrez{" "}
                   <span className="text-gradient">{ARIANE_DISPLAY_NAME}</span>,
-                  <br />votre muse narrative
+                  <br />votre fil conducteur
                 </h2>
 
                 <p className="text-foreground/75 text-sm sm:text-base leading-relaxed">
-                  {ARIANE_DISPLAY_NAME} analyse votre histoire en arrière-plan après chaque
-                  sauvegarde. Elle repère les incohérences, signale les personnages
-                  manquants et génère des résumés compacts pour nourrir chaque génération IA.
+                  À chaque sauvegarde, {ARIANE_DISPLAY_NAME} tisse en arrière-plan le fil
+                  invisible de votre récit. Elle repère les incohérences, mémorise chaque
+                  personnage et génère les résumés qui guident l'IA à chaque étape de
+                  votre création.
                 </p>
 
                 <ArianeBubble variant="continuity" caption="Fil d'Ariane — alerte continuité">

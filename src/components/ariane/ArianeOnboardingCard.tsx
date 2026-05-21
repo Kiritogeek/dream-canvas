@@ -352,10 +352,10 @@ export function ArianeOnboardingCard({ className }: ArianeOnboardingCardProps) {
                 className="mt-2 block w-full text-pretty text-muted-foreground md:mt-2.5"
                 variants={arianeBubbleTextItem}
               >
-                Vous définissez le <strong className="font-semibold text-foreground">Style</strong>, créez vos{" "}
+                Vous définissez le <strong className="font-semibold text-foreground">Style</strong>, posez les règles de votre{" "}
+                <strong className="font-semibold text-foreground">Univers</strong>, créez vos{" "}
                 <strong className="font-semibold text-foreground">Assets</strong>, écrivez votre{" "}
-                <strong className="font-semibold text-foreground">Scénario</strong>, définissez les règles de votre{" "}
-                <strong className="font-semibold text-foreground">Univers</strong>, puis composez vos chapitres grâce à
+                <strong className="font-semibold text-foreground">Scénario</strong>, puis composez vos chapitres grâce à
                 l’<strong className="font-semibold text-foreground">Édition</strong>.
               </motion.span>
               <motion.div

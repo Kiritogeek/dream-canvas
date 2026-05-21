@@ -51,7 +51,7 @@ import {
   type ProgressiveMenuStep,
 } from "@/lib/progressiveOnboardingStorage";
 
-const PROGRESSIVE_TOUR_TABS = ["scenario", "assets", "universe", "edition"] as const;
+const PROGRESSIVE_TOUR_TABS = ["universe", "scenario", "assets", "edition"] as const;
 
 export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>();

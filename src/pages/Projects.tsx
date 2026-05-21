@@ -4,7 +4,15 @@ import { motion } from "framer-motion";
 import { Plus, Trash2, Sparkles, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -41,25 +49,11 @@ export default function Projects() {
 
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
-  const [panelsTarget, setPanelsTarget] = useState("");
+  const [synopsis, setSynopsis] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
-
-  const genreTags = [
-    { label: "Fantasy",   emoji: "🧙" },
-    { label: "Médiéval",  emoji: "⚔️" },
-    { label: "SF",        emoji: "🚀" },
-    { label: "Romance",   emoji: "💕" },
-    { label: "Action",    emoji: "⚡" },
-    { label: "Mystère",   emoji: "🔍" },
-    { label: "Webtoon",   emoji: "📱" },
-    { label: "Manga",     emoji: "🎌" },
-    { label: "Européen",  emoji: "🎨" },
-    { label: "Horreur",   emoji: "👻" },
-    { label: "Historique",emoji: "🏛️" },
-    { label: "Comédie",   emoji: "😄" },
-  ];
+  const [selectedGenre, setSelectedGenre] = useState("");
+  const [selectedTone, setSelectedTone] = useState("");
 
   const deleteTargetProject = projects.find((p) => p.id === deleteTargetId);
 
@@ -75,24 +69,26 @@ export default function Projects() {
     e.preventDefault();
     if (!title.trim()) return;
 
-    const finalDescription = selectedTags.length
-      ? `[Tags: ${selectedTags.join(", ")}]`
-      : null;
-
-    const panelsNum = panelsTarget.trim()
-      ? Math.max(1, Math.min(99, parseInt(panelsTarget, 10) || 10))
+    const parts: string[] = [];
+    if (selectedGenre) parts.push(`[Tags: ${selectedGenre}]`);
+    if (selectedTone) parts.push(`[Tone: ${selectedTone}]`);
+    const prefix = parts.join("");
+    const body = synopsis.trim();
+    const finalDescription = prefix || body
+      ? `${prefix}${body ? (prefix ? " " + body : body) : ""}`
       : null;
 
     const isFirstProject = projects.length === 0;
 
     createProject.mutate(
-      { title: title.trim(), description: finalDescription, panels_target_per_chapter: panelsNum },
+      { title: title.trim(), description: finalDescription },
       {
         onSuccess: (data) => {
           setOpen(false);
           setTitle("");
-          setPanelsTarget("");
-          setSelectedTags([]);
+          setSynopsis("");
+          setSelectedGenre("");
+          setSelectedTone("");
           try {
             const attachStyleOnboarding =
               isFirstProject ||
@@ -114,12 +110,6 @@ export default function Projects() {
             variant: "destructive",
           }),
       }
-    );
-  };
-
-  const toggleTag = (tag: string) => {
-    setSelectedTags((prev) =>
-      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
     );
   };
 
@@ -177,45 +167,58 @@ export default function Projects() {
                 </div>
 
                 {/* Genre */}
-                <div className="space-y-2">
-                  <Label>Genre</Label>
-                  <div className="flex flex-wrap gap-2">
-                    {genreTags.map(({ label, emoji }) => {
-                      const active = selectedTags.includes(label);
-                      return (
-                        <button
-                          key={label}
-                          type="button"
-                          onClick={() => toggleTag(label)}
-                          className={[
-                            "flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-sm font-medium transition-all duration-150",
-                            active
-                              ? "border-primary/60 bg-primary/15 text-foreground shadow-sm scale-105"
-                              : "border-border/60 bg-background/40 text-muted-foreground hover:text-foreground hover:border-primary/30 hover:bg-primary/5",
-                          ].join(" ")}
-                        >
-                          <span className="text-base leading-none">{emoji}</span>
-                          {label}
-                        </button>
-                      );
-                    })}
+                {/* Genre + Tonalité côte à côte */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label>Genre</Label>
+                    <Select value={selectedGenre} onValueChange={setSelectedGenre}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Choisir…" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Fantasy">🧙 Fantasy</SelectItem>
+                        <SelectItem value="Médiéval">⚔️ Médiéval</SelectItem>
+                        <SelectItem value="SF">🚀 SF</SelectItem>
+                        <SelectItem value="Aventure">🗺️ Aventure</SelectItem>
+                        <SelectItem value="Romance">💕 Romance</SelectItem>
+                        <SelectItem value="Action">⚡ Action</SelectItem>
+                        <SelectItem value="Thriller">🎯 Thriller</SelectItem>
+                        <SelectItem value="Mystère">🔍 Mystère</SelectItem>
+                        <SelectItem value="Horreur">👻 Horreur</SelectItem>
+                        <SelectItem value="Dystopie">⚙️ Dystopie</SelectItem>
+                        <SelectItem value="Historique">🏛️ Historique</SelectItem>
+                        <SelectItem value="Comédie">😄 Comédie</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Tonalité <span className="text-muted-foreground font-normal text-xs">(opt.)</span></Label>
+                    <Select value={selectedTone} onValueChange={setSelectedTone}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Choisir…" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Épique">🔥 Épique</SelectItem>
+                        <SelectItem value="Sombre">🌑 Sombre</SelectItem>
+                        <SelectItem value="Humoristique">😂 Humoristique</SelectItem>
+                        <SelectItem value="Romantique">🌸 Romantique</SelectItem>
+                        <SelectItem value="Mystérieux">🌫️ Mystérieux</SelectItem>
+                        <SelectItem value="Slice of life">🌿 Slice of life</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
 
-                {/* Cases cible */}
+                {/* Synopsis */}
                 <div className="space-y-2">
-                  <Label>Cases cible par chapitre <span className="text-muted-foreground font-normal">(optionnel)</span></Label>
-                  <Input
-                    type="number"
-                    min={1}
-                    max={99}
-                    value={panelsTarget}
-                    onChange={(e) => setPanelsTarget(e.target.value)}
-                    placeholder="ex. 10"
+                  <Label>Synopsis <span className="text-muted-foreground font-normal text-xs">(optionnel)</span></Label>
+                  <Textarea
+                    value={synopsis}
+                    onChange={(e) => setSynopsis(e.target.value)}
+                    placeholder="En quelques phrases, de quoi parle votre histoire ?"
+                    rows={3}
+                    className="resize-none"
                   />
-                  <p className="text-xs text-muted-foreground">
-                    Référence indicative pour le découpage IA et la barre de progression.
-                  </p>
                 </div>
 
                 <Button
@@ -288,15 +291,28 @@ export default function Projects() {
                   </h3>
                   {(() => {
                     const tags = p.description?.match(/^\[Tags: ([^\]]+)\]/)?.[1]?.split(", ") ?? [];
-                    return tags.length > 0 ? (
-                      <div className="flex flex-wrap gap-1 mb-1">
-                        {tags.map((tag) => (
-                          <span key={tag} className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                    ) : null;
+                    const tones = p.description?.match(/\[Tone: ([^\]]+)\]/)?.[1]?.split(", ") ?? [];
+                    const synopsisText = p.description
+                      ?.replace(/\[Tags: [^\]]*\]/g, "")
+                      .replace(/\[Tone: [^\]]*\]/g, "")
+                      .trim() || null;
+                    return (
+                      <>
+                        {(tags.length > 0 || tones.length > 0) && (
+                          <div className="flex flex-wrap gap-1 mb-1.5">
+                            {tags.map((tag) => (
+                              <span key={tag} className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">{tag}</span>
+                            ))}
+                            {tones.map((tone) => (
+                              <span key={tone} className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-500 font-medium">{tone}</span>
+                            ))}
+                          </div>
+                        )}
+                        {synopsisText && (
+                          <p className="text-xs text-muted-foreground line-clamp-2 mb-1">{synopsisText}</p>
+                        )}
+                      </>
+                    );
                   })()}
                   <p className="text-xs text-muted-foreground mt-1 sm:mt-2">
                     {new Date(p.created_at).toLocaleDateString("fr-FR")}

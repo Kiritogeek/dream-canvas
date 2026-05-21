@@ -33,9 +33,9 @@ const ALL_NAV_LINKS = [
 
 const projectSteps = [
   { key: "edition",  label: PROJECT_MENU_LABEL.edition,  icon: Layers    },
-  { key: "universe", label: PROJECT_MENU_LABEL.universe, icon: Globe     },
   { key: "assets",   label: PROJECT_MENU_LABEL.assets,   icon: ImageIcon },
   { key: "scenario", label: PROJECT_MENU_LABEL.scenario, icon: BookOpen  },
+  { key: "universe", label: PROJECT_MENU_LABEL.universe, icon: Globe     },
   { key: "style",    label: PROJECT_MENU_LABEL.style,    icon: Palette   },
 ] as const;
 

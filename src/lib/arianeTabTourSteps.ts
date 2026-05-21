@@ -66,34 +66,34 @@ const ASSETS: ArianeTabTourStep[] = [
     ],
   },
   {
-    title: "Débloquer l’Univers",
+    title: "Débloquer l’Édition",
     paragraphs: [
-      "Dès qu’**au moins un asset possède une image**, l’onglet **Univers** s’ouvre.",
-      "Vous pourrez y poser les règles de votre monde et enrichir vos fiches — c’est ce socle que je lirai pour veiller à la **cohérence de votre récit** au fil des chapitres.",
+      "Dès qu’**au moins un asset possède une image**, l’onglet **Édition** s’ouvre.",
+      "C’est là que style, univers, scénario et assets se réunissent pour composer vos cases, une par une.",
     ],
   },
 ];
 
 const UNIVERSE: ArianeTabTourStep[] = [
   {
-    title: "Votre monde, derrière vos assets",
+    title: "Poser les règles de votre monde",
     paragraphs: [
-      "Vos assets ont maintenant une image. L’**Univers** va plus loin : il pose les règles de votre monde et les détails de chaque fiche — motivations, alliances, lois de la fiction.",
+      "Avant de générer des visuels, posez les **fondations de votre univers** : les règles de votre fiction, vos personnages, leurs motivations, les lois de votre monde.",
       "C’est ce contexte que je lis pour repérer les **incohérences** avant qu’elles ne se propagent dans vos chapitres.",
     ],
   },
   {
     title: "Deux espaces d’écriture",
     paragraphs: [
-      "Complétez la **zone « Monde »** pour les règles globales de votre fiction. Ouvrez ensuite chaque **asset** pour y ajouter motivations, factions ou usages.",
+      "Complétez la **zone « Monde »** pour les règles globales de votre fiction. Ajoutez ensuite une **fiche** par personnage ou élément clé.",
       "Plus vous renseignez, plus je peux vous signaler tôt ce qui risque de **tirer votre récit dans des directions différentes**.",
     ],
   },
   {
-    title: "Débloquer l’Édition",
+    title: "Débloquer le Scénario",
     paragraphs: [
-      "**Enregistrez au moins un bloc de lore** — monde ou fiche — pour déverrouiller l’onglet **Édition**.",
-      "C’est là que tout ce travail prend vie : **style, scénario, assets et univers** réunis pour composer vos cases.",
+      "**Enregistrez au moins un bloc de lore** — monde ou fiche — pour déverrouiller l’onglet **Scénario**.",
+      "Vous pourrez alors écrire votre histoire avec un univers déjà posé pour guider la cohérence de votre récit.",
     ],
   },
 ];
@@ -116,15 +116,15 @@ const EDITION: ArianeTabTourStep[] = [
   {
     title: "L’histoire est entre vos mains",
     paragraphs: [
-      "Vous avez posé le **style**, créé vos **assets**, écrit le **scénario** et ancré l’**Univers**. Le reste s’écrit ici, case après case.",
+      "Vous avez posé le **style**, ancré votre **Univers**, créé vos **assets** et écrit le **scénario**. Le reste s’écrit ici, case après case.",
       "Je reste disponible dans le fil **Ariane** pour signaler les incohérences au fil de votre récit.",
     ],
   },
 ];
 
 export const ARIANE_TAB_TOUR_BY_STEP: Record<ProgressiveMenuStep, ArianeTabTourStep[]> = {
+  universe: UNIVERSE,
   scenario: SCENARIO,
   assets: ASSETS,
-  universe: UNIVERSE,
   edition: EDITION,
 };

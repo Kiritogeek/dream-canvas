@@ -4,8 +4,16 @@ import { motion } from "framer-motion";
 import { Plus, FolderOpen, Sparkles, Image, Zap, Brain } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useRecentProjects, useProjectCount, useCreateProject } from "@/hooks/useProjects";
 import { useAssetCount } from "@/hooks/useAssets";
@@ -22,21 +30,6 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { resetProgressiveOnboardingSimulation, bindForcedProgressiveProjectAfterCreate } from "@/lib/progressiveOnboardingStorage";
 
-const genreTags = [
-  { label: "Fantasy",    emoji: "🧙" },
-  { label: "Médiéval",   emoji: "⚔️" },
-  { label: "SF",         emoji: "🚀" },
-  { label: "Romance",    emoji: "💕" },
-  { label: "Action",     emoji: "⚡" },
-  { label: "Mystère",    emoji: "🔍" },
-  { label: "Webtoon",    emoji: "📱" },
-  { label: "Manga",      emoji: "🎌" },
-  { label: "Européen",   emoji: "🎨" },
-  { label: "Horreur",    emoji: "👻" },
-  { label: "Historique", emoji: "🏛️" },
-  { label: "Comédie",    emoji: "😄" },
-];
-
 export default function Dashboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -49,14 +42,12 @@ export default function Dashboard() {
 
   const [createOpen, setCreateOpen] = useState(false);
   const [newTitle, setNewTitle] = useState("");
-  const [newPanelsTarget, setNewPanelsTarget] = useState("");
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [newSynopsis, setNewSynopsis] = useState("");
+  const [selectedGenre, setSelectedGenre] = useState("");
+  const [selectedTone, setSelectedTone] = useState("");
 
   const canReplayArianeOnboarding =
     user?.email?.trim().toLowerCase() === ARIANE_ONBOARDING_ADMIN_EMAIL;
-
-  const toggleTag = (tag: string) =>
-    setSelectedTags((prev) => prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]);
 
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,22 +60,24 @@ export default function Dashboard() {
       });
       return;
     }
-    const panelsNum = newPanelsTarget.trim()
-      ? Math.max(1, Math.min(99, parseInt(newPanelsTarget, 10) || 10))
+    const parts: string[] = [];
+    if (selectedGenre) parts.push(`[Tags: ${selectedGenre}]`);
+    if (selectedTone) parts.push(`[Tone: ${selectedTone}]`);
+    const prefix = parts.join("");
+    const body = newSynopsis.trim();
+    const finalDescription = prefix || body
+      ? `${prefix}${body ? (prefix ? " " + body : body) : ""}`
       : null;
     const isFirstProject = projectCount === 0;
     createProject.mutate(
-      {
-        title: newTitle.trim(),
-        description: selectedTags.length ? `[Tags: ${selectedTags.join(", ")}]` : null,
-        panels_target_per_chapter: panelsNum,
-      },
+      { title: newTitle.trim(), description: finalDescription },
       {
         onSuccess: (data) => {
           setCreateOpen(false);
           setNewTitle("");
-          setNewPanelsTarget("");
-          setSelectedTags([]);
+          setNewSynopsis("");
+          setSelectedGenre("");
+          setSelectedTone("");
           try {
             const attachStyleOnboarding =
               isFirstProject ||
@@ -270,9 +263,31 @@ export default function Dashboard() {
                     <h3 className="font-display font-semibold text-sm sm:text-base mb-1 group-hover:text-primary transition-colors">
                       {p.title}
                     </h3>
-                    <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2">
-                      {p.description || "Aucune description"}
-                    </p>
+                    {(() => {
+                      const tags = p.description?.match(/^\[Tags: ([^\]]+)\]/)?.[1]?.split(", ") ?? [];
+                      const tones = p.description?.match(/\[Tone: ([^\]]+)\]/)?.[1]?.split(", ") ?? [];
+                      const synopsisText = p.description
+                        ?.replace(/\[Tags: [^\]]*\]/g, "")
+                        .replace(/\[Tone: [^\]]*\]/g, "")
+                        .trim() || null;
+                      return (
+                        <>
+                          {(tags.length > 0 || tones.length > 0) && (
+                            <div className="flex flex-wrap gap-1 mb-1.5">
+                              {tags.map((tag) => (
+                                <span key={tag} className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">{tag}</span>
+                              ))}
+                              {tones.map((tone) => (
+                                <span key={tone} className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-500 font-medium">{tone}</span>
+                              ))}
+                            </div>
+                          )}
+                          <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2">
+                            {synopsisText || "Aucune description"}
+                          </p>
+                        </>
+                      );
+                    })()}
                     <p className="text-xs text-muted-foreground mt-2 sm:mt-3">
                       {new Date(p.created_at).toLocaleDateString("fr-FR")}
                     </p>
@@ -300,41 +315,61 @@ export default function Dashboard() {
                 required
               />
             </div>
-            <div className="space-y-2">
-              <Label>Genre</Label>
-              <div className="flex flex-wrap gap-2">
-                {genreTags.map(({ label, emoji }) => {
-                  const active = selectedTags.includes(label);
-                  return (
-                    <button
-                      key={label}
-                      type="button"
-                      onClick={() => toggleTag(label)}
-                      className={[
-                        "flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-sm font-medium transition-all duration-150",
-                        active
-                          ? "border-primary/60 bg-primary/15 text-foreground shadow-sm scale-105"
-                          : "border-border/60 bg-background/40 text-muted-foreground hover:text-foreground hover:border-primary/30 hover:bg-primary/5",
-                      ].join(" ")}
-                    >
-                      <span className="text-base leading-none">{emoji}</span>
-                      {label}
-                    </button>
-                  );
-                })}
+
+            {/* Genre + Tonalité côte à côte */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Genre</Label>
+                <Select value={selectedGenre} onValueChange={setSelectedGenre}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choisir…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Fantasy">🧙 Fantasy</SelectItem>
+                    <SelectItem value="Médiéval">⚔️ Médiéval</SelectItem>
+                    <SelectItem value="SF">🚀 SF</SelectItem>
+                    <SelectItem value="Aventure">🗺️ Aventure</SelectItem>
+                    <SelectItem value="Romance">💕 Romance</SelectItem>
+                    <SelectItem value="Action">⚡ Action</SelectItem>
+                    <SelectItem value="Thriller">🎯 Thriller</SelectItem>
+                    <SelectItem value="Mystère">🔍 Mystère</SelectItem>
+                    <SelectItem value="Horreur">👻 Horreur</SelectItem>
+                    <SelectItem value="Dystopie">⚙️ Dystopie</SelectItem>
+                    <SelectItem value="Historique">🏛️ Historique</SelectItem>
+                    <SelectItem value="Comédie">😄 Comédie</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Tonalité <span className="text-muted-foreground font-normal text-xs">(opt.)</span></Label>
+                <Select value={selectedTone} onValueChange={setSelectedTone}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choisir…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Épique">🔥 Épique</SelectItem>
+                    <SelectItem value="Sombre">🌑 Sombre</SelectItem>
+                    <SelectItem value="Humoristique">😂 Humoristique</SelectItem>
+                    <SelectItem value="Romantique">🌸 Romantique</SelectItem>
+                    <SelectItem value="Mystérieux">🌫️ Mystérieux</SelectItem>
+                    <SelectItem value="Slice of life">🌿 Slice of life</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
+
+            {/* Synopsis */}
             <div className="space-y-2">
-              <Label>Cases cible par chapitre <span className="text-muted-foreground font-normal">(optionnel)</span></Label>
-              <Input
-                type="number"
-                min={1}
-                max={99}
-                value={newPanelsTarget}
-                onChange={(e) => setNewPanelsTarget(e.target.value)}
-                placeholder="ex. 10"
+              <Label>Synopsis <span className="text-muted-foreground font-normal text-xs">(optionnel)</span></Label>
+              <Textarea
+                value={newSynopsis}
+                onChange={(e) => setNewSynopsis(e.target.value)}
+                placeholder="En quelques phrases, de quoi parle votre histoire ?"
+                rows={3}
+                className="resize-none"
               />
             </div>
+
             <Button
               type="submit"
               disabled={createProject.isPending}

@@ -17,11 +17,12 @@ import { useUserPlan } from "@/hooks/useUserPlan";
 import { planDisplayName } from "@/types";
 import { useProject, useProjects, useUpdateProject } from "@/hooks/useProjects";
 import { useProgressiveMenuSidebarState } from "@/hooks/useProgressiveMenuGate";
+import { useHasAssetNotif, useBlockNotifsForProject } from "@/lib/generationPending";
 import { useToast } from "@/hooks/use-toast";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { ArianeOnboardingCard } from "@/components/ariane";
 import { PROJECT_MENU_LABEL } from "@/lib/projectMenuLabels";
-import { ARIANE_ONBOARDING_ADMIN_EMAIL } from "@/constants/ariane";
+import { ARIANE_ONBOARDING_ADMIN_EMAIL, ARIANE_STYLE_ONBOARDING_STORAGE_KEY } from "@/constants/ariane";
 
 const ALL_NAV_LINKS = [
   { to: "/dashboard",          icon: LayoutDashboard, label: "Tableau de bord", adminOnly: false },
@@ -31,11 +32,11 @@ const ALL_NAV_LINKS = [
 ];
 
 const projectSteps = [
-  { key: "style",    label: PROJECT_MENU_LABEL.style,    icon: Palette   },
-  { key: "scenario", label: PROJECT_MENU_LABEL.scenario, icon: BookOpen  },
-  { key: "assets",   label: PROJECT_MENU_LABEL.assets,   icon: ImageIcon },
-  { key: "universe", label: PROJECT_MENU_LABEL.universe, icon: Globe     },
   { key: "edition",  label: PROJECT_MENU_LABEL.edition,  icon: Layers    },
+  { key: "assets",   label: PROJECT_MENU_LABEL.assets,   icon: ImageIcon },
+  { key: "scenario", label: PROJECT_MENU_LABEL.scenario, icon: BookOpen  },
+  { key: "universe", label: PROJECT_MENU_LABEL.universe, icon: Globe     },
+  { key: "style",    label: PROJECT_MENU_LABEL.style,    icon: Palette   },
 ] as const;
 
 function ProjectStepsSection({ projectId, onLinkClick }: { projectId: string; onLinkClick?: () => void }) {
@@ -54,6 +55,8 @@ function ProjectStepsSection({ projectId, onLinkClick }: { projectId: string; on
     projectId,
     activeTab
   );
+  const hasAssetNotif = useHasAssetNotif(projectId);
+  const blockNotifs = useBlockNotifsForProject(projectId);
   const updateProject = useUpdateProject();
   const { toast } = useToast();
 
@@ -85,11 +88,16 @@ function ProjectStepsSection({ projectId, onLinkClick }: { projectId: string; on
     ? [...projectSteps, { key: "test", label: "Test", icon: FlaskConical } as const]
     : projectSteps;
 
+  const styleOnboardingDone = user?.id
+    ? (() => { try { return localStorage.getItem(`${ARIANE_STYLE_ONBOARDING_STORAGE_KEY}_${user.id}`) === "1"; } catch { return false; } })()
+    : false;
+
   const sidebarSteps =
     appliesProgressiveFlow
       ? baseSteps.filter((step) => {
           if (step.key === "style") return true;
           if (step.key === "test") return isAdmin;
+          if (!styleOnboardingDone) return false;
           if (!isResolved) return false;
           return accessible[step.key as keyof typeof accessible];
         })
@@ -116,42 +124,59 @@ function ProjectStepsSection({ projectId, onLinkClick }: { projectId: string; on
       )}
 
       <nav className="border-l border-border/60 ml-4">
-        {sidebarSteps.map((step) => {
-          const Icon = step.icon;
-          const isActive = activeTab === step.key;
-          const to = "path" in step
-            ? `/dashboard/projects/${projectId}/${step.path}`
-            : `/dashboard/projects/${projectId}?tab=${step.key}`;
-          const className = `flex items-center gap-3 pl-4 pr-3 py-2.5 text-sm font-medium transition-colors duration-150 border-l-2 -ml-px ${
-            isActive
-              ? "border-primary text-foreground bg-primary/8"
-              : "border-transparent text-muted-foreground hover:text-foreground hover:border-border hover:bg-muted/50"
-          }`;
-          const newBadge =
-            showNew[step.key as keyof typeof showNew] &&
-            step.key !== "style" ? (
-              <span className="shrink-0 rounded-full bg-mint px-1.5 py-0 text-[10px] font-bold uppercase tracking-wide text-white">
-                New
+        <AnimatePresence initial={false}>
+          {sidebarSteps.map((step) => {
+            const Icon = step.icon;
+            const isActive = activeTab === step.key;
+            const to = "path" in step
+              ? `/dashboard/projects/${projectId}/${step.path}`
+              : `/dashboard/projects/${projectId}?tab=${step.key}`;
+            const className = `flex items-center gap-3 pl-4 pr-3 py-2.5 text-sm font-medium transition-colors duration-150 border-l-2 -ml-px ${
+              isActive
+                ? "border-primary text-foreground bg-primary/8"
+                : "border-transparent text-muted-foreground hover:text-foreground hover:border-border hover:bg-muted/50"
+            }`;
+            const newBadge =
+              showNew[step.key as keyof typeof showNew] &&
+              step.key !== "style" ? (
+                <span className="shrink-0 rounded-full bg-mint px-1.5 py-0 text-[10px] font-bold uppercase tracking-wide text-white">
+                  New
+                </span>
+              ) : null;
+            const showGenNotif = !isActive && (
+              (step.key === "assets" && hasAssetNotif) ||
+              (step.key === "edition" && blockNotifs.size > 0)
+            );
+            const genNotifBadge = showGenNotif ? (
+              <span className="relative shrink-0 inline-flex items-center justify-center w-4 h-4">
+                <span className="absolute inset-0 rounded-full bg-[hsl(var(--lavender)/0.5)] animate-ping" />
+                <span className="relative inline-flex items-center justify-center w-4 h-4 rounded-full gradient-primary">
+                  <Sparkles className="h-2.5 w-2.5 text-white" />
+                </span>
               </span>
             ) : null;
-          const label = (
-            <>
-              <Icon className={`h-4 w-4 flex-shrink-0 transition-colors ${isActive ? "text-primary" : ""}`} />
-              <span className="flex-1 truncate">{step.label}</span>
-              {newBadge}
-            </>
-          );
-          return (
-            <Link
-              key={step.key}
-              to={to}
-              onClick={onLinkClick}
-              className={className}
-            >
-              {label}
-            </Link>
-          );
-        })}
+            return (
+              <motion.div
+                key={step.key}
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.22, ease: "easeOut" }}
+              >
+                <Link
+                  to={to}
+                  onClick={onLinkClick}
+                  className={className}
+                >
+                  <Icon className={`h-4 w-4 flex-shrink-0 transition-colors ${isActive ? "text-primary" : ""}`} />
+                  <span className="flex-1 truncate">{step.label}</span>
+                  {newBadge}
+                  {genNotifBadge}
+                </Link>
+              </motion.div>
+            );
+          })}
+        </AnimatePresence>
       </nav>
 
       {/* Edit dialog */}

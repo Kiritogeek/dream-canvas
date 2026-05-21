@@ -1,6 +1,6 @@
-import { useState, useCallback, useMemo, memo } from "react";
+import { useState, useCallback, useMemo, memo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Plus,
   ChevronUp,
@@ -14,6 +14,7 @@ import {
   Layers,
   Crown,
   ImageIcon,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,6 +46,8 @@ import {
 import { useScenarioChapters } from "@/hooks/useScenarioChapters";
 import { useUserPlan } from "@/hooks/useUserPlan";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchPanels } from "@/services/panels";
+import { useBlockNotifsForProject } from "@/lib/generationPending";
 import type { Chapter, ScenarioChapter } from "@/types";
 import { planDisplayName, TIER_CONFIG } from "@/types";
 
@@ -62,6 +65,7 @@ interface ChapterCardProps {
   panelBlocksForChapter: Array<{ chapter_id: string; layout: unknown }>;
   scenarioChaptersData: ScenarioChapter[];
   allowScenarioAI: boolean;
+  hasGenNotif: boolean;
 }
 
 const ChapterEditionCard = memo(function ChapterEditionCard({
@@ -76,8 +80,10 @@ const ChapterEditionCard = memo(function ChapterEditionCard({
   panelBlocksForChapter,
   scenarioChaptersData,
   allowScenarioAI,
+  hasGenNotif,
 }: ChapterCardProps) {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const sc = scenarioChaptersData.find((s) => s.id === chapter.linked_scenario_chapter_id);
   const detectedCases = Array.isArray(sc?.panels_outline)
@@ -96,9 +102,20 @@ const ChapterEditionCard = memo(function ChapterEditionCard({
       ? Math.round((generatedImages / detectedCases) * 100)
       : null;
 
+  const handlePrefetchPanels = useCallback(() => {
+    void queryClient.prefetchQuery({
+      queryKey: ["panels", chapter.id],
+      queryFn: () => fetchPanels(chapter.id),
+      staleTime: 30_000,
+    });
+  }, [queryClient, chapter.id]);
+
   const handleOpenChapter = useCallback(
-    () => navigate(`/dashboard/projects/${projectId}/chapter/${chapter.id}`),
-    [navigate, projectId, chapter.id]
+    () => {
+      queryClient.setQueryData(["chapter", chapter.id], chapter);
+      navigate(`/dashboard/projects/${projectId}/chapter/${chapter.id}`);
+    },
+    [navigate, queryClient, projectId, chapter]
   );
 
   const handleMoveUp = useCallback(
@@ -121,6 +138,7 @@ const ChapterEditionCard = memo(function ChapterEditionCard({
   return (
     <div
       className="flex flex-col gap-3 p-5 rounded-2xl border border-[hsl(var(--peach)/0.75)] dark:border-[hsl(var(--peach)/0.4)] hover:border-[hsl(var(--lavender)/0.85)] dark:hover:border-[hsl(var(--lavender)/0.5)] bg-white/85 dark:bg-card/30 shadow-sm hover:shadow-md transition-all duration-200 group cursor-pointer"
+      onMouseEnter={handlePrefetchPanels}
       onClick={handleOpenChapter}
     >
       {/* Numéro + titre + actions */}
@@ -132,6 +150,14 @@ const ChapterEditionCard = memo(function ChapterEditionCard({
           <h3 className="font-semibold font-display text-foreground leading-snug pt-0.5">
             {chapter.title}
           </h3>
+          {hasGenNotif && (
+            <span className="relative shrink-0 inline-flex items-center justify-center w-4 h-4 mt-0.5" title="Génération terminée">
+              <span className="absolute inset-0 rounded-full bg-[hsl(var(--lavender)/0.5)] animate-ping" />
+              <span className="relative inline-flex items-center justify-center w-4 h-4 rounded-full gradient-primary">
+                <Sparkles className="h-2.5 w-2.5 text-white" />
+              </span>
+            </span>
+          )}
         </div>
 
         <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -229,8 +255,13 @@ interface EditionSectionProps {
 export function EditionSection({ projectId }: EditionSectionProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  useEffect(() => {
+    void import("@/pages/ChapterDetail");
+  }, []);
   const { plan } = useUserPlan();
   const { data: chapters = [], isLoading } = useChapters(projectId);
+  const blockNotifs = useBlockNotifsForProject(projectId);
   const { data: scenarioChapters = [] } = useScenarioChapters(projectId);
 
   const { data: allPanelBlocks = [] } = useQuery({
@@ -433,18 +464,6 @@ export function EditionSection({ projectId }: EditionSectionProps) {
         )}
       </div>
 
-      {/* Skeletons */}
-      {isLoading && (
-        <div className="flex flex-col gap-3">
-          {[1, 2].map((i) => (
-            <div
-              key={i}
-              className="rounded-2xl border border-border bg-muted/20 h-24 animate-pulse"
-            />
-          ))}
-        </div>
-      )}
-
       {/* État vide */}
       {!isLoading && chapters.length === 0 && (
         <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-[hsl(var(--lavender)/0.55)] dark:border-[hsl(var(--lavender)/0.3)] bg-[hsl(var(--lavender)/0.03)] py-16 px-4 text-center flex-1">
@@ -489,6 +508,7 @@ export function EditionSection({ projectId }: EditionSectionProps) {
               panelBlocksForChapter={allPanelBlocks.filter((p) => p.chapter_id === chapter.id)}
               scenarioChaptersData={scenarioChapters}
               allowScenarioAI={TIER_CONFIG[plan].allowScenarioAI}
+              hasGenNotif={blockNotifs.has(chapter.id)}
             />
           ))}
         </div>

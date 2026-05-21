@@ -23,7 +23,7 @@ export type ProgressiveTabKey = "style" | ProgressiveMenuStep;
 
 export type ProgressiveAccess = Record<ProgressiveTabKey, boolean>;
 
-const ORDER: ProgressiveTabKey[] = ["style", "scenario", "assets", "universe", "edition"];
+const ORDER: ProgressiveTabKey[] = ["style", "universe", "scenario", "assets", "edition"];
 
 export function getMaxAccessibleTab(accessible: ProgressiveAccess): ProgressiveTabKey {
   let last: ProgressiveTabKey = "style";
@@ -93,14 +93,14 @@ export function useProgressiveMenuAccess(projectId: string | undefined) {
     }
     return {
       style: true,
-      scenario: styleValidated,
-      assets: styleValidated && hasScenarioChapter,
-      universe: styleValidated && hasScenarioChapter && hasGeneratedAsset,
+      universe: styleValidated,
+      scenario: styleValidated && hasUniverseLoreSaved,
+      assets: styleValidated && hasUniverseLoreSaved && hasScenarioChapter,
       edition:
         styleValidated &&
+        hasUniverseLoreSaved &&
         hasScenarioChapter &&
-        hasGeneratedAsset &&
-        hasUniverseLoreSaved,
+        hasGeneratedAsset,
     };
   }, [
     appliesProgressiveFlow,
@@ -137,7 +137,7 @@ export function useProgressiveMenuSidebarState(
   useEffect(() => {
     if (!userId || !projectId || !appliesProgressiveFlow || !isResolved) return;
     if (sidebarActiveStep === "style") return;
-    const steps: ProgressiveMenuStep[] = ["scenario", "assets", "universe", "edition"];
+    const steps: ProgressiveMenuStep[] = ["universe", "scenario", "assets", "edition"];
     if (!steps.includes(sidebarActiveStep as ProgressiveMenuStep)) return;
     const step = sidebarActiveStep as ProgressiveMenuStep;
     if (!accessibleRef.current[step]) return;
@@ -163,7 +163,7 @@ export function useProgressiveMenuSidebarState(
             universe: false,
             edition: false,
           };
-          const steps: ProgressiveMenuStep[] = ["scenario", "assets", "universe", "edition"];
+          const steps: ProgressiveMenuStep[] = ["universe", "scenario", "assets", "edition"];
           const out = { ...base };
           for (const s of steps) {
             out[s] = accessible[s] && !isMenuNewDismissed(userId, s);

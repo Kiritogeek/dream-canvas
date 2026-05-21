@@ -216,7 +216,7 @@ export function PanelExportSpeechBubbles({ speechBubbles }: { speechBubbles: Spe
 
             <div
               data-export-layer="text"
-              className={`absolute flex flex-col justify-center pointer-events-none ${textAreaLeft == null ? "inset-x-0 px-3" : "px-2"}`}
+              className={`absolute flex flex-col justify-center pointer-events-none ${textAreaLeft == null ? `inset-x-0 ${bubble.type === "narration" ? "px-11 py-10" : "px-3"}` : "px-2"}`}
               style={{
                 top: adjustedTextAreaTop,
                 minHeight: textAreaH,

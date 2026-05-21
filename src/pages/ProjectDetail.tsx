@@ -7,7 +7,9 @@ import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { useProject } from "@/hooks/useProjects";
 import { useAssets } from "@/hooks/useAssets";
+import { useChapters } from "@/hooks/useChapters";
 import { useAssetGeneration } from "@/hooks/useAssetGeneration";
+import { clearAssetNotif, subscribeToGenerationEvents } from "@/lib/generationPending";
 import { useUserPlan } from "@/hooks/useUserPlan";
 import { useNarraMindAlerts } from "@/hooks/useNarramindAlerts";
 import { useNarramindMissingAssets } from "@/hooks/useNarramindMissingAssets";
@@ -29,6 +31,8 @@ import {
   ArianeContinuityPanel,
 } from "@/components/ariane";
 import {
+  ARIANE_FORCED_PROGRESSIVE_PENDING,
+  ARIANE_FORCED_PROGRESSIVE_PROJECT_SESSION_KEY,
   ARIANE_ONBOARDING_ADMIN_EMAIL,
   ARIANE_PROGRESSIVE_SIDEBAR_BUMP_EVENT,
   ARIANE_STYLE_ONBOARDING_PENDING_PROJECT_ID_KEY,
@@ -47,13 +51,14 @@ import {
   type ProgressiveMenuStep,
 } from "@/lib/progressiveOnboardingStorage";
 
-const PROGRESSIVE_TOUR_TABS = ["scenario", "assets", "universe", "edition"] as const;
+const PROGRESSIVE_TOUR_TABS = ["universe", "scenario", "assets", "edition"] as const;
 
 export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { data: project, isLoading: loadingProject } = useProject(id);
   const { data: assets = [], isLoading: loadingAssets } = useAssets(id);
+  useChapters(id);
   const { plan: userPlan, usageInfo, nextResetDate } = useUserPlan();
   const { user } = useAuth();
   // Clé par utilisateur — même logique que l'onboarding bienvenue
@@ -75,6 +80,25 @@ export default function ProjectDetail() {
       : rawTab === "test" && isArianeOnboardingAdmin
         ? "test"
         : "style";
+
+  // Redirige vers edition si onboarding terminé — URL = source de vérité (sidebar + contenu sync)
+  useEffect(() => {
+    if (!user?.id || rawTab) return;
+    // Cas rapide : journey final déjà posé (requiert seulement l'auth)
+    if (isJourneyFinalDismissed(user.id)) {
+      setSearchParams({ tab: "edition" }, { replace: true });
+      return;
+    }
+    // Cas vétéran multi-projets : ne pas rediriger si la simulation est en attente
+    const simKey =
+      typeof window !== "undefined"
+        ? sessionStorage.getItem(ARIANE_FORCED_PROGRESSIVE_PROJECT_SESSION_KEY)
+        : null;
+    if (simKey === ARIANE_FORCED_PROGRESSIVE_PENDING) return;
+    if (!isResolved || appliesProgressiveFlow) return;
+    dismissJourneyFinal(user.id);
+    setSearchParams({ tab: "edition" }, { replace: true });
+  }, [user?.id, rawTab, isResolved, appliesProgressiveFlow, setSearchParams]);
 
   const [styleDraft, setStyleDraft] = useState<string | undefined>(undefined);
   const [journeyCompleteOpen, setJourneyCompleteOpen] = useState(false);
@@ -150,6 +174,12 @@ export default function ProjectDetail() {
   }, [project?.id]);
 
   useEffect(() => {
+    if (activeTab !== "assets" || !id) return;
+    clearAssetNotif(id);
+    return subscribeToGenerationEvents(() => clearAssetNotif(id));
+  }, [activeTab, id]);
+
+  useEffect(() => {
     if (activeTab !== "style" || !project?.id || !styleOnboardingKey) return;
     let dismissed = false;
     try {
@@ -174,6 +204,7 @@ export default function ProjectDetail() {
       /* ignore */
     }
     setStyleOnboardingOpen(false);
+    window.dispatchEvent(new CustomEvent(ARIANE_PROGRESSIVE_SIDEBAR_BUMP_EVENT));
   }, [styleOnboardingKey]);
 
   const handleJourneyCompleteFinished = useCallback(() => {
@@ -251,9 +282,7 @@ export default function ProjectDetail() {
   const canShowAdminTriggerOnboardingButton =
     isArianeOnboardingAdmin &&
     (activeTab === "style" ||
-      Boolean(
-        progressiveTourTab && appliesProgressiveFlow && accessible[progressiveTourTab]
-      ));
+      PROGRESSIVE_TOUR_TABS.includes(activeTab as (typeof PROGRESSIVE_TOUR_TABS)[number]));
 
   const handleAdminTriggerOnboarding = useCallback(() => {
     if (!user?.id || !project?.id || !isArianeOnboardingAdmin) return;

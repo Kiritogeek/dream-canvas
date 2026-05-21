@@ -2,12 +2,12 @@
 // Depuis la refonte "Sheet System" (avril 2026), une génération de personnage
 // produit en 1 appel : la vue de face (affichée) + la sheet 4 angles
 // (référence cohérence panels). Pas de vues séparées, pas d'options de vue.
-import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { logGenerationFailure } from "@/lib/generationLogger";
 import { extractStyleKeyFromTemplateText } from "@/lib/styleTemplateMeta";
 import { generateAssetImage } from "@/services/assets";
+import { startAssetGeneration, endAssetGeneration, useGeneratingAssetId, notifyAssetDone } from "@/lib/generationPending";
 import type { Asset, Project, UserPlan, UsageInfo } from "@/types";
 
 interface StyleInfo {
@@ -59,7 +59,7 @@ function summarizeGenerationError(message: string): string {
 export function useAssetGeneration(styleInfo: StyleInfo) {
   const { toast } = useToast();
   const qc = useQueryClient();
-  const [generatingAssetId, setGeneratingAssetId] = useState<string | null>(null);
+  const generatingAssetId = useGeneratingAssetId();
 
   const canGenerate = (): boolean => {
     if (styleInfo.usageInfo && styleInfo.usageInfo.count >= styleInfo.usageInfo.limit) {
@@ -93,7 +93,7 @@ export function useAssetGeneration(styleInfo: StyleInfo) {
 
     const { hasStyleText, hasStyleImages, currentStyleText } = styleCheck;
 
-    setGeneratingAssetId(asset.id);
+    startAssetGeneration(asset.id);
 
     const modelLabel = "FLUX.2 Pro (haute qualité)";
     const presetKey = hasStyleText
@@ -135,6 +135,7 @@ export function useAssetGeneration(styleInfo: StyleInfo) {
       });
 
       if (result.image_url) {
+        notifyAssetDone(asset.project_id);
         qc.invalidateQueries({ queryKey: ["assets", asset.project_id] });
         qc.invalidateQueries({ queryKey: ["monthlyUsage"] });
         toast({ title: "Image générée !" });
@@ -158,7 +159,7 @@ export function useAssetGeneration(styleInfo: StyleInfo) {
         variant: "destructive",
       });
     } finally {
-      setGeneratingAssetId(null);
+      endAssetGeneration(asset.id);
     }
   };
 

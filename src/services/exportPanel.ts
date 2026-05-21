@@ -111,19 +111,27 @@ function clearAllIgnore(el: HTMLElement): void {
 export async function renderPanelToCanvas(
   panelEl: HTMLDivElement
 ): Promise<HTMLCanvasElement> {
+  // Wrapper fixed hors-écran — reproduit exactement la structure du DOM d'export
+  // (div relative à l'intérieur d'un fixed). Changer le clone en position:fixed
+  // modifie le containing block des enfants absolute et casse html2canvas.
+  const wrapper = document.createElement("div");
+  wrapper.style.cssText = "position:fixed;left:-9999px;top:0;pointer-events:none;z-index:-1;overflow:visible";
   const clone = panelEl.cloneNode(true) as HTMLDivElement;
-  clone.style.position = "fixed";
-  clone.style.left = "-19999px";
-  clone.style.top = "0";
-  clone.style.zIndex = "-1";
-  document.body.appendChild(clone);
+  wrapper.appendChild(clone);
+  document.body.appendChild(wrapper);
 
   try {
     await waitForImages(clone);
 
-    // ── Passe 1 : images + couleurs (sans SVG ni texte) ───────────────────
+    // ── Passe 1 : images + couleurs + formes SVG bulles ────────────────
+    // vector-effect="non-scaling-stroke" → stroke width=0 dans html2canvas
+    // (non supporté lors de la conversion SVG→Blob URL). On le retire pour
+    // que les tracés soient visibles. Le stroke sera légèrement plus épais
+    // mais la forme reste fidèle.
     clearAllIgnore(clone);
-    setIgnore(clone, '[data-export-layer="svg"]');
+    clone.querySelectorAll("[vector-effect]").forEach((el) =>
+      el.removeAttribute("vector-effect")
+    );
     setIgnore(clone, '[data-export-layer="text"]');
 
     const bgCanvas = await html2canvas(clone, {
@@ -135,17 +143,9 @@ export async function renderPanelToCanvas(
     });
 
     // ── Passe 2 : texte uniquement sur fond transparent ──────────────────
-    // Les formes SVG (bulles + queues) sont gérées par Path2D dans drawTailsOnCanvas.
-    // Ignorer les SVG ici évite que html2canvas les redessine avec un stroke épais
-    // (vector-effect non supporté en contexte Blob URL).
     clearAllIgnore(clone);
     setIgnore(clone, '[data-export-layer="bg"]');
     setIgnore(clone, '[data-export-layer="svg"]');
-
-    // vector-effect non supporté quand html2canvas convertit le SVG en image
-    clone.querySelectorAll("[vector-effect]").forEach((el) =>
-      el.removeAttribute("vector-effect")
-    );
 
     // Le fond du panel root est blanc — le rendre transparent pour que
     // seul le contenu SVG/texte apparaisse dans fgCanvas
@@ -174,7 +174,7 @@ export async function renderPanelToCanvas(
 
     return out;
   } finally {
-    document.body.removeChild(clone);
+    document.body.removeChild(wrapper);
   }
 }
 

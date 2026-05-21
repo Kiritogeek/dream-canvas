@@ -1,8 +1,7 @@
-import { useState, useRef, useCallback, useLayoutEffect } from "react";
+import { useState, useRef, useCallback, useLayoutEffect, useEffect } from "react";
 import type { Panel, SpeechBubble } from "@/types";
 import { getSpeechBubbleFillStroke, DEFAULT_SPEECH_BUBBLE_WIDTH, DEFAULT_SPEECH_BUBBLE_HEIGHT, SPEECH_BUBBLE_NO_TAIL_TYPES } from "@/types";
-import { getPanelHeight, RESIZE_BUBBLE_CORNER_PX, RESIZE_BUBBLE_EDGE_PX } from "@/services/panels";
-import { useDragBlock } from "@/hooks/useDragBlock";
+import { getPanelHeight, PANEL_WIDTH, RESIZE_BUBBLE_CORNER_PX, RESIZE_BUBBLE_EDGE_PX } from "@/services/panels";
 import { useResizeBlock } from "@/hooks/useResizeBlock";
 import type { ResizingState } from "@/hooks/useResizeBlock";
 import { SpeechBubbleShape, SPEECH_BUBBLE_VIEWBOX_WITH_TAIL, SPEECH_BUBBLE_VIEWBOX_NARRATION } from "./SpeechBubbleShape";
@@ -65,7 +64,7 @@ export function BubbleLayer({
   panels,
   speechBubbles,
   canvasRefByPanel,
-  zoomRef,
+  zoomRef: _zoomRef,
   selectedBubbleId,
   onSelectBubble,
   onMoveCommit,
@@ -75,7 +74,8 @@ export function BubbleLayer({
   onTailContext,
   onBubbleUpdate,
 }: BubbleLayerProps) {
-  const ghostRefByPanel = useRef<Record<string, HTMLDivElement | null>>({});
+  const bubbleDivRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  const activeBubbleDragCleanupRef = useRef<(() => void) | null>(null);
   const bubbleSvgRefs = useRef<Map<string, SVGSVGElement>>(new Map());
   const bubbleHandleRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   // Position "live" de la queue pendant le drag — aucun setState, juste une ref.
@@ -117,13 +117,7 @@ export function BubbleLayer({
     }
   }, []);
 
-  const dragSpeechBubble = useDragBlock({
-    canvasRefByPanel,
-    ghostRefByPanel,
-    isResizingRef: isResizingSpeechBubbleRef,
-    zoomRef,
-    onCommit: onMoveCommit,
-  });
+  useEffect(() => () => { activeBubbleDragCleanupRef.current?.(); }, []);
 
   useResizeBlock({
     resizingState: resizingSpeechBubbleState,
@@ -341,7 +335,14 @@ export function BubbleLayer({
         return (
           <div
             key={bubble.id}
-            ref={isResizingThis ? (el) => { if (el) resizingSpeechBubbleElRef.current = el; } : undefined}
+            ref={(el) => {
+              if (el) {
+                bubbleDivRefs.current.set(bubble.id, el);
+                if (isResizingThis) resizingSpeechBubbleElRef.current = el;
+              } else {
+                bubbleDivRefs.current.delete(bubble.id);
+              }
+            }}
             role={!isResizingThis && !isEditing ? "button" : undefined}
             className={`group absolute overflow-visible transition-[box-shadow,outline,outline-offset,filter,ring] duration-150 ${isEditing ? "cursor-text" : "cursor-grab active:cursor-grabbing"} ${isSelected && !isTailContext ? "brightness-[1.02]" : !isTailContext ? "hover:ring-[3px] hover:ring-inset hover:ring-primary/55" : ""}`}
             style={{
@@ -349,7 +350,7 @@ export function BubbleLayer({
               top: geom.y,
               width: geom.width,
               height: geom.height,
-              zIndex: bubble.zIndex ?? 20,
+              zIndex: isSelected ? 99999 : (bubble.zIndex ?? 0) + 10000,
               ...(bubble.hidden ? { opacity: 0, pointerEvents: "none" } : {}),
               ...(isSelected && !isTailContext
                 ? {
@@ -358,7 +359,74 @@ export function BubbleLayer({
                   }
                 : {}),
             }}
-            onPointerDown={!isResizingThis && !isResizingSpeechBubbleRef.current && !isEditing ? (e) => dragSpeechBubble.onPointerDown(e, panel.id, bubble.id, geom.x, geom.y, geom.width, geom.height, getPanelHeight(panel)) : undefined}
+            onPointerDown={!isResizingThis && !isResizingSpeechBubbleRef.current && !isEditing ? (e) => {
+              if (e.button !== 0) return;
+              e.preventDefault();
+              const bubbleDiv = bubbleDivRefs.current.get(bubble.id);
+              const canvasEl = canvasRefByPanel.current[panel.id];
+              if (!bubbleDiv || !canvasEl) return;
+              const capturedGeomX = geom.x;
+              const capturedGeomY = geom.y;
+              const capturedW = geom.width;
+              const capturedH = geom.height;
+              const capturedPanelH = getPanelHeight(panel);
+              const capturedPanelId = panel.id;
+              const capturedBubbleId = bubble.id;
+              const r0 = canvasEl.getBoundingClientRect();
+              const s0 = canvasEl.offsetWidth > 0 ? r0.width / canvasEl.offsetWidth : 1;
+              const startMouseX = (e.clientX - r0.left) / s0;
+              const startMouseY = (e.clientY - r0.top) / s0;
+              let dragStarted = false;
+              const THRESHOLD = 5;
+              const onMove = (ev: PointerEvent) => {
+                const r = canvasEl.getBoundingClientRect();
+                const s = canvasEl.offsetWidth > 0 ? r.width / canvasEl.offsetWidth : 1;
+                const mx = (ev.clientX - r.left) / s;
+                const my = (ev.clientY - r.top) / s;
+                const dx = mx - startMouseX;
+                const dy = my - startMouseY;
+                if (!dragStarted) {
+                  if (Math.sqrt(dx * dx + dy * dy) < THRESHOLD) return;
+                  dragStarted = true;
+                  // Désactive toutes les transitions CSS pour que le drag et le relâché soient instantanés.
+                  bubbleDiv.style.transition = "none";
+                  bubbleDiv.style.cursor = "grabbing";
+                  bubbleDiv.style.filter = "drop-shadow(0 4px 16px rgba(0,0,0,0.35))";
+                }
+                const newX = Math.max(0, Math.min(PANEL_WIDTH - capturedW, capturedGeomX + dx));
+                const newY = Math.max(0, Math.min(capturedPanelH - capturedH, capturedGeomY + dy));
+                bubbleDiv.style.left = `${newX}px`;
+                bubbleDiv.style.top = `${newY}px`;
+              };
+              const onUp = (ev: PointerEvent) => {
+                if (ev.button !== 0) return;
+                if (!dragStarted) { cleanup(); return; }
+                const r = canvasEl.getBoundingClientRect();
+                const s = canvasEl.offsetWidth > 0 ? r.width / canvasEl.offsetWidth : 1;
+                const mx = (ev.clientX - r.left) / s;
+                const my = (ev.clientY - r.top) / s;
+                const finalX = Math.max(0, Math.min(PANEL_WIDTH - capturedW, Math.round(capturedGeomX + (mx - startMouseX))));
+                const finalY = Math.max(0, Math.min(capturedPanelH - capturedH, Math.round(capturedGeomY + (my - startMouseY))));
+                // Position finale + nettoyage visuels instantanés (transition déjà désactivée).
+                bubbleDiv.style.left = `${finalX}px`;
+                bubbleDiv.style.top = `${finalY}px`;
+                bubbleDiv.style.cursor = "";
+                bubbleDiv.style.filter = "";
+                cleanup();
+                // Restaure les transitions CSS après que le navigateur a peint la frame finale.
+                requestAnimationFrame(() => { bubbleDiv.style.transition = ""; });
+                onMoveCommit(capturedPanelId, capturedBubbleId, finalX, finalY);
+              };
+              const cleanup = () => {
+                document.removeEventListener("pointermove", onMove, true);
+                document.removeEventListener("pointerup", onUp, true);
+                activeBubbleDragCleanupRef.current = null;
+              };
+              activeBubbleDragCleanupRef.current?.();
+              activeBubbleDragCleanupRef.current = cleanup;
+              document.addEventListener("pointermove", onMove, { capture: true, passive: true });
+              document.addEventListener("pointerup", onUp, true);
+            } : undefined}
             onClick={(e) => {
               e.stopPropagation();
               if (isEditing) return;
@@ -620,7 +688,7 @@ export function BubbleLayer({
             {isEditing ? (
               <div
                 key="bubble-editor"
-                className={`absolute flex flex-col justify-center z-30 ${textAreaLeft == null ? "inset-x-0 px-3" : "px-2"}`}
+                className={`absolute flex flex-col justify-center z-30 ${textAreaLeft == null ? `inset-x-0 ${bubble.type === "narration" ? "px-11 py-10" : "px-3"}` : "px-2"}`}
                 style={{
                   top: adjustedTextAreaTop,
                   minHeight: textAreaH,
@@ -659,7 +727,7 @@ export function BubbleLayer({
             ) : (
               <div
                 key="bubble-readonly"
-                className={`absolute flex flex-col justify-center pointer-events-none ${textAreaLeft == null ? "inset-x-0 px-3" : "px-2"}`}
+                className={`absolute flex flex-col justify-center pointer-events-none ${textAreaLeft == null ? `inset-x-0 ${bubble.type === "narration" ? "px-11 py-10" : "px-3"}` : "px-2"}`}
                 style={{
                   top: adjustedTextAreaTop,
                   minHeight: textAreaH,
@@ -719,13 +787,6 @@ export function BubbleLayer({
           </div>
         );
       })}
-      {/* Ghost de drag pour bulles de dialogue */}
-      <div
-        ref={(el) => { if (el) ghostRefByPanel.current[panel.id] = el; }}
-        aria-hidden
-        className="pointer-events-none absolute z-50 border-2 border-primary border-dashed bg-white/50 rounded-[50%] box-border"
-        style={{ display: "none", left: 0, top: 0, width: 100, height: 100 }}
-      />
     </>
   );
 }

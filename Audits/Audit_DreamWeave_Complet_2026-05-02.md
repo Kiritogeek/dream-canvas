@@ -1,7 +1,7 @@
 # 🔍 Audit Technique Complet — DreamWeave  
-📅 Date : 2026-05-02  
+📅 Date : Date du jour
 👤 Auteur : Audit Assistant (revue de code + outils)  
-🎯 Objectif : Évaluer la qualité globale du projet (code, sécurité, architecture, performance, maintenabilité)
+🎯 Objectif : Évaluer la qualité globale du projet ainsi que suite aux modifications effectuer lors de la session en cours(code, sécurité, architecture, performance, maintenabilité)
 
 ---
 

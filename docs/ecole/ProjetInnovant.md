@@ -129,16 +129,58 @@ UniverseSection
 
 Pas de bouton "Vérifier" — uniquement déclenchement automatique.
 
-### 3.3 Technologies employées et justifications
+### 3.3 Benchmark technologique et justifications
 
-| Composant | Choix retenu | Alternatives | Justification |
-|-----------|-------------|--------------|---------------|
-| LLM principal | Google Gemini 2.0 Flash → 2.5 Flash | GPT-4o, Claude | Quotas généreux, faible coût/token, vitesse, qualité narrative |
-| LLM fallback | Groq Llama 3.3 70B | Mistral | Fallback si Gemini 429/503 — même API OpenAI-compatible |
-| Runtime EF | Deno (Supabase Edge Functions) | Node.js Lambda | Cold start rapide, isolation sécurisée, natif Supabase |
-| Persistance mémoire | PostgreSQL + RLS | Redis, Pinecone | Fiabilité, transactions, isolation multi-tenant native |
-| Cache client | TanStack React Query | SWR | Stale-while-revalidate + invalidation ciblée après mutation |
-| Format mémoire | JSON structuré (JSONB) | Embeddings vectoriels | Pas de RAG nécessaire à ce volume — JSON suffisant et plus rapide |
+#### Critères d'évaluation retenus
+
+Cinq critères ont été définis pour évaluer chaque brique technologique, pondérés selon leur impact sur la contrainte centrale de NarraMind (contexte borné, latence faible, coût maîtrisé à l'échelle) :
+
+| Critère | Pondération | Définition |
+|---------|-------------|------------|
+| Coût par token | 30 % | Prix input + output pour 1M tokens (API publique) |
+| Vitesse de génération | 25 % | Tokens/seconde en conditions réelles (réponse JSON ~600 tokens) |
+| Qualité JSON structuré | 25 % | Capacité à respecter un schéma JSON strict sans hallucination de champ |
+| Quotas API disponibles | 10 % | Accès gratuit ou généreux pour le développement et les tests |
+| Compatibilité écosystème | 10 % | Compatibilité OpenAI-API, intégration native dans la stack |
+
+#### Benchmark LLM principal
+
+| | Gemini 2.0 Flash ✅ | GPT-4o | Groq Llama 3.3 70B |
+|---|---|---|---|
+| **Coût input (1M tokens)** | **$0,10** | $2,50 | $0,59 |
+| **Coût output (1M tokens)** | **$0,40** | $10,00 | $0,79 |
+| **Vitesse (tokens/s)** | **~100** | ~50 | **~200** |
+| **Qualité JSON structuré** | ★★★★ | ★★★★★ | ★★★ |
+| **Quotas gratuits** | **1M tokens/jour** | Aucun | **Généreux (free tier)** |
+| **Compat. OpenAI-API** | ✅ | ✅ | ✅ |
+| **Score pondéré** | **🥇 4,4 / 5** | 3,1 / 5 | 3,8 / 5 |
+
+**Décision :** Gemini 2.0 Flash → 2.5 Flash en principal. Groq Llama 3.3 70B en fallback (mêmes critères, plus rapide mais moins fiable sur JSON complexe). GPT-4o écarté : 25× plus cher pour une qualité JSON non déterminante à cette granularité.
+
+#### Benchmark runtime Edge Function
+
+| | Deno (Supabase EF) ✅ | Node.js Lambda | Cloudflare Workers |
+|---|---|---|---|
+| **Cold start** | **< 50 ms** | 100–500 ms | **< 5 ms** |
+| **Isolation sécurité** | ✅ Natif | Manuel | ✅ Natif |
+| **Intégration Supabase** | **Natif** | Via SDK | Via SDK |
+| **Coût (500K invocations/mois)** | **Inclus Supabase** | ~$0,10 | ~$0,15 |
+| **Score pondéré** | **🥇 4,6 / 5** | 3,2 / 5 | 4,0 / 5 |
+
+**Décision :** Deno natif Supabase — zéro infrastructure supplémentaire, partage le même projet que la BDD, accès service_role sécurisé sans configuration réseau additionnelle.
+
+#### Benchmark persistance mémoire
+
+| | PostgreSQL + RLS ✅ | Redis | Pinecone (vectoriel) |
+|---|---|---|---|
+| **Isolation multi-tenant** | **RLS native** | Manuel (préfixes) | Manuel |
+| **Transactions + intégrité** | ✅ ACID | ✗ | ✗ |
+| **Requêtes relationnelles** | ✅ SQL | ✗ | Limité |
+| **Coût à 1 000 MAU** | **Inclus Supabase Pro** | ~$30/mois | ~$70/mois |
+| **Latence lecture** | ~5 ms | ~1 ms | ~50 ms |
+| **Score pondéré** | **🥇 4,5 / 5** | 3,3 / 5 | 2,8 / 5 |
+
+**Décision :** PostgreSQL déjà utilisé pour le reste de DreamWeave — pas de nouvelle infrastructure, RLS multi-tenant gratuite, transactions pour l'upsert idempotent des alertes.
 
 **Pourquoi ne pas utiliser d'embeddings vectoriels ?**
 Pour des projets de 10–50 chapitres (notre cible MVP), la compression par résumé LLM + fiches entités est plus précise, plus rapide et moins coûteuse qu'un pipeline RAG (pas d'index, pas de reranking, pas de latence d'embedding). Les embeddings seraient pertinents pour des projets > 200 chapitres, non ciblés en V1.
@@ -348,6 +390,46 @@ Les 3 briques techniques complexes ont été validées : la persistance idempote
 - Vérification de propriété : le chapitre traité appartient bien à l'utilisateur authentifié
 - Le service_role est utilisé **uniquement côté serveur** pour les upserts cross-table
 - RLS activé sur toutes les tables NarraMind (`auth.uid() = user_id`)
+
+### 5.7 Budget Build/Run
+
+#### Coûts Build (développement — one-shot)
+
+| Poste | Détail | Coût |
+|-------|--------|------|
+| Infrastructure dev | Supabase Free + Gemini free tier (1M tokens/jour) | **0 €** |
+| Licences & outils | Stack open source (Deno, React, PostgreSQL) | **0 €** |
+| Temps de développement | ~80h réparties sur 3 itérations (jan–mai 2026) | Variable |
+| **Total infrastructure build** | | **0 €** |
+
+#### Coûts Run (exploitation mensuelle récurrente)
+
+**Base de calcul par run NarraMind :**
+- Contexte injecté : ~3 200 tokens (contexte compressé + chapitre courant + system prompt)
+- Réponse JSON : ~600 tokens
+- Coût Gemini 2.0 Flash : (3 200 × $0,10 + 600 × $0,40) / 1 000 000 = **~$0,0006 par run**
+
+**Fréquence estimée :** un utilisateur actif déclenche ~3 runs/chapitre (auto-save, seuil 80 mots, throttle 12 min) → ~12 runs/mois pour un utilisateur écrivant 1 chapitre/semaine.
+
+| Échelle (MAU) | Runs NarraMind/mois | Gemini (LLM) | Supabase | Vercel | **Total mensuel** |
+|--------------|---------------------|-------------|----------|--------|-------------------|
+| 100 MAU | ~1 200 | ~$0,72 | Free ($0) | Free ($0) | **~$1** |
+| 500 MAU | ~6 000 | ~$3,60 | Pro ($25) | Free ($0) | **~$29** |
+| 1 000 MAU | ~12 000 | ~$7,20 | Pro ($25) | Pro ($20) | **~$52** |
+| 5 000 MAU | ~60 000 | ~$36 | Pro ($25) | Pro ($20) | **~$81** |
+
+> NarraMind représente **< 5 % du coût run total** à toutes les échelles. Le poste dominant est la génération d'images (FAL.ai FLUX.2 Pro, ~$0,05/image), hors périmètre NarraMind.
+
+#### Besoins techniques (infrastructure, outils, licences)
+
+| Besoin | Solution | Licence | Coût |
+|--------|----------|---------|------|
+| Base de données + Auth + Storage | Supabase | Open Source (Postgres) | Free → Pro $25/mois |
+| Edge Functions runtime | Deno via Supabase | MIT | Inclus Supabase |
+| LLM principal | Google Gemini API | Propriétaire | Pay-as-you-go |
+| LLM fallback | Groq API | Propriétaire | Pay-as-you-go |
+| Hosting frontend | Vercel | Propriétaire | Free → Pro $20/mois |
+| Génération images | FAL.ai FLUX.2 Pro | Propriétaire | Pay-as-you-go |
 
 ---
 

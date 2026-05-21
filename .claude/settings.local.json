@@ -89,7 +89,19 @@
       "Bash(npx vite *)",
       "Bash(supabase --version)",
       "Bash(supabase status *)",
-      "Bash(echo \"Exit: $?\")"
+      "Bash(echo \"Exit: $?\")",
+      "PowerShell(Get-Item *$)",
+      "WebFetch(domain:api.anthropic.com)",
+      "Bash(mkdir -p /tmp/figma-handoff)",
+      "Bash(cp \"C:/Users/kirit/.claude/projects/C--Users-kirit-OneDrive-Bureau-DreamWeave/81804b74-6f01-401a-97ba-636bb04f55c7/tool-results/webfetch-1779271468800-x89iey.bin\" /tmp/figma-handoff/bundle.tar.gz)",
+      "Read(//tmp/**)",
+      "Bash(tar -xzf bundle.tar.gz)",
+      "Bash(gunzip -c bundle.tar.gz)",
+      "Bash(tar -x)",
+      "Bash(Get-ChildItem -File)",
+      "Bash(Select-Object Name, Extension)",
+      "Bash(Sort-Object Name)",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\kirit\\\\OneDrive\\\\Bureau\\\\DreamWeave\" -File | ForEach-Object { $_.Name })"
     ]
   },
   "hooks": {

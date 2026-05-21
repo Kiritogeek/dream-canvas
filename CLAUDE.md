@@ -266,7 +266,7 @@ Le comportement des éléments canvas est **freezé**. Toute modification demand
 Quand Louis écrit **"Initialisation"**, exécuter ce protocole sans attendre :
 
 1. Lire `C:/Users/kirit/OneDrive/Documents/Obsidian Vault/wiki/index.md`
-2. Lire `Session.md` (à la racine du projet) pour le protocole complet
+2. Lire `.claude/Session.md` pour le protocole complet
 3. Charger une page wiki spécifique **uniquement si la tâche du jour l'exige** (ex : travail sur Stripe → lire `wiki/Stripe.md`)
 4. Répondre : "✅ Initialisé — [résumé contexte en 3 lignes : état du projet, dernière session, prochaine priorité]"
 
@@ -276,7 +276,7 @@ Quand Louis écrit **"Initialisation"**, exécuter ce protocole sans attendre :
 
 ## Commande Fin de session
 
-Quand Louis écrit **"Fin de session"**, exécuter le protocole dans `Fin-de-session.md` (racine du projet) sans attendre. Cette commande vaut autorisation explicite de pusher vers preprod et main **si et seulement si** l'audit passe sans bug bloquant.
+Quand Louis écrit **"Fin de session"**, exécuter le protocole dans `.claude/Fin-de-session.md` sans attendre. Cette commande vaut autorisation explicite de pusher vers preprod et main **si et seulement si** l'audit passe sans bug bloquant.
 
 ---
 

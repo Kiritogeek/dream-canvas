@@ -307,10 +307,8 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
                 {connectedEdges.map((edge) => {
                   const otherId = edge.from_node_id === node.id ? edge.to_node_id : edge.from_node_id;
                   const otherNode = nodes.find((n) => n.id === otherId);
-                  const direction = edge.from_node_id === node.id ? "→" : "←";
                   return (
                     <div key={edge.id} className="flex items-center gap-2 p-2 rounded-lg bg-white/5 text-xs">
-                      <span className="text-muted-foreground">{direction}</span>
                       <span className="font-medium truncate flex-1">
                         {LORE_NODE_TYPE_CONFIG[otherNode?.type ?? "character"].emoji} {otherNode?.name ?? "…"}
                       </span>

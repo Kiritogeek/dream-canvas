@@ -4,7 +4,7 @@ import {
   Background,
   Handle,
   Position,
-  BaseEdge,
+  EdgeLabelRenderer,
   getSmoothStepPath,
   useInternalNode,
   useNodesState,
@@ -18,9 +18,10 @@ import {
   type Connection,
   type NodeTypes,
   type EdgeTypes,
+  type ConnectionLineComponentProps,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { Globe, Plus, Search, Save, Loader2, Trash2 } from "lucide-react";
+import { Globe, Plus, Search, Save, Loader2, Trash2, LayoutGrid } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -33,22 +34,6 @@ import { useUpdateProject } from "@/hooks/useProjects";
 import { LoreNodeSheet } from "./LoreNodeSheet";
 import type { Project, Asset, LoreNode, LoreEdge, LoreNodeType } from "@/types";
 import { LORE_NODE_TYPE_CONFIG } from "@/types";
-
-// ── Style fil doré ────────────────────────────────────────────────
-
-const GOLDEN_EDGE_STYLE: React.CSSProperties = {
-  stroke: "#F59E0B",
-  strokeWidth: 2,
-  filter: "drop-shadow(0 0 5px rgba(245,158,11,0.55))",
-};
-const GOLDEN_LABEL_STYLE: React.CSSProperties = {
-  fill: "#F59E0B",
-  fontSize: 10,
-  fontWeight: 600,
-};
-const GOLDEN_LABEL_BG_STYLE: React.CSSProperties = {
-  fill: "rgba(0,0,0,0.7)",
-};
 
 // ── Custom Node ───────────────────────────────────────────────────
 
@@ -370,14 +355,12 @@ function AddNodeDialog({
 
 const NODE_CARD_W = 150;
 const NODE_CARD_H = 140; // 110 image + 30 band
-const MIN_NODE_GAP = 40; // espace minimum entre deux cartes
+const MIN_NODE_GAP = 60; // zone invisible autour de chaque carte
 
-// ── FloatingEdge — fil doré dynamique (handle le plus proche) ─────
+// ── FloatingEdge — fil doré, hover = intensification dorée ──────────
 
-function FloatingEdge({
-  id, source, target, label, style,
-  labelStyle, labelBgStyle, labelBgPadding, labelBgBorderRadius,
-}: EdgeProps) {
+function FloatingEdge({ source, target, label, selected }: EdgeProps) {
+  const [hovered, setHovered] = useState(false);
   const srcNode = useInternalNode(source);
   const tgtNode = useInternalNode(target);
 
@@ -414,26 +397,139 @@ function FloatingEdge({
   const [edgePath, labelX, labelY] = getSmoothStepPath({
     sourceX: sc.x, sourceY: sc.y, sourcePosition: sp,
     targetX: tc.x, targetY: tc.y, targetPosition: tp,
-    borderRadius: 16,
+    borderRadius: 20,
   });
 
+  const isActive = hovered || (selected ?? false);
+
   return (
-    <BaseEdge
-      id={id}
-      path={edgePath}
-      labelX={labelX}
-      labelY={labelY}
-      label={label}
-      style={style}
-      labelStyle={labelStyle}
-      labelBgStyle={labelBgStyle}
-      labelBgPadding={labelBgPadding}
-      labelBgBorderRadius={labelBgBorderRadius}
-    />
+    <g
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        filter: isActive
+          ? "drop-shadow(0 0 5px rgba(245,158,11,0.9)) drop-shadow(0 0 14px rgba(245,158,11,0.45))"
+          : "drop-shadow(0 0 2px rgba(245,158,11,0.6))",
+        transition: "filter 200ms ease",
+      }}
+    >
+      {/* Zone d'interaction invisible */}
+      <path
+        className="react-flow__edge-interaction"
+        d={edgePath}
+        strokeWidth={20}
+        stroke="transparent"
+        fill="none"
+        style={{ cursor: "pointer" }}
+      />
+
+      {/* Halo élargi — visible uniquement au hover */}
+      {isActive && (
+        <path
+          d={edgePath}
+          style={{ stroke: "#F59E0B", strokeWidth: 5, strokeOpacity: 0.18, fill: "none" }}
+        />
+      )}
+
+      {/* Fil principal doré — style inline pour passer au-dessus de .react-flow__edge-path { stroke: #b1b1b7 } */}
+      <path
+        className="react-flow__edge-path"
+        d={edgePath}
+        style={{
+          stroke: "#F59E0B",
+          strokeWidth: isActive ? 1.8 : 1.4,
+          fill: "none",
+          strokeLinecap: "round",
+          transition: "stroke-width 200ms ease",
+        }}
+      />
+
+      {/* Étiquette de relation */}
+      {label && (
+        <EdgeLabelRenderer>
+          <div
+            style={{
+              position: "absolute",
+              transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
+              background: "rgba(0,0,0,0.8)",
+              padding: "2px 8px",
+              borderRadius: 4,
+              fontSize: 10,
+              fontWeight: 600,
+              color: "#F59E0B",
+              border: `1px solid ${isActive ? "rgba(245,158,11,0.5)" : "rgba(245,158,11,0.25)"}`,
+              pointerEvents: "none",
+              transition: "border-color 200ms ease",
+              filter: "none",
+            }}
+            className="nodrag nopan"
+          >
+            {label as string}
+          </div>
+        </EdgeLabelRenderer>
+      )}
+    </g>
   );
 }
 
 const EDGE_TYPES: EdgeTypes = { floating: FloatingEdge };
+
+// ── GoldenConnectionLine — fil de prévisualisation lors du tracé d'une connexion ──
+
+function GoldenConnectionLine({ fromX, fromY, toX, toY }: ConnectionLineComponentProps) {
+  // fromX/fromY = position du handle bottom-center du nœud source.
+  // On recalcule le centre du nœud pour choisir le côté de sortie optimal
+  // (même logique que FloatingEdge — sans ça, fromY est toujours en bas → biais Bottom).
+  const nodeCenterX = fromX;
+  const nodeCenterY = fromY - NODE_CARD_H / 2;
+
+  const dx = toX - nodeCenterX;
+  const dy = toY - nodeCenterY;
+
+  let srcPos: Position;
+  let actualFromX: number;
+  let actualFromY: number;
+
+  if (Math.abs(dx) >= Math.abs(dy)) {
+    if (dx >= 0) {
+      srcPos = Position.Right;
+      actualFromX = nodeCenterX + NODE_CARD_W / 2;
+      actualFromY = nodeCenterY;
+    } else {
+      srcPos = Position.Left;
+      actualFromX = nodeCenterX - NODE_CARD_W / 2;
+      actualFromY = nodeCenterY;
+    }
+  } else {
+    if (dy >= 0) {
+      srcPos = Position.Bottom;
+      actualFromX = nodeCenterX;
+      actualFromY = fromY;
+    } else {
+      srcPos = Position.Top;
+      actualFromX = nodeCenterX;
+      actualFromY = nodeCenterY - NODE_CARD_H / 2;
+    }
+  }
+
+  const tgtPos =
+    srcPos === Position.Right  ? Position.Left  :
+    srcPos === Position.Left   ? Position.Right :
+    srcPos === Position.Bottom ? Position.Top   : Position.Bottom;
+
+  const [edgePath] = getSmoothStepPath({
+    sourceX: actualFromX, sourceY: actualFromY, sourcePosition: srcPos,
+    targetX: toX,         targetY: toY,         targetPosition: tgtPos,
+    borderRadius: 20,
+  });
+
+  return (
+    <g style={{ filter: "drop-shadow(0 0 4px rgba(245,158,11,0.75))" }}>
+      <path d={edgePath} stroke="#F59E0B" strokeWidth={1.4} fill="none" strokeLinecap="round" strokeDasharray="6 4" />
+      <circle cx={toX} cy={toY} r={4} fill="#F59E0B" fillOpacity={0.85} />
+    </g>
+  );
+}
 
 // ── ZoomController — zoom rapide (capture phase, avant React Flow) ─
 
@@ -579,6 +675,7 @@ export function LoreGraphView({ project, assets }: Props) {
   const { user } = useAuth();
   const userId = user?.id ?? "";
 
+
   const { data: loreNodes = [], isLoading } = useLoreNodes(project.id);
   const { data: loreEdges = [] } = useLoreEdges(project.id);
   const updateNode = useUpdateLoreNode();
@@ -588,6 +685,10 @@ export function LoreGraphView({ project, assets }: Props) {
   const [rfEdges, setRfEdges, onEdgesChange] = useEdgesState<Edge>([]);
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const initialOverlapDoneRef = useRef(false);
+  // Mémorise la position avant le drag pour le snap-back si dépôt invalide
+  const dragStartPosRef = useRef<{ x: number; y: number } | null>(null);
+
 
   const [search, setSearch] = useState("");
   const [pendingConn, setPendingConn] = useState<Connection | null>(null);
@@ -639,7 +740,7 @@ export function LoreGraphView({ project, assets }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loreNodes.map((n) => n.id).join(","), assets.map((a) => a.id).join(",")]);
 
-  // Sync edges BDD → React Flow (fil doré, handle dynamique)
+  // Sync edges BDD → React Flow — pas de style inline, FloatingEdge gère tout
   useEffect(() => {
     setRfEdges(
       loreEdges.map((e) => ({
@@ -648,11 +749,6 @@ export function LoreGraphView({ project, assets }: Props) {
         target: e.to_node_id,
         type: "floating",
         label: e.label ?? undefined,
-        style: GOLDEN_EDGE_STYLE,
-        labelStyle: GOLDEN_LABEL_STYLE,
-        labelBgStyle: GOLDEN_LABEL_BG_STYLE,
-        labelBgPadding: [4, 2] as [number, number],
-        labelBgBorderRadius: 4,
       }))
     );
   }, [loreEdges, setRfEdges]);
@@ -717,6 +813,24 @@ export function LoreGraphView({ project, assets }: Props) {
     }
   }, [project.id, updateNode, setRfNodes]);
 
+  // Résolution automatique des chevauchements au premier chargement
+  useEffect(() => {
+    if (initialOverlapDoneRef.current || loreNodes.length < 2) return;
+    initialOverlapDoneRef.current = true;
+    resolveOverlaps(loreNodes);
+  }, [loreNodes, resolveOverlaps]);
+
+  // Bloque les connexions dupliquées au niveau React Flow (empêche même le tracé)
+  const isValidConnection = useCallback((connection: Connection) => {
+    if (!connection.source || !connection.target) return false;
+    if (connection.source === connection.target) return false;
+    return !loreEdges.some(
+      (e) =>
+        (e.from_node_id === connection.source && e.to_node_id === connection.target) ||
+        (e.from_node_id === connection.target && e.to_node_id === connection.source)
+    );
+  }, [loreEdges]);
+
   const handleConnect = useCallback((connection: Connection) => {
     setPendingConn(connection);
     setConnLabel("");
@@ -741,15 +855,47 @@ export function LoreGraphView({ project, assets }: Props) {
     }
   }, [pendingConn, connLabel, project.id, userId, createEdge, resolveOverlaps, loreNodes]);
 
+  const handleNodeDragStart = useCallback(
+    (_: React.MouseEvent, node: Node) => {
+      dragStartPosRef.current = { x: node.position.x, y: node.position.y };
+    },
+    []
+  );
+
   const handleNodeDragStop = useCallback(
     (_: React.MouseEvent, node: Node) => {
+      const newX = Math.round(node.position.x);
+      const newY = Math.round(node.position.y);
+
+      // Vérifie si la position de dépôt chevauche un autre nœud
+      const overlaps = rfNodes.some((rn) => {
+        if (rn.id === node.id) return false;
+        return (
+          Math.abs(newX - rn.position.x) < NODE_CARD_W + MIN_NODE_GAP &&
+          Math.abs(newY - rn.position.y) < NODE_CARD_H + MIN_NODE_GAP
+        );
+      });
+
+      if (overlaps && dragStartPosRef.current) {
+        // Snap-back vers la position de départ
+        const origin = dragStartPosRef.current;
+        setRfNodes((prev) =>
+          prev.map((rn) =>
+            rn.id === node.id ? { ...rn, position: { x: origin.x, y: origin.y } } : rn
+          )
+        );
+        dragStartPosRef.current = null;
+        return;
+      }
+
+      dragStartPosRef.current = null;
       updateNode.mutate({
         id: node.id,
         projectId: project.id,
-        updates: { pos_x: node.position.x, pos_y: node.position.y },
+        updates: { pos_x: newX, pos_y: newY },
       });
     },
-    [project.id, updateNode]
+    [project.id, updateNode, rfNodes, setRfNodes]
   );
 
   const handleNodeClick = useCallback(
@@ -771,7 +917,160 @@ export function LoreGraphView({ project, assets }: Props) {
   const handleNodeCreated = useCallback((node: LoreNode) => {
     setSelectedNode(node);
     setSheetOpen(true);
-  }, []);
+    resolveOverlaps([...loreNodes, node]);
+  }, [loreNodes, resolveOverlaps]);
+
+  // Layout ordonné par type : Événement → Lieux → Personnages → Objets (haut→bas)
+  // Les nœuds connectés sont alignés horizontalement pour éviter que les fils traversent des cartes.
+  const runAutoLayout = useCallback(() => {
+    if (loreNodes.length === 0) return;
+
+    const TYPE_ORDER: LoreNodeType[] = ["event", "location", "character", "object"];
+    // Espacement vertical entre rangs : 140px carte + 160px passage = 300px
+    const ROW_Y: Record<string, number> = { event: 0, location: 300, character: 600, object: 900 };
+    const H_SPACING = 210; // espacement horizontal entre centres de cartes
+    const MIN_H_GAP = NODE_CARD_W + MIN_NODE_GAP; // 150 + 60 = 210
+
+    const groups: Record<string, LoreNode[]> = { event: [], location: [], character: [], object: [] };
+    for (const n of loreNodes) {
+      (groups[n.type] ?? groups.character).push(n);
+    }
+
+    type Pos = { x: number; y: number };
+    const pos = new Map<string, Pos>();
+
+    // Placement initial : espacement uniforme centré sur x=0
+    for (const type of TYPE_ORDER) {
+      const grp = groups[type];
+      grp.forEach((n, i) => {
+        const totalW = Math.max(grp.length - 1, 0) * H_SPACING;
+        pos.set(n.id, { x: i * H_SPACING - totalW / 2, y: ROW_Y[type] });
+      });
+    }
+
+    // Tri barycentriques : ordonne les nœuds de chaque rang selon la position moyenne
+    // de leurs voisins dans les autres rangs → minimise les croisements de fils
+    for (const type of TYPE_ORDER) {
+      const grp = groups[type];
+      if (grp.length < 2) continue;
+      const bary = new Map<string, number>();
+      for (const n of grp) {
+        const neighbors = loreEdges
+          .filter((e) => e.from_node_id === n.id || e.to_node_id === n.id)
+          .map((e) => (e.from_node_id === n.id ? e.to_node_id : e.from_node_id))
+          .filter((nid) => !grp.some((g) => g.id === nid));
+        if (neighbors.length === 0) { bary.set(n.id, pos.get(n.id)!.x); continue; }
+        const avg = neighbors.reduce((s, nid) => s + (pos.get(nid)?.x ?? 0), 0) / neighbors.length;
+        bary.set(n.id, avg);
+      }
+      const sorted = grp.slice().sort((a, b) => (bary.get(a.id) ?? 0) - (bary.get(b.id) ?? 0));
+      const totalW = Math.max(sorted.length - 1, 0) * H_SPACING;
+      sorted.forEach((n, i) => { pos.get(n.id)!.x = i * H_SPACING - totalW / 2; });
+    }
+
+    // Ressort horizontal fort entre nœuds connectés → les aligne verticalement
+    // (quand deux nœuds connectés ont le même X, le fil va tout droit sans traverser d'autres cartes)
+    const SPRING = 0.28;
+    const ITERATIONS = 120;
+    for (let iter = 0; iter < ITERATIONS; iter++) {
+      const dx = new Map<string, number>(loreNodes.map((n) => [n.id, 0]));
+      for (const edge of loreEdges) {
+        const a = pos.get(edge.from_node_id);
+        const b = pos.get(edge.to_node_id);
+        if (!a || !b) continue;
+        const diff = b.x - a.x;
+        dx.set(edge.from_node_id, (dx.get(edge.from_node_id) ?? 0) + diff * SPRING);
+        dx.set(edge.to_node_id,   (dx.get(edge.to_node_id)   ?? 0) - diff * SPRING);
+      }
+      for (const n of loreNodes) { pos.get(n.id)!.x += dx.get(n.id) ?? 0; }
+
+      // Anti-chevauchement horizontal dans chaque rang
+      for (const type of TYPE_ORDER) {
+        const sorted = groups[type].slice().sort((a, b) => (pos.get(a.id)?.x ?? 0) - (pos.get(b.id)?.x ?? 0));
+        for (let i = 0; i < sorted.length - 1; i++) {
+          const a = pos.get(sorted[i].id)!;
+          const b = pos.get(sorted[i + 1].id)!;
+          if (b.x - a.x < MIN_H_GAP) {
+            const mid = (a.x + b.x) / 2;
+            a.x = mid - MIN_H_GAP / 2;
+            b.x = mid + MIN_H_GAP / 2;
+          }
+        }
+      }
+    }
+
+    // Post-processing : déplace les nœuds intermédiaires qui bloquent les connexions cross-row.
+    // Un fil de A (rang r1) vers B (rang r3) passe horizontalement dans la zone du rang r2 :
+    // tout nœud C en r2 aligné avec le couloir [min(Ax,Bx) ; max(Ax,Bx)] doit être écarté.
+    const CLEAR = 28; // marge de dégagement (px) autour du couloir horizontal du fil
+    for (let pass = 0; pass < 5; pass++) {
+      for (const edge of loreEdges) {
+        const aN = loreNodes.find((n) => n.id === edge.from_node_id);
+        const bN = loreNodes.find((n) => n.id === edge.to_node_id);
+        if (!aN || !bN) continue;
+        const aRow = TYPE_ORDER.indexOf(aN.type);
+        const bRow = TYPE_ORDER.indexOf(bN.type);
+        if (Math.abs(aRow - bRow) < 2) continue; // connexion adjacente → pas de problème
+
+        const pA = pos.get(aN.id)!;
+        const pB = pos.get(bN.id)!;
+        // Centre horizontal de chaque nœud (le fil passe par leurs centres)
+        const axc = pA.x + NODE_CARD_W / 2;
+        const bxc = pB.x + NODE_CARD_W / 2;
+        const corrL   = Math.min(axc, bxc) - CLEAR;
+        const corrR   = Math.max(axc, bxc) + CLEAR;
+        const corrMid = (axc + bxc) / 2;
+
+        const minRow = Math.min(aRow, bRow);
+        const maxRow = Math.max(aRow, bRow);
+        for (let r = minRow + 1; r < maxRow; r++) {
+          for (const cn of groups[TYPE_ORDER[r]]) {
+            const pC = pos.get(cn.id)!;
+            // C est-il dans le couloir horizontal ?
+            if (pC.x + NODE_CARD_W + CLEAR <= corrL || pC.x - CLEAR >= corrR) continue;
+            // Pousse C vers le bord le plus proche
+            if (pC.x + NODE_CARD_W / 2 <= corrMid) {
+              pC.x = corrL - NODE_CARD_W - CLEAR;
+            } else {
+              pC.x = corrR + CLEAR;
+            }
+          }
+        }
+      }
+
+      // Ré-applique l'anti-chevauchement horizontal après chaque passe de dégagement
+      for (const type of TYPE_ORDER) {
+        const sorted = groups[type].slice().sort((a, b) => (pos.get(a.id)?.x ?? 0) - (pos.get(b.id)?.x ?? 0));
+        for (let i = 0; i < sorted.length - 1; i++) {
+          const a = pos.get(sorted[i].id)!;
+          const b = pos.get(sorted[i + 1].id)!;
+          if (b.x - a.x < MIN_H_GAP) {
+            const mid = (a.x + b.x) / 2;
+            a.x = mid - MIN_H_GAP / 2;
+            b.x = mid + MIN_H_GAP / 2;
+          }
+        }
+      }
+    }
+
+    // Centre le layout
+    const allPos = Array.from(pos.values());
+    const avgX = allPos.reduce((s, p) => s + p.x, 0) / allPos.length;
+    const avgY = allPos.reduce((s, p) => s + p.y, 0) / allPos.length;
+    for (const p of allPos) { p.x -= avgX; p.y -= avgY; }
+
+    setRfNodes((prev) =>
+      prev.map((rn) => {
+        const p = pos.get(rn.id);
+        return p ? { ...rn, position: { x: Math.round(p.x), y: Math.round(p.y) } } : rn;
+      })
+    );
+
+    for (const node of loreNodes) {
+      const p = pos.get(node.id)!;
+      updateNode.mutate({ id: node.id, projectId: project.id, updates: { pos_x: Math.round(p.x), pos_y: Math.round(p.y) } });
+    }
+  }, [loreNodes, loreEdges, project.id, setRfNodes, updateNode]);
 
   return (
     <div
@@ -791,6 +1090,7 @@ export function LoreGraphView({ project, assets }: Props) {
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={handleConnect}
+        onNodeDragStart={handleNodeDragStart}
         onNodeDragStop={handleNodeDragStop}
         onNodeClick={handleNodeClick}
         onEdgeClick={handleEdgeClick}
@@ -798,6 +1098,8 @@ export function LoreGraphView({ project, assets }: Props) {
         edgeTypes={EDGE_TYPES}
         connectionMode={ConnectionMode.Loose}
         connectionRadius={80}
+        isValidConnection={isValidConnection}
+        connectionLineComponent={GoldenConnectionLine}
         fitView
         fitViewOptions={{ padding: 0.35, maxZoom: 0.65 }}
         minZoom={0.15}
@@ -843,6 +1145,21 @@ export function LoreGraphView({ project, assets }: Props) {
           >
             <Plus className="h-3.5 w-3.5" />
             Ajouter
+          </Button>
+
+          <div className="w-px h-5 bg-white/10" />
+
+          {/* Bouton Réorganiser */}
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={runAutoLayout}
+            disabled={loreNodes.length < 2}
+            className="h-8 px-3 gap-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-white/10"
+            title="Réorganiser automatiquement les éléments"
+          >
+            <LayoutGrid className="h-3.5 w-3.5" />
+            Réorganiser
           </Button>
         </div>
 

@@ -34,6 +34,7 @@ import { useUserPlan } from "@/hooks/useUserPlan";
 import { planDisplayName } from "@/types";
 import { callDetectBlocks, callGenerateAiSummary } from "@/services/scenarioAI";
 import { useNarraMindDebounce } from "@/hooks/useNarraMindDebounce";
+import { useCompassIndex } from "@/hooks/useCompassIndex";
 import { estimatePanelCount } from "@/services/panels";
 import { ScenarioTextHighlighter } from "@/components/project/ScenarioTextHighlighter";
 import { ChapterStatusBar } from "@/components/project/ChapterStatusBar";
@@ -270,6 +271,7 @@ export default function ScenarioChapterEditor() {
   const { plan } = useUserPlan();
   const isPro = plan === "createur" || plan === "studio";
   const { schedule: scheduleNarraMind } = useNarraMindDebounce();
+  const { indexContent } = useCompassIndex();
 
   // Highlight via ?highlight= param (navigation depuis Fil d'Ariane)
   const [searchParams] = useSearchParams();
@@ -529,6 +531,7 @@ export default function ScenarioChapterEditor() {
             }
             if (words >= NARRAMIND_AUTOSAVE_MIN_WORDS) {
               scheduleNarraMind(projectId!, chapter.id);
+              indexContent(projectId!, "chapter", chapter.id, content);
             }
           },
           onError: () => setSaveState("dirty"),

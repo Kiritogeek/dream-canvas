@@ -7,8 +7,7 @@ CREATE TABLE IF NOT EXISTS public.project_embeddings (
   section_key     text,
   content         text NOT NULL,
   embedding       vector(768),
-  updated_at      timestamptz NOT NULL DEFAULT now(),
-  UNIQUE (project_id, source_type, source_id, COALESCE(section_key, ''))
+  updated_at      timestamptz NOT NULL DEFAULT now()
 );
 
 ALTER TABLE public.project_embeddings ENABLE ROW LEVEL SECURITY;
@@ -18,6 +17,11 @@ CREATE POLICY "Users manage own embeddings"
   FOR ALL
   USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
+
+-- COALESCE() dans une contrainte UNIQUE inline n'est pas supporté par PostgreSQL.
+-- On utilise CREATE UNIQUE INDEX qui accepte les expressions.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_project_embeddings_unique
+  ON public.project_embeddings (project_id, source_type, source_id, COALESCE(section_key, ''));
 
 CREATE INDEX IF NOT EXISTS idx_project_embeddings_project
   ON public.project_embeddings (project_id);

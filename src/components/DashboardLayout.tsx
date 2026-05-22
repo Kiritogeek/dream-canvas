@@ -456,7 +456,7 @@ export default function DashboardLayout({ children, fluidSection, compactHeader 
           <div
             key={location.pathname}
             className={[
-              "max-w-5xl mx-auto w-full px-6 sm:px-8 lg:px-10 animate-fade-up",
+              "w-full px-6 sm:px-8 lg:px-10 animate-fade-up",
               compactHeader ? "" : "py-6 sm:py-8",
             ].join(" ")}
           >

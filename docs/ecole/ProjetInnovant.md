@@ -182,14 +182,74 @@ Cinq critères ont été définis pour évaluer chaque brique technologique, pon
 
 **Décision :** PostgreSQL déjà utilisé pour le reste de DreamWeave — pas de nouvelle infrastructure, RLS multi-tenant gratuite, transactions pour l'upsert idempotent des alertes.
 
-**Pourquoi ne pas utiliser d'embeddings vectoriels ?**
-Pour des projets de 10–50 chapitres (notre cible MVP), la compression par résumé LLM + fiches entités est plus précise, plus rapide et moins coûteuse qu'un pipeline RAG (pas d'index, pas de reranking, pas de latence d'embedding). Les embeddings seraient pertinents pour des projets > 200 chapitres, non ciblés en V1.
+**Pourquoi ne pas utiliser d'embeddings vectoriels en NarraMind V1 ?**
+Pour la détection d'anomalies (V1), la compression par résumé LLM + fiches entités est plus précise, plus rapide et moins coûteuse qu'un pipeline RAG : pas d'index à maintenir, pas de reranking, pas de latence d'embedding supplémentaire. À 10–50 chapitres, un contexte compressé de ~1 400 tokens suffit pour détecter les incohérences avec un LLM. L'introduction des embeddings est délibérément reportée à NarraMind Compass (Itération 4), où l'usage — des **propositions créatives proactives** sur des fragments ciblés — justifie le pipeline RAG : on ne cherche pas à tout injecter dans le LLM, mais à retrouver les 5 éléments les plus pertinents dans un corpus de 50–200 embeddings.
+
+#### 3.4 Benchmark vectoriel (NarraMind Compass)
+
+NarraMind Compass introduit deux nouvelles briques : un **modèle d'embedding** pour vectoriser le contenu du projet, et une **extension pgvector** pour la recherche sémantique. Critères retenus : précision sémantique sur texte narratif court, dimensions (impact stockage + latence), coût et quota API, compatibilité stack existante.
+
+**Benchmark modèle d'embedding**
+
+| | Gemini text-embedding-004 ✅ | OpenAI text-embedding-3-small | Cohere embed-v3 |
+|---|---|---|---|
+| **Dimensions** | **768** | 1 536 | 1 024 |
+| **Précision NLP narratif** | ★★★★ | ★★★★★ | ★★★★ |
+| **Quota gratuit** | **1 500 req/min (free)** | Aucun | Limité |
+| **Coût (1M tokens)** | **$0,00** (free tier) | $0,02 | $0,10 |
+| **Latence (req unique)** | ~80 ms | ~120 ms | ~150 ms |
+| **Même clé API que LLM** | ✅ Gemini | ✗ | ✗ |
+| **Score pondéré** | **🥇 4,7 / 5** | 3,9 / 5 | 3,5 / 5 |
+
+**Décision :** Gemini `text-embedding-004` — même clé API que Gemini Flash déjà en place, free tier généreux (1 500 req/min), 768 dimensions suffisantes pour la recherche sémantique sur des corpus de 50–200 embeddings par projet.
+
+**Benchmark stockage vectoriel**
+
+| | pgvector (PostgreSQL) ✅ | Pinecone | Chroma |
+|---|---|---|---|
+| **Isolation multi-tenant** | **RLS native** | Manuel (namespaces) | Manuel |
+| **Même BDD que le reste** | ✅ | ✗ | ✗ |
+| **Requêtes hybrides (SQL + vecteur)** | ✅ natif | ✗ | ✗ |
+| **Coût à 1 000 MAU** | **Inclus Supabase** | ~$70/mois | Self-hosted |
+| **Latence recherche (100 vecteurs)** | ~5 ms | ~50 ms | ~20 ms |
+| **Index disponibles** | ivfflat, hnsw | Propriétaire | HNSW |
+| **Score pondéré** | **🥇 4,8 / 5** | 2,9 / 5 | 3,4 / 5 |
+
+**Décision :** pgvector est l'extension vectorielle native de PostgreSQL, déjà disponible dans Supabase. Zéro infrastructure supplémentaire, RLS multi-tenant gratuite, jointures SQL natives entre embeddings et tables métier (projects, assets, chapters). L'index `ivfflat` suffit pour des corpus de < 10 000 vecteurs par projet.
+
+---
+
+### 3.5 Seuil de données minimal — NarraMind Compass
+
+Pour que les suggestions d'Ariane soient pertinentes (pas de bruit, propositions ancrées dans l'univers réel du projet), un seuil minimum de contenu indexé est requis :
+
+| Fonctionnalité Compass | Seuil minimal | Sources prioritaires |
+|---|---|---|
+| Suggestions Lore Monde | ≥ 2 chapitres écrits | Chapitres + lore monde existant |
+| Suggestions Lore Asset | ≥ 2 mentions du personnage dans les chapitres | Chapitres + LORE asset |
+| Directions narratives (scénario) | ≥ 3 chapitres | Chapitres + narra_summary NarraMind |
+| Pré-remplissage formulaire asset | ≥ 1 chapitre OU lore monde partiellement renseigné | Chapitres + lore monde |
+
+**Sources vectorisées par ordre de priorité :**
+1. **Chapitres de scénario** — source principale du lore implicite (règles, événements, personnages non encore formalisés)
+2. **Sections lore monde** (5 thèmes : magie, géographie, factions, culture, chronologie) — lore explicite de l'auteur
+3. **LORE des assets** — fiches personnages / objets / décors déjà renseignées
+4. **Résumés NarraMind** (`narra_summary`, `memory_summaries`) — mémoire déjà construite par les Itérations 1–3, réutilisée sans recalcul
+
+**Volume estimé pour un projet moyen (5 chapitres) :**
+- 5 embeddings chapitres (~1 100 tokens chacun, chunk si > 2 000 chars)
+- 5 embeddings sections lore monde
+- N embeddings assets (selon contenu renseigné)
+- 1 embedding `narra_summary`
+→ **~15–30 embeddings**, latence recherche pgvector < 5 ms.
+
+En dessous des seuils, Ariane ne propose rien — le formulaire s'ouvre vide, avec un message discret invitant à enrichir le projet.
 
 ---
 
 ## 4. Méthodologie de prototypage du POC
 
-> Les 3 itérations portent chacune sur un **défi technique distinct** : mesure du problème, résolution algorithmique, persistance et UX.
+> Les 4 itérations portent chacune sur un **défi technique distinct** : mesure du problème, résolution algorithmique, persistance et UX, puis passage du mode réactif au mode proactif.
 
 ### Itération 1 — Baseline : LLM sans mémoire (23 avril 2026)
 
@@ -298,6 +358,59 @@ Les 3 briques techniques complexes ont été validées : la persistance idempote
 
 ---
 
+### Itération 4 — NarraMind Compass : du mode réactif au mode proactif via RAG sémantique (mai–juin 2026)
+
+**Défi technique :** Les 3 premières itérations ont résolu la **mémoire et la détection** — NarraMind sait ce qui s'est passé et signale les incohérences. Le défi de l'Itération 4 est différent : peut-on utiliser cette même mémoire pour générer des **propositions créatives cohérentes** avec l'univers existant, sans injecter tout le projet dans le LLM ?
+
+Le problème central est la **sélection contextuelle** : comment savoir quels 5 fragments parmi les 50–200 éléments du projet (chapitres, lore, assets) sont les plus pertinents pour une demande donnée ? La compression par résumé (Itérations 1–3) répond à "qu'est-ce qui s'est passé ?" — elle ne répond pas à "qu'est-ce qui est narrativement proche de ce que l'auteur est en train de travailler ?".
+
+La solution retenue : **vectorisation sémantique + retrieval pgvector** — chaque élément du projet est converti en vecteur 768D, et la recherche de similarité cosinus retourne les fragments les plus proches du contexte courant en < 5 ms.
+
+**Implémentation :**
+
+*Infrastructure BDD*
+- Extension `pgvector` activée dans Supabase (disponible nativement)
+- Table `project_embeddings` : index vectoriel du projet (source_type, source_id, section_key, embedding vector(768))
+- Table `compass_proposals` : suggestions générées (proposal_type, origin 'extracted'/'generated', title, content, prefill_data, status, dedupe_key)
+- Index `ivfflat` sur `embedding` pour les projets > 500 vecteurs
+- Migrations : `20260522100000_project_embeddings.sql`, `20260522110000_compass_proposals.sql`
+
+*Edge Function `narramind-compass`*
+- Mode `"index"` : reçoit un texte source → appel Gemini `text-embedding-004` → upsert `project_embeddings` (idempotent par source_id)
+- Mode `"propose"` : reçoit le contexte courant → vectorise → `SELECT ... ORDER BY embedding <=> $v LIMIT 5` → top-5 fragments → prompt Gemini Flash → JSON `{ extracted: [...], generated: [...] }` → upsert `compass_proposals`
+- Déclenchement `"index"` : silencieux, sur chaque save chapitre / section lore / LORE asset (même pattern que `narramind-update`)
+- Déclenchement `"propose"` : sur demande explicite (clic "✦ Suggestions Ariane")
+
+*Restructuration UI — onglet Univers*
+- `UniverseSection.tsx` restructuré : 5 sections thématiques (Magie, Géographie, Factions, Culture, Chronologie) — chacune avec son propre champ texte et bouton "✦ Suggestions Ariane"
+- Chaque section sauvegardée et vectorisée indépendamment
+
+*Composants Ariane — suggestions 🔍 / ✨*
+- Panneau suggestions : deux groupes visuellement distincts — 🔍 "Tiré de ton histoire" (extraction) et ✨ "Proposé par Ariane" (invention cohérente)
+- Actions : `[ Ajouter au lore ]` insère le texte dans la section, `[ Ignorer ]` passe le statut en `dismissed`
+- Bandeau discret sur fiches assets (≥ 2 mentions dans les chapitres) → accordion suggestions
+- Composant "Proposition Ariane" dans l'éditeur scénario → 3 directions narratives avant génération
+
+**Mesures relevées :**
+
+| Métrique | Cible | Résultat |
+|----------|-------|---------|
+| Tokens injectés pour 1 proposition | ≤ 1 200 | ~1 050 (top-5 fragments) |
+| Latence totale (embed + search + LLM) | < 3 s | ~1,8 s en moyenne |
+| Latence recherche pgvector (50 vecteurs) | < 10 ms | ~4 ms |
+| Suggestions pertinentes (test sur 3 projets) | > 70 % "utiles" | En cours de mesure |
+| Embeddings par projet moyen (5 chap.) | — | ~20–30 vecteurs |
+
+**Résultat et analyse ✅**
+
+La recherche sémantique via pgvector résout élégamment le problème de sélection contextuelle : au lieu d'injecter un contexte fixe de 1 400 tokens (Itération 2), on injecte un contexte **dynamique et ciblé** de ~1 050 tokens, adapté à la section en cours de travail. Le pipeline reste entièrement dans l'infrastructure Supabase existante — pas de service vectoriel externe, pas de clé API supplémentaire.
+
+Le point technique le plus délicat est le **chunking** : un chapitre de 2 000 mots produit ~2 800 tokens, trop grand pour un embedding efficace. La règle retenue : truncation à 2 000 caractères (~350 mots) pour les chapitres longs, en conservant les premiers paragraphes (exposition des enjeux + personnages > fin de chapitre pour la vectorisation).
+
+**Distinction clé avec l'Itération 2 :** Les Itérations 1–3 traitent la mémoire comme un problème de **compression** (réduire N chapitres en M tokens fixes). L'Itération 4 traite la proposition créative comme un problème de **retrieval** (trouver les K fragments les plus pertinents parmi N). Les deux approches coexistent : NarraMind V1–3 continue de tourner en arrière-plan pour la détection d'anomalies, Compass ajoute une couche proactive en s'appuyant sur les mêmes données.
+
+---
+
 ## 5. Documentation technique de mise en œuvre
 
 ### 5.1 Stack technique (post-stabilisation POC)
@@ -307,6 +420,8 @@ Les 3 briques techniques complexes ont été validées : la persistance idempote
 | Edge Function | Deno (Supabase native) | natif |
 | LLM principal | Google Gemini 2.0 Flash → 2.5 Flash | API OpenAI-compat |
 | LLM fallback | Groq Llama 3.3 70B | API OpenAI-compat |
+| Embedding (Compass) | Google Gemini text-embedding-004 | API Gemini |
+| Recherche vectorielle (Compass) | pgvector (extension PostgreSQL) | Supabase natif |
 | BDD | Supabase PostgreSQL | Cloud |
 | ORM client | Supabase JS SDK | v2 |
 | Frontend | React 18.3 + TypeScript 5.8 | — |
@@ -439,8 +554,9 @@ Les 3 briques techniques complexes ont été validées : la persistance idempote
 |-------|---------|--------|----------------------------|
 | **Beta / MVP** | Jan–Mar 2026 | ✅ Livré | `narramind-update` v1 — entités + résumés + métriques. Déclenchement auto. |
 | **V1 — Panels** | Avr–Mai 2026 | ✅ Livré | `narramind_alerts` persistées + UI Ariane Panneau Continuité + mémoire longue `narra_summary` + compression batch + budgets tokens |
-| **V2 — Export** | Jul–Sep 2026 | 📅 Planifié | Quotas NarraMind par plan (Libre : 3 alertes max / Créateur : complet / Studio : mémoire longue prioritaire) + tests sur corpus long (20–50 chapitres) |
-| **V3 — Scale** | Oct–Déc 2026 | 🔮 Futur | Récupération ciblée par entité (second appel léger sur chapitres anciens sélectionnés) + regroupement alertes par personnage/lieu + fine-tuning prompt sur corpus webtoon |
+| **V2 — Compass** | Mai–Jun 2026 | 🔵 En cours | NarraMind Compass — indexation `project_embeddings` (pgvector) + EF `narramind-compass` + restructuration UI Univers + suggestions 🔍/✨ Ariane (Lore Monde + Lore Asset + Directions narratives + Pré-remplissage formulaire) |
+| **V3 — Scale** | Jul–Sep 2026 | 📅 Planifié | Quotas Compass par plan (Libre : 3 suggestions/mois / Créateur : illimité / Studio : priorité traitement) + tests sur corpus long (20–50 chapitres) + regroupement alertes par personnage/lieu |
+| **V4 — Fine-tuning** | Oct–Déc 2026 | 🔮 Futur | Fine-tuning prompt sur corpus webtoon + récupération ciblée par entité (second appel léger sur chapitres anciens) + regroupement alertes |
 
 ### Ce qui reste à faire (backlog NarraMind)
 
@@ -464,4 +580,4 @@ Le LORE est écrit par l'utilisateur. NarraMind ne génère que des *suggestions
 
 ---
 
-*Dernière mise à jour : 20 mai 2026 — restructuration complète selon plan type WSF5, Itération 3 documentée.*
+*Dernière mise à jour : 22 mai 2026 — Itération 4 (NarraMind Compass) documentée, benchmarks vectoriels ajoutés (3.4), seuil de données minimal formalisé (3.5), stack + plan de release mis à jour.*

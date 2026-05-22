@@ -402,3 +402,44 @@ export interface ProjectEmbedding {
   content: string;
   updated_at: string;
 }
+
+// ── Wiki Graphique Univers ────────────────────────────────────────
+
+export type LoreNodeType = 'character' | 'location' | 'object' | 'event';
+
+export const LORE_NODE_TYPE_CONFIG: Record<LoreNodeType, { label: string; emoji: string }> = {
+  character: { label: 'Personnage', emoji: '👤' },
+  location:  { label: 'Lieu',       emoji: '📍' },
+  object:    { label: 'Objet',      emoji: '⚔️' },
+  event:     { label: 'Événement',  emoji: '📜' },
+};
+
+export interface LoreNode {
+  id: string;
+  project_id: string;
+  user_id: string;
+  type: LoreNodeType;
+  name: string;
+  description: string | null;
+  image_url: string | null;
+  asset_id: string | null;
+  pos_x: number;
+  pos_y: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LoreEdge {
+  id: string;
+  project_id: string;
+  user_id: string;
+  from_node_id: string;
+  to_node_id: string;
+  label: string | null;
+  created_at: string;
+}
+
+export type LoreNodeInsert = Omit<LoreNode, 'id' | 'created_at' | 'updated_at'>;
+export type LoreNodeUpdate  = Partial<Omit<LoreNode, 'id' | 'project_id' | 'user_id' | 'created_at'>>;
+export type LoreEdgeInsert  = Omit<LoreEdge, 'id' | 'created_at'>;
+

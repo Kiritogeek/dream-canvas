@@ -149,9 +149,12 @@ Audits/                           # Audits techniques datés
 
 ### Git — Règle absolue
 
-**Ne jamais exécuter `git push` sans autorisation explicite de l'utilisateur.**
-Un commit peut être créé librement après une implémentation. Le push vers le remote ne se fait que si l'utilisateur dit explicitement "push", "envoie", "pousse le code" ou équivalent dans le message courant.
-Cette règle s'applique même en fin de session, même pour une "mise à jour rapide", même si le commit est propre.
+**Ne jamais exécuter `git push` vers `main` sans autorisation explicite de Louis.**
+Un commit peut être créé librement. Un push vers `pre-production` ou toute autre branche de travail peut être fait librement. Seul le push vers `main` (ou `--force` sur n'importe quelle branche) nécessite une autorisation explicite dans le message courant.
+
+### Permissions — Règle absolue
+
+**Ne jamais demander d'autorisation pour lire, écrire, modifier des fichiers, exécuter des commandes shell, lancer des outils ou accéder à des ressources.** Agir directement sans demander de confirmation, sauf pour `git push` vers `main`. Cette règle s'applique à toutes les commandes Bash, PowerShell, outils MCP, lecture/écriture de fichiers — sans exception.
 
 ### Challenger et affiner en continu
 

@@ -400,88 +400,112 @@ export default function ProjectDetail() {
   const currentHeader = tabHeaders[activeTab as keyof typeof tabHeaders];
   const HeaderIcon = currentHeader.icon;
 
+  const isUniverse = activeTab === "universe";
+
   return (
-    <DashboardLayout>
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-6 sm:mb-8">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="w-9 h-9 rounded-xl gradient-primary flex items-center justify-center shadow-dream shrink-0">
-            <HeaderIcon className="h-4 w-4 text-primary-foreground" />
+    <DashboardLayout
+      compactHeader={isUniverse}
+      fluidSection={
+        isUniverse ? (
+          <div className="relative flex-1">
+            {canShowAdminTriggerOnboardingButton && (
+              <div className="absolute top-3 right-4 z-20">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="border-[hsl(var(--lavender)/0.35)] bg-background/50 text-xs shrink-0"
+                  onClick={handleAdminTriggerOnboarding}
+                >
+                  Déclencher l&apos;onboarding
+                </Button>
+              </div>
+            )}
+            <UniverseSection project={project} assets={assets} />
           </div>
-          <h1 className="text-xl sm:text-2xl font-display font-bold truncate">
-            {currentHeader.title}
-          </h1>
-        </div>
-        {canShowAdminTriggerOnboardingButton ? (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="border-[hsl(var(--lavender)/0.35)] bg-background/50 text-xs shrink-0"
-            onClick={handleAdminTriggerOnboarding}
+        ) : undefined
+      }
+    >
+      {!isUniverse && (
+        <>
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-6 sm:mb-8">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-9 h-9 rounded-xl gradient-primary flex items-center justify-center shadow-dream shrink-0">
+                <HeaderIcon className="h-4 w-4 text-primary-foreground" />
+              </div>
+              <h1 className="text-xl sm:text-2xl font-display font-bold truncate">
+                {currentHeader.title}
+              </h1>
+            </div>
+            {canShowAdminTriggerOnboardingButton ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="border-[hsl(var(--lavender)/0.35)] bg-background/50 text-xs shrink-0"
+                onClick={handleAdminTriggerOnboarding}
+              >
+                Déclencher l&apos;onboarding
+              </Button>
+            ) : null}
+          </div>
+          <Tabs
+            value={activeTab}
+            onValueChange={(tab) => {
+              if (tab === "test") {
+                if (isArianeOnboardingAdmin) setSearchParams({ tab });
+                return;
+              }
+              const t = tab as keyof typeof accessible;
+              if (appliesProgressiveFlow && !accessible[t]) return;
+              setSearchParams({ tab });
+            }}
+            className="space-y-4 sm:space-y-6"
           >
-            Déclencher l&apos;onboarding
-          </Button>
-        ) : null}
-      </div>
-      <Tabs
-        value={activeTab}
-        onValueChange={(tab) => {
-          if (tab === "test") {
-            if (isArianeOnboardingAdmin) setSearchParams({ tab });
-            return;
-          }
-          const t = tab as keyof typeof accessible;
-          if (appliesProgressiveFlow && !accessible[t]) return;
-          setSearchParams({ tab });
-        }}
-        className="space-y-4 sm:space-y-6"
-      >
-        <TabsContent value="style">
-          <StyleManager
-            project={project}
-            styleTemplate={styleTemplate}
-            onStyleTemplateChange={setStyleDraft}
-            onStyleSaveSuccess={() => setStyleDraft(undefined)}
-            userPlan={userPlan}
-          />
-        </TabsContent>
+            <TabsContent value="style">
+              <StyleManager
+                project={project}
+                styleTemplate={styleTemplate}
+                onStyleTemplateChange={setStyleDraft}
+                onStyleSaveSuccess={() => setStyleDraft(undefined)}
+                userPlan={userPlan}
+              />
+            </TabsContent>
 
-        <TabsContent value="assets">
-          <AssetLibrary
-            projectId={project.id}
-            project={project}
-            assets={assets}
-            generatingAssetId={generatingAssetId}
-            onCanGenerate={canGenerate}
-            onGenerate={generate}
-            pendingAssetName={pendingAssetName}
-            pendingAssetType={pendingAssetType}
-            onPendingAssetConsumed={() => setPendingAssetName("")}
-          />
-        </TabsContent>
+            <TabsContent value="assets">
+              <AssetLibrary
+                projectId={project.id}
+                project={project}
+                assets={assets}
+                generatingAssetId={generatingAssetId}
+                onCanGenerate={canGenerate}
+                onGenerate={generate}
+                pendingAssetName={pendingAssetName}
+                pendingAssetType={pendingAssetType}
+                onPendingAssetConsumed={() => setPendingAssetName("")}
+              />
+            </TabsContent>
 
-        <TabsContent value="scenario">
-          <ScenarioSection
-            projectId={project.id}
-            project={project}
-            onNavigateToCreateAsset={handleNavigateToCreateAsset}
-          />
-        </TabsContent>
+            <TabsContent value="scenario">
+              <ScenarioSection
+                projectId={project.id}
+                project={project}
+                onNavigateToCreateAsset={handleNavigateToCreateAsset}
+              />
+            </TabsContent>
 
-        <TabsContent value="universe">
-          <UniverseSection project={project} assets={assets} />
-        </TabsContent>
+            <TabsContent value="edition">
+              <EditionSection projectId={project.id} />
+            </TabsContent>
 
-        <TabsContent value="edition">
-          <EditionSection projectId={project.id} />
-        </TabsContent>
-
-        {isArianeOnboardingAdmin && (
-          <TabsContent value="test">
-            <TestSection projectId={project.id} />
-          </TabsContent>
-        )}
-      </Tabs>
+            {isArianeOnboardingAdmin && (
+              <TabsContent value="test">
+                <TestSection projectId={project.id} />
+              </TabsContent>
+            )}
+          </Tabs>
+        </>
+      )}
       <ArianeStyleOnboardingCard
         open={styleOnboardingOpen && activeTab === "style"}
         onDismiss={handleStyleOnboardingDismiss}

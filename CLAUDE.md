@@ -29,6 +29,8 @@
 | Edge Functions | Deno (Supabase Functions) |
 | IA Image | FAL.ai — FLUX.2 Pro / FLUX.2 Pro Edit (tous les tiers) |
 | IA Scénario | Groq — Llama 3.3 70B |
+| IA Vectorisation | Gemini `text-embedding-004` (768D) — NarraMind Compass |
+| Recherche vectorielle | pgvector (extension PostgreSQL Supabase) |
 | Animation | Framer Motion 12 |
 | Forms | React Hook Form 7 + Zod 3.25 |
 | Tests | Vitest 3.2 |
@@ -54,6 +56,8 @@ Règle : ne jamais hardcoder des couleurs — utiliser les tokens HSL ou les cla
 | `chapter_canvases` | chapter_id, panel_number, prompt, image_url, layout (JSONB), speech_bubbles (JSONB), color_blocks (JSONB) |
 | `scenario_chapters` | project_id, chapter_number, title, content, panels_outline (JSONB), narramind_anomalies (vidé après chaque run NarraMind), narramind_checked_at |
 | `usage` | user_id, action ('image_generation'), created_at — comptage mensuel |
+| `project_embeddings` | project_id, source_type, source_id, section_key, content, embedding vector(768) — index vectoriel Compass |
+| `compass_proposals` | project_id, proposal_type, origin ('extracted'/'generated'), title, content, status, dedupe_key |
 
 **RLS** : toutes les tables ont `auth.uid() = user_id`. Ne jamais contourner.
 
@@ -69,6 +73,7 @@ Règle : ne jamais hardcoder des couleurs — utiliser les tokens HSL ou les cla
 | `narramind-update` | Mémoire narrative (entités, résumés, détection anomalies) ; réponse HTTP contient les anomalies ; `scenario_chapters.narramind_anomalies` toujours `[]` après run (pas de stockage liste pour l’UI) |
 | `generate-style-template-images` | Génère images de prévisualisation du style |
 | `generate-landing-showcase` | Images hero pour la landing page |
+| `narramind-compass` | Compass : mode `index` (vectorise via Gemini text-embedding-004 → project_embeddings) + mode `propose` (pgvector search → Gemini Flash → compass_proposals) |
 
 Les Edge Functions reçoivent le JWT utilisateur en `Authorization: Bearer`, utilisent le service role pour lire les données cross-user. Ne jamais appeler les Edge Functions sans access_token valide.
 

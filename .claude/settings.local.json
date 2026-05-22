@@ -121,7 +121,10 @@
       "Bash(node *)",
       "PowerShell(git *)",
       "Bash(npx grep *)",
-      "Bash(Select-Object Name)"
+      "Bash(Select-Object Name)",
+      "PowerShell(npx tsc --noEmit 2>&1 | Select-Object -Last 20)",
+      "Bash(Select-Object Name, LastWriteTime)",
+      "Bash(Sort-Object LastWriteTime -Descending)"
     ]
   },
   "hooks": {

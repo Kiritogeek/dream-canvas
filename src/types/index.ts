@@ -372,3 +372,33 @@ export interface NarramindMissingAsset {
   createdAt: string;
   updatedAt: string;
 }
+
+// ── NarraMind Compass — vectorisation sémantique ─────────────────
+
+export type CompassSourceType = "chapter" | "lore_world_section" | "asset_lore" | "summary";
+
+export type CompassProposalType = "lore_world" | "lore_asset" | "narrative_direction" | "asset_prefill";
+
+export interface CompassProposal {
+  id: string;
+  project_id: string;
+  source_id: string | null;
+  proposal_type: CompassProposalType;
+  origin: "extracted" | "generated";
+  title: string;
+  content: string;
+  prefill_data: Record<string, unknown> | null;
+  status: "active" | "accepted" | "dismissed";
+  dedupe_key: string;
+  created_at: string;
+}
+
+export interface ProjectEmbedding {
+  id: string;
+  project_id: string;
+  source_type: CompassSourceType;
+  source_id: string;
+  section_key: string | null;
+  content: string;
+  updated_at: string;
+}

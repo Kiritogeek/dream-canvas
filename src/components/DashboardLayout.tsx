@@ -289,7 +289,7 @@ function SidebarContextSection({ onLinkClick }: { onLinkClick?: () => void }) {
   );
 }
 
-export default function DashboardLayout({ children }: { children: ReactNode }) {
+export default function DashboardLayout({ children, fluidSection, compactHeader }: { children: ReactNode; fluidSection?: ReactNode; compactHeader?: boolean }) {
   const { user, signOut } = useAuth();
   const { plan, usageInfo } = useUserPlan();
   const location = useLocation();
@@ -452,10 +452,17 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         </aside>
 
         {/* Main content */}
-        <main className="flex-1 lg:ml-[260px] min-w-0 bg-content">
-          <div key={location.pathname} className="max-w-5xl mx-auto px-6 sm:px-8 lg:px-10 py-6 sm:py-8 animate-fade-up">
+        <main className="flex-1 lg:ml-[260px] min-w-0 bg-content flex flex-col">
+          <div
+            key={location.pathname}
+            className={[
+              "max-w-5xl mx-auto w-full px-6 sm:px-8 lg:px-10 animate-fade-up",
+              compactHeader ? "" : "py-6 sm:py-8",
+            ].join(" ")}
+          >
             {children}
           </div>
+          {fluidSection}
         </main>
       </div>
       <ArianeOnboardingCard />

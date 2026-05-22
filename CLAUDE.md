@@ -147,10 +147,16 @@ Audits/                           # Audits techniques datés
 - **Poser les questions ambiguës explicitement** — ne jamais assumer silencieusement
 - **Confirmer les décisions destructives** (suppression de composant, refactoring large, changement de schéma DB)
 
-### Git — Règle absolue
+### Git — Règle absolue ⛔
 
-**Ne jamais exécuter `git push` vers `main` sans autorisation explicite de Louis.**
-Un commit peut être créé librement. Un push vers `pre-production` ou toute autre branche de travail peut être fait librement. Seul le push vers `main` (ou `--force` sur n'importe quelle branche) nécessite une autorisation explicite dans le message courant.
+**⛔ NE JAMAIS exécuter `git push` vers `main` sans autorisation explicite de Louis dans le message courant.**
+
+- Un commit peut être créé librement.
+- Un push vers `pre-production` ou toute autre branche de travail peut être fait librement.
+- **`git push origin main` ou `git push origin pre-production:main` ou toute variante poussant vers `main` est INTERDIT sans un mot explicite de Louis dans le message courant.**
+- L'autorisation "Fin de session" vaut pour UN seul push vers main à ce moment-là. Elle ne couvre PAS les commits suivants dans la même session ou les sessions futures.
+- Si Louis soumet un bug fix APRÈS "Fin de session", créer le commit + pusher pre-production, puis **demander explicitement** avant de pusher main.
+- Aucune exception. Pas même pour un hotfix d'une ligne.
 
 ### Permissions — Règle absolue
 

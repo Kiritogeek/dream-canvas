@@ -622,6 +622,11 @@ export type Database = {
           created_at: string
           description: string | null
           id: string
+          lore_culture: string | null
+          lore_factions: string | null
+          lore_geography: string | null
+          lore_magic: string | null
+          lore_timeline: string | null
           narra_summary: string | null
           narra_summary_updated_at: string | null
           panels_target_per_chapter: number | null
@@ -637,6 +642,11 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          lore_culture?: string | null
+          lore_factions?: string | null
+          lore_geography?: string | null
+          lore_magic?: string | null
+          lore_timeline?: string | null
           narra_summary?: string | null
           narra_summary_updated_at?: string | null
           panels_target_per_chapter?: number | null
@@ -652,6 +662,11 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          lore_culture?: string | null
+          lore_factions?: string | null
+          lore_geography?: string | null
+          lore_magic?: string | null
+          lore_timeline?: string | null
           narra_summary?: string | null
           narra_summary_updated_at?: string | null
           panels_target_per_chapter?: number | null

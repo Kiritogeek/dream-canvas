@@ -255,7 +255,7 @@ Critiques non négociables : `tsc --noEmit` 0 erreur · `npm test` 0 régression
 
 > Source de vérité : `C:/Users/kirit/OneDrive/Documents/Obsidian Vault/wiki/Roadmap-2026.md`
 
-Ordre strict : Scénario IA ✅ → Sheet System ✅ → Audit nav ✅ → Refonte Éditeur (Option B ✅, Option A ✅) → Plans Libre/Créateur/Studio ✅ → **Stripe** 🔴 → Vue Admin.
+Ordre strict : Scénario IA ✅ → Sheet System ✅ → Audit nav ✅ → Refonte Éditeur (Option B ✅, Option A ✅) → Plans Libre/Créateur/Studio ✅ → Stripe ✅ → **Vue Admin** 🔴.
 
 ---
 

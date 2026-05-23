@@ -20,6 +20,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useUpdateLoreNode, useDeleteLoreNode } from "@/hooks/useLoreNodes";
 import { useCreateLoreEdge, useDeleteLoreEdge } from "@/hooks/useLoreEdges";
+import { useChapters } from "@/hooks/useChapters";
 import { useCompassProposals } from "@/hooks/useCompassProposals";
 import { CompassSuggestionsPanel } from "./CompassSuggestionsPanel";
 import type { LoreNode, LoreEdge, LoreNodeType, Asset } from "@/types";
@@ -125,6 +126,8 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
   const deleteNode = useDeleteLoreNode();
   const createEdge = useCreateLoreEdge();
   const deleteEdge = useDeleteLoreEdge();
+  const { data: chapters = [] } = useChapters(projectId);
+  const sortedChapters = [...chapters].sort((a, b) => a.chapter_number - b.chapter_number);
   const {
     proposals,
     loading: arianeLoading,
@@ -149,6 +152,7 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
   const [addingEdge, setAddingEdge] = useState(false);
   const [arianeOpen, setArianeOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"lore" | "connexions">("lore");
+  const [chapterId, setChapterId] = useState<string | null>(null);
 
   const saveDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pickerRef = useRef<HTMLDivElement>(null);
@@ -190,6 +194,7 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
       setActivePills([...predefined.slice(0, 2), ...customKeys]);
       setActiveSection(predefined[0]);
       setArianeOpen(false);
+      setChapterId(node.chapter_id ?? null);
       setActiveTab("lore");
       setShowPicker(false);
       setNewCustomName("");
@@ -229,7 +234,7 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
       const result = await updateNode.mutateAsync({
         id: node.id,
         projectId,
-        updates: { name, type, description: loreDescription || null },
+        updates: { name, type, description: loreDescription || null, chapter_id: chapterId },
       });
       onNodeUpdated?.(result);
       toast({ title: "Sauvegardé", description: name });
@@ -238,7 +243,7 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
     } finally {
       setSaving(false);
     }
-  }, [node, projectId, name, type, sections, updateNode, onNodeUpdated, toast]);
+  }, [node, projectId, name, type, sections, chapterId, updateNode, onNodeUpdated, toast]);
 
   const triggerAutoSave = useCallback(() => {
     if (saveDebounceRef.current) clearTimeout(saveDebounceRef.current);
@@ -440,6 +445,24 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
                     <Plus className="h-3 w-3" />
                     Créer l'asset
                   </button>
+                ) : type === "event" ? (
+                  /* Événements : sélecteur de chapitre source */
+                  <div className="w-full px-3 space-y-1.5">
+                    <p className="text-[10px] text-white/40 uppercase tracking-widest text-center">Chapitre source</p>
+                    <Select value={chapterId ?? ""} onValueChange={(v) => { setChapterId(v || null); triggerAutoSave(); }}>
+                      <SelectTrigger className="h-8 text-xs border-white/20 bg-white/10 text-white/70 hover:text-white w-full gap-1">
+                        <SelectValue placeholder="Avant l'histoire" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-popover border-white/10">
+                        <SelectItem value="">Avant l'histoire</SelectItem>
+                        {sortedChapters.map((ch) => (
+                          <SelectItem key={ch.id} value={ch.id}>
+                            Chap. {ch.chapter_number} — {ch.title}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 ) : null}
               </div>
             )}

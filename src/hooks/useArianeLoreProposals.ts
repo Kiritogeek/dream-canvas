@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import type { CompassProposal, LoreNodeType } from "@/types";
+import type { CompassProposal, LoreNodeType, LoreNode } from "@/types";
 
 const SCAN_DEBOUNCE_MS = 300_000;
 
@@ -18,6 +18,10 @@ const ASSET_TO_LORE_TYPE: Record<string, LoreNodeType> = {
   background: "location",
   object: "object",
 };
+
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
 
 export function useArianeLoreProposals(projectId: string) {
   const { user } = useAuth();
@@ -65,6 +69,7 @@ export function useArianeLoreProposals(projectId: string) {
     );
     const alreadyProposed = new Set((existingProposals ?? []).map((p) => p.dedupe_key));
     const canvasMap = new Map((canvasChapters ?? []).map((c) => [c.chapter_number, c.id]));
+    const seenNames = new Set<string>();
 
     const toInsert: Array<{
       project_id: string;
@@ -79,18 +84,21 @@ export function useArianeLoreProposals(projectId: string) {
     }> = [];
 
     for (const asset of assets) {
+      const normalizedName = asset.name.toLowerCase().trim();
+      if (seenNames.has(normalizedName)) continue;
+
       if (alreadyInLore.has(asset.id)) continue;
       const dedupeKey = `lore_asset-${asset.id}`;
       if (alreadyProposed.has(dedupeKey)) continue;
 
-      const lowerName = asset.name.toLowerCase().trim();
-      if (lowerName.length < 2) continue;
+      if (normalizedName.length < 2) continue;
 
       let firstChapterId: string | null = null;
       let firstChapterNumber: number | null = null;
 
+      const wordRe = new RegExp(`\\b${escapeRegex(asset.name)}\\b`, "i");
       for (const sc of scenarioChapters) {
-        if (sc.content?.toLowerCase().includes(lowerName)) {
+        if (wordRe.test(sc.content ?? "")) {
           firstChapterId = canvasMap.get(sc.chapter_number) ?? null;
           firstChapterNumber = sc.chapter_number;
           break;
@@ -98,6 +106,8 @@ export function useArianeLoreProposals(projectId: string) {
       }
 
       if (!firstChapterNumber) continue;
+
+      seenNames.add(normalizedName);
 
       toInsert.push({
         project_id: projectId,
@@ -156,23 +166,33 @@ export function useArianeLoreProposals(projectId: string) {
   }, [chaptersSignature, runScan]);
 
   const acceptMutation = useMutation({
-    mutationFn: async (proposal: CompassProposal) => {
+    mutationFn: async ({
+      proposal,
+      onNodeCreated,
+    }: {
+      proposal: CompassProposal;
+      onNodeCreated?: (node: LoreNode) => void;
+    }) => {
       if (!user) throw new Error("Not authenticated");
       const prefill = proposal.prefill_data as unknown as LorePrefillData;
       const loreType: LoreNodeType = ASSET_TO_LORE_TYPE[prefill.asset_type] ?? "object";
 
-      const { error: nodeError } = await supabase.from("lore_nodes").insert({
-        project_id: projectId,
-        user_id: user.id,
-        type: loreType,
-        name: proposal.title,
-        description: null,
-        image_url: null,
-        asset_id: prefill.asset_id,
-        chapter_id: prefill.chapter_id,
-        pos_x: 200 + Math.random() * 400,
-        pos_y: 200 + Math.random() * 300,
-      });
+      const { data: newNode, error: nodeError } = await supabase
+        .from("lore_nodes")
+        .insert({
+          project_id: projectId,
+          user_id: user.id,
+          type: loreType,
+          name: proposal.title,
+          description: null,
+          image_url: null,
+          asset_id: prefill.asset_id,
+          chapter_id: prefill.chapter_id,
+          pos_x: 200 + Math.random() * 400,
+          pos_y: 200 + Math.random() * 300,
+        })
+        .select("*")
+        .single();
       if (nodeError) throw nodeError;
 
       const { error: propError } = await supabase
@@ -180,6 +200,8 @@ export function useArianeLoreProposals(projectId: string) {
         .update({ status: "accepted" })
         .eq("id", proposal.id);
       if (propError) throw propError;
+
+      onNodeCreated?.(newNode as LoreNode);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["lore-proposals", projectId] });
@@ -202,13 +224,14 @@ export function useArianeLoreProposals(projectId: string) {
 
   const acceptAll = useCallback(async () => {
     for (const p of proposals) {
-      await acceptMutation.mutateAsync(p);
+      await acceptMutation.mutateAsync({ proposal: p });
     }
   }, [proposals, acceptMutation]);
 
   return {
     proposals,
-    acceptProposal: (p: CompassProposal) => acceptMutation.mutate(p),
+    acceptProposal: (p: CompassProposal, onNodeCreated?: (node: LoreNode) => void) =>
+      acceptMutation.mutate({ proposal: p, onNodeCreated }),
     acceptAll,
     dismissProposal: (id: string) => dismissMutation.mutate(id),
     isAccepting: acceptMutation.isPending,

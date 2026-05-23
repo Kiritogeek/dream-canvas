@@ -35,7 +35,7 @@ import { useLoreEdges, useCreateLoreEdge, useUpdateLoreEdge, useDeleteLoreEdge }
 import { useUpdateProject } from "@/hooks/useProjects";
 import { LoreNodeSheet } from "./LoreNodeSheet";
 import { useArianeLoreProposals } from "@/hooks/useArianeLoreProposals";
-import { LoreProposalsPanel } from "./LoreProposalsPanel";
+import { LoreUniversProposalsSheet } from "./LoreUniversProposalsSheet";
 import type { Project, Asset, LoreNode, LoreEdge, LoreNodeType } from "@/types";
 import { LORE_NODE_TYPE_CONFIG } from "@/types";
 
@@ -1846,12 +1846,16 @@ export function LoreGraphView({ project, assets }: Props) {
 
       </div>
 
-      <LoreProposalsPanel
+      <LoreUniversProposalsSheet
         proposals={proposals}
         onAccept={acceptProposal}
         onAcceptAll={acceptAll}
         onDismiss={dismissProposal}
         isAccepting={isAccepting}
+        onNodeCreated={(node) => {
+          setSelectedNode(node);
+          setSheetOpen(true);
+        }}
       />
 
       {/* Bouton Monde — bas droite */}

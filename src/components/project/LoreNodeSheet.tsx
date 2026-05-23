@@ -24,6 +24,14 @@ import { CompassSuggestionsPanel } from "./CompassSuggestionsPanel";
 import type { LoreNode, LoreEdge, LoreNodeType, Asset } from "@/types";
 import { LORE_NODE_TYPE_CONFIG } from "@/types";
 
+// ── Chips de lore par type — insèrent un sous-titre dans le textarea ──
+const LORE_CHIPS: Record<LoreNodeType, string[]> = {
+  character: ["Apparence", "Personnalité", "Histoire", "Motivations", "Capacités"],
+  location:  ["Description", "Atmosphère", "Histoire", "Habitants", "Règles"],
+  object:    ["Apparence", "Origine", "Propriétés", "Propriétaires", "Symbolique"],
+  event:     ["Époque", "Participants", "Déclencheur", "Déroulement", "Conséquences"],
+};
+
 interface Props {
   node: LoreNode | null;
   nodes: LoreNode[];
@@ -169,6 +177,14 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
     triggerAutoSave();
   }, [description, acceptProposal, triggerAutoSave]);
 
+  const handleInsertSection = useCallback((label: string) => {
+    const header = `### ${label}\n`;
+    if (description.includes(header)) return;
+    const newDesc = description.trim() ? `${description.trim()}\n\n${header}` : header;
+    setDescription(newDesc);
+    triggerAutoSave();
+  }, [description, triggerAutoSave]);
+
   const handleRefreshAriane = useCallback(() => {
     if (!node) return;
     fetchProposals(description.trim() || name, "lore_asset", node.id);
@@ -283,12 +299,32 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
               {/* ── Onglet Lore ── */}
               {activeTab === "lore" && (
                 <div className="space-y-3">
-                  <div className="flex items-center justify-end">
+                  {/* Chips de section + bouton Ariane */}
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {LORE_CHIPS[type].map((label) => {
+                      const used = description.includes(`### ${label}`);
+                      return (
+                        <button
+                          key={label}
+                          type="button"
+                          onClick={() => handleInsertSection(label)}
+                          disabled={used}
+                          className={[
+                            "px-2.5 py-1 rounded-lg text-[10px] font-medium border transition-all duration-150",
+                            used
+                              ? "border-white/5 bg-transparent text-muted-foreground/30 cursor-default line-through"
+                              : "border-white/15 bg-white/5 text-muted-foreground hover:bg-white/10 hover:text-foreground hover:border-white/25",
+                          ].join(" ")}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
                     <button
                       type="button"
                       onClick={handleArianeToggle}
                       className={[
-                        "flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded-lg transition-all duration-150",
+                        "flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded-lg transition-all duration-150 ml-auto",
                         arianeOpen
                           ? "bg-violet-500/20 text-violet-300 border border-violet-500/30"
                           : "text-muted-foreground hover:text-violet-400 hover:bg-violet-500/10",

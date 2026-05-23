@@ -75,11 +75,17 @@ export async function batchUpdateLoreNodePositions(
   nodes: { id: string; pos_x: number; pos_y: number }[]
 ): Promise<void> {
   if (nodes.length === 0) return;
+  // upsert interdit par RLS (nécessite INSERT en plus de UPDATE).
+  // Les nœuds existent toujours → on update en parallèle.
   const now = new Date().toISOString();
-  const { error } = await supabase
-    .from("lore_nodes")
-    .upsert(nodes.map((n) => ({ ...n, updated_at: now })), { onConflict: "id" });
-  if (error) throw error;
+  await Promise.all(
+    nodes.map((n) =>
+      supabase
+        .from("lore_nodes")
+        .update({ pos_x: n.pos_x, pos_y: n.pos_y, updated_at: now })
+        .eq("id", n.id)
+    )
+  );
 }
 
 export async function deleteLoreEdge(id: string): Promise<void> {

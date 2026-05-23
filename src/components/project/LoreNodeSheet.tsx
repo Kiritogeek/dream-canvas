@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from "react";
-import { X, Plus, Trash2, Save, Loader2, Sparkles } from "lucide-react";
+import { X, Plus, Trash2, Save, Loader2, Sparkles, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -394,6 +394,19 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
               {/* ── Onglet Lore ── */}
               {activeTab === "lore" && (
                 <div className="space-y-3">
+
+                  {/* Avertissement : élément sans asset associé */}
+                  {!node.asset_id && (
+                    <div className="flex items-start gap-2 px-3 py-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300">
+                      <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-px" />
+                      <span>
+                        {assets.length > 0
+                          ? "Cet élément n'est pas lié à un asset — associe-en un (colonne gauche) pour ancrer son Lore dans un visuel."
+                          : "Cet élément n'est pas lié à un asset. Crée d'abord un asset dans la section Assets de ton projet."}
+                      </span>
+                    </div>
+                  )}
+
 
                   {/* Sous-navigation : pills actives + bouton "+" */}
                   <div className="flex flex-wrap items-center gap-1.5" ref={pickerRef}>

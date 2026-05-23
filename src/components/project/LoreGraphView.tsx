@@ -1728,7 +1728,7 @@ export function LoreGraphView({ project, assets }: Props) {
     <div
       ref={containerRef}
       className="relative overflow-hidden"
-      style={{ height: "calc(100vh - 4rem)", minHeight: 520 }}
+      style={{ height: "100%", minHeight: 520 }}
     >
       {isLoading && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/40 z-20 backdrop-blur-sm">
@@ -1858,8 +1858,8 @@ export function LoreGraphView({ project, assets }: Props) {
         }}
       />
 
-      {/* Bouton Monde — bas droite */}
-      <div className="absolute bottom-5 right-5 z-10">
+      {/* Bouton Monde — au-dessus du FAB Ariane */}
+      <div className="absolute bottom-24 right-6 z-10">
         <button
           type="button"
           onClick={() => setWorldRulesOpen(true)}

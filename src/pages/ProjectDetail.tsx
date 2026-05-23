@@ -522,8 +522,8 @@ export default function ProjectDetail() {
           onComplete={handleProgressiveTabTourComplete}
         />
       ) : null}
-      {/* FAB fil d'Ariane — fils orbitaux autour du bouton */}
-      {id && (allAlerts.length > 0 || allMissingAssets.length > 0) && (
+      {/* FAB fil d'Ariane — visible uniquement dans l'onglet Scénario */}
+      {id && activeTab === "scenario" && (allAlerts.length > 0 || allMissingAssets.length > 0) && (
         <div className="fixed bottom-6 right-6 z-40">
           <div className="relative">
             {/* Fils ondulants qui orbitent autour du bouton 64px — SVG 84×84, centre à 42,42 */}

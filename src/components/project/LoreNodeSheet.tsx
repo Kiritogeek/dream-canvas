@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
-import { X, Plus, Trash2, Save, Loader2, Sparkles, AlertTriangle } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { X, Plus, Trash2, Save, Loader2, Sparkles, AlertTriangle, Unlink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -24,7 +25,15 @@ import { CompassSuggestionsPanel } from "./CompassSuggestionsPanel";
 import type { LoreNode, LoreEdge, LoreNodeType, Asset } from "@/types";
 import { LORE_NODE_TYPE_CONFIG } from "@/types";
 
-// ── Sections prédéfinies par type (pool complet, ordonnées) ───────────────
+// ── Mapping type lore → type asset ────────────────────────────────────────
+const NODE_TYPE_TO_ASSET_TYPE: Partial<Record<LoreNodeType, Asset["asset_type"]>> = {
+  character: "character",
+  location:  "background",
+  object:    "object",
+  // event : pas de type asset correspondant
+};
+
+// ── Sections prédéfinies par type ─────────────────────────────────────────
 const LORE_CHIPS: Record<LoreNodeType, string[]> = {
   character: ["Apparence", "Personnalité", "Histoire", "Motivations", "Capacités"],
   location:  ["Description", "Atmosphère", "Histoire", "Habitants", "Règles"],
@@ -64,8 +73,7 @@ const SECTION_PLACEHOLDERS: Record<LoreNodeType, Record<string, string>> = {
   },
 };
 
-// ── Helpers sections ↔ description markdown ───────────────────────────────
-// Capture TOUTES les sections (prédéfinies + custom) présentes dans le texte
+// ── Helpers sections ↔ markdown ───────────────────────────────────────────
 function parseToSections(desc: string, predefined: string[]): Record<string, string> {
   const result: Record<string, string> = {};
   predefined.forEach((n) => (result[n] = ""));
@@ -108,8 +116,16 @@ const TYPE_COLORS: Record<LoreNodeType, string> = {
   event:     "border-green-500 bg-green-500/20 text-green-300",
 };
 
+const TYPE_PILL_ACTIVE: Record<LoreNodeType, string> = {
+  character: "border-violet-500/60 bg-violet-500/20 text-violet-300",
+  location:  "border-blue-500/60 bg-blue-500/20 text-blue-300",
+  object:    "border-amber-500/60 bg-amber-500/20 text-amber-300",
+  event:     "border-green-500/60 bg-green-500/20 text-green-300",
+};
+
 export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, open, onOpenChange, onEdgeCreated }: Props) {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const updateNode = useUpdateLoreNode();
   const deleteNode = useDeleteLoreNode();
   const createEdge = useCreateLoreEdge();
@@ -141,7 +157,6 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
   const saveDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pickerRef = useRef<HTMLDivElement>(null);
 
-  // Ferme le picker au clic extérieur
   useEffect(() => {
     if (!showPicker) return;
     const handler = (e: MouseEvent) => {
@@ -158,7 +173,6 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
     if (node) {
       const predefined = LORE_CHIPS[node.type];
       const parsed = parseToSections(node.description ?? "", predefined);
-      // Sections custom déjà créées sur ce nœud (clés hors prédéfinies, avec contenu)
       const customKeys = Object.keys(parsed).filter(
         (k) => !predefined.includes(k) && !!parsed[k]?.trim()
       );
@@ -175,13 +189,19 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
     }
   }, [node, resetAriane]);
 
-  // Sections prédéfinies pas encore dans les pills actives
+  // ── Assets filtrés : type correspondant + non déjà liés à un autre nœud ──
+  const assetTypeForType = NODE_TYPE_TO_ASSET_TYPE[type];
+  const filteredAssets = assetTypeForType
+    ? assets.filter((a) => {
+        if (a.asset_type !== assetTypeForType) return false;
+        return !nodes.some((n) => n.id !== node?.id && n.asset_id === a.id);
+      })
+    : [];
+
   const availablePredefined = LORE_CHIPS[type].filter((s) => !activePills.includes(s));
-  // Sections custom créées sur ce nœud, pas encore dans les pills actives
   const availableCustom = Object.keys(sections).filter(
     (k) => !LORE_CHIPS[type].includes(k) && !activePills.includes(k) && k.trim() !== ""
   );
-  const hasPicker = availablePredefined.length > 0 || availableCustom.length > 0 || true; // toujours affiché (création)
 
   const connectedEdges = node
     ? edges.filter((e) => e.from_node_id === node.id || e.to_node_id === node.id)
@@ -214,6 +234,37 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
     if (saveDebounceRef.current) clearTimeout(saveDebounceRef.current);
     saveDebounceRef.current = setTimeout(() => { handleSave(); }, 1000);
   }, [handleSave]);
+
+  // ── Changer le type ───────────────────────────────────────────────────────
+  const handleTypeChange = useCallback((newType: LoreNodeType) => {
+    if (newType === type) return;
+    setType(newType);
+    setActivePills(LORE_CHIPS[newType].slice(0, 2));
+    setActiveSection(LORE_CHIPS[newType][0]);
+    // Le type sera sauvegardé au prochain clic sur "Sauvegarder"
+  }, [type]);
+
+  // ── Dissocier le visuel ───────────────────────────────────────────────────
+  const handleDissociate = useCallback(async () => {
+    if (!node) return;
+    try {
+      await updateNode.mutateAsync({
+        id: node.id,
+        projectId,
+        updates: { asset_id: null, image_url: null },
+      });
+    } catch {
+      toast({ title: "Erreur", description: "Impossible de dissocier.", variant: "destructive" });
+    }
+  }, [node, projectId, updateNode, toast]);
+
+  // ── Créer un asset depuis Assets ─────────────────────────────────────────
+  const handleCreateAsset = useCallback(() => {
+    if (!node || !assetTypeForType) return;
+    navigate(
+      `/dashboard/projects/${projectId}?tab=assets&pendingName=${encodeURIComponent(node.name)}&pendingType=${assetTypeForType}`
+    );
+  }, [navigate, projectId, node, assetTypeForType]);
 
   const handleDelete = useCallback(async () => {
     if (!node) return;
@@ -278,7 +329,6 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
     fetchProposals(loreDescription.trim() || name, "lore_asset", node.id);
   }, [sections, type, name, node, fetchProposals]);
 
-  // Ajoute une section existante (prédéfinie ou custom déjà créée) aux pills
   const addPill = useCallback((sectionName: string) => {
     setActivePills((prev) => [...prev, sectionName]);
     setActiveSection(sectionName);
@@ -286,7 +336,6 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
     setNewCustomName("");
   }, []);
 
-  // Crée une nouvelle section custom (unique à ce nœud)
   const createCustomSection = useCallback(() => {
     const trimmed = newCustomName.trim();
     if (!trimmed || activePills.includes(trimmed)) return;
@@ -328,6 +377,18 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
               <>
                 <img src={imageUrl} alt={name} className="absolute inset-0 w-full h-full object-cover" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-transparent to-transparent" />
+
+                {/* Bouton Dissocier — coin supérieur droit */}
+                <button
+                  type="button"
+                  onClick={handleDissociate}
+                  title="Dissocier l'asset"
+                  className="absolute top-2 right-2 p-1.5 rounded-lg bg-black/60 hover:bg-red-500/70 text-white/50 hover:text-white transition-all duration-150 backdrop-blur-sm"
+                >
+                  <Unlink className="h-3.5 w-3.5" />
+                </button>
+
+                {/* Badge type bas gauche */}
                 <div className="absolute bottom-4 left-4 right-4">
                   <span className={["inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-semibold", TYPE_COLORS[type]].join(" ")}>
                     {LORE_NODE_TYPE_CONFIG[type].emoji} {LORE_NODE_TYPE_CONFIG[type].label}
@@ -335,19 +396,25 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
                 </div>
               </>
             ) : (
-              <div className="flex flex-col items-center gap-4 px-4 relative z-10">
+              <div className="flex flex-col items-center gap-3 px-4 relative z-10 w-full">
                 <span className="text-8xl opacity-20">{LORE_NODE_TYPE_CONFIG[type].emoji}</span>
-                {assets.length > 0 && (
+
+                {filteredAssets.length > 0 ? (
+                  /* Picker filtré par type + non déjà liés */
                   <Select value="" onValueChange={async (assetId) => {
                     const a = assets.find((x) => x.id === assetId);
                     if (!a) return;
-                    await updateNode.mutateAsync({ id: node.id, projectId, updates: { asset_id: a.id, image_url: a.image_url } });
+                    await updateNode.mutateAsync({
+                      id: node.id,
+                      projectId,
+                      updates: { asset_id: a.id, image_url: a.image_url },
+                    });
                   }}>
                     <SelectTrigger className="h-8 text-xs border-white/20 bg-white/10 text-white/70 hover:text-white w-44 gap-1">
                       <SelectValue placeholder="🖼 Associer un asset" />
                     </SelectTrigger>
-                    <SelectContent className="glass border-white/10">
-                      {assets.map((a) => (
+                    <SelectContent className="bg-popover border-white/10">
+                      {filteredAssets.map((a) => (
                         <SelectItem key={a.id} value={a.id}>
                           <div className="flex items-center gap-2">
                             {a.image_url && <img src={a.image_url} alt={a.name} className="w-5 h-5 rounded object-cover" />}
@@ -357,7 +424,17 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
                       ))}
                     </SelectContent>
                   </Select>
-                )}
+                ) : assetTypeForType ? (
+                  /* Aucun asset du bon type disponible → créer */
+                  <button
+                    type="button"
+                    onClick={handleCreateAsset}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/20 bg-white/8 text-white/70 hover:text-white hover:bg-white/15 hover:border-white/30 text-xs font-medium transition-all duration-150"
+                  >
+                    <Plus className="h-3 w-3" />
+                    Créer l'asset
+                  </button>
+                ) : null}
               </div>
             )}
           </div>
@@ -365,11 +442,30 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
           {/* ── Colonne droite ── */}
           <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
 
-            <DialogHeader className="px-5 pt-5 pb-3 shrink-0">
+            {/* Header : nom + sélecteur de type */}
+            <DialogHeader className="px-5 pt-5 pb-2 shrink-0">
               <DialogTitle className="text-gradient text-base">{node.name}</DialogTitle>
+              {/* Sélecteur de type en pills */}
+              <div className="flex flex-wrap gap-1 mt-2">
+                {(Object.entries(LORE_NODE_TYPE_CONFIG) as [LoreNodeType, { label: string; emoji: string }][]).map(([key, cfg]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => handleTypeChange(key)}
+                    className={[
+                      "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border transition-all duration-150",
+                      type === key
+                        ? TYPE_PILL_ACTIVE[key]
+                        : "border-white/10 bg-transparent text-muted-foreground hover:bg-white/8 hover:text-foreground",
+                    ].join(" ")}
+                  >
+                    {cfg.emoji} {cfg.label}
+                  </button>
+                ))}
+              </div>
             </DialogHeader>
 
-            {/* Onglets principaux */}
+            {/* Onglets */}
             <div className="flex gap-0 px-5 border-b border-white/10 shrink-0">
               {(["lore", "connexions"] as const).map((tab) => (
                 <button
@@ -395,7 +491,7 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
               {activeTab === "lore" && (
                 <div className="space-y-3">
 
-                  {/* Avertissement : élément sans asset associé */}
+                  {/* Avertissement : pas d'asset lié */}
                   {!node.asset_id && (
                     <div className="flex items-start gap-2 px-3 py-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300">
                       <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-px" />
@@ -407,8 +503,7 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
                     </div>
                   )}
 
-
-                  {/* Sous-navigation : pills actives + bouton "+" */}
+                  {/* Pills + bouton "+" */}
                   <div className="flex flex-wrap items-center gap-1.5" ref={pickerRef}>
                     {activePills.map((sectionName) => {
                       const filled = !!(sections[sectionName]?.trim());
@@ -435,77 +530,55 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
                       );
                     })}
 
-                    {/* Bouton "+" + picker dropdown */}
-                    {hasPicker && (
-                      <div className="relative">
-                        <button
-                          type="button"
-                          onClick={() => setShowPicker((v) => !v)}
-                          className={[
-                            "w-6 h-6 rounded-full border text-xs flex items-center justify-center transition-all duration-150",
-                            showPicker
-                              ? "bg-violet-500/20 border-violet-500/40 text-violet-300"
-                              : "bg-white/5 border-white/15 text-muted-foreground hover:bg-white/10 hover:border-white/25 hover:text-foreground",
-                          ].join(" ")}
-                        >
-                          <Plus className="h-3 w-3" />
-                        </button>
+                    {/* Bouton "+" picker */}
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={() => setShowPicker((v) => !v)}
+                        className={[
+                          "w-6 h-6 rounded-full border text-xs flex items-center justify-center transition-all duration-150",
+                          showPicker
+                            ? "bg-violet-500/20 border-violet-500/40 text-violet-300"
+                            : "bg-white/5 border-white/15 text-muted-foreground hover:bg-white/10 hover:border-white/25 hover:text-foreground",
+                        ].join(" ")}
+                      >
+                        <Plus className="h-3 w-3" />
+                      </button>
 
-                        {showPicker && (
-                          <div className="absolute top-8 left-0 z-50 w-52 bg-popover border border-white/15 rounded-xl shadow-2xl overflow-hidden py-1">
-
-                            {/* Prédéfinies disponibles */}
-                            {availablePredefined.map((s) => (
-                              <button
-                                key={s}
-                                type="button"
-                                onClick={() => addPill(s)}
-                                className="w-full text-left px-3 py-1.5 text-xs text-foreground hover:bg-white/10 transition-colors"
-                              >
-                                {s}
-                              </button>
-                            ))}
-
-                            {/* Custom déjà créées sur ce nœud mais pas encore affichées */}
-                            {availableCustom.map((s) => (
-                              <button
-                                key={s}
-                                type="button"
-                                onClick={() => addPill(s)}
-                                className="w-full text-left px-3 py-1.5 text-xs text-violet-300 hover:bg-violet-500/10 transition-colors flex items-center gap-2"
-                              >
-                                <span className="w-1.5 h-1.5 rounded-full bg-violet-400 shrink-0" />
-                                {s}
-                              </button>
-                            ))}
-
-                            {/* Séparateur */}
-                            <div className="border-t border-white/10 my-1" />
-
-                            {/* Créer une section custom */}
-                            <div className="px-3 py-2 flex items-center gap-2">
-                              <Input
-                                value={newCustomName}
-                                onChange={(e) => setNewCustomName(e.target.value)}
-                                onKeyDown={(e) => { if (e.key === "Enter") createCustomSection(); }}
-                                placeholder="Nouvelle section…"
-                                className="h-6 text-xs bg-white/5 border-white/10 flex-1 px-2 py-0"
-                                autoFocus
-                              />
-                              <button
-                                type="button"
-                                onClick={createCustomSection}
-                                disabled={!newCustomName.trim()}
-                                className="text-violet-400 hover:text-violet-300 disabled:opacity-30 disabled:cursor-default transition-colors"
-                              >
-                                <Plus className="h-3.5 w-3.5" />
-                              </button>
-                            </div>
-
+                      {showPicker && (
+                        <div className="absolute top-8 left-0 z-50 w-52 bg-popover border border-white/15 rounded-xl shadow-2xl overflow-hidden py-1">
+                          {availablePredefined.map((s) => (
+                            <button key={s} type="button" onClick={() => addPill(s)}
+                              className="w-full text-left px-3 py-1.5 text-xs text-foreground hover:bg-white/10 transition-colors">
+                              {s}
+                            </button>
+                          ))}
+                          {availableCustom.map((s) => (
+                            <button key={s} type="button" onClick={() => addPill(s)}
+                              className="w-full text-left px-3 py-1.5 text-xs text-violet-300 hover:bg-violet-500/10 transition-colors flex items-center gap-2">
+                              <span className="w-1.5 h-1.5 rounded-full bg-violet-400 shrink-0" />
+                              {s}
+                            </button>
+                          ))}
+                          <div className="border-t border-white/10 my-1" />
+                          <div className="px-3 py-2 flex items-center gap-2">
+                            <Input
+                              value={newCustomName}
+                              onChange={(e) => setNewCustomName(e.target.value)}
+                              onKeyDown={(e) => { if (e.key === "Enter") createCustomSection(); }}
+                              placeholder="Nouvelle section…"
+                              className="h-6 text-xs bg-white/5 border-white/10 flex-1 px-2 py-0"
+                              autoFocus
+                            />
+                            <button type="button" onClick={createCustomSection}
+                              disabled={!newCustomName.trim()}
+                              className="text-violet-400 hover:text-violet-300 disabled:opacity-30 disabled:cursor-default transition-colors">
+                              <Plus className="h-3.5 w-3.5" />
+                            </button>
                           </div>
-                        )}
-                      </div>
-                    )}
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {/* Textarea section active */}
@@ -573,11 +646,8 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
                             {edge.label && (
                               <span className="text-muted-foreground italic truncate max-w-[100px]">{edge.label}</span>
                             )}
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteEdge(edge.id)}
-                              className="text-muted-foreground hover:text-red-400 transition-colors shrink-0"
-                            >
+                            <button type="button" onClick={() => handleDeleteEdge(edge.id)}
+                              className="text-muted-foreground hover:text-red-400 transition-colors shrink-0">
                               <X className="h-3 w-3" />
                             </button>
                           </div>
@@ -593,7 +663,7 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
                         <SelectTrigger className="flex-1 bg-white/5 border-white/10 text-xs h-8">
                           <SelectValue placeholder="Sélectionner un nœud…" />
                         </SelectTrigger>
-                        <SelectContent className="glass border-white/10">
+                        <SelectContent className="bg-popover border-white/10">
                           {availableNodes.map((n) => (
                             <SelectItem key={n.id} value={n.id}>
                               {LORE_NODE_TYPE_CONFIG[n.type].emoji} {n.name}
@@ -612,13 +682,9 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
                         placeholder="Relation…"
                         className="w-28 bg-white/5 border-white/10 text-xs h-8"
                       />
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={handleAddEdge}
+                      <Button size="sm" variant="ghost" onClick={handleAddEdge}
                         disabled={!newEdgeTargetId || addingEdge}
-                        className="h-8 px-2 text-violet-400 hover:text-violet-300 hover:bg-violet-500/10"
-                      >
+                        className="h-8 px-2 text-violet-400 hover:text-violet-300 hover:bg-violet-500/10">
                         <Plus className="h-3.5 w-3.5" />
                       </Button>
                     </div>
@@ -630,23 +696,14 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
 
             {/* Footer */}
             <div className="flex items-center justify-between px-5 py-4 border-t border-white/10 shrink-0">
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={handleDelete}
-                disabled={deleteNode.isPending}
-                className="text-red-400 hover:text-red-300 hover:bg-red-500/10 gap-1.5"
-              >
+              <Button size="sm" variant="ghost" onClick={handleDelete} disabled={deleteNode.isPending}
+                className="text-red-400 hover:text-red-300 hover:bg-red-500/10 gap-1.5">
                 <Trash2 className="h-3.5 w-3.5" />
                 Supprimer
               </Button>
               {activeTab === "lore" && (
-                <Button
-                  size="sm"
-                  onClick={handleSave}
-                  disabled={saving}
-                  className="gradient-primary text-primary-foreground gap-1.5"
-                >
+                <Button size="sm" onClick={handleSave} disabled={saving}
+                  className="gradient-primary text-primary-foreground gap-1.5">
                   {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
                   Sauvegarder
                 </Button>

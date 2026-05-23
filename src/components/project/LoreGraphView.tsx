@@ -1258,6 +1258,58 @@ export function LoreGraphView({ project, assets }: Props) {
       }
     }
 
+    // ── Déconfliction nœud-arête ─────────────────────────────────────
+    // Le cooling de la simulation peut empêcher un nœud de s'écarter d'une arête
+    // en fin de simulation. Cette passe corrige les positions DIRECTEMENT (sans
+    // vitesse ni cooling) pour garantir qu'aucune arête ne traverse un nœud.
+    {
+      const DC_MARGIN = 40; // px de marge autour du bounding-box
+      // Distance minimale requise : demi-diagonale + marge
+      const DC_REQUIRED = Math.sqrt((NODE_CARD_W / 2) ** 2 + (NODE_CARD_H / 2) ** 2) + DC_MARGIN;
+      const DC_ITERS = 120;
+
+      for (let di = 0; di < DC_ITERS; di++) {
+        let moved = false;
+        for (const e of loreEdges) {
+          const ea = sim.get(e.from_node_id);
+          const eb = sim.get(e.to_node_id);
+          if (!ea || !eb) continue;
+          // Centres des nœuds source et cible
+          const ex1 = ea.x + NODE_CARD_W / 2;
+          const ey1 = ea.y + NODE_CARD_H / 2;
+          const ex2 = eb.x + NODE_CARD_W / 2;
+          const ey2 = eb.y + NODE_CARD_H / 2;
+          const edx = ex2 - ex1;
+          const edy = ey2 - ey1;
+          const elen2 = edx * edx + edy * edy;
+          if (elen2 < 1) continue;
+
+          for (const n of loreNodes) {
+            if (n.id === e.from_node_id || n.id === e.to_node_id) continue;
+            const p = sim.get(n.id)!;
+            const cnx = p.x + NODE_CARD_W / 2;
+            const cny = p.y + NODE_CARD_H / 2;
+            // Projection du centre sur le segment (paramètre t ∈ [0,1])
+            const t = Math.max(0, Math.min(1, ((cnx - ex1) * edx + (cny - ey1) * edy) / elen2));
+            const qx = ex1 + t * edx;
+            const qy = ey1 + t * edy;
+            const rx = cnx - qx;
+            const ry = cny - qy;
+            const dist = Math.sqrt(rx * rx + ry * ry);
+            if (dist < DC_REQUIRED) {
+              moved = true;
+              const push = DC_REQUIRED - dist + 2; // +2 anti-oscillation
+              const nx = dist > 0.5 ? rx / dist : (Math.random() < 0.5 ? 1 : -1);
+              const ny = dist > 0.5 ? ry / dist : (Math.random() < 0.5 ? 1 : -1);
+              p.x += nx * push;
+              p.y += ny * push;
+            }
+          }
+        }
+        if (!moved) break;
+      }
+    }
+
     // ── Centrage ─────────────────────────────────────────────────────
     const allV = Array.from(sim.values());
     const cx = allV.reduce((s, p) => s + p.x + NODE_CARD_W / 2, 0) / N;

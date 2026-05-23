@@ -61,6 +61,7 @@ const TYPE_PLACEHOLDER_BG: Record<string, string> = {
 interface LoreNodeData {
   label: string;
   loreNode: LoreNode;
+  _highlight?: boolean;
   [key: string]: unknown;
 }
 
@@ -74,6 +75,7 @@ const IMG_POSITION: Record<string, string> = {
 function LoreNodeCard({ data, selected }: { data: LoreNodeData; selected?: boolean }) {
   const [hovered, setHovered] = useState(false);
   const { loreNode } = data;
+  const highlighted = !!data._highlight;
   const cfg = LORE_NODE_TYPE_CONFIG[loreNode.type];
 
   const handleStyle: React.CSSProperties = {
@@ -90,6 +92,7 @@ function LoreNodeCard({ data, selected }: { data: LoreNodeData; selected?: boole
 
   return (
     <div
+      className="relative"
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
@@ -102,9 +105,10 @@ function LoreNodeCard({ data, selected }: { data: LoreNodeData; selected?: boole
 
       <div
         className={[
-          "w-[150px] rounded-xl overflow-hidden border cursor-pointer select-none backdrop-blur-sm transition-all duration-150",
+          "w-[150px] rounded-xl overflow-hidden border cursor-pointer select-none backdrop-blur-sm transition-all duration-300",
           TYPE_BORDER[loreNode.type] ?? "border-white/20",
-          selected ? "ring-2 ring-amber-400/60 shadow-[0_0_14px_rgba(245,158,11,0.45)]" : "",
+          selected    ? "ring-2 ring-amber-400/60 shadow-[0_0_14px_rgba(245,158,11,0.45)]" : "",
+          highlighted ? "ring-2 ring-amber-400    shadow-[0_0_22px_rgba(245,158,11,0.85)] scale-105" : "",
         ].join(" ")}
       >
         {/* Zone image — domine la carte */}
@@ -128,6 +132,14 @@ function LoreNodeCard({ data, selected }: { data: LoreNodeData; selected?: boole
           <p className="text-[9px] text-white/60 mt-0.5">{cfg.emoji} {cfg.label}</p>
         </div>
       </div>
+
+      {/* Anneau ping doré — pulsation 2× pendant 1.5s après navigation */}
+      {highlighted && (
+        <div
+          className="absolute inset-[-6px] rounded-[20px] border-2 border-amber-400/70 pointer-events-none animate-ping"
+          style={{ animationDuration: "0.75s" }}
+        />
+      )}
     </div>
   );
 }
@@ -581,9 +593,11 @@ const ZOOM_TARGET    = 0.85; // valeur fixe appliquée si zoom trop faible
 function NavigateController({
   rfNodesRef,
   navigateRef,
+  onHighlight,
 }: {
   rfNodesRef: React.MutableRefObject<Node<LoreNodeData>[]>;
   navigateRef: React.MutableRefObject<((node: LoreNode) => void) | null>;
+  onHighlight: (nodeId: string) => void;
 }) {
   const { setCenter, getViewport } = useReactFlow();
 
@@ -595,8 +609,9 @@ function NavigateController({
       const cy = rfNode.position.y + NODE_CARD_H / 2;
       const { zoom } = getViewport();
       setCenter(cx, cy, { zoom: zoom < ZOOM_THRESHOLD ? ZOOM_TARGET : zoom, duration: 450 });
+      onHighlight(node.id);
     };
-  }, [setCenter, getViewport, rfNodesRef, navigateRef]);
+  }, [setCenter, getViewport, rfNodesRef, navigateRef, onHighlight]);
 
   return null;
 }
@@ -769,6 +784,15 @@ export function LoreGraphView({ project, assets }: Props) {
   const [searchFocused, setSearchFocused] = useState(false);
   const navigateRef = useRef<((node: LoreNode) => void) | null>(null);
   const searchContainerRef = useRef<HTMLDivElement>(null);
+  const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleHighlightNode = useCallback((nodeId: string) => {
+    if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
+    setRfNodes((prev) => prev.map((n) => ({ ...n, data: { ...n.data, _highlight: n.id === nodeId } })));
+    highlightTimerRef.current = setTimeout(() => {
+      setRfNodes((prev) => prev.map((n) => n.data._highlight ? { ...n, data: { ...n.data, _highlight: false } } : n));
+    }, 1500);
+  }, [setRfNodes]);
   const [pendingConn, setPendingConn] = useState<Connection | null>(null);
   const [connLabel, setConnLabel] = useState("");
   const connInputRef = useRef<HTMLInputElement>(null);
@@ -1316,7 +1340,7 @@ export function LoreGraphView({ project, assets }: Props) {
           proOptions={{ hideAttribution: true }}
         >
           <ZoomController containerRef={containerRef} />
-          <NavigateController rfNodesRef={rfNodesRef} navigateRef={navigateRef} />
+          <NavigateController rfNodesRef={rfNodesRef} navigateRef={navigateRef} onHighlight={handleHighlightNode} />
           <Background variant={BackgroundVariant.Dots} gap={22} size={1} color="rgba(255,255,255,0.05)" />
         </ReactFlow>
       </LoreEdgesCtx.Provider>

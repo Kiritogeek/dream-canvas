@@ -24,13 +24,65 @@ import { CompassSuggestionsPanel } from "./CompassSuggestionsPanel";
 import type { LoreNode, LoreEdge, LoreNodeType, Asset } from "@/types";
 import { LORE_NODE_TYPE_CONFIG } from "@/types";
 
-// ── Chips de lore par type — insèrent un sous-titre dans le textarea ──
+// ── Noms de sections par type ──────────────────────────────────────────────
 const LORE_CHIPS: Record<LoreNodeType, string[]> = {
   character: ["Apparence", "Personnalité", "Histoire", "Motivations", "Capacités"],
   location:  ["Description", "Atmosphère", "Histoire", "Habitants", "Règles"],
   object:    ["Apparence", "Origine", "Propriétés", "Propriétaires", "Symbolique"],
   event:     ["Époque", "Participants", "Déclencheur", "Déroulement", "Conséquences"],
 };
+
+// ── Placeholders contextuels par section ──────────────────────────────────
+const SECTION_PLACEHOLDERS: Record<LoreNodeType, Record<string, string>> = {
+  character: {
+    Apparence:    "Taille, couleur des yeux, cicatrices, tenue habituelle…",
+    Personnalité: "Traits dominants, manies, peurs, valeurs…",
+    Histoire:     "Origines, événements fondateurs, traumatismes…",
+    Motivations:  "Ce qu'il veut vraiment, ses objectifs cachés…",
+    Capacités:    "Pouvoirs, compétences, armes de prédilection…",
+  },
+  location: {
+    Description:  "Architecture, taille, matériaux, couleurs dominantes…",
+    Atmosphère:   "Odeurs, sons, lumière, ressenti général…",
+    Histoire:     "Fondation, événements marquants, ruines…",
+    Habitants:    "Qui y vit, factions présentes, dangers…",
+    Règles:       "Lois locales, tabous, accès restreint…",
+  },
+  object: {
+    Apparence:    "Forme, couleur, matière, taille, ornements…",
+    Origine:      "Qui l'a fabriqué, quand, comment…",
+    Propriétés:   "Pouvoirs, effets, limitations, conditions d'activation…",
+    Propriétaires: "Qui l'a possédé, comment il a changé de mains…",
+    Symbolique:   "Ce qu'il représente, mythes associés, valeur émotionnelle…",
+  },
+  event: {
+    Époque:       "Date, durée, contexte historique…",
+    Participants: "Personnages impliqués, factions, victimes…",
+    Déclencheur:  "Cause directe, tensions sous-jacentes…",
+    Déroulement:  "Chronologie, moments clés, retournements…",
+    Conséquences: "Impact immédiat, séquelles à long terme…",
+  },
+};
+
+// ── Conversion sections ↔ description markdown ────────────────────────────
+function parseToSections(desc: string, sectionNames: string[]): Record<string, string> {
+  const result: Record<string, string> = {};
+  sectionNames.forEach((n) => (result[n] = ""));
+  const parts = desc.split(/^### (.+)$/m);
+  for (let i = 1; i < parts.length; i += 2) {
+    const key = parts[i].trim();
+    const content = (parts[i + 1] ?? "").trim();
+    if (key in result) result[key] = content;
+  }
+  return result;
+}
+
+function buildDescription(sections: Record<string, string>, sectionNames: string[]): string {
+  return sectionNames
+    .filter((n) => sections[n]?.trim())
+    .map((n) => `### ${n}\n${sections[n].trim()}`)
+    .join("\n\n");
+}
 
 interface Props {
   node: LoreNode | null;
@@ -69,7 +121,7 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
 
   const [name, setName] = useState("");
   const [type, setType] = useState<LoreNodeType>("character");
-  const [description, setDescription] = useState("");
+  const [sections, setSections] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [newEdgeTargetId, setNewEdgeTargetId] = useState<string>("");
   const [newEdgeLabel, setNewEdgeLabel] = useState("");
@@ -82,7 +134,7 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
     if (node) {
       setName(node.name);
       setType(node.type);
-      setDescription(node.description ?? "");
+      setSections(parseToSections(node.description ?? "", LORE_CHIPS[node.type]));
       setArianeOpen(false);
       setActiveTab("lore");
       resetAriane();
@@ -95,7 +147,6 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
 
   const otherNodes = nodes.filter((n) => n.id !== node?.id);
 
-  // Nœuds disponibles pour une nouvelle connexion = autres nœuds non encore connectés
   const connectedNodeIds = new Set(
     connectedEdges.map((e) => (e.from_node_id === node?.id ? e.to_node_id : e.from_node_id))
   );
@@ -104,11 +155,12 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
   const handleSave = useCallback(async () => {
     if (!node) return;
     setSaving(true);
+    const loreDescription = buildDescription(sections, LORE_CHIPS[type]);
     try {
       await updateNode.mutateAsync({
         id: node.id,
         projectId,
-        updates: { name, type, description: description || null },
+        updates: { name, type, description: loreDescription || null },
       });
       toast({ title: "Sauvegardé", description: name });
     } catch {
@@ -116,13 +168,11 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
     } finally {
       setSaving(false);
     }
-  }, [node, projectId, name, type, description, updateNode, toast]);
+  }, [node, projectId, name, type, sections, updateNode, toast]);
 
   const triggerAutoSave = useCallback(() => {
     if (saveDebounceRef.current) clearTimeout(saveDebounceRef.current);
-    saveDebounceRef.current = setTimeout(() => {
-      handleSave();
-    }, 1000);
+    saveDebounceRef.current = setTimeout(() => { handleSave(); }, 1000);
   }, [handleSave]);
 
   const handleDelete = useCallback(async () => {
@@ -162,33 +212,34 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
   }, [node, projectId, userId, newEdgeTargetId, newEdgeLabel, createEdge, toast, onEdgeCreated]);
 
   const handleArianeToggle = useCallback(() => {
+    const loreDescription = buildDescription(sections, LORE_CHIPS[type]);
     if (!arianeOpen && node) {
-      fetchProposals(description.trim() || name, "lore_asset", node.id);
+      fetchProposals(loreDescription.trim() || name, "lore_asset", node.id);
     } else {
       resetAriane();
     }
     setArianeOpen((v) => !v);
-  }, [arianeOpen, description, name, node, fetchProposals, resetAriane]);
+  }, [arianeOpen, sections, type, name, node, fetchProposals, resetAriane]);
 
   const handleAddToLore = useCallback(async (content: string, proposalId: string) => {
-    const newDesc = description.trim() ? `${description.trim()}\n\n${content}` : content;
-    setDescription(newDesc);
+    const sectionNames = LORE_CHIPS[type];
+    const emptySection = sectionNames.find((s) => !sections[s]?.trim());
+    const targetSection = emptySection ?? sectionNames[sectionNames.length - 1];
+    setSections((prev) => ({
+      ...prev,
+      [targetSection]: prev[targetSection]?.trim()
+        ? `${prev[targetSection].trim()}\n\n${content}`
+        : content,
+    }));
     await acceptProposal(proposalId);
     triggerAutoSave();
-  }, [description, acceptProposal, triggerAutoSave]);
-
-  const handleInsertSection = useCallback((label: string) => {
-    const header = `### ${label}\n`;
-    if (description.includes(header)) return;
-    const newDesc = description.trim() ? `${description.trim()}\n\n${header}` : header;
-    setDescription(newDesc);
-    triggerAutoSave();
-  }, [description, triggerAutoSave]);
+  }, [type, sections, acceptProposal, triggerAutoSave]);
 
   const handleRefreshAriane = useCallback(() => {
     if (!node) return;
-    fetchProposals(description.trim() || name, "lore_asset", node.id);
-  }, [description, name, node, fetchProposals]);
+    const loreDescription = buildDescription(sections, LORE_CHIPS[type]);
+    fetchProposals(loreDescription.trim() || name, "lore_asset", node.id);
+  }, [sections, type, name, node, fetchProposals]);
 
   const linkedAsset = node?.asset_id ? assets.find((a) => a.id === node.asset_id) : null;
   const imageUrl = linkedAsset?.image_url ?? node?.image_url ?? null;
@@ -296,35 +347,34 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
             {/* Contenu scrollable */}
             <div className="flex-1 overflow-y-auto px-5 py-4">
 
-              {/* ── Onglet Lore ── */}
+              {/* ── Onglet Lore : sous-sections structurées ── */}
               {activeTab === "lore" && (
-                <div className="space-y-3">
-                  {/* Chips de section + bouton Ariane */}
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    {LORE_CHIPS[type].map((label) => {
-                      const used = description.includes(`### ${label}`);
-                      return (
-                        <button
-                          key={label}
-                          type="button"
-                          onClick={() => handleInsertSection(label)}
-                          disabled={used}
-                          className={[
-                            "px-2.5 py-1 rounded-lg text-[10px] font-medium border transition-all duration-150",
-                            used
-                              ? "border-white/5 bg-transparent text-muted-foreground/30 cursor-default line-through"
-                              : "border-white/15 bg-white/5 text-muted-foreground hover:bg-white/10 hover:text-foreground hover:border-white/25",
-                          ].join(" ")}
-                        >
-                          {label}
-                        </button>
-                      );
-                    })}
+                <div className="space-y-4">
+                  {LORE_CHIPS[type].map((sectionName) => (
+                    <div key={sectionName} className="space-y-1">
+                      <label className="block text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
+                        {sectionName}
+                      </label>
+                      <Textarea
+                        value={sections[sectionName] ?? ""}
+                        onChange={(e) => {
+                          setSections((prev) => ({ ...prev, [sectionName]: e.target.value }));
+                          triggerAutoSave();
+                        }}
+                        placeholder={SECTION_PLACEHOLDERS[type]?.[sectionName] ?? ""}
+                        className="min-h-[64px] resize-none text-sm bg-white/5 border-white/10 leading-relaxed"
+                        maxLength={300}
+                      />
+                    </div>
+                  ))}
+
+                  {/* Bouton Ariane aligné à droite */}
+                  <div className="flex items-center justify-end pt-1">
                     <button
                       type="button"
                       onClick={handleArianeToggle}
                       className={[
-                        "flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded-lg transition-all duration-150 ml-auto",
+                        "flex items-center gap-1 text-[10px] font-medium px-2.5 py-1.5 rounded-lg transition-all duration-150",
                         arianeOpen
                           ? "bg-violet-500/20 text-violet-300 border border-violet-500/30"
                           : "text-muted-foreground hover:text-violet-400 hover:bg-violet-500/10",
@@ -334,14 +384,7 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
                       Ariane
                     </button>
                   </div>
-                  <Textarea
-                    value={description}
-                    onChange={(e) => { setDescription(e.target.value); triggerAutoSave(); }}
-                    placeholder="Rôle, histoire, apparence, motivations…"
-                    className="min-h-[180px] resize-none text-sm bg-white/5 border-white/10"
-                    maxLength={800}
-                  />
-                  <span className="text-xs text-muted-foreground">{description.length}/800</span>
+
                   <CompassSuggestionsPanel
                     proposals={proposals}
                     loading={arianeLoading}

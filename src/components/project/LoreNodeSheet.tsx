@@ -251,8 +251,9 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
     setType(newType);
     setActivePills(LORE_CHIPS[newType].slice(0, 2));
     setActiveSection(LORE_CHIPS[newType][0]);
-    // Le type sera sauvegardé au prochain clic sur "Sauvegarder"
-  }, [type]);
+    // Mise à jour visuelle immédiate de la card (avant sauvegarde explicite)
+    if (node) onNodeUpdated?.({ ...node, type: newType });
+  }, [type, node, onNodeUpdated]);
 
   // ── Dissocier le visuel ───────────────────────────────────────────────────
   const handleDissociate = useCallback(async () => {

@@ -1496,11 +1496,6 @@ export function LoreGraphView({ project, assets }: Props) {
           </Button>
         </div>
 
-        {/* Légende fil doré */}
-        <div className="flex items-center gap-1.5 px-3 py-2 glass rounded-2xl border border-white/10 backdrop-blur-md text-[10px] text-muted-foreground/60">
-          <span className="inline-block w-5 h-px" style={{ background: "#F59E0B", boxShadow: "0 0 4px rgba(245,158,11,0.6)" }} />
-          Connexion
-        </div>
       </div>
 
       {/* Bouton Monde — bas droite */}

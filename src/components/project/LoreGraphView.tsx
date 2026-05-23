@@ -105,7 +105,7 @@ function LoreNodeCard({ data, selected }: { data: LoreNodeData; selected?: boole
 
       <div
         className={[
-          "w-[150px] rounded-xl overflow-hidden border cursor-pointer select-none backdrop-blur-sm transition-all duration-300",
+          "w-[150px] rounded-xl overflow-hidden border cursor-pointer select-none transition-all duration-300",
           TYPE_BORDER[loreNode.type] ?? "border-white/20",
           selected    ? "ring-2 ring-amber-400/60 shadow-[0_0_14px_rgba(245,158,11,0.45)]" : "",
           highlighted ? "ring-2 ring-amber-400    shadow-[0_0_22px_rgba(245,158,11,0.85)] scale-105" : "",

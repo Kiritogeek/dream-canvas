@@ -116,12 +116,6 @@ const TYPE_COLORS: Record<LoreNodeType, string> = {
   event:     "border-green-500 bg-green-500/20 text-green-300",
 };
 
-const TYPE_PILL_ACTIVE: Record<LoreNodeType, string> = {
-  character: "border-violet-500/60 bg-violet-500/20 text-violet-300",
-  location:  "border-blue-500/60 bg-blue-500/20 text-blue-300",
-  object:    "border-amber-500/60 bg-amber-500/20 text-amber-300",
-  event:     "border-green-500/60 bg-green-500/20 text-green-300",
-};
 
 export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, open, onOpenChange, onEdgeCreated }: Props) {
   const { toast } = useToast();
@@ -148,6 +142,7 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
   const [showPicker, setShowPicker] = useState(false);
   const [newCustomName, setNewCustomName] = useState("");
   const [saving, setSaving] = useState(false);
+  const [showTypePicker, setShowTypePicker] = useState(false);
   const [newEdgeTargetId, setNewEdgeTargetId] = useState<string>("");
   const [newEdgeLabel, setNewEdgeLabel] = useState("");
   const [addingEdge, setAddingEdge] = useState(false);
@@ -156,6 +151,7 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
 
   const saveDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pickerRef = useRef<HTMLDivElement>(null);
+  const typePickerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!showPicker) return;
@@ -168,6 +164,17 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, [showPicker]);
+
+  useEffect(() => {
+    if (!showTypePicker) return;
+    const handler = (e: MouseEvent) => {
+      if (typePickerRef.current && !typePickerRef.current.contains(e.target as Node)) {
+        setShowTypePicker(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showTypePicker]);
 
   useEffect(() => {
     if (node) {
@@ -185,6 +192,7 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
       setActiveTab("lore");
       setShowPicker(false);
       setNewCustomName("");
+      setShowTypePicker(false);
       resetAriane();
     }
   }, [node, resetAriane]);
@@ -387,16 +395,9 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
                 >
                   <Unlink className="h-3.5 w-3.5" />
                 </button>
-
-                {/* Badge type bas gauche */}
-                <div className="absolute bottom-4 left-4 right-4">
-                  <span className={["inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-semibold", TYPE_COLORS[type]].join(" ")}>
-                    {LORE_NODE_TYPE_CONFIG[type].emoji} {LORE_NODE_TYPE_CONFIG[type].label}
-                  </span>
-                </div>
               </>
             ) : (
-              <div className="flex flex-col items-center gap-3 px-4 relative z-10 w-full">
+              <div className="flex flex-col items-center gap-3 px-4 relative z-10 w-full pb-14">
                 <span className="text-8xl opacity-20">{LORE_NODE_TYPE_CONFIG[type].emoji}</span>
 
                 {filteredAssets.length > 0 ? (
@@ -437,32 +438,50 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
                 ) : null}
               </div>
             )}
+
+            {/* Badge type — toujours visible en bas gauche, cliquable pour changer le type */}
+            <div className="absolute bottom-4 left-4 z-10" ref={typePickerRef}>
+              <button
+                type="button"
+                onClick={() => setShowTypePicker((v) => !v)}
+                className={[
+                  "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-semibold transition-all duration-150 hover:brightness-125",
+                  TYPE_COLORS[type],
+                ].join(" ")}
+              >
+                {LORE_NODE_TYPE_CONFIG[type].emoji} {LORE_NODE_TYPE_CONFIG[type].label}
+              </button>
+
+              {showTypePicker && (
+                <div className="absolute bottom-full mb-2 left-0 w-44 bg-popover border border-white/15 rounded-xl shadow-2xl py-1 z-50">
+                  {(Object.entries(LORE_NODE_TYPE_CONFIG) as [LoreNodeType, { label: string; emoji: string }][]).map(([key, cfg]) => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => { handleTypeChange(key); setShowTypePicker(false); }}
+                      className={[
+                        "w-full text-left px-3 py-1.5 text-xs transition-colors flex items-center gap-2",
+                        type === key
+                          ? "text-foreground bg-white/8"
+                          : "text-muted-foreground hover:text-foreground hover:bg-white/8",
+                      ].join(" ")}
+                    >
+                      <span>{cfg.emoji}</span>
+                      <span>{cfg.label}</span>
+                      {type === key && <span className="ml-auto text-violet-400 text-[10px]">✓</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* ── Colonne droite ── */}
           <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
 
-            {/* Header : nom + sélecteur de type */}
+            {/* Header : nom */}
             <DialogHeader className="px-5 pt-5 pb-2 shrink-0">
               <DialogTitle className="text-gradient text-base">{node.name}</DialogTitle>
-              {/* Sélecteur de type en pills */}
-              <div className="flex flex-wrap gap-1 mt-2">
-                {(Object.entries(LORE_NODE_TYPE_CONFIG) as [LoreNodeType, { label: string; emoji: string }][]).map(([key, cfg]) => (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => handleTypeChange(key)}
-                    className={[
-                      "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border transition-all duration-150",
-                      type === key
-                        ? TYPE_PILL_ACTIVE[key]
-                        : "border-white/10 bg-transparent text-muted-foreground hover:bg-white/8 hover:text-foreground",
-                    ].join(" ")}
-                  >
-                    {cfg.emoji} {cfg.label}
-                  </button>
-                ))}
-              </div>
             </DialogHeader>
 
             {/* Onglets */}

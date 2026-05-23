@@ -373,7 +373,7 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="glass border-white/10 sm:max-w-[780px] p-0 overflow-hidden">
+      <DialogContent className="bg-popover border-white/10 sm:max-w-[780px] p-0 overflow-hidden">
         <div className="flex max-h-[88vh]">
 
           {/* ── Colonne gauche : image pleine hauteur ── */}

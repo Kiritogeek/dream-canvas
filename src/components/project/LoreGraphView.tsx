@@ -799,6 +799,16 @@ export function LoreGraphView({ project, assets }: Props) {
 
   const [selectedNode, setSelectedNode] = useState<LoreNode | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+
+  // Sync selectedNode avec les dernières données BDD — déclenché à chaque refetch React Query
+  // (ex : après association/dissociation d'un asset, changement de type…)
+  useEffect(() => {
+    if (!sheetOpen || !selectedNode) return;
+    const updated = loreNodes.find((n) => n.id === selectedNode.id);
+    if (updated) setSelectedNode(updated);
+    // Intentionnellement : ne dépend que de loreNodes pour éviter une boucle infinie
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loreNodes]);
   const [worldRulesOpen, setWorldRulesOpen] = useState(false);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editingEdge, setEditingEdge] = useState<LoreEdge | null>(null);

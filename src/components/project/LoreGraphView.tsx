@@ -593,13 +593,15 @@ const ZOOM_TARGET    = 0.85; // valeur fixe appliquée si zoom trop faible
 function NavigateController({
   rfNodesRef,
   navigateRef,
+  fitViewRef,
   onHighlight,
 }: {
   rfNodesRef: React.MutableRefObject<Node<LoreNodeData>[]>;
   navigateRef: React.MutableRefObject<((node: LoreNode) => void) | null>;
+  fitViewRef: React.MutableRefObject<(() => void) | null>;
   onHighlight: (nodeId: string) => void;
 }) {
-  const { setCenter, getViewport } = useReactFlow();
+  const { setCenter, getViewport, fitView } = useReactFlow();
 
   useEffect(() => {
     navigateRef.current = (node: LoreNode) => {
@@ -611,7 +613,8 @@ function NavigateController({
       setCenter(cx, cy, { zoom: zoom < ZOOM_THRESHOLD ? ZOOM_TARGET : zoom, duration: 450 });
       onHighlight(node.id);
     };
-  }, [setCenter, getViewport, rfNodesRef, navigateRef, onHighlight]);
+    fitViewRef.current = () => fitView({ padding: 0.35, maxZoom: 0.65, duration: 400 });
+  }, [setCenter, getViewport, fitView, rfNodesRef, navigateRef, fitViewRef, onHighlight]);
 
   return null;
 }
@@ -778,6 +781,7 @@ export function LoreGraphView({ project, assets }: Props) {
   // Ref pour accéder aux positions visuelles actuelles sans les mettre dans les deps de useCallback
   const rfNodesRef = useRef(rfNodes);
   useEffect(() => { rfNodesRef.current = rfNodes; }, [rfNodes]);
+  const fitViewRef = useRef<(() => void) | null>(null);
 
 
   const [search, setSearch] = useState("");
@@ -927,12 +931,26 @@ export function LoreGraphView({ project, assets }: Props) {
   // Résout les chevauchements entre nœuds par repulsion itérative
   const resolveOverlaps = useCallback((nodes: LoreNode[]) => {
     if (nodes.length < 2) return;
-    const pos = new Map(nodes.map((n) => [n.id, { x: n.pos_x, y: n.pos_y }]));
     const ids = nodes.map((n) => n.id);
+
+    // Priorité aux positions visuelles (rfNodes) — plus précises que la BDD
+    // après un drag récent ou une création de nœud non encore persistée.
+    const pos = new Map(nodes.map((n) => {
+      const visual = rfNodesRef.current.find((rn) => rn.id === n.id);
+      return [n.id, visual
+        ? { x: visual.position.x, y: visual.position.y }
+        : { x: n.pos_x, y: n.pos_y }];
+    }));
+
+    // Snapshot avant déconfliction — pour détecter quels nœuds ont bougé
+    const origPos = new Map(ids.map((id) => {
+      const p = pos.get(id)!;
+      return [id, { x: p.x, y: p.y }];
+    }));
 
     let changed = true;
     let iter = 0;
-    while (changed && iter < 30) {
+    while (changed && iter < 500) {
       changed = false;
       iter++;
       for (let i = 0; i < ids.length; i++) {
@@ -943,7 +961,7 @@ export function LoreGraphView({ project, assets }: Props) {
           const oy = (NODE_CARD_H + MIN_NODE_GAP) - Math.abs(b.y - a.y);
           if (ox > 0 && oy > 0) {
             changed = true;
-            const push = (ox <= oy ? ox : oy) / 2 + 1;
+            const push = (ox <= oy ? ox : oy) / 2 + 2;
             if (ox <= oy) {
               if (b.x >= a.x) { a.x -= push; b.x += push; } else { a.x += push; b.x -= push; }
             } else {
@@ -961,13 +979,16 @@ export function LoreGraphView({ project, assets }: Props) {
     }));
 
     // Persistance BDD — batch debounced (1 requête upsert au lieu de N mutations parallèles)
-    const movedNodes = nodes.filter((n) => {
-      const p = pos.get(n.id)!;
-      return Math.abs(p.x - n.pos_x) > 0.5 || Math.abs(p.y - n.pos_y) > 0.5;
-    }).map((n) => {
-      const p = pos.get(n.id)!;
-      return { id: n.id, pos_x: Math.round(p.x), pos_y: Math.round(p.y) };
-    });
+    const movedNodes = ids
+      .filter((id) => {
+        const p = pos.get(id)!;
+        const o = origPos.get(id)!;
+        return Math.abs(p.x - o.x) > 0.5 || Math.abs(p.y - o.y) > 0.5;
+      })
+      .map((id) => {
+        const p = pos.get(id)!;
+        return { id, pos_x: Math.round(p.x), pos_y: Math.round(p.y) };
+      });
 
     if (movedNodes.length > 0) {
       if (batchUpdateTimerRef.current) clearTimeout(batchUpdateTimerRef.current);
@@ -1256,9 +1277,11 @@ export function LoreGraphView({ project, assets }: Props) {
     }
 
     // ── Résolution des chevauchements post-simulation ─────────────────
+    // Limite haute : N noeuds nécessite O(N²) iterations en cascade.
+    // 500 garantit la convergence pour jusqu'à ~22 nœuds sans dépasser 1ms.
     let hasOverlap = true;
     let oi = 0;
-    while (hasOverlap && oi < 40) {
+    while (hasOverlap && oi < 500) {
       hasOverlap = false; oi++;
       for (let i = 0; i < ids.length; i++) {
         for (let j = i + 1; j < ids.length; j++) {
@@ -1268,7 +1291,7 @@ export function LoreGraphView({ project, assets }: Props) {
           const oy = (NODE_CARD_H + MIN_NODE_GAP) - Math.abs(b.y - a.y);
           if (ox > 0 && oy > 0) {
             hasOverlap = true;
-            const push = (ox <= oy ? ox : oy) / 2 + 1;
+            const push = (ox <= oy ? ox : oy) / 2 + 2;
             if (ox <= oy) {
               if (b.x >= a.x) { a.x -= push; b.x += push; } else { a.x += push; b.x -= push; }
             } else {
@@ -1331,6 +1354,32 @@ export function LoreGraphView({ project, assets }: Props) {
       }
     }
 
+    // ── Second pass anti-overlap post-DC ─────────────────────────────
+    {
+      let hasOverlap2 = true;
+      let oi2 = 0;
+      while (hasOverlap2 && oi2 < 500) {
+        hasOverlap2 = false; oi2++;
+        for (let i = 0; i < ids.length; i++) {
+          for (let j = i + 1; j < ids.length; j++) {
+            const a = sim.get(ids[i])!;
+            const b = sim.get(ids[j])!;
+            const ox = (NODE_CARD_W + MIN_NODE_GAP) - Math.abs(b.x - a.x);
+            const oy = (NODE_CARD_H + MIN_NODE_GAP) - Math.abs(b.y - a.y);
+            if (ox > 0 && oy > 0) {
+              hasOverlap2 = true;
+              const push = (ox <= oy ? ox : oy) / 2 + 2;
+              if (ox <= oy) {
+                if (b.x >= a.x) { a.x -= push; b.x += push; } else { a.x += push; b.x -= push; }
+              } else {
+                if (b.y >= a.y) { a.y -= push; b.y += push; } else { a.y += push; b.y -= push; }
+              }
+            }
+          }
+        }
+      }
+    }
+
     // ── Centrage ─────────────────────────────────────────────────────
     const allV = Array.from(sim.values());
     const cx = allV.reduce((s, p) => s + p.x + NODE_CARD_W / 2, 0) / N;
@@ -1370,6 +1419,8 @@ export function LoreGraphView({ project, assets }: Props) {
           projectId: project.id,
           nodes: ids.map((id) => { const t = targets.get(id)!; return { id, pos_x: t.x, pos_y: t.y }; }),
         });
+        // Recadrage viewport sur le nouveau layout — fitView ne se déclenche qu'au mount
+        setTimeout(() => fitViewRef.current?.(), 50);
       }
     };
     requestAnimationFrame(step);
@@ -1413,7 +1464,7 @@ export function LoreGraphView({ project, assets }: Props) {
           proOptions={{ hideAttribution: true }}
         >
           <ZoomController containerRef={containerRef} />
-          <NavigateController rfNodesRef={rfNodesRef} navigateRef={navigateRef} onHighlight={handleHighlightNode} />
+          <NavigateController rfNodesRef={rfNodesRef} navigateRef={navigateRef} fitViewRef={fitViewRef} onHighlight={handleHighlightNode} />
           <Background variant={BackgroundVariant.Dots} gap={22} size={1} color="rgba(255,255,255,0.05)" />
         </ReactFlow>
       </LoreEdgesCtx.Provider>

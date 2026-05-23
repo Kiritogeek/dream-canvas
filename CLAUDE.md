@@ -251,11 +251,27 @@ Critiques non négociables : `tsc --noEmit` 0 erreur · `npm test` 0 régression
 
 ---
 
+## ⚠️ ADN du menu Univers — Règle fondatrice
+
+> **"Bâtir et améliorer les éléments de votre Univers grâce au scénario de votre histoire."**
+
+**Toute réflexion, feature ou modification touchant au menu Univers doit être imprégnée de cette affirmation.**
+
+Le menu Univers repose sur **deux piliers uniquement** (v1) :
+1. **Cartographie** — l'utilisateur saisit et consulte les éléments de son monde (personnages, lieux, objets, événements) via le graph de connexions
+2. **Amélioration continue** — Ariane scanne le scénario et propose d'enrichir/créer des fiches lore ; propose des directions narratives pour étendre l'Univers
+
+Ce que ce n'est **PAS** : timeline, frise, visualisation temporelle, planification narrative.
+
+> Référence complète : `wiki/Univers.md`
+
+---
+
 ## Roadmap
 
 > Source de vérité : `C:/Users/kirit/OneDrive/Documents/Obsidian Vault/wiki/Roadmap-2026.md`
 
-Ordre strict : Scénario IA ✅ → Sheet System ✅ → Audit nav ✅ → Refonte Éditeur (Option B ✅, Option A ✅) → Plans Libre/Créateur/Studio ✅ → Stripe ✅ → **Vue Admin** 🔴.
+Ordre strict : Scénario IA ✅ → Sheet System ✅ → Audit nav ✅ → Refonte Éditeur (Option B ✅, Option A ✅) → Plans Libre/Créateur/Studio ✅ → Stripe ✅ → **Univers v1 (cartographie + Ariane)** 🔴.
 
 ---
 

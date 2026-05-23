@@ -616,17 +616,124 @@ export type Database = {
           },
         ]
       }
+      lore_nodes: {
+        Row: {
+          id: string
+          project_id: string
+          user_id: string
+          type: string
+          name: string
+          description: string | null
+          image_url: string | null
+          asset_id: string | null
+          pos_x: number
+          pos_y: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          project_id: string
+          user_id: string
+          type: string
+          name: string
+          description?: string | null
+          image_url?: string | null
+          asset_id?: string | null
+          pos_x?: number
+          pos_y?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          project_id?: string
+          user_id?: string
+          type?: string
+          name?: string
+          description?: string | null
+          image_url?: string | null
+          asset_id?: string | null
+          pos_x?: number
+          pos_y?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lore_nodes_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lore_nodes_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lore_edges: {
+        Row: {
+          id: string
+          project_id: string
+          user_id: string
+          from_node_id: string
+          to_node_id: string
+          label: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          project_id: string
+          user_id: string
+          from_node_id: string
+          to_node_id: string
+          label?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          project_id?: string
+          user_id?: string
+          from_node_id?: string
+          to_node_id?: string
+          label?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lore_edges_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lore_edges_from_node_id_fkey"
+            columns: ["from_node_id"]
+            isOneToOne: false
+            referencedRelation: "lore_nodes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lore_edges_to_node_id_fkey"
+            columns: ["to_node_id"]
+            isOneToOne: false
+            referencedRelation: "lore_nodes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       projects: {
         Row: {
           cover_url: string | null
           created_at: string
           description: string | null
           id: string
-          lore_culture: string | null
-          lore_factions: string | null
-          lore_geography: string | null
-          lore_magic: string | null
-          lore_timeline: string | null
           narra_summary: string | null
           narra_summary_updated_at: string | null
           panels_target_per_chapter: number | null
@@ -636,17 +743,13 @@ export type Database = {
           universe_lore: string | null
           updated_at: string
           user_id: string
+          world_rules: string | null
         }
         Insert: {
           cover_url?: string | null
           created_at?: string
           description?: string | null
           id?: string
-          lore_culture?: string | null
-          lore_factions?: string | null
-          lore_geography?: string | null
-          lore_magic?: string | null
-          lore_timeline?: string | null
           narra_summary?: string | null
           narra_summary_updated_at?: string | null
           panels_target_per_chapter?: number | null
@@ -656,17 +759,13 @@ export type Database = {
           universe_lore?: string | null
           updated_at?: string
           user_id: string
+          world_rules?: string | null
         }
         Update: {
           cover_url?: string | null
           created_at?: string
           description?: string | null
           id?: string
-          lore_culture?: string | null
-          lore_factions?: string | null
-          lore_geography?: string | null
-          lore_magic?: string | null
-          lore_timeline?: string | null
           narra_summary?: string | null
           narra_summary_updated_at?: string | null
           panels_target_per_chapter?: number | null
@@ -676,6 +775,7 @@ export type Database = {
           universe_lore?: string | null
           updated_at?: string
           user_id?: string
+          world_rules?: string | null
         }
         Relationships: []
       }

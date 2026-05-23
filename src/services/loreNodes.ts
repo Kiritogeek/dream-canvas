@@ -71,6 +71,17 @@ export async function updateLoreEdge(id: string, updates: { label?: string | nul
   return data as LoreEdge;
 }
 
+export async function batchUpdateLoreNodePositions(
+  nodes: { id: string; pos_x: number; pos_y: number }[]
+): Promise<void> {
+  if (nodes.length === 0) return;
+  const now = new Date().toISOString();
+  const { error } = await supabase
+    .from("lore_nodes")
+    .upsert(nodes.map((n) => ({ ...n, updated_at: now })), { onConflict: "id" });
+  if (error) throw error;
+}
+
 export async function deleteLoreEdge(id: string): Promise<void> {
   const { error } = await supabase
     .from("lore_edges")

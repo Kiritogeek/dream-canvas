@@ -407,7 +407,7 @@ export default function DashboardLayout({ children, fluidSection, compactHeader 
 
       <div className="flex flex-1 pt-14 sm:pt-16">
         {/* Desktop sidebar — lg+ only */}
-        <aside className="hidden lg:flex flex-col fixed left-0 top-16 w-[260px] h-[calc(100vh-4rem)] border-r border-border/60 bg-sidebar z-40 overflow-y-auto">
+        <aside className="hidden lg:flex flex-col fixed left-0 top-16 bottom-0 w-[260px] border-r border-border/60 bg-sidebar z-40 overflow-y-auto">
           <div className="py-4 flex flex-col h-full">
             <nav className="border-l border-border/60 ml-4">
               {navLinks.map((item) => {

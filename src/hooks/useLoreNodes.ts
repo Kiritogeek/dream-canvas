@@ -34,6 +34,17 @@ export function useUpdateLoreNode() {
   });
 }
 
+export function useBatchUpdateLoreNodePositions() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (vars: { projectId: string; nodes: { id: string; pos_x: number; pos_y: number }[] }) =>
+      loreService.batchUpdateLoreNodePositions(vars.nodes),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: NODES_KEY(variables.projectId) });
+    },
+  });
+}
+
 export function useDeleteLoreNode() {
   const queryClient = useQueryClient();
   return useMutation({

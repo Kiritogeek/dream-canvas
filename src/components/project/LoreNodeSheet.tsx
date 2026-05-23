@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from "react";
-import { X, Link2, Plus, Trash2, Save, Loader2, Sparkles } from "lucide-react";
+import { X, Plus, Trash2, Save, Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -33,6 +33,7 @@ interface Props {
   userId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onEdgeCreated?: () => void;
 }
 
 const TYPE_COLORS: Record<LoreNodeType, string> = {
@@ -42,7 +43,7 @@ const TYPE_COLORS: Record<LoreNodeType, string> = {
   event:     "border-green-500 bg-green-500/20 text-green-300",
 };
 
-export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, open, onOpenChange }: Props) {
+export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, open, onOpenChange, onEdgeCreated }: Props) {
   const { toast } = useToast();
   const updateNode = useUpdateLoreNode();
   const deleteNode = useDeleteLoreNode();
@@ -66,6 +67,7 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
   const [newEdgeLabel, setNewEdgeLabel] = useState("");
   const [addingEdge, setAddingEdge] = useState(false);
   const [arianeOpen, setArianeOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<"lore" | "connexions">("lore");
   const saveDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -74,6 +76,7 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
       setType(node.type);
       setDescription(node.description ?? "");
       setArianeOpen(false);
+      setActiveTab("lore");
       resetAriane();
     }
   }, [node, resetAriane]);
@@ -136,12 +139,13 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
       });
       setNewEdgeTargetId("");
       setNewEdgeLabel("");
+      onEdgeCreated?.();
     } catch {
       toast({ title: "Erreur", description: "Impossible d'ajouter la connexion.", variant: "destructive" });
     } finally {
       setAddingEdge(false);
     }
-  }, [node, projectId, userId, newEdgeTargetId, newEdgeLabel, createEdge, toast]);
+  }, [node, projectId, userId, newEdgeTargetId, newEdgeLabel, createEdge, toast, onEdgeCreated]);
 
   const handleArianeToggle = useCallback(() => {
     if (!arianeOpen && node) {
@@ -169,222 +173,241 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
 
   if (!node) return null;
 
+  const TYPE_PLACEHOLDER_BG: Record<LoreNodeType, string> = {
+    character: "bg-violet-950/90",
+    location:  "bg-blue-950/90",
+    object:    "bg-amber-950/90",
+    event:     "bg-green-950/90",
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="glass border-white/10 sm:max-w-[520px] max-h-[90vh] overflow-y-auto">
-        <DialogHeader className="pb-4 border-b border-white/10">
-          <DialogTitle className="text-gradient text-lg">Détail du nœud</DialogTitle>
-        </DialogHeader>
+      <DialogContent className="glass border-white/10 sm:max-w-[780px] p-0 overflow-hidden">
+        <div className="flex max-h-[88vh]">
 
-        <div className="space-y-5 pt-1">
-          <div className="space-y-2">
-            <label className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Nom</label>
-            <Input
-              value={name}
-              onChange={(e) => { setName(e.target.value); triggerAutoSave(); }}
-              className="bg-white/5 border-white/10 text-sm"
-            />
+          {/* ── Colonne gauche : image pleine hauteur ── */}
+          <div className={[
+            "w-[260px] shrink-0 relative flex items-center justify-center min-h-[460px]",
+            !imageUrl ? (TYPE_PLACEHOLDER_BG[type] ?? "bg-white/5") : "bg-black",
+          ].join(" ")}>
+            {imageUrl ? (
+              <>
+                <img
+                  src={imageUrl}
+                  alt={name}
+                  className="absolute inset-0 w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-transparent to-transparent" />
+                <div className="absolute bottom-4 left-4 right-4">
+                  <span className={[
+                    "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-semibold",
+                    TYPE_COLORS[type],
+                  ].join(" ")}>
+                    {LORE_NODE_TYPE_CONFIG[type].emoji} {LORE_NODE_TYPE_CONFIG[type].label}
+                  </span>
+                </div>
+              </>
+            ) : (
+              <div className="flex flex-col items-center gap-4 px-4 relative z-10">
+                <span className="text-8xl opacity-20">{LORE_NODE_TYPE_CONFIG[type].emoji}</span>
+                {assets.length > 0 && (
+                  <Select
+                    value=""
+                    onValueChange={async (assetId) => {
+                      const a = assets.find((x) => x.id === assetId);
+                      if (!a) return;
+                      await updateNode.mutateAsync({
+                        id: node.id,
+                        projectId,
+                        updates: { asset_id: a.id, image_url: a.image_url },
+                      });
+                    }}
+                  >
+                    <SelectTrigger className="h-8 text-xs border-white/20 bg-white/10 text-white/70 hover:text-white w-44 gap-1">
+                      <SelectValue placeholder="🖼 Associer un asset" />
+                    </SelectTrigger>
+                    <SelectContent className="glass border-white/10">
+                      {assets.map((a) => (
+                        <SelectItem key={a.id} value={a.id}>
+                          <div className="flex items-center gap-2">
+                            {a.image_url && (
+                              <img src={a.image_url} alt={a.name} className="w-5 h-5 rounded object-cover" />
+                            )}
+                            <span>{a.name}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+            )}
           </div>
 
-          <div className="space-y-2">
-            <label className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Type</label>
-            <div className="flex flex-wrap gap-2">
-              {(Object.entries(LORE_NODE_TYPE_CONFIG) as [LoreNodeType, { label: string; emoji: string }][]).map(([key, cfg]) => (
+          {/* ── Colonne droite : onglets ── */}
+          <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+
+            {/* Header + nom du nœud */}
+            <DialogHeader className="px-5 pt-5 pb-3 shrink-0">
+              <DialogTitle className="text-gradient text-base">{node.name}</DialogTitle>
+            </DialogHeader>
+
+            {/* Onglets */}
+            <div className="flex gap-0 px-5 border-b border-white/10 shrink-0">
+              {(["lore", "connexions"] as const).map((tab) => (
                 <button
-                  key={key}
+                  key={tab}
                   type="button"
-                  onClick={() => { setType(key); triggerAutoSave(); }}
+                  onClick={() => setActiveTab(tab)}
                   className={[
-                    "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all duration-150",
-                    type === key
-                      ? TYPE_COLORS[key]
-                      : "border-white/10 bg-white/5 text-muted-foreground hover:bg-white/10",
+                    "px-4 py-2 text-xs font-semibold uppercase tracking-wide border-b-2 transition-colors duration-150",
+                    activeTab === tab
+                      ? "border-violet-400 text-violet-300"
+                      : "border-transparent text-muted-foreground hover:text-foreground",
                   ].join(" ")}
                 >
-                  <span>{cfg.emoji}</span>
-                  <span>{cfg.label}</span>
+                  {tab === "connexions" ? `Connexions (${connectedEdges.length})` : "Lore"}
                 </button>
               ))}
             </div>
-          </div>
 
-          <div className="space-y-2">
-            <label className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Image</label>
-            {imageUrl ? (
-              <img
-                src={imageUrl}
-                alt={name}
-                className="w-full max-h-40 object-cover rounded-xl border border-white/10"
-              />
-            ) : (
-              <div className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/10">
-                <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center text-xs text-muted-foreground shrink-0">
-                  {LORE_NODE_TYPE_CONFIG[type].emoji}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs text-muted-foreground">Aucune image associée</p>
-                  {assets.length > 0 && (
-                    <Select
-                      value=""
-                      onValueChange={async (assetId) => {
-                        const a = assets.find((x) => x.id === assetId);
-                        if (!a) return;
-                        await updateNode.mutateAsync({
-                          id: node.id,
-                          projectId,
-                          updates: { asset_id: a.id, image_url: a.image_url },
-                        });
-                      }}
+            {/* Contenu scrollable */}
+            <div className="flex-1 overflow-y-auto px-5 py-4">
+
+              {/* ── Onglet Lore ── */}
+              {activeTab === "lore" && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-end">
+                    <button
+                      type="button"
+                      onClick={handleArianeToggle}
+                      className={[
+                        "flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded-lg transition-all duration-150",
+                        arianeOpen
+                          ? "bg-violet-500/20 text-violet-300 border border-violet-500/30"
+                          : "text-muted-foreground hover:text-violet-400 hover:bg-violet-500/10",
+                      ].join(" ")}
                     >
-                      <SelectTrigger className="h-7 text-xs border-0 bg-transparent text-violet-400 hover:text-violet-300 w-auto px-0 gap-1 mt-1 focus:ring-0">
-                        <SelectValue placeholder="Associer un asset" />
-                      </SelectTrigger>
-                      <SelectContent className="glass border-white/10">
-                        {assets.map((a) => (
-                          <SelectItem key={a.id} value={a.id}>
-                            <div className="flex items-center gap-2">
-                              {a.image_url && (
-                                <img src={a.image_url} alt={a.name} className="w-5 h-5 rounded object-cover" />
-                              )}
-                              <span>{a.name}</span>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
+                      <Sparkles className="h-3 w-3" />
+                      Ariane
+                    </button>
+                  </div>
+                  <Textarea
+                    value={description}
+                    onChange={(e) => { setDescription(e.target.value); triggerAutoSave(); }}
+                    placeholder="Rôle, histoire, apparence, motivations…"
+                    className="min-h-[180px] resize-none text-sm bg-white/5 border-white/10"
+                    maxLength={800}
+                  />
+                  <span className="text-xs text-muted-foreground">{description.length}/800</span>
+                  <CompassSuggestionsPanel
+                    proposals={proposals}
+                    loading={arianeLoading}
+                    error={arianeError}
+                    onAddToLore={handleAddToLore}
+                    onDismiss={dismissProposal}
+                    onRefresh={handleRefreshAriane}
+                    isOpen={arianeOpen}
+                  />
                 </div>
-              </div>
-            )}
-          </div>
+              )}
 
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <label className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Description</label>
-              <button
-                type="button"
-                onClick={handleArianeToggle}
-                className={[
-                  "flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded-lg transition-all duration-150",
-                  arianeOpen
-                    ? "bg-violet-500/20 text-violet-300 border border-violet-500/30"
-                    : "text-muted-foreground hover:text-violet-400 hover:bg-violet-500/10",
-                ].join(" ")}
-              >
-                <Sparkles className="h-3 w-3" />
-                Ariane
-              </button>
-            </div>
-            <Textarea
-              value={description}
-              onChange={(e) => { setDescription(e.target.value); triggerAutoSave(); }}
-              placeholder="Décris ce nœud — rôle, histoire, apparence…"
-              className="min-h-[100px] resize-none text-sm bg-white/5 border-white/10"
-              maxLength={800}
-            />
-            <span className="text-xs text-muted-foreground">{description.length}/800</span>
-
-            <CompassSuggestionsPanel
-              proposals={proposals}
-              loading={arianeLoading}
-              error={arianeError}
-              onAddToLore={handleAddToLore}
-              onDismiss={dismissProposal}
-              onRefresh={handleRefreshAriane}
-              isOpen={arianeOpen}
-            />
-          </div>
-
-          <div className="space-y-3">
-            <label className="text-xs text-muted-foreground font-medium uppercase tracking-wide flex items-center gap-2">
-              <Link2 className="h-3 w-3" />
-              Connexions ({connectedEdges.length})
-            </label>
-            {connectedEdges.length === 0 ? (
-              <p className="text-xs text-muted-foreground/60 italic">Aucune connexion</p>
-            ) : (
-              <div className="space-y-1.5">
-                {connectedEdges.map((edge) => {
-                  const otherId = edge.from_node_id === node.id ? edge.to_node_id : edge.from_node_id;
-                  const otherNode = nodes.find((n) => n.id === otherId);
-                  return (
-                    <div key={edge.id} className="flex items-center gap-2 p-2 rounded-lg bg-white/5 text-xs">
-                      <span className="font-medium truncate flex-1">
-                        {LORE_NODE_TYPE_CONFIG[otherNode?.type ?? "character"].emoji} {otherNode?.name ?? "…"}
-                      </span>
-                      {edge.label && (
-                        <span className="text-muted-foreground italic truncate max-w-[100px]">{edge.label}</span>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteEdge(edge.id)}
-                        className="text-muted-foreground hover:text-red-400 transition-colors shrink-0"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
+              {/* ── Onglet Connexions ── */}
+              {activeTab === "connexions" && (
+                <div className="space-y-3">
+                  {connectedEdges.length === 0 ? (
+                    <p className="text-xs text-muted-foreground/60 italic">Aucune connexion</p>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {connectedEdges.map((edge) => {
+                        const otherId = edge.from_node_id === node.id ? edge.to_node_id : edge.from_node_id;
+                        const otherNode = nodes.find((n) => n.id === otherId);
+                        return (
+                          <div key={edge.id} className="flex items-center gap-2 p-2 rounded-lg bg-white/5 text-xs">
+                            <span className="font-medium truncate flex-1">
+                              {LORE_NODE_TYPE_CONFIG[otherNode?.type ?? "character"].emoji} {otherNode?.name ?? "…"}
+                            </span>
+                            {edge.label && (
+                              <span className="text-muted-foreground italic truncate max-w-[100px]">{edge.label}</span>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteEdge(edge.id)}
+                              className="text-muted-foreground hover:text-red-400 transition-colors shrink-0"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </div>
+                        );
+                      })}
                     </div>
-                  );
-                })}
-              </div>
-            )}
+                  )}
 
-            <div className="pt-1 space-y-2">
-              <p className="text-xs text-muted-foreground">+ Ajouter une connexion</p>
-              <div className="flex gap-2">
-                <Select value={newEdgeTargetId} onValueChange={setNewEdgeTargetId}>
-                  <SelectTrigger className="flex-1 bg-white/5 border-white/10 text-xs h-8">
-                    <SelectValue placeholder="Sélectionner un nœud…" />
-                  </SelectTrigger>
-                  <SelectContent className="glass border-white/10">
-                    {otherNodes.map((n) => (
-                      <SelectItem key={n.id} value={n.id}>
-                        {LORE_NODE_TYPE_CONFIG[n.type].emoji} {n.name}
-                      </SelectItem>
-                    ))}
-                    {otherNodes.length === 0 && (
-                      <SelectItem value="__none__" disabled>Aucun autre nœud</SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
-                <Input
-                  value={newEdgeLabel}
-                  onChange={(e) => setNewEdgeLabel(e.target.value)}
-                  placeholder="Relation…"
-                  className="w-28 bg-white/5 border-white/10 text-xs h-8"
-                />
+                  <div className="pt-2 space-y-2 border-t border-white/10">
+                    <p className="text-xs text-muted-foreground font-medium">+ Ajouter une connexion</p>
+                    <div className="flex gap-2">
+                      <Select value={newEdgeTargetId} onValueChange={setNewEdgeTargetId}>
+                        <SelectTrigger className="flex-1 bg-white/5 border-white/10 text-xs h-8">
+                          <SelectValue placeholder="Sélectionner un nœud…" />
+                        </SelectTrigger>
+                        <SelectContent className="glass border-white/10">
+                          {otherNodes.map((n) => (
+                            <SelectItem key={n.id} value={n.id}>
+                              {LORE_NODE_TYPE_CONFIG[n.type].emoji} {n.name}
+                            </SelectItem>
+                          ))}
+                          {otherNodes.length === 0 && (
+                            <SelectItem value="__none__" disabled>Aucun autre nœud</SelectItem>
+                          )}
+                        </SelectContent>
+                      </Select>
+                      <Input
+                        value={newEdgeLabel}
+                        onChange={(e) => setNewEdgeLabel(e.target.value)}
+                        placeholder="Relation…"
+                        className="w-28 bg-white/5 border-white/10 text-xs h-8"
+                      />
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={handleAddEdge}
+                        disabled={!newEdgeTargetId || addingEdge}
+                        className="h-8 px-2 text-violet-400 hover:text-violet-300 hover:bg-violet-500/10"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+            </div>
+
+            {/* Footer sticky */}
+            <div className="flex items-center justify-between px-5 py-4 border-t border-white/10 shrink-0">
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={handleDelete}
+                disabled={deleteNode.isPending}
+                className="text-red-400 hover:text-red-300 hover:bg-red-500/10 gap-1.5"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                Supprimer
+              </Button>
+              {activeTab === "lore" && (
                 <Button
                   size="sm"
-                  variant="ghost"
-                  onClick={handleAddEdge}
-                  disabled={!newEdgeTargetId || addingEdge}
-                  className="h-8 px-2 text-violet-400 hover:text-violet-300 hover:bg-violet-500/10"
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="gradient-primary text-primary-foreground gap-1.5"
                 >
-                  <Plus className="h-3.5 w-3.5" />
+                  {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                  Sauvegarder
                 </Button>
-              </div>
+              )}
             </div>
-          </div>
 
-          <div className="flex items-center justify-between pt-2 border-t border-white/10">
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={handleDelete}
-              disabled={deleteNode.isPending}
-              className="text-red-400 hover:text-red-300 hover:bg-red-500/10 gap-1.5"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-              Supprimer
-            </Button>
-            <Button
-              size="sm"
-              onClick={handleSave}
-              disabled={saving}
-              className="gradient-primary text-primary-foreground gap-1.5"
-            >
-              {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-              Sauvegarder
-            </Button>
           </div>
         </div>
       </DialogContent>

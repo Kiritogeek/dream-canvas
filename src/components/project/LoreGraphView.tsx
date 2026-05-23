@@ -5,7 +5,7 @@ import {
   Handle,
   Position,
   EdgeLabelRenderer,
-  getSmoothStepPath,
+  getBezierPath,
   useInternalNode,
   useNodesState,
   useEdgesState,
@@ -28,7 +28,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { useLoreNodes, useCreateLoreNode, useUpdateLoreNode } from "@/hooks/useLoreNodes";
+import { useLoreNodes, useCreateLoreNode, useUpdateLoreNode, useBatchUpdateLoreNodePositions } from "@/hooks/useLoreNodes";
 import { useLoreEdges, useCreateLoreEdge, useUpdateLoreEdge, useDeleteLoreEdge } from "@/hooks/useLoreEdges";
 import { useUpdateProject } from "@/hooks/useProjects";
 import { LoreNodeSheet } from "./LoreNodeSheet";
@@ -357,12 +357,52 @@ const NODE_CARD_W = 150;
 const NODE_CARD_H = 140; // 110 image + 30 band
 const MIN_NODE_GAP = 60; // zone invisible autour de chaque carte
 
+// ── boxEdgePoint ─────────────────────────────────────────────────
+// Calcule le point exact où le rayon partant du centre (cx, cy) dans la
+// direction (dx, dy) intersecte le bord du bounding-box (W × H centré).
+// Retourne aussi la Position (face touchée) pour orienter la courbe bezier.
+function boxEdgePoint(
+  cx: number, cy: number,
+  W: number,  H: number,
+  dx: number, dy: number,
+): { x: number; y: number; pos: Position } {
+  const hw = W / 2;
+  const hh = H / 2;
+  if (Math.abs(dx) < 0.001 && Math.abs(dy) < 0.001) {
+    return { x: cx, y: cy + hh, pos: Position.Bottom };
+  }
+  let bestT = Infinity;
+  let bestPos: Position = Position.Bottom;
+  // Face droite
+  if (dx > 0.001) {
+    const t = hw / dx; const iy = cy + t * dy;
+    if (iy >= cy - hh && iy <= cy + hh && t < bestT) { bestT = t; bestPos = Position.Right; }
+  }
+  // Face gauche
+  if (dx < -0.001) {
+    const t = -hw / dx; const iy = cy + t * dy;
+    if (iy >= cy - hh && iy <= cy + hh && t < bestT) { bestT = t; bestPos = Position.Left; }
+  }
+  // Face bas
+  if (dy > 0.001) {
+    const t = hh / dy; const ix = cx + t * dx;
+    if (ix >= cx - hw && ix <= cx + hw && t < bestT) { bestT = t; bestPos = Position.Bottom; }
+  }
+  // Face haut
+  if (dy < -0.001) {
+    const t = -hh / dy; const ix = cx + t * dx;
+    if (ix >= cx - hw && ix <= cx + hw && t < bestT) { bestT = t; bestPos = Position.Top; }
+  }
+  return { x: cx + bestT * dx, y: cy + bestT * dy, pos: bestPos };
+}
+
 // ── FloatingEdge — fil doré, hover = intensification dorée ──────────
 
-function FloatingEdge({ source, target, label, selected }: EdgeProps) {
+function FloatingEdge({ source, target, label, selected, data }: EdgeProps) {
   const [hovered, setHovered] = useState(false);
   const srcNode = useInternalNode(source);
   const tgtNode = useInternalNode(target);
+  const laneOffset = (data?.laneOffset as number) ?? 0;
 
   if (!srcNode?.internals?.positionAbsolute || !tgtNode?.internals?.positionAbsolute) return null;
 
@@ -371,34 +411,39 @@ function FloatingEdge({ source, target, label, selected }: EdgeProps) {
   const tx0 = tgtNode.internals.positionAbsolute.x;
   const ty0 = tgtNode.internals.positionAbsolute.y;
 
-  // Côté le plus proche : compare les centres pour choisir la direction dominante
-  const dx = (tx0 + NODE_CARD_W / 2) - (sx0 + NODE_CARD_W / 2);
-  const dy = (ty0 + NODE_CARD_H / 2) - (sy0 + NODE_CARD_H / 2);
+  // Centres des deux nœuds
+  const scx = sx0 + NODE_CARD_W / 2;
+  const scy = sy0 + NODE_CARD_H / 2;
+  const tcx = tx0 + NODE_CARD_W / 2;
+  const tcy = ty0 + NODE_CARD_H / 2;
 
-  let sp: Position, tp: Position;
-  if (Math.abs(dx) >= Math.abs(dy)) {
-    sp = dx >= 0 ? Position.Right : Position.Left;
-    tp = dx >= 0 ? Position.Left  : Position.Right;
-  } else {
-    sp = dy >= 0 ? Position.Bottom : Position.Top;
-    tp = dy >= 0 ? Position.Top    : Position.Bottom;
+  // Point exact sur la surface du bounding-box de chaque nœud (pas centre du côté)
+  const srcPt = boxEdgePoint(scx, scy, NODE_CARD_W, NODE_CARD_H, tcx - scx, tcy - scy);
+  const tgtPt = boxEdgePoint(tcx, tcy, NODE_CARD_W, NODE_CARD_H, scx - tcx, scy - tcy);
+
+  const sc = { x: srcPt.x, y: srcPt.y };
+  const tc = { x: tgtPt.x, y: tgtPt.y };
+
+  // Offset perpendiculaire (sépare les fils parallèles dans le même couloir)
+  if (laneOffset !== 0) {
+    const edx = tc.x - sc.x;
+    const edy = tc.y - sc.y;
+    const len = Math.sqrt(edx * edx + edy * edy) || 1;
+    const px = (-edy / len) * laneOffset;
+    const py = (edx / len) * laneOffset;
+    sc.x += px; sc.y += py;
+    tc.x += px; tc.y += py;
   }
 
-  const pt = (x: number, y: number, pos: Position) => {
-    if (pos === Position.Right)  return { x: x + NODE_CARD_W,     y: y + NODE_CARD_H / 2 };
-    if (pos === Position.Left)   return { x,                       y: y + NODE_CARD_H / 2 };
-    if (pos === Position.Bottom) return { x: x + NODE_CARD_W / 2, y: y + NODE_CARD_H     };
-    return                              { x: x + NODE_CARD_W / 2, y                       };
-  };
-
-  const sc = pt(sx0, sy0, sp);
-  const tc = pt(tx0, ty0, tp);
-
-  const [edgePath, labelX, labelY] = getSmoothStepPath({
-    sourceX: sc.x, sourceY: sc.y, sourcePosition: sp,
-    targetX: tc.x, targetY: tc.y, targetPosition: tp,
-    borderRadius: 20,
+  // getBezierPath : courbe douce alignée avec la physique (déviation max ~25% distance)
+  const [edgePath, labelX, labelY] = getBezierPath({
+    sourceX: sc.x, sourceY: sc.y, sourcePosition: srcPt.pos,
+    targetX: tc.x, targetY: tc.y, targetPosition: tgtPt.pos,
+    curvature: 0.25,
   });
+
+  const finalLabelX = labelX;
+  const finalLabelY = labelY;
 
   const isActive = hovered || (selected ?? false);
 
@@ -444,14 +489,14 @@ function FloatingEdge({ source, target, label, selected }: EdgeProps) {
         }}
       />
 
-      {/* Étiquette de relation */}
+      {/* Étiquette de relation — positionnée à finalLabelX/Y (décalée du centre pour éviter les clusters) */}
       {label && (
         <EdgeLabelRenderer>
           <div
             style={{
               position: "absolute",
-              transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
-              background: "rgba(0,0,0,0.8)",
+              transform: `translate(-50%, -50%) translate(${finalLabelX}px, ${finalLabelY}px)`,
+              background: "rgba(0,0,0,0.85)",
               padding: "2px 8px",
               borderRadius: 4,
               fontSize: 10,
@@ -461,6 +506,7 @@ function FloatingEdge({ source, target, label, selected }: EdgeProps) {
               pointerEvents: "none",
               transition: "border-color 200ms ease",
               filter: "none",
+              whiteSpace: "nowrap",
             }}
             className="nodrag nopan"
           >
@@ -477,50 +523,27 @@ const EDGE_TYPES: EdgeTypes = { floating: FloatingEdge };
 // ── GoldenConnectionLine — fil de prévisualisation lors du tracé d'une connexion ──
 
 function GoldenConnectionLine({ fromX, fromY, toX, toY }: ConnectionLineComponentProps) {
-  // fromX/fromY = position du handle bottom-center du nœud source.
-  // On recalcule le centre du nœud pour choisir le côté de sortie optimal
-  // (même logique que FloatingEdge — sans ça, fromY est toujours en bas → biais Bottom).
+  // fromX/fromY ≈ handle bottom-center. On recalcule le centre du nœud
+  // puis on utilise boxEdgePoint pour un point de sortie exact sur la surface.
   const nodeCenterX = fromX;
   const nodeCenterY = fromY - NODE_CARD_H / 2;
 
   const dx = toX - nodeCenterX;
   const dy = toY - nodeCenterY;
 
-  let srcPos: Position;
-  let actualFromX: number;
-  let actualFromY: number;
-
-  if (Math.abs(dx) >= Math.abs(dy)) {
-    if (dx >= 0) {
-      srcPos = Position.Right;
-      actualFromX = nodeCenterX + NODE_CARD_W / 2;
-      actualFromY = nodeCenterY;
-    } else {
-      srcPos = Position.Left;
-      actualFromX = nodeCenterX - NODE_CARD_W / 2;
-      actualFromY = nodeCenterY;
-    }
-  } else {
-    if (dy >= 0) {
-      srcPos = Position.Bottom;
-      actualFromX = nodeCenterX;
-      actualFromY = fromY;
-    } else {
-      srcPos = Position.Top;
-      actualFromX = nodeCenterX;
-      actualFromY = nodeCenterY - NODE_CARD_H / 2;
-    }
-  }
+  const { x: actualFromX, y: actualFromY, pos: srcPos } = boxEdgePoint(
+    nodeCenterX, nodeCenterY, NODE_CARD_W, NODE_CARD_H, dx, dy
+  );
 
   const tgtPos =
     srcPos === Position.Right  ? Position.Left  :
     srcPos === Position.Left   ? Position.Right :
     srcPos === Position.Bottom ? Position.Top   : Position.Bottom;
 
-  const [edgePath] = getSmoothStepPath({
+  const [edgePath] = getBezierPath({
     sourceX: actualFromX, sourceY: actualFromY, sourcePosition: srcPos,
     targetX: toX,         targetY: toY,         targetPosition: tgtPos,
-    borderRadius: 20,
+    curvature: 0.25,
   });
 
   return (
@@ -679,6 +702,7 @@ export function LoreGraphView({ project, assets }: Props) {
   const { data: loreNodes = [], isLoading } = useLoreNodes(project.id);
   const { data: loreEdges = [] } = useLoreEdges(project.id);
   const updateNode = useUpdateLoreNode();
+  const batchUpdatePositions = useBatchUpdateLoreNodePositions();
   const createEdge = useCreateLoreEdge();
 
   const [rfNodes, setRfNodes, onNodesChange] = useNodesState<LoreNodeData>([]);
@@ -686,8 +710,12 @@ export function LoreGraphView({ project, assets }: Props) {
 
   const containerRef = useRef<HTMLDivElement>(null);
   const initialOverlapDoneRef = useRef(false);
-  // Mémorise la position avant le drag pour le snap-back si dépôt invalide
   const dragStartPosRef = useRef<{ x: number; y: number } | null>(null);
+  const batchUpdateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingBatchRef = useRef<{ id: string; pos_x: number; pos_y: number }[]>([]);
+  // Ref pour accéder aux positions visuelles actuelles sans les mettre dans les deps de useCallback
+  const rfNodesRef = useRef(rfNodes);
+  useEffect(() => { rfNodesRef.current = rfNodes; }, [rfNodes]);
 
 
   const [search, setSearch] = useState("");
@@ -717,15 +745,20 @@ export function LoreGraphView({ project, assets }: Props) {
   );
 
   // Sync nodes BDD → React Flow
+  // Règle : on ne touche JAMAIS à la position d'un nœud déjà présent dans rfNodes.
+  // La position visuelle (rfNodes) est la source de vérité — la DB peut arriver
+  // en retard (race condition post-runAutoLayout). On utilise pos_x/pos_y de la
+  // DB uniquement pour les nœuds qui n'existent pas encore dans rfNodes (nouveaux).
   useEffect(() => {
-    setRfNodes(
-      loreNodes.map((n) => ({
+    setRfNodes((prev) => {
+      const prevPos = new Map(prev.map((rn) => [rn.id, rn.position]));
+      return loreNodes.map((n) => ({
         id: n.id,
-        position: { x: n.pos_x, y: n.pos_y },
+        position: prevPos.get(n.id) ?? { x: n.pos_x, y: n.pos_y },
         data: { label: n.name, loreNode: { ...n, image_url: resolveNodeImage(n) } },
         type: "loreNode",
-      }))
-    );
+      }));
+    });
   }, [loreNodes, assets, setRfNodes, resolveNodeImage]);
 
   // Auto-heal : si un nœud a asset_id mais image_url null en BDD, on le corrige une fois
@@ -740,8 +773,50 @@ export function LoreGraphView({ project, assets }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loreNodes.map((n) => n.id).join(","), assets.map((a) => a.id).join(",")]);
 
-  // Sync edges BDD → React Flow — pas de style inline, FloatingEdge gère tout
+  // Clé de position quantifiée à 50px — change seulement après un layout/drag significatif,
+  // pas à chaque frame. Permet de re-déclencher le sync edge sans dépendre de la BDD.
+  const rfNodesPosKey = rfNodes
+    .map((n) => `${n.id}:${Math.round(n.position.x / 50)}:${Math.round(n.position.y / 50)}`)
+    .sort()
+    .join("|");
+
+  // Sync edges BDD → React Flow — offset par couloir physique.
+  // Utilise rfNodes (positions visuelles actuelles) pour calculer les couloirs,
+  // ce qui garantit que les offsets sont corrects immédiatement après runAutoLayout
+  // sans attendre le round-trip BDD.
+   
   useEffect(() => {
+    const LANE = 22;
+
+    // rfNodes = positions visuelles temps réel (pas la BDD)
+    const nodeCenter = new Map(
+      rfNodes.map((n) => [n.id, {
+        cx: n.position.x + NODE_CARD_W / 2,
+        cy: n.position.y + NODE_CARD_H / 2,
+      }])
+    );
+
+    const corridorGroups = new Map<string, string[]>();
+    loreEdges.forEach((e) => {
+      const src = nodeCenter.get(e.from_node_id);
+      const tgt = nodeCenter.get(e.to_node_id);
+      if (!src || !tgt) return;
+      const adx = Math.abs(tgt.cx - src.cx);
+      const ady = Math.abs(tgt.cy - src.cy);
+      const corridorKey = adx >= ady
+        ? `h:${Math.round(src.cy / 50)}`
+        : `v:${Math.round(src.cx / 50)}`;
+      if (!corridorGroups.has(corridorKey)) corridorGroups.set(corridorKey, []);
+      corridorGroups.get(corridorKey)!.push(e.id);
+    });
+
+    const laneOffsets = new Map<string, number>();
+    corridorGroups.forEach((ids) => {
+      ids.forEach((id, idx) => {
+        laneOffsets.set(id, (idx - (ids.length - 1) / 2) * LANE);
+      });
+    });
+
     setRfEdges(
       loreEdges.map((e) => ({
         id: e.id,
@@ -749,9 +824,12 @@ export function LoreGraphView({ project, assets }: Props) {
         target: e.to_node_id,
         type: "floating",
         label: e.label ?? undefined,
+        data: { laneOffset: laneOffsets.get(e.id) ?? 0 },
       }))
     );
-  }, [loreEdges, setRfEdges]);
+  // rfNodesPosKey change quand les positions bougent de ≥50px → recompute corridors
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loreEdges, rfNodesPosKey, setRfEdges]);
 
   // Filtre de recherche — atténue les nœuds non correspondants
   useEffect(() => {
@@ -804,14 +882,23 @@ export function LoreGraphView({ project, assets }: Props) {
       return p ? { ...rn, position: { x: p.x, y: p.y } } : rn;
     }));
 
-    // Persistance BDD (fire-and-forget)
-    for (const node of nodes) {
-      const p = pos.get(node.id)!;
-      if (Math.abs(p.x - node.pos_x) > 0.5 || Math.abs(p.y - node.pos_y) > 0.5) {
-        updateNode.mutate({ id: node.id, projectId: project.id, updates: { pos_x: Math.round(p.x), pos_y: Math.round(p.y) } });
-      }
+    // Persistance BDD — batch debounced (1 requête upsert au lieu de N mutations parallèles)
+    const movedNodes = nodes.filter((n) => {
+      const p = pos.get(n.id)!;
+      return Math.abs(p.x - n.pos_x) > 0.5 || Math.abs(p.y - n.pos_y) > 0.5;
+    }).map((n) => {
+      const p = pos.get(n.id)!;
+      return { id: n.id, pos_x: Math.round(p.x), pos_y: Math.round(p.y) };
+    });
+
+    if (movedNodes.length > 0) {
+      if (batchUpdateTimerRef.current) clearTimeout(batchUpdateTimerRef.current);
+      pendingBatchRef.current = movedNodes;
+      batchUpdateTimerRef.current = setTimeout(() => {
+        batchUpdatePositions.mutate({ projectId: project.id, nodes: pendingBatchRef.current });
+      }, 80);
     }
-  }, [project.id, updateNode, setRfNodes]);
+  }, [project.id, batchUpdatePositions, setRfNodes]);
 
   // Résolution automatique des chevauchements au premier chargement
   useEffect(() => {
@@ -920,157 +1007,232 @@ export function LoreGraphView({ project, assets }: Props) {
     resolveOverlaps([...loreNodes, node]);
   }, [loreNodes, resolveOverlaps]);
 
-  // Layout ordonné par type : Événement → Lieux → Personnages → Objets (haut→bas)
-  // Les nœuds connectés sont alignés horizontalement pour éviter que les fils traversent des cartes.
+  // ── Layout Force-Directed ─────────────────────────────────────────────────────
+  // Les nœuds s'organisent selon leur topologie : hubs centraux, feuilles en orbite.
+  // Animation 600ms ease-out-cubic pour l'effet visuel.
   const runAutoLayout = useCallback(() => {
     if (loreNodes.length === 0) return;
 
-    const TYPE_ORDER: LoreNodeType[] = ["event", "location", "character", "object"];
-    // Espacement vertical entre rangs : 140px carte + 160px passage = 300px
-    const ROW_Y: Record<string, number> = { event: 0, location: 300, character: 600, object: 900 };
-    const H_SPACING = 210; // espacement horizontal entre centres de cartes
-    const MIN_H_GAP = NODE_CARD_W + MIN_NODE_GAP; // 150 + 60 = 210
+    const N = loreNodes.length;
+    const ids = loreNodes.map((n) => n.id);
 
-    const groups: Record<string, LoreNode[]> = { event: [], location: [], character: [], object: [] };
-    for (const n of loreNodes) {
-      (groups[n.type] ?? groups.character).push(n);
-    }
+    // ── Paramètres ────────────────────────────────────────────────────
+    const IDEAL        = 420;   // px — longueur idéale d'un fil (plus d'espace = moins de crossings)
+    const K_SPRING     = 0.05;  // rigidité du ressort
+    const K_REPEL      = 55000; // répulsion Coulomb (px²)
+    const K_GRAV       = 0.006; // gravité vers le centre (réduite, TYPE_GRAV prend le relais)
+    const K_TYPE       = 0.007; // gravité vers le centre du type (Lieu/Perso/Objet/Événement)
+    const K_EDGE_REP   = 20000; // répulsion nœud-arête
+    const EDGE_REP_DIST = 230;  // seuil de répulsion nœud-arête (px)
+    const DAMPING      = 0.82;
+    const MAX_VEL      = 90;
+    const ITERS        = 300;
+    const COOL         = 0.979;
 
-    type Pos = { x: number; y: number };
-    const pos = new Map<string, Pos>();
+    // Quadrants par type (Événements haut-gauche, Lieux haut-droite,
+    //                     Personnages bas-gauche, Objets bas-droite)
+    const TYPE_QUAD: Record<string, { x: number; y: number }> = {
+      event:     { x: -280, y: -260 },
+      location:  { x:  280, y: -260 },
+      character: { x: -280, y:  260 },
+      object:    { x:  280, y:  260 },
+    };
 
-    // Placement initial : espacement uniforme centré sur x=0
-    for (const type of TYPE_ORDER) {
-      const grp = groups[type];
+    // ── Initialisation dans les quadrants par type ────────────────────
+    type Vec = { x: number; y: number; vx: number; vy: number };
+    const sim = new Map<string, Vec>();
+    const typeGroups: Record<string, LoreNode[]> = { event: [], location: [], character: [], object: [] };
+    for (const n of loreNodes) (typeGroups[n.type] ?? typeGroups.character).push(n);
+
+    for (const [type, grp] of Object.entries(typeGroups)) {
+      const center = TYPE_QUAD[type] ?? { x: 0, y: 0 };
       grp.forEach((n, i) => {
-        const totalW = Math.max(grp.length - 1, 0) * H_SPACING;
-        pos.set(n.id, { x: i * H_SPACING - totalW / 2, y: ROW_Y[type] });
+        const angle = (2 * Math.PI * i) / Math.max(grp.length, 1) + (type === "location" ? 0.5 : 0);
+        const r     = 55 + i * 18;
+        sim.set(n.id, { x: center.x + Math.cos(angle) * r, y: center.y + Math.sin(angle) * r, vx: 0, vy: 0 });
       });
     }
 
-    // Tri barycentriques : ordonne les nœuds de chaque rang selon la position moyenne
-    // de leurs voisins dans les autres rangs → minimise les croisements de fils
-    for (const type of TYPE_ORDER) {
-      const grp = groups[type];
-      if (grp.length < 2) continue;
-      const bary = new Map<string, number>();
-      for (const n of grp) {
-        const neighbors = loreEdges
-          .filter((e) => e.from_node_id === n.id || e.to_node_id === n.id)
-          .map((e) => (e.from_node_id === n.id ? e.to_node_id : e.from_node_id))
-          .filter((nid) => !grp.some((g) => g.id === nid));
-        if (neighbors.length === 0) { bary.set(n.id, pos.get(n.id)!.x); continue; }
-        const avg = neighbors.reduce((s, nid) => s + (pos.get(nid)?.x ?? 0), 0) / neighbors.length;
-        bary.set(n.id, avg);
+    // ── Simulation ───────────────────────────────────────────────────
+    let temp = 1.0;
+    for (let iter = 0; iter < ITERS; iter++) {
+      // Répulsion : tous les pairs se repoussent
+      for (let i = 0; i < ids.length; i++) {
+        for (let j = i + 1; j < ids.length; j++) {
+          const a = sim.get(ids[i])!;
+          const b = sim.get(ids[j])!;
+          let ddx = b.x - a.x;
+          let ddy = b.y - a.y;
+          let dist = Math.sqrt(ddx * ddx + ddy * ddy);
+          if (dist < 1) { ddx = (Math.random() - 0.5) * 2; ddy = (Math.random() - 0.5) * 2; dist = 1; }
+          const f = K_REPEL / (dist * dist);
+          const fx = (ddx / dist) * f;
+          const fy = (ddy / dist) * f;
+          a.vx -= fx; a.vy -= fy;
+          b.vx += fx; b.vy += fy;
+        }
       }
-      const sorted = grp.slice().sort((a, b) => (bary.get(a.id) ?? 0) - (bary.get(b.id) ?? 0));
-      const totalW = Math.max(sorted.length - 1, 0) * H_SPACING;
-      sorted.forEach((n, i) => { pos.get(n.id)!.x = i * H_SPACING - totalW / 2; });
-    }
 
-    // Ressort horizontal fort entre nœuds connectés → les aligne verticalement
-    // (quand deux nœuds connectés ont le même X, le fil va tout droit sans traverser d'autres cartes)
-    const SPRING = 0.28;
-    const ITERATIONS = 120;
-    for (let iter = 0; iter < ITERATIONS; iter++) {
-      const dx = new Map<string, number>(loreNodes.map((n) => [n.id, 0]));
-      for (const edge of loreEdges) {
-        const a = pos.get(edge.from_node_id);
-        const b = pos.get(edge.to_node_id);
+      // Ressort : nœuds connectés s'attirent vers IDEAL px
+      for (const e of loreEdges) {
+        const a = sim.get(e.from_node_id);
+        const b = sim.get(e.to_node_id);
         if (!a || !b) continue;
-        const diff = b.x - a.x;
-        dx.set(edge.from_node_id, (dx.get(edge.from_node_id) ?? 0) + diff * SPRING);
-        dx.set(edge.to_node_id,   (dx.get(edge.to_node_id)   ?? 0) - diff * SPRING);
+        const ddx  = b.x - a.x;
+        const ddy  = b.y - a.y;
+        const dist = Math.sqrt(ddx * ddx + ddy * ddy) || 1;
+        const disp = dist - IDEAL;
+        const f    = K_SPRING * disp;
+        const fx   = (ddx / dist) * f;
+        const fy   = (ddy / dist) * f;
+        a.vx += fx; a.vy += fy;
+        b.vx -= fx; b.vy -= fy;
       }
-      for (const n of loreNodes) { pos.get(n.id)!.x += dx.get(n.id) ?? 0; }
 
-      // Anti-chevauchement horizontal dans chaque rang
-      for (const type of TYPE_ORDER) {
-        const sorted = groups[type].slice().sort((a, b) => (pos.get(a.id)?.x ?? 0) - (pos.get(b.id)?.x ?? 0));
-        for (let i = 0; i < sorted.length - 1; i++) {
-          const a = pos.get(sorted[i].id)!;
-          const b = pos.get(sorted[i + 1].id)!;
-          if (b.x - a.x < MIN_H_GAP) {
-            const mid = (a.x + b.x) / 2;
-            a.x = mid - MIN_H_GAP / 2;
-            b.x = mid + MIN_H_GAP / 2;
+      // Répulsion nœud-arête : pousse les nœuds hors du tracé des connexions.
+      // Utilise les 4 coins + centre de chaque carte pour mesurer la distance
+      // minimale réelle entre le bounding-box du nœud et le segment d'arête —
+      // bien plus précis que le seul centre (qui peut être à 70px d'une arête
+      // qui traverse le bord supérieur de la carte).
+      for (const e of loreEdges) {
+        const ea = sim.get(e.from_node_id);
+        const eb = sim.get(e.to_node_id);
+        if (!ea || !eb) continue;
+        const ex1  = ea.x + NODE_CARD_W / 2;
+        const ey1  = ea.y + NODE_CARD_H / 2;
+        const ex2  = eb.x + NODE_CARD_W / 2;
+        const ey2  = eb.y + NODE_CARD_H / 2;
+        const edx  = ex2 - ex1;
+        const edy  = ey2 - ey1;
+        const elen2 = edx * edx + edy * edy;
+        if (elen2 < 1) continue;
+        for (const n of loreNodes) {
+          if (n.id === e.from_node_id || n.id === e.to_node_id) continue;
+          const p = sim.get(n.id)!;
+          // 4 coins + centre — on garde le point le plus proche du segment
+          const hw = NODE_CARD_W / 2;
+          const hh = NODE_CARD_H / 2;
+          const cx = p.x + hw;
+          const cy = p.y + hh;
+          const samples = [
+            { sx: p.x,            sy: p.y            },
+            { sx: p.x + NODE_CARD_W, sy: p.y            },
+            { sx: p.x,            sy: p.y + NODE_CARD_H },
+            { sx: p.x + NODE_CARD_W, sy: p.y + NODE_CARD_H },
+            { sx: cx,             sy: cy             },
+          ];
+          let minDist = Infinity;
+          let minRx = 0, minRy = 0;
+          for (const { sx, sy } of samples) {
+            const t  = Math.max(0, Math.min(1, ((sx - ex1) * edx + (sy - ey1) * edy) / elen2));
+            const qx = ex1 + t * edx;
+            const qy = ey1 + t * edy;
+            const rx = sx - qx;
+            const ry = sy - qy;
+            const d  = Math.sqrt(rx * rx + ry * ry);
+            if (d < minDist) { minDist = d; minRx = rx; minRy = ry; }
+          }
+          if (minDist > 1 && minDist < EDGE_REP_DIST) {
+            const f = K_EDGE_REP / (minDist * minDist);
+            p.vx += (minRx / minDist) * f;
+            p.vy += (minRy / minDist) * f;
           }
         }
       }
+
+      // Gravité vers le centre (évite la dispersion)
+      // + Gravité vers le quadrant du type (regroupe Perso avec Perso, etc.)
+      for (const n of loreNodes) {
+        const p    = sim.get(n.id)!;
+        const quad = TYPE_QUAD[n.type] ?? { x: 0, y: 0 };
+        p.vx -= p.x * K_GRAV;
+        p.vy -= p.y * K_GRAV;
+        p.vx += (quad.x - p.x) * K_TYPE;
+        p.vy += (quad.y - p.y) * K_TYPE;
+      }
+
+      // Appliquer vitesse + amortissement + cap
+      for (const id of ids) {
+        const p    = sim.get(id)!;
+        p.vx      *= DAMPING;
+        p.vy      *= DAMPING;
+        const spd  = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
+        const cap  = MAX_VEL * temp;
+        if (spd > cap) { p.vx = (p.vx / spd) * cap; p.vy = (p.vy / spd) * cap; }
+        p.x += p.vx;
+        p.y += p.vy;
+      }
+
+      temp *= COOL;
     }
 
-    // Post-processing : déplace les nœuds intermédiaires qui bloquent les connexions cross-row.
-    // Un fil de A (rang r1) vers B (rang r3) passe horizontalement dans la zone du rang r2 :
-    // tout nœud C en r2 aligné avec le couloir [min(Ax,Bx) ; max(Ax,Bx)] doit être écarté.
-    const CLEAR = 28; // marge de dégagement (px) autour du couloir horizontal du fil
-    for (let pass = 0; pass < 5; pass++) {
-      for (const edge of loreEdges) {
-        const aN = loreNodes.find((n) => n.id === edge.from_node_id);
-        const bN = loreNodes.find((n) => n.id === edge.to_node_id);
-        if (!aN || !bN) continue;
-        const aRow = TYPE_ORDER.indexOf(aN.type);
-        const bRow = TYPE_ORDER.indexOf(bN.type);
-        if (Math.abs(aRow - bRow) < 2) continue; // connexion adjacente → pas de problème
-
-        const pA = pos.get(aN.id)!;
-        const pB = pos.get(bN.id)!;
-        // Centre horizontal de chaque nœud (le fil passe par leurs centres)
-        const axc = pA.x + NODE_CARD_W / 2;
-        const bxc = pB.x + NODE_CARD_W / 2;
-        const corrL   = Math.min(axc, bxc) - CLEAR;
-        const corrR   = Math.max(axc, bxc) + CLEAR;
-        const corrMid = (axc + bxc) / 2;
-
-        const minRow = Math.min(aRow, bRow);
-        const maxRow = Math.max(aRow, bRow);
-        for (let r = minRow + 1; r < maxRow; r++) {
-          for (const cn of groups[TYPE_ORDER[r]]) {
-            const pC = pos.get(cn.id)!;
-            // C est-il dans le couloir horizontal ?
-            if (pC.x + NODE_CARD_W + CLEAR <= corrL || pC.x - CLEAR >= corrR) continue;
-            // Pousse C vers le bord le plus proche
-            if (pC.x + NODE_CARD_W / 2 <= corrMid) {
-              pC.x = corrL - NODE_CARD_W - CLEAR;
+    // ── Résolution des chevauchements post-simulation ─────────────────
+    let hasOverlap = true;
+    let oi = 0;
+    while (hasOverlap && oi < 40) {
+      hasOverlap = false; oi++;
+      for (let i = 0; i < ids.length; i++) {
+        for (let j = i + 1; j < ids.length; j++) {
+          const a = sim.get(ids[i])!;
+          const b = sim.get(ids[j])!;
+          const ox = (NODE_CARD_W + MIN_NODE_GAP) - Math.abs(b.x - a.x);
+          const oy = (NODE_CARD_H + MIN_NODE_GAP) - Math.abs(b.y - a.y);
+          if (ox > 0 && oy > 0) {
+            hasOverlap = true;
+            const push = (ox <= oy ? ox : oy) / 2 + 1;
+            if (ox <= oy) {
+              if (b.x >= a.x) { a.x -= push; b.x += push; } else { a.x += push; b.x -= push; }
             } else {
-              pC.x = corrR + CLEAR;
+              if (b.y >= a.y) { a.y -= push; b.y += push; } else { a.y += push; b.y -= push; }
             }
           }
         }
       }
+    }
 
-      // Ré-applique l'anti-chevauchement horizontal après chaque passe de dégagement
-      for (const type of TYPE_ORDER) {
-        const sorted = groups[type].slice().sort((a, b) => (pos.get(a.id)?.x ?? 0) - (pos.get(b.id)?.x ?? 0));
-        for (let i = 0; i < sorted.length - 1; i++) {
-          const a = pos.get(sorted[i].id)!;
-          const b = pos.get(sorted[i + 1].id)!;
-          if (b.x - a.x < MIN_H_GAP) {
-            const mid = (a.x + b.x) / 2;
-            a.x = mid - MIN_H_GAP / 2;
-            b.x = mid + MIN_H_GAP / 2;
-          }
-        }
+    // ── Centrage ─────────────────────────────────────────────────────
+    const allV = Array.from(sim.values());
+    const cx = allV.reduce((s, p) => s + p.x + NODE_CARD_W / 2, 0) / N;
+    const cy = allV.reduce((s, p) => s + p.y + NODE_CARD_H / 2, 0) / N;
+    for (const p of allV) { p.x = Math.round(p.x - cx); p.y = Math.round(p.y - cy); }
+
+    // Positions cibles finales
+    const targets = new Map(ids.map((id) => {
+      const p = sim.get(id)!;
+      return [id, { x: p.x, y: p.y }] as [string, { x: number; y: number }];
+    }));
+
+    // ── Animation 600ms ease-out-cubic ────────────────────────────────
+    const startPos = new Map(rfNodesRef.current.map((n) => [n.id, { ...n.position }]));
+    const DURATION = 600;
+    const t0 = performance.now();
+
+    const step = (now: number) => {
+      const raw    = Math.min((now - t0) / DURATION, 1);
+      const eased  = 1 - Math.pow(1 - raw, 3); // ease-out cubic
+
+      setRfNodes((prev) => prev.map((rn) => {
+        const from = startPos.get(rn.id);
+        const to   = targets.get(rn.id);
+        if (!from || !to) return rn;
+        return { ...rn, position: {
+          x: Math.round(from.x + (to.x - from.x) * eased),
+          y: Math.round(from.y + (to.y - from.y) * eased),
+        }};
+      }));
+
+      if (raw < 1) {
+        requestAnimationFrame(step);
+      } else {
+        // Persistance BDD en batch quand l'animation est terminée
+        batchUpdatePositions.mutate({
+          projectId: project.id,
+          nodes: ids.map((id) => { const t = targets.get(id)!; return { id, pos_x: t.x, pos_y: t.y }; }),
+        });
       }
-    }
-
-    // Centre le layout
-    const allPos = Array.from(pos.values());
-    const avgX = allPos.reduce((s, p) => s + p.x, 0) / allPos.length;
-    const avgY = allPos.reduce((s, p) => s + p.y, 0) / allPos.length;
-    for (const p of allPos) { p.x -= avgX; p.y -= avgY; }
-
-    setRfNodes((prev) =>
-      prev.map((rn) => {
-        const p = pos.get(rn.id);
-        return p ? { ...rn, position: { x: Math.round(p.x), y: Math.round(p.y) } } : rn;
-      })
-    );
-
-    for (const node of loreNodes) {
-      const p = pos.get(node.id)!;
-      updateNode.mutate({ id: node.id, projectId: project.id, updates: { pos_x: Math.round(p.x), pos_y: Math.round(p.y) } });
-    }
-  }, [loreNodes, loreEdges, project.id, setRfNodes, updateNode]);
+    };
+    requestAnimationFrame(step);
+  }, [loreNodes, loreEdges, project.id, setRfNodes, batchUpdatePositions]);
 
   return (
     <div
@@ -1243,6 +1405,7 @@ export function LoreGraphView({ project, assets }: Props) {
         userId={userId}
         open={sheetOpen}
         onOpenChange={setSheetOpen}
+        onEdgeCreated={() => resolveOverlaps(loreNodes)}
       />
     </div>
   );

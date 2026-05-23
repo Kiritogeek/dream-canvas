@@ -382,6 +382,7 @@ export type CompassProposalType = "lore_world" | "lore_asset" | "narrative_direc
 export interface CompassProposal {
   id: string;
   project_id: string;
+  user_id: string;
   source_id: string | null;
   proposal_type: CompassProposalType;
   origin: "extracted" | "generated";
@@ -423,6 +424,7 @@ export interface LoreNode {
   description: string | null;
   image_url: string | null;
   asset_id: string | null;
+  chapter_id: string | null;  // Événements uniquement — chapitre source dans la timeline
   pos_x: number;
   pos_y: number;
   created_at: string;

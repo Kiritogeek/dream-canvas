@@ -21,7 +21,9 @@ import {
   type ConnectionLineComponentProps,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { Globe, Plus, Search, Save, Loader2, Trash2, LayoutGrid } from "lucide-react";
+import { Globe, Plus, Search, Save, Loader2, Trash2, GitCommitHorizontal, Zap } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useChapters } from "@/hooks/useChapters";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -32,6 +34,8 @@ import { useLoreNodes, useCreateLoreNode, useUpdateLoreNode, useBatchUpdateLoreN
 import { useLoreEdges, useCreateLoreEdge, useUpdateLoreEdge, useDeleteLoreEdge } from "@/hooks/useLoreEdges";
 import { useUpdateProject } from "@/hooks/useProjects";
 import { LoreNodeSheet } from "./LoreNodeSheet";
+import { useArianeLoreProposals } from "@/hooks/useArianeLoreProposals";
+import { LoreProposalsPanel } from "./LoreProposalsPanel";
 import type { Project, Asset, LoreNode, LoreEdge, LoreNodeType } from "@/types";
 import { LORE_NODE_TYPE_CONFIG } from "@/types";
 
@@ -111,20 +115,28 @@ function LoreNodeCard({ data, selected }: { data: LoreNodeData; selected?: boole
           highlighted ? "ring-2 ring-amber-400    shadow-[0_0_22px_rgba(245,158,11,0.85)] scale-105" : "",
         ].join(" ")}
       >
-        {/* Zone image — domine la carte */}
-        <div className={["relative w-full h-[110px]", TYPE_PLACEHOLDER_BG[loreNode.type] ?? "bg-black/60"].join(" ")}>
-          {loreNode.image_url ? (
-            <img
-              src={loreNode.image_url}
-              alt={loreNode.name}
-              className={["w-full h-full object-cover", IMG_POSITION[loreNode.type] ?? "object-center"].join(" ")}
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center">
-              <span className="text-4xl opacity-50">{cfg.emoji}</span>
-            </div>
-          )}
-        </div>
+        {/* Zone visuelle — image pour personnage/lieu/objet, visuel narratif pour événement */}
+        {loreNode.type === "event" ? (
+          <div className="relative w-full h-[110px] bg-gradient-to-b from-green-950 to-green-900/30 flex flex-col items-center justify-center overflow-hidden">
+            <div className="absolute inset-0 opacity-10"
+              style={{ backgroundImage: "repeating-linear-gradient(0deg, transparent, transparent 18px, rgba(74,222,128,0.3) 18px, rgba(74,222,128,0.3) 19px)" }} />
+            <span className="text-4xl relative z-10">{cfg.emoji}</span>
+          </div>
+        ) : (
+          <div className={["relative w-full h-[110px]", TYPE_PLACEHOLDER_BG[loreNode.type] ?? "bg-black/60"].join(" ")}>
+            {loreNode.image_url ? (
+              <img
+                src={loreNode.image_url}
+                alt={loreNode.name}
+                className={["w-full h-full object-cover", IMG_POSITION[loreNode.type] ?? "object-center"].join(" ")}
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center">
+                <span className="text-4xl opacity-50">{cfg.emoji}</span>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Bandeau coloré — nom + type */}
         <div className={["px-2.5 py-1.5", TYPE_BAND[loreNode.type] ?? "bg-white/10"].join(" ")}>
@@ -289,7 +301,7 @@ function AddNodeDialog({
         <div className="space-y-4 pt-1">
           {/* Sélecteur de type */}
           <div className="flex flex-wrap gap-2">
-            {(Object.entries(LORE_NODE_TYPE_CONFIG) as [LoreNodeType, { label: string; emoji: string }][]).map(([key, cfg]) => (
+            {(Object.entries(LORE_NODE_TYPE_CONFIG) as [LoreNodeType, { label: string; emoji: string }][]).filter(([key]) => key !== "event").map(([key, cfg]) => (
               <button
                 key={key}
                 type="button"
@@ -368,6 +380,176 @@ function AddNodeDialog({
 const NODE_CARD_W = 150;
 const NODE_CARD_H = 140; // 110 image + 30 band
 const MIN_NODE_GAP = 60; // zone invisible autour de chaque carte
+
+// ── deconflict — résolution des chevauchements (partagée entre les layouts) ───
+// 3 passes : anti-overlap → DC nœud-arête → second anti-overlap post-DC.
+// Modifie les positions en place. edges optionnel — sans lui, seule la passe 1 s'exécute.
+function deconflict(pos: Map<string, { x: number; y: number }>, edges?: LoreEdge[]): void {
+  const ids = [...pos.keys()];
+  if (ids.length < 2) return;
+
+  const antiOverlap = () => {
+    let changed = true; let oi = 0;
+    while (changed && oi < 500) {
+      changed = false; oi++;
+      for (let i = 0; i < ids.length; i++) {
+        for (let j = i + 1; j < ids.length; j++) {
+          const a = pos.get(ids[i])!;
+          const b = pos.get(ids[j])!;
+          const ox = (NODE_CARD_W + MIN_NODE_GAP) - Math.abs(b.x - a.x);
+          const oy = (NODE_CARD_H + MIN_NODE_GAP) - Math.abs(b.y - a.y);
+          if (ox > 0 && oy > 0) {
+            changed = true;
+            const push = (ox <= oy ? ox : oy) / 2 + 2;
+            if (ox <= oy) {
+              if (b.x >= a.x) { a.x -= push; b.x += push; } else { a.x += push; b.x -= push; }
+            } else {
+              if (b.y >= a.y) { a.y -= push; b.y += push; } else { a.y += push; b.y -= push; }
+            }
+          }
+        }
+      }
+    }
+  };
+
+  // Passe 1
+  antiOverlap();
+
+  if (!edges || edges.length === 0) return;
+
+  // Passe 2 — DC : pousse les nœuds hors des segments d'arête
+  const DC_MARGIN   = 40;
+  const DC_REQUIRED = Math.sqrt((NODE_CARD_W / 2) ** 2 + (NODE_CARD_H / 2) ** 2) + DC_MARGIN;
+  for (let di = 0; di < 120; di++) {
+    let moved = false;
+    for (const e of edges) {
+      const ea = pos.get(e.from_node_id);
+      const eb = pos.get(e.to_node_id);
+      if (!ea || !eb) continue;
+      const ex1 = ea.x + NODE_CARD_W / 2, ey1 = ea.y + NODE_CARD_H / 2;
+      const ex2 = eb.x + NODE_CARD_W / 2, ey2 = eb.y + NODE_CARD_H / 2;
+      const edx = ex2 - ex1, edy = ey2 - ey1;
+      const elen2 = edx * edx + edy * edy;
+      if (elen2 < 1) continue;
+      for (const [nodeId, p] of pos.entries()) {
+        if (nodeId === e.from_node_id || nodeId === e.to_node_id) continue;
+        const cnx = p.x + NODE_CARD_W / 2, cny = p.y + NODE_CARD_H / 2;
+        const t   = Math.max(0, Math.min(1, ((cnx - ex1) * edx + (cny - ey1) * edy) / elen2));
+        const rx  = cnx - (ex1 + t * edx), ry = cny - (ey1 + t * edy);
+        const dist = Math.sqrt(rx * rx + ry * ry);
+        if (dist < DC_REQUIRED) {
+          moved = true;
+          const push = DC_REQUIRED - dist + 2;
+          const nx = dist > 0.5 ? rx / dist : (Math.random() < 0.5 ? 1 : -1);
+          const ny = dist > 0.5 ? ry / dist : (Math.random() < 0.5 ? 1 : -1);
+          p.x += nx * push; p.y += ny * push;
+        }
+      }
+    }
+    if (!moved) break;
+  }
+
+  // Passe 3 — second anti-overlap post-DC
+  antiOverlap();
+}
+
+// ── Hub & Spoke — Par importance ──────────────────────────────────────────────
+// Nœuds les plus connectés au centre. BFS par couche depuis le hub principal.
+// Les composantes déconnectées sont décalées horizontalement.
+// ── Chronologique — axe X = timeline des Événements ──────────────────────────
+// Les Événements sont répartis sur l'axe horizontal.
+// Personnages au-dessus, Lieux en dessous, Objets sur les côtés.
+// Nœuds sans événement → cluster séparé.
+function computeChronoLayout(
+  nodes: LoreNode[],
+  edges: LoreEdge[],
+): Map<string, { x: number; y: number }> {
+  if (nodes.length === 0) return new Map();
+
+  const pos     = new Map<string, { x: number; y: number }>();
+  const placed  = new Set<string>();
+  const events  = nodes.filter((n) => n.type === "event");
+  const nonEvts = nodes.filter((n) => n.type !== "event");
+
+  const EVENT_SPACING = 440;
+  const CLUSTER_R     = 310;
+
+  if (events.length === 0) {
+    const cols = Math.ceil(Math.sqrt(nodes.length));
+    nodes.forEach((n, i) => {
+      pos.set(n.id, {
+        x: (i % cols - (cols - 1) / 2) * (NODE_CARD_W + MIN_NODE_GAP + 60),
+        y: (Math.floor(i / cols) - (Math.ceil(nodes.length / cols) - 1) / 2) * (NODE_CARD_H + MIN_NODE_GAP + 40),
+      });
+    });
+    deconflict(pos);
+    return pos;
+  }
+
+  events.forEach((ev, i) => {
+    pos.set(ev.id, { x: (i - (events.length - 1) / 2) * EVENT_SPACING, y: 0 });
+    placed.add(ev.id);
+  });
+
+  const eventIds   = new Set(events.map((ev) => ev.id));
+  const evNeighbors = new Map<string, string[]>(events.map((ev) => [ev.id, []]));
+  for (const e of edges) {
+    const fromEv = eventIds.has(e.from_node_id);
+    const toEv   = eventIds.has(e.to_node_id);
+    if (fromEv && !toEv) evNeighbors.get(e.from_node_id)?.push(e.to_node_id);
+    if (toEv && !fromEv) evNeighbors.get(e.to_node_id)?.push(e.from_node_id);
+  }
+
+  for (const ev of events) {
+    const evPos = pos.get(ev.id)!;
+    const conn  = (evNeighbors.get(ev.id) ?? []).filter((id) => !placed.has(id));
+
+    const chars = conn.filter((id) => nodes.find((n) => n.id === id)?.type === "character");
+    const locs  = conn.filter((id) => nodes.find((n) => n.id === id)?.type === "location");
+    const objs  = conn.filter((id) => nodes.find((n) => n.id === id)?.type === "object");
+
+    const arc = (list: string[], dy: number) => {
+      list.forEach((id, i) => {
+        const a = list.length > 1
+          ? ((i / (list.length - 1)) - 0.5) * Math.PI * Math.min(list.length - 1, 3) * 0.4
+          : 0;
+        pos.set(id, { x: evPos.x + Math.sin(a) * CLUSTER_R * 0.7, y: evPos.y + dy });
+        placed.add(id);
+      });
+    };
+
+    arc(chars, -CLUSTER_R);     // Personnages au-dessus
+    arc(locs,  +CLUSTER_R);     // Lieux en dessous
+
+    objs.forEach((id, i) => {   // Objets sur les côtés
+      pos.set(id, {
+        x: evPos.x + (i % 2 === 0 ? -1 : 1) * CLUSTER_R * 0.85,
+        y: evPos.y - CLUSTER_R * 0.3 + Math.floor(i / 2) * (NODE_CARD_H + 40),
+      });
+      placed.add(id);
+    });
+  }
+
+  const unplaced = nonEvts.filter((n) => !placed.has(n.id));
+  if (unplaced.length > 0) {
+    const rightX = (events.length / 2) * EVENT_SPACING + CLUSTER_R + 80;
+    const cols   = Math.ceil(Math.sqrt(unplaced.length));
+    unplaced.forEach((n, i) => {
+      pos.set(n.id, {
+        x: rightX + (i % cols) * (NODE_CARD_W + MIN_NODE_GAP + 60),
+        y: (Math.floor(i / cols) - (Math.ceil(unplaced.length / cols) - 1) / 2) * (NODE_CARD_H + MIN_NODE_GAP + 40),
+      });
+    });
+  }
+
+  const all = [...pos.values()];
+  const cx = all.reduce((s, p) => s + p.x, 0) / all.length;
+  const cy = all.reduce((s, p) => s + p.y, 0) / all.length;
+  for (const p of pos.values()) { p.x = Math.round(p.x - cx); p.y = Math.round(p.y - cy); }
+
+  deconflict(pos, edges);
+  return pos;
+}
 
 // ── Contexte loreEdges — accessible dans GoldenConnectionLine ────
 // GoldenConnectionLine est défini hors du composant (pour éviter la recréation)
@@ -752,6 +934,109 @@ function EdgeEditDialog({
   );
 }
 
+// ── AddEventDialog — création d'un événement narratif ────────────────────────
+
+function AddEventDialog({
+  open,
+  onOpenChange,
+  projectId,
+  userId,
+  onCreated,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  projectId: string;
+  userId: string;
+  onCreated: (node: LoreNode) => void;
+}) {
+  const { data: chapters = [] } = useChapters(projectId);
+  const createNode = useCreateLoreNode();
+  const { toast } = useToast();
+  const [name, setName] = useState("");
+  const [chapterId, setChapterId] = useState("");
+
+  useEffect(() => {
+    if (open) { setName(""); setChapterId(""); }
+  }, [open]);
+
+  const sorted = [...chapters].sort((a, b) => a.chapter_number - b.chapter_number);
+
+  const doCreate = useCallback(async () => {
+    if (!name.trim()) return;
+    try {
+      const node = await createNode.mutateAsync({
+        project_id: projectId,
+        user_id: userId,
+        type: "event",
+        name: name.trim(),
+        description: null,
+        image_url: null,
+        asset_id: null,
+        chapter_id: chapterId || null,
+        pos_x: Math.round(Math.random() * 600),
+        pos_y: Math.round(Math.random() * 400),
+      });
+      onOpenChange(false);
+      onCreated(node);
+    } catch {
+      toast({ title: "Erreur", description: "Impossible de créer l'événement.", variant: "destructive" });
+    }
+  }, [name, chapterId, projectId, userId, createNode, onOpenChange, onCreated, toast]);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="glass border-white/10 sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle className="text-gradient flex items-center gap-2">
+            <Zap className="h-4 w-4 text-green-400" />
+            Ajouter un événement
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 pt-1">
+          <p className="text-xs text-muted-foreground">
+            Un événement est un moment à impact sur l'histoire — tournant narratif, révélation, rencontre décisive, affrontement.
+          </p>
+          <Input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && doCreate()}
+            placeholder="Nom de l'événement…"
+            className="bg-white/5 border-white/10 text-sm"
+            autoFocus
+          />
+          {sorted.length > 0 && (
+            <div className="space-y-1.5">
+              <label className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
+                Chapitre source
+              </label>
+              <Select value={chapterId} onValueChange={setChapterId}>
+                <SelectTrigger className="bg-white/5 border-white/10 text-sm h-9">
+                  <SelectValue placeholder="Avant l'histoire / non défini" />
+                </SelectTrigger>
+                <SelectContent className="bg-popover border-white/10">
+                  {sorted.map((ch) => (
+                    <SelectItem key={ch.id} value={ch.id}>
+                      Chap. {ch.chapter_number} — {ch.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          <Button
+            onClick={doCreate}
+            disabled={!name.trim() || createNode.isPending}
+            className="w-full gradient-primary text-primary-foreground gap-1.5"
+          >
+            {createNode.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />}
+            Créer l'événement
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ── LoreGraphView — composant principal ───────────────────────────
 
 interface Props {
@@ -815,8 +1100,12 @@ export function LoreGraphView({ project, assets }: Props) {
   }, [loreNodes]);
   const [worldRulesOpen, setWorldRulesOpen] = useState(false);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [addEventDialogOpen, setAddEventDialogOpen] = useState(false);
   const [editingEdge, setEditingEdge] = useState<LoreEdge | null>(null);
   const [edgeEditOpen, setEdgeEditOpen] = useState(false);
+
+  const { proposals, acceptProposal, acceptAll, dismissProposal, isAccepting } =
+    useArianeLoreProposals(project.id);
 
   // Résout l'image d'un nœud : lore_node.image_url → asset.image_url → asset.image_url_sheet
   const resolveNodeImage = useCallback(
@@ -1117,6 +1406,39 @@ export function LoreGraphView({ project, assets }: Props) {
     ));
   }, [resolveNodeImage, setRfNodes]);
 
+  // ── applyLayout — Animation + persistance partagée par les 3 layouts ────────
+  // Anime depuis la position courante vers les cibles en 600ms ease-out-cubic.
+  // Persiste en BDD et recadre le viewport en fin d'animation.
+  const applyLayout = useCallback((targets: Map<string, { x: number; y: number }>) => {
+    const ids      = [...targets.keys()];
+    const startPos = new Map(rfNodesRef.current.map((n) => [n.id, { ...n.position }]));
+    const DURATION = 600;
+    const t0       = performance.now();
+    const step = (now: number) => {
+      const raw   = Math.min((now - t0) / DURATION, 1);
+      const eased = 1 - Math.pow(1 - raw, 3);
+      setRfNodes((prev) => prev.map((rn) => {
+        const from = startPos.get(rn.id);
+        const to   = targets.get(rn.id);
+        if (!from || !to) return rn;
+        return { ...rn, position: {
+          x: Math.round(from.x + (to.x - from.x) * eased),
+          y: Math.round(from.y + (to.y - from.y) * eased),
+        }};
+      }));
+      if (raw < 1) {
+        requestAnimationFrame(step);
+      } else {
+        batchUpdatePositions.mutate({
+          projectId: project.id,
+          nodes: ids.map((id) => { const t = targets.get(id)!; return { id, pos_x: t.x, pos_y: t.y }; }),
+        });
+        setTimeout(() => fitViewRef.current?.(), 50);
+      }
+    };
+    requestAnimationFrame(step);
+  }, [project.id, setRfNodes, batchUpdatePositions]);
+
   // ── Layout Force-Directed ─────────────────────────────────────────────────────
   // Les nœuds s'organisent selon leur topologie : hubs centraux, feuilles en orbite.
   // Animation 600ms ease-out-cubic pour l'effet visuel.
@@ -1392,39 +1714,15 @@ export function LoreGraphView({ project, assets }: Props) {
       return [id, { x: p.x, y: p.y }] as [string, { x: number; y: number }];
     }));
 
-    // ── Animation 600ms ease-out-cubic ────────────────────────────────
-    const startPos = new Map(rfNodesRef.current.map((n) => [n.id, { ...n.position }]));
-    const DURATION = 600;
-    const t0 = performance.now();
+    applyLayout(targets);
+  }, [loreNodes, loreEdges, applyLayout]);
 
-    const step = (now: number) => {
-      const raw    = Math.min((now - t0) / DURATION, 1);
-      const eased  = 1 - Math.pow(1 - raw, 3); // ease-out cubic
-
-      setRfNodes((prev) => prev.map((rn) => {
-        const from = startPos.get(rn.id);
-        const to   = targets.get(rn.id);
-        if (!from || !to) return rn;
-        return { ...rn, position: {
-          x: Math.round(from.x + (to.x - from.x) * eased),
-          y: Math.round(from.y + (to.y - from.y) * eased),
-        }};
-      }));
-
-      if (raw < 1) {
-        requestAnimationFrame(step);
-      } else {
-        // Persistance BDD en batch quand l'animation est terminée
-        batchUpdatePositions.mutate({
-          projectId: project.id,
-          nodes: ids.map((id) => { const t = targets.get(id)!; return { id, pos_x: t.x, pos_y: t.y }; }),
-        });
-        // Recadrage viewport sur le nouveau layout — fitView ne se déclenche qu'au mount
-        setTimeout(() => fitViewRef.current?.(), 50);
-      }
-    };
-    requestAnimationFrame(step);
-  }, [loreNodes, loreEdges, project.id, setRfNodes, batchUpdatePositions]);
+  // Chronologique : si aucun événement → fallback force-directed
+  const runChronoLayout = useCallback(() => {
+    if (loreNodes.length === 0) return;
+    if (!loreNodes.some((n) => n.type === "event")) { runAutoLayout(); return; }
+    applyLayout(computeChronoLayout(loreNodes, loreEdges));
+  }, [loreNodes, loreEdges, applyLayout, runAutoLayout]);
 
   return (
     <div
@@ -1520,34 +1818,41 @@ export function LoreGraphView({ project, assets }: Props) {
 
           <div className="w-px h-5 bg-white/10" />
 
-          {/* Bouton + Ajouter */}
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => setAddDialogOpen(true)}
+          {/* Ajouter un élément (personnage, lieu, objet) */}
+          <Button size="sm" variant="ghost" onClick={() => setAddDialogOpen(true)}
             className="h-8 px-3 gap-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-white/10"
-          >
+            title="Ajouter un personnage, un lieu ou un objet">
             <Plus className="h-3.5 w-3.5" />
-            Ajouter
+            Élément
+          </Button>
+
+          {/* Ajouter un événement narratif */}
+          <Button size="sm" variant="ghost" onClick={() => setAddEventDialogOpen(true)}
+            className="h-8 px-3 gap-1.5 text-xs text-green-400/70 hover:text-green-300 hover:bg-green-500/10"
+            title="Ajouter un événement narratif (moment à impact sur l'histoire)">
+            <Zap className="h-3.5 w-3.5" />
+            Événement
           </Button>
 
           <div className="w-px h-5 bg-white/10" />
 
-          {/* Bouton Réorganiser */}
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={runAutoLayout}
-            disabled={loreNodes.length < 2}
-            className="h-8 px-3 gap-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-white/10"
-            title="Réorganiser automatiquement les éléments"
-          >
-            <LayoutGrid className="h-3.5 w-3.5" />
-            Réorganiser
+          {/* Bouton Réorganiser — chronologique (fallback force-directed si aucun événement) */}
+          <Button size="sm" variant="ghost" onClick={runChronoLayout} disabled={loreNodes.length < 2}
+            className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground hover:bg-white/10"
+            title="Réorganiser — Chronologique si des événements existent, force-directed sinon">
+            <GitCommitHorizontal className="h-3.5 w-3.5" />
           </Button>
         </div>
 
       </div>
+
+      <LoreProposalsPanel
+        proposals={proposals}
+        onAccept={acceptProposal}
+        onAcceptAll={acceptAll}
+        onDismiss={dismissProposal}
+        isAccepting={isAccepting}
+      />
 
       {/* Bouton Monde — bas droite */}
       <div className="absolute bottom-5 right-5 z-10">
@@ -1589,6 +1894,14 @@ export function LoreGraphView({ project, assets }: Props) {
         </div>
       )}
 
+
+      <AddEventDialog
+        open={addEventDialogOpen}
+        onOpenChange={setAddEventDialogOpen}
+        projectId={project.id}
+        userId={userId}
+        onCreated={handleNodeCreated}
+      />
 
       <EdgeEditDialog
         edge={editingEdge}

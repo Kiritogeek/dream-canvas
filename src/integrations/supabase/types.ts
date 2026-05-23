@@ -626,6 +626,7 @@ export type Database = {
           description: string | null
           image_url: string | null
           asset_id: string | null
+          chapter_id: string | null
           pos_x: number
           pos_y: number
           created_at: string
@@ -640,6 +641,7 @@ export type Database = {
           description?: string | null
           image_url?: string | null
           asset_id?: string | null
+          chapter_id?: string | null
           pos_x?: number
           pos_y?: number
           created_at?: string
@@ -654,6 +656,7 @@ export type Database = {
           description?: string | null
           image_url?: string | null
           asset_id?: string | null
+          chapter_id?: string | null
           pos_x?: number
           pos_y?: number
           created_at?: string
@@ -672,6 +675,13 @@ export type Database = {
             columns: ["asset_id"]
             isOneToOne: false
             referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lore_nodes_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
             referencedColumns: ["id"]
           },
         ]
@@ -724,6 +734,59 @@ export type Database = {
             columns: ["to_node_id"]
             isOneToOne: false
             referencedRelation: "lore_nodes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      compass_proposals: {
+        Row: {
+          id: string
+          project_id: string
+          user_id: string
+          source_id: string | null
+          proposal_type: string
+          origin: string
+          title: string
+          content: string
+          prefill_data: Json | null
+          status: string
+          dedupe_key: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          project_id: string
+          user_id: string
+          source_id?: string | null
+          proposal_type: string
+          origin: string
+          title: string
+          content: string
+          prefill_data?: Json | null
+          status?: string
+          dedupe_key: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          project_id?: string
+          user_id?: string
+          source_id?: string | null
+          proposal_type?: string
+          origin?: string
+          title?: string
+          content?: string
+          prefill_data?: Json | null
+          status?: string
+          dedupe_key?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "compass_proposals_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
             referencedColumns: ["id"]
           },
         ]

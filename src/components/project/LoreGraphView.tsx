@@ -1085,6 +1085,17 @@ export function LoreGraphView({ project, assets }: Props) {
     resolveOverlaps([...loreNodes, node]);
   }, [loreNodes, resolveOverlaps]);
 
+  // Mise à jour immédiate de la card React Flow après toute mutation du Sheet
+  // (type, nom, asset, dissociation…) — sans attendre le cycle React Query
+  const handleNodeUpdated = useCallback((updated: LoreNode) => {
+    setSelectedNode(updated);
+    setRfNodes((prev) => prev.map((rn) =>
+      rn.id === updated.id
+        ? { ...rn, data: { label: updated.name, loreNode: { ...updated, image_url: resolveNodeImage(updated) } } }
+        : rn
+    ));
+  }, [resolveNodeImage, setRfNodes]);
+
   // ── Layout Force-Directed ─────────────────────────────────────────────────────
   // Les nœuds s'organisent selon leur topologie : hubs centraux, feuilles en orbite.
   // Animation 600ms ease-out-cubic pour l'effet visuel.
@@ -1566,6 +1577,7 @@ export function LoreGraphView({ project, assets }: Props) {
         open={sheetOpen}
         onOpenChange={setSheetOpen}
         onEdgeCreated={() => resolveOverlaps(loreNodes)}
+        onNodeUpdated={handleNodeUpdated}
       />
     </div>
   );

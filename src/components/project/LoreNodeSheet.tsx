@@ -107,6 +107,7 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onEdgeCreated?: () => void;
+  onNodeUpdated?: (node: LoreNode) => void;
 }
 
 const TYPE_COLORS: Record<LoreNodeType, string> = {
@@ -117,7 +118,7 @@ const TYPE_COLORS: Record<LoreNodeType, string> = {
 };
 
 
-export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, open, onOpenChange, onEdgeCreated }: Props) {
+export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, open, onOpenChange, onEdgeCreated, onNodeUpdated }: Props) {
   const { toast } = useToast();
   const navigate = useNavigate();
   const updateNode = useUpdateLoreNode();
@@ -225,18 +226,19 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
     setSaving(true);
     const loreDescription = buildDescription(sections, LORE_CHIPS[type]);
     try {
-      await updateNode.mutateAsync({
+      const result = await updateNode.mutateAsync({
         id: node.id,
         projectId,
         updates: { name, type, description: loreDescription || null },
       });
+      onNodeUpdated?.(result);
       toast({ title: "Sauvegardé", description: name });
     } catch {
       toast({ title: "Erreur", description: "Impossible de sauvegarder.", variant: "destructive" });
     } finally {
       setSaving(false);
     }
-  }, [node, projectId, name, type, sections, updateNode, toast]);
+  }, [node, projectId, name, type, sections, updateNode, onNodeUpdated, toast]);
 
   const triggerAutoSave = useCallback(() => {
     if (saveDebounceRef.current) clearTimeout(saveDebounceRef.current);
@@ -256,15 +258,16 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
   const handleDissociate = useCallback(async () => {
     if (!node) return;
     try {
-      await updateNode.mutateAsync({
+      const result = await updateNode.mutateAsync({
         id: node.id,
         projectId,
         updates: { asset_id: null, image_url: null },
       });
+      onNodeUpdated?.(result);
     } catch {
       toast({ title: "Erreur", description: "Impossible de dissocier.", variant: "destructive" });
     }
-  }, [node, projectId, updateNode, toast]);
+  }, [node, projectId, updateNode, onNodeUpdated, toast]);
 
   // ── Créer un asset depuis Assets ─────────────────────────────────────────
   const handleCreateAsset = useCallback(() => {
@@ -405,11 +408,12 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
                   <Select value="" onValueChange={async (assetId) => {
                     const a = assets.find((x) => x.id === assetId);
                     if (!a) return;
-                    await updateNode.mutateAsync({
+                    const result = await updateNode.mutateAsync({
                       id: node.id,
                       projectId,
                       updates: { asset_id: a.id, image_url: a.image_url },
                     });
+                    onNodeUpdated?.(result);
                   }}>
                     <SelectTrigger className="h-8 text-xs border-white/20 bg-white/10 text-white/70 hover:text-white w-44 gap-1">
                       <SelectValue placeholder="🖼 Associer un asset" />

@@ -128,6 +128,7 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
   const [addingEdge, setAddingEdge] = useState(false);
   const [arianeOpen, setArianeOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"lore" | "connexions">("lore");
+  const [activeSection, setActiveSection] = useState<string>("");
   const saveDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -135,6 +136,7 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
       setName(node.name);
       setType(node.type);
       setSections(parseToSections(node.description ?? "", LORE_CHIPS[node.type]));
+      setActiveSection(LORE_CHIPS[node.type][0]);
       setArianeOpen(false);
       setActiveTab("lore");
       resetAriane();
@@ -222,18 +224,15 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
   }, [arianeOpen, sections, type, name, node, fetchProposals, resetAriane]);
 
   const handleAddToLore = useCallback(async (content: string, proposalId: string) => {
-    const sectionNames = LORE_CHIPS[type];
-    const emptySection = sectionNames.find((s) => !sections[s]?.trim());
-    const targetSection = emptySection ?? sectionNames[sectionNames.length - 1];
     setSections((prev) => ({
       ...prev,
-      [targetSection]: prev[targetSection]?.trim()
-        ? `${prev[targetSection].trim()}\n\n${content}`
+      [activeSection]: prev[activeSection]?.trim()
+        ? `${prev[activeSection].trim()}\n\n${content}`
         : content,
     }));
     await acceptProposal(proposalId);
     triggerAutoSave();
-  }, [type, sections, acceptProposal, triggerAutoSave]);
+  }, [activeSection, acceptProposal, triggerAutoSave]);
 
   const handleRefreshAriane = useCallback(() => {
     if (!node) return;
@@ -347,34 +346,63 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
             {/* Contenu scrollable */}
             <div className="flex-1 overflow-y-auto px-5 py-4">
 
-              {/* ── Onglet Lore : sous-sections structurées ── */}
+              {/* ── Onglet Lore : sous-navigation pills + textarea unique ── */}
               {activeTab === "lore" && (
-                <div className="space-y-4">
-                  {LORE_CHIPS[type].map((sectionName) => (
-                    <div key={sectionName} className="space-y-1">
-                      <label className="block text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
-                        {sectionName}
-                      </label>
-                      <Textarea
-                        value={sections[sectionName] ?? ""}
-                        onChange={(e) => {
-                          setSections((prev) => ({ ...prev, [sectionName]: e.target.value }));
-                          triggerAutoSave();
-                        }}
-                        placeholder={SECTION_PLACEHOLDERS[type]?.[sectionName] ?? ""}
-                        className="min-h-[64px] resize-none text-sm bg-white/5 border-white/10 leading-relaxed"
-                        maxLength={300}
-                      />
-                    </div>
-                  ))}
+                <div className="space-y-3">
 
-                  {/* Bouton Ariane aligné à droite */}
-                  <div className="flex items-center justify-end pt-1">
+                  {/* Pills de navigation entre sections */}
+                  <div className="flex flex-wrap gap-1.5">
+                    {LORE_CHIPS[type].map((sectionName) => {
+                      const filled = !!(sections[sectionName]?.trim());
+                      const active = activeSection === sectionName;
+                      return (
+                        <button
+                          key={sectionName}
+                          type="button"
+                          onClick={() => setActiveSection(sectionName)}
+                          className={[
+                            "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-medium border transition-all duration-150",
+                            active
+                              ? "bg-violet-500/20 border-violet-500/40 text-violet-200"
+                              : filled
+                                ? "bg-white/8 border-white/20 text-foreground hover:bg-white/12"
+                                : "bg-transparent border-white/10 text-muted-foreground hover:border-white/20 hover:text-foreground",
+                          ].join(" ")}
+                        >
+                          {filled && (
+                            <span className="w-1.5 h-1.5 rounded-full bg-violet-400 shrink-0" />
+                          )}
+                          {sectionName}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Textarea de la section active */}
+                  <div className="space-y-1">
+                    <Textarea
+                      key={activeSection}
+                      value={sections[activeSection] ?? ""}
+                      onChange={(e) => {
+                        setSections((prev) => ({ ...prev, [activeSection]: e.target.value }));
+                        triggerAutoSave();
+                      }}
+                      placeholder={SECTION_PLACEHOLDERS[type]?.[activeSection] ?? ""}
+                      className="min-h-[150px] resize-none text-sm bg-white/5 border-white/10 leading-relaxed"
+                      maxLength={300}
+                    />
+                    <span className="text-[10px] text-muted-foreground/40 text-right block">
+                      {(sections[activeSection] ?? "").length}/300
+                    </span>
+                  </div>
+
+                  {/* Bouton Ariane */}
+                  <div className="flex items-center justify-end">
                     <button
                       type="button"
                       onClick={handleArianeToggle}
                       className={[
-                        "flex items-center gap-1 text-[10px] font-medium px-2.5 py-1.5 rounded-lg transition-all duration-150",
+                        "flex items-center gap-1.5 text-[10px] font-medium px-2.5 py-1.5 rounded-lg transition-all duration-150",
                         arianeOpen
                           ? "bg-violet-500/20 text-violet-300 border border-violet-500/30"
                           : "text-muted-foreground hover:text-violet-400 hover:bg-violet-500/10",

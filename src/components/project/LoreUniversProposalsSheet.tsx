@@ -56,17 +56,68 @@ export function LoreUniversProposalsSheet({
 
   return (
     <>
-      {/* FAB — fil d'Ariane doré, bas-droite du canvas */}
-      <button
-        onClick={() => setOpen(true)}
-        className="absolute bottom-6 right-6 z-20 h-14 w-14 rounded-full bg-background/95 backdrop-blur-xl border border-amber-500/40 shadow-[0_4px_24px_hsl(38_92%_50%/0.25)] flex items-center justify-center transition-all duration-200 hover:scale-110 hover:border-amber-500/70 hover:shadow-[0_4px_32px_hsl(38_92%_50%/0.45)]"
-        title="Ariane a détecté des éléments à ajouter au Lore"
-      >
-        <ArianeOrbitIcon size={30} />
-        <span className="absolute -top-1 -right-1 h-5 min-w-5 px-1 rounded-full bg-amber-500 text-white text-[10px] font-bold flex items-center justify-center leading-none">
-          {count > 99 ? "99+" : count}
-        </span>
-      </button>
+      {/* FAB — même design que Ariane Scénario */}
+      <div className="fixed bottom-6 right-6 z-40">
+        <div className="relative">
+          <svg
+            width="84"
+            height="84"
+            viewBox="0 0 84 84"
+            fill="none"
+            className="absolute -top-[10px] -left-[10px] pointer-events-none overflow-visible"
+            aria-hidden
+          >
+            <defs>
+              <style>{`
+                @keyframes ariane-univ-w1 {
+                  0%,100% { d: path("M 8 42 C 21 28 28 28 42 42 C 56 56 63 56 76 42"); }
+                  50%     { d: path("M 8 42 C 21 56 28 56 42 42 C 56 28 63 28 76 42"); }
+                }
+                @keyframes ariane-univ-w2 {
+                  0%,100% { d: path("M 9 42 C 22 56 29 56 42 42 C 55 28 62 28 75 42"); }
+                  50%     { d: path("M 9 42 C 22 28 29 28 42 42 C 55 56 62 56 75 42"); }
+                }
+                .ariane-univ-p1 { animation: ariane-univ-w1 2s ease-in-out infinite; }
+                .ariane-univ-p2 { animation: ariane-univ-w2 2.8s ease-in-out infinite; }
+              `}</style>
+              <filter id="ariane-univ-glow" x="-80%" y="-80%" width="260%" height="260%">
+                <feGaussianBlur stdDeviation="1.8" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+            </defs>
+            <g>
+              <animateTransform attributeName="transform" type="rotate"
+                from="0 42 42" to="360 42 42" dur="4.5s" repeatCount="indefinite" />
+              <path className="ariane-univ-p1"
+                d="M 8 42 C 21 28 28 28 42 42 C 56 56 63 56 76 42"
+                stroke="#FCD34D" strokeWidth="1.6" strokeLinecap="round" fill="none" opacity="0.7" />
+              <circle cx="76" cy="42" r="2.8" fill="#FCD34D" filter="url(#ariane-univ-glow)" />
+            </g>
+            <g>
+              <animateTransform attributeName="transform" type="rotate"
+                from="180 42 42" to="-180 42 42" dur="7s" repeatCount="indefinite" />
+              <path className="ariane-univ-p2"
+                d="M 9 42 C 22 56 29 56 42 42 C 55 28 62 28 75 42"
+                stroke="#F59E0B" strokeWidth="1.2" strokeLinecap="round" fill="none" opacity="0.5" />
+              <circle cx="75" cy="42" r="2.2" fill="#F59E0B" filter="url(#ariane-univ-glow)" />
+            </g>
+          </svg>
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            className="relative h-16 w-16 rounded-full bg-background/95 backdrop-blur-xl border border-amber-500/40 shadow-[0_4px_24px_hsl(38_92%_50%/0.25)] flex items-center justify-center transition-[transform,box-shadow,border-color] duration-200 hover:scale-110 hover:border-amber-500/70 hover:shadow-[0_6px_32px_hsl(38_92%_50%/0.45)] active:scale-95"
+            aria-label={`Fil d'Ariane — ${count} élément${count > 1 ? "s" : ""} à ajouter au Lore`}
+          >
+            <ArianeOrbitIcon size={30} />
+            <span className="absolute -top-1 -right-1 flex h-6 min-w-6 items-center justify-center rounded-full bg-amber-500 px-1.5 text-xs font-bold text-white tabular-nums ring-2 ring-background">
+              {count > 99 ? "99+" : count}
+            </span>
+          </button>
+        </div>
+      </div>
 
       {/* Sheet propositions */}
       <Sheet open={open} onOpenChange={setOpen}>

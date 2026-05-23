@@ -24,7 +24,7 @@ import { CompassSuggestionsPanel } from "./CompassSuggestionsPanel";
 import type { LoreNode, LoreEdge, LoreNodeType, Asset } from "@/types";
 import { LORE_NODE_TYPE_CONFIG } from "@/types";
 
-// ── Noms de sections par type ──────────────────────────────────────────────
+// ── Sections prédéfinies par type (pool complet, ordonnées) ───────────────
 const LORE_CHIPS: Record<LoreNodeType, string[]> = {
   character: ["Apparence", "Personnalité", "Histoire", "Motivations", "Capacités"],
   location:  ["Description", "Atmosphère", "Histoire", "Habitants", "Règles"],
@@ -32,7 +32,7 @@ const LORE_CHIPS: Record<LoreNodeType, string[]> = {
   event:     ["Époque", "Participants", "Déclencheur", "Déroulement", "Conséquences"],
 };
 
-// ── Placeholders contextuels par section ──────────────────────────────────
+// ── Placeholders contextuels ──────────────────────────────────────────────
 const SECTION_PLACEHOLDERS: Record<LoreNodeType, Record<string, string>> = {
   character: {
     Apparence:    "Taille, couleur des yeux, cicatrices, tenue habituelle…",
@@ -64,21 +64,26 @@ const SECTION_PLACEHOLDERS: Record<LoreNodeType, Record<string, string>> = {
   },
 };
 
-// ── Conversion sections ↔ description markdown ────────────────────────────
-function parseToSections(desc: string, sectionNames: string[]): Record<string, string> {
+// ── Helpers sections ↔ description markdown ───────────────────────────────
+// Capture TOUTES les sections (prédéfinies + custom) présentes dans le texte
+function parseToSections(desc: string, predefined: string[]): Record<string, string> {
   const result: Record<string, string> = {};
-  sectionNames.forEach((n) => (result[n] = ""));
+  predefined.forEach((n) => (result[n] = ""));
   const parts = desc.split(/^### (.+)$/m);
   for (let i = 1; i < parts.length; i += 2) {
     const key = parts[i].trim();
     const content = (parts[i + 1] ?? "").trim();
-    if (key in result) result[key] = content;
+    result[key] = content;
   }
   return result;
 }
 
-function buildDescription(sections: Record<string, string>, sectionNames: string[]): string {
-  return sectionNames
+function buildDescription(sections: Record<string, string>, predefined: string[]): string {
+  const allKeys = [
+    ...predefined,
+    ...Object.keys(sections).filter((k) => !predefined.includes(k)),
+  ];
+  return allKeys
     .filter((n) => sections[n]?.trim())
     .map((n) => `### ${n}\n${sections[n].trim()}`)
     .join("\n\n");
@@ -122,33 +127,66 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
   const [name, setName] = useState("");
   const [type, setType] = useState<LoreNodeType>("character");
   const [sections, setSections] = useState<Record<string, string>>({});
+  const [activePills, setActivePills] = useState<string[]>([]);
+  const [activeSection, setActiveSection] = useState<string>("");
+  const [showPicker, setShowPicker] = useState(false);
+  const [newCustomName, setNewCustomName] = useState("");
   const [saving, setSaving] = useState(false);
   const [newEdgeTargetId, setNewEdgeTargetId] = useState<string>("");
   const [newEdgeLabel, setNewEdgeLabel] = useState("");
   const [addingEdge, setAddingEdge] = useState(false);
   const [arianeOpen, setArianeOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"lore" | "connexions">("lore");
-  const [activeSection, setActiveSection] = useState<string>("");
+
   const saveDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pickerRef = useRef<HTMLDivElement>(null);
+
+  // Ferme le picker au clic extérieur
+  useEffect(() => {
+    if (!showPicker) return;
+    const handler = (e: MouseEvent) => {
+      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
+        setShowPicker(false);
+        setNewCustomName("");
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showPicker]);
 
   useEffect(() => {
     if (node) {
+      const predefined = LORE_CHIPS[node.type];
+      const parsed = parseToSections(node.description ?? "", predefined);
+      // Sections custom déjà créées sur ce nœud (clés hors prédéfinies, avec contenu)
+      const customKeys = Object.keys(parsed).filter(
+        (k) => !predefined.includes(k) && !!parsed[k]?.trim()
+      );
       setName(node.name);
       setType(node.type);
-      setSections(parseToSections(node.description ?? "", LORE_CHIPS[node.type]));
-      setActiveSection(LORE_CHIPS[node.type][0]);
+      setSections(parsed);
+      setActivePills([...predefined.slice(0, 2), ...customKeys]);
+      setActiveSection(predefined[0]);
       setArianeOpen(false);
       setActiveTab("lore");
+      setShowPicker(false);
+      setNewCustomName("");
       resetAriane();
     }
   }, [node, resetAriane]);
 
+  // Sections prédéfinies pas encore dans les pills actives
+  const availablePredefined = LORE_CHIPS[type].filter((s) => !activePills.includes(s));
+  // Sections custom créées sur ce nœud, pas encore dans les pills actives
+  const availableCustom = Object.keys(sections).filter(
+    (k) => !LORE_CHIPS[type].includes(k) && !activePills.includes(k) && k.trim() !== ""
+  );
+  const hasPicker = availablePredefined.length > 0 || availableCustom.length > 0 || true; // toujours affiché (création)
+
   const connectedEdges = node
     ? edges.filter((e) => e.from_node_id === node.id || e.to_node_id === node.id)
     : [];
-
   const otherNodes = nodes.filter((n) => n.id !== node?.id);
-
   const connectedNodeIds = new Set(
     connectedEdges.map((e) => (e.from_node_id === node?.id ? e.to_node_id : e.from_node_id))
   );
@@ -240,6 +278,25 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
     fetchProposals(loreDescription.trim() || name, "lore_asset", node.id);
   }, [sections, type, name, node, fetchProposals]);
 
+  // Ajoute une section existante (prédéfinie ou custom déjà créée) aux pills
+  const addPill = useCallback((sectionName: string) => {
+    setActivePills((prev) => [...prev, sectionName]);
+    setActiveSection(sectionName);
+    setShowPicker(false);
+    setNewCustomName("");
+  }, []);
+
+  // Crée une nouvelle section custom (unique à ce nœud)
+  const createCustomSection = useCallback(() => {
+    const trimmed = newCustomName.trim();
+    if (!trimmed || activePills.includes(trimmed)) return;
+    setSections((prev) => ({ ...prev, [trimmed]: "" }));
+    setActivePills((prev) => [...prev, trimmed]);
+    setActiveSection(trimmed);
+    setShowPicker(false);
+    setNewCustomName("");
+  }, [newCustomName, activePills]);
+
   const linkedAsset = node?.asset_id ? assets.find((a) => a.id === node.asset_id) : null;
   const imageUrl = linkedAsset?.image_url ?? node?.image_url ?? null;
 
@@ -251,6 +308,11 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
     object:    "bg-amber-950/90",
     event:     "bg-green-950/90",
   };
+
+  const isCustomSection = !LORE_CHIPS[type].includes(activeSection);
+  const placeholder = isCustomSection
+    ? "Contenu libre…"
+    : (SECTION_PLACEHOLDERS[type]?.[activeSection] ?? "");
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -264,17 +326,10 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
           ].join(" ")}>
             {imageUrl ? (
               <>
-                <img
-                  src={imageUrl}
-                  alt={name}
-                  className="absolute inset-0 w-full h-full object-cover"
-                />
+                <img src={imageUrl} alt={name} className="absolute inset-0 w-full h-full object-cover" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-transparent to-transparent" />
                 <div className="absolute bottom-4 left-4 right-4">
-                  <span className={[
-                    "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-semibold",
-                    TYPE_COLORS[type],
-                  ].join(" ")}>
+                  <span className={["inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-semibold", TYPE_COLORS[type]].join(" ")}>
                     {LORE_NODE_TYPE_CONFIG[type].emoji} {LORE_NODE_TYPE_CONFIG[type].label}
                   </span>
                 </div>
@@ -283,18 +338,11 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
               <div className="flex flex-col items-center gap-4 px-4 relative z-10">
                 <span className="text-8xl opacity-20">{LORE_NODE_TYPE_CONFIG[type].emoji}</span>
                 {assets.length > 0 && (
-                  <Select
-                    value=""
-                    onValueChange={async (assetId) => {
-                      const a = assets.find((x) => x.id === assetId);
-                      if (!a) return;
-                      await updateNode.mutateAsync({
-                        id: node.id,
-                        projectId,
-                        updates: { asset_id: a.id, image_url: a.image_url },
-                      });
-                    }}
-                  >
+                  <Select value="" onValueChange={async (assetId) => {
+                    const a = assets.find((x) => x.id === assetId);
+                    if (!a) return;
+                    await updateNode.mutateAsync({ id: node.id, projectId, updates: { asset_id: a.id, image_url: a.image_url } });
+                  }}>
                     <SelectTrigger className="h-8 text-xs border-white/20 bg-white/10 text-white/70 hover:text-white w-44 gap-1">
                       <SelectValue placeholder="🖼 Associer un asset" />
                     </SelectTrigger>
@@ -302,9 +350,7 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
                       {assets.map((a) => (
                         <SelectItem key={a.id} value={a.id}>
                           <div className="flex items-center gap-2">
-                            {a.image_url && (
-                              <img src={a.image_url} alt={a.name} className="w-5 h-5 rounded object-cover" />
-                            )}
+                            {a.image_url && <img src={a.image_url} alt={a.name} className="w-5 h-5 rounded object-cover" />}
                             <span>{a.name}</span>
                           </div>
                         </SelectItem>
@@ -316,15 +362,14 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
             )}
           </div>
 
-          {/* ── Colonne droite : onglets ── */}
+          {/* ── Colonne droite ── */}
           <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
 
-            {/* Header + nom du nœud */}
             <DialogHeader className="px-5 pt-5 pb-3 shrink-0">
               <DialogTitle className="text-gradient text-base">{node.name}</DialogTitle>
             </DialogHeader>
 
-            {/* Onglets */}
+            {/* Onglets principaux */}
             <div className="flex gap-0 px-5 border-b border-white/10 shrink-0">
               {(["lore", "connexions"] as const).map((tab) => (
                 <button
@@ -346,15 +391,16 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
             {/* Contenu scrollable */}
             <div className="flex-1 overflow-y-auto px-5 py-4">
 
-              {/* ── Onglet Lore : sous-navigation pills + textarea unique ── */}
+              {/* ── Onglet Lore ── */}
               {activeTab === "lore" && (
                 <div className="space-y-3">
 
-                  {/* Pills de navigation entre sections */}
-                  <div className="flex flex-wrap gap-1.5">
-                    {LORE_CHIPS[type].map((sectionName) => {
+                  {/* Sous-navigation : pills actives + bouton "+" */}
+                  <div className="flex flex-wrap items-center gap-1.5" ref={pickerRef}>
+                    {activePills.map((sectionName) => {
                       const filled = !!(sections[sectionName]?.trim());
                       const active = activeSection === sectionName;
+                      const isCustom = !LORE_CHIPS[type].includes(sectionName);
                       return (
                         <button
                           key={sectionName}
@@ -369,16 +415,87 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
                                 : "bg-transparent border-white/10 text-muted-foreground hover:border-white/20 hover:text-foreground",
                           ].join(" ")}
                         >
-                          {filled && (
-                            <span className="w-1.5 h-1.5 rounded-full bg-violet-400 shrink-0" />
-                          )}
+                          {filled && <span className="w-1.5 h-1.5 rounded-full bg-violet-400 shrink-0" />}
+                          {isCustom && !filled && <span className="w-1.5 h-1.5 rounded-full bg-white/20 shrink-0" />}
                           {sectionName}
                         </button>
                       );
                     })}
+
+                    {/* Bouton "+" + picker dropdown */}
+                    {hasPicker && (
+                      <div className="relative">
+                        <button
+                          type="button"
+                          onClick={() => setShowPicker((v) => !v)}
+                          className={[
+                            "w-6 h-6 rounded-full border text-xs flex items-center justify-center transition-all duration-150",
+                            showPicker
+                              ? "bg-violet-500/20 border-violet-500/40 text-violet-300"
+                              : "bg-white/5 border-white/15 text-muted-foreground hover:bg-white/10 hover:border-white/25 hover:text-foreground",
+                          ].join(" ")}
+                        >
+                          <Plus className="h-3 w-3" />
+                        </button>
+
+                        {showPicker && (
+                          <div className="absolute top-8 left-0 z-50 w-52 glass border border-white/15 rounded-xl shadow-2xl overflow-hidden py-1">
+
+                            {/* Prédéfinies disponibles */}
+                            {availablePredefined.map((s) => (
+                              <button
+                                key={s}
+                                type="button"
+                                onClick={() => addPill(s)}
+                                className="w-full text-left px-3 py-1.5 text-xs text-foreground hover:bg-white/10 transition-colors"
+                              >
+                                {s}
+                              </button>
+                            ))}
+
+                            {/* Custom déjà créées sur ce nœud mais pas encore affichées */}
+                            {availableCustom.map((s) => (
+                              <button
+                                key={s}
+                                type="button"
+                                onClick={() => addPill(s)}
+                                className="w-full text-left px-3 py-1.5 text-xs text-violet-300 hover:bg-violet-500/10 transition-colors flex items-center gap-2"
+                              >
+                                <span className="w-1.5 h-1.5 rounded-full bg-violet-400 shrink-0" />
+                                {s}
+                              </button>
+                            ))}
+
+                            {/* Séparateur */}
+                            <div className="border-t border-white/10 my-1" />
+
+                            {/* Créer une section custom */}
+                            <div className="px-3 py-2 flex items-center gap-2">
+                              <Input
+                                value={newCustomName}
+                                onChange={(e) => setNewCustomName(e.target.value)}
+                                onKeyDown={(e) => { if (e.key === "Enter") createCustomSection(); }}
+                                placeholder="Nouvelle section…"
+                                className="h-6 text-xs bg-white/5 border-white/10 flex-1 px-2 py-0"
+                                autoFocus
+                              />
+                              <button
+                                type="button"
+                                onClick={createCustomSection}
+                                disabled={!newCustomName.trim()}
+                                className="text-violet-400 hover:text-violet-300 disabled:opacity-30 disabled:cursor-default transition-colors"
+                              >
+                                <Plus className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
 
-                  {/* Textarea de la section active */}
+                  {/* Textarea section active */}
                   <div className="space-y-1">
                     <Textarea
                       key={activeSection}
@@ -387,7 +504,7 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
                         setSections((prev) => ({ ...prev, [activeSection]: e.target.value }));
                         triggerAutoSave();
                       }}
-                      placeholder={SECTION_PLACEHOLDERS[type]?.[activeSection] ?? ""}
+                      placeholder={placeholder}
                       className="min-h-[150px] resize-none text-sm bg-white/5 border-white/10 leading-relaxed"
                       maxLength={300}
                     />
@@ -396,7 +513,7 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
                     </span>
                   </div>
 
-                  {/* Bouton Ariane */}
+                  {/* Ariane */}
                   <div className="flex items-center justify-end">
                     <button
                       type="button"
@@ -498,7 +615,7 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
 
             </div>
 
-            {/* Footer sticky */}
+            {/* Footer */}
             <div className="flex items-center justify-between px-5 py-4 border-t border-white/10 shrink-0">
               <Button
                 size="sm"

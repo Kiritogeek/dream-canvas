@@ -439,7 +439,7 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
                         </button>
 
                         {showPicker && (
-                          <div className="absolute top-8 left-0 z-50 w-52 glass border border-white/15 rounded-xl shadow-2xl overflow-hidden py-1">
+                          <div className="absolute top-8 left-0 z-50 w-52 bg-popover border border-white/15 rounded-xl shadow-2xl overflow-hidden py-1">
 
                             {/* Prédéfinies disponibles */}
                             {availablePredefined.map((s) => (

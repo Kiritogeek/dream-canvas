@@ -87,6 +87,12 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
 
   const otherNodes = nodes.filter((n) => n.id !== node?.id);
 
+  // Nœuds disponibles pour une nouvelle connexion = autres nœuds non encore connectés
+  const connectedNodeIds = new Set(
+    connectedEdges.map((e) => (e.from_node_id === node?.id ? e.to_node_id : e.from_node_id))
+  );
+  const availableNodes = otherNodes.filter((n) => !connectedNodeIds.has(n.id));
+
   const handleSave = useCallback(async () => {
     if (!node) return;
     setSaving(true);
@@ -351,13 +357,15 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
                           <SelectValue placeholder="Sélectionner un nœud…" />
                         </SelectTrigger>
                         <SelectContent className="glass border-white/10">
-                          {otherNodes.map((n) => (
+                          {availableNodes.map((n) => (
                             <SelectItem key={n.id} value={n.id}>
                               {LORE_NODE_TYPE_CONFIG[n.type].emoji} {n.name}
                             </SelectItem>
                           ))}
-                          {otherNodes.length === 0 && (
-                            <SelectItem value="__none__" disabled>Aucun autre nœud</SelectItem>
+                          {availableNodes.length === 0 && (
+                            <SelectItem value="__none__" disabled>
+                              {otherNodes.length === 0 ? "Aucun autre nœud" : "Tous déjà connectés"}
+                            </SelectItem>
                           )}
                         </SelectContent>
                       </Select>

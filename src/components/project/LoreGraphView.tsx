@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useContext, useEffect, useRef, useState, createContext } from "react";
 import {
   ReactFlow,
   Background,
@@ -357,6 +357,11 @@ const NODE_CARD_W = 150;
 const NODE_CARD_H = 140; // 110 image + 30 band
 const MIN_NODE_GAP = 60; // zone invisible autour de chaque carte
 
+// ── Contexte loreEdges — accessible dans GoldenConnectionLine ────
+// GoldenConnectionLine est défini hors du composant (pour éviter la recréation)
+// mais doit connaître les arêtes existantes pour colorier en rouge les doublons.
+const LoreEdgesCtx = createContext<import("@/types").LoreEdge[]>([]);
+
 // ── boxEdgePoint ─────────────────────────────────────────────────
 // Calcule le point exact où le rayon partant du centre (cx, cy) dans la
 // direction (dx, dy) intersecte le bord du bounding-box (W × H centré).
@@ -522,7 +527,19 @@ const EDGE_TYPES: EdgeTypes = { floating: FloatingEdge };
 
 // ── GoldenConnectionLine — fil de prévisualisation lors du tracé d'une connexion ──
 
-function GoldenConnectionLine({ fromX, fromY, toX, toY }: ConnectionLineComponentProps) {
+function GoldenConnectionLine({ fromX, fromY, toX, toY, fromNode, toNode }: ConnectionLineComponentProps) {
+  const loreEdges = useContext(LoreEdgesCtx);
+
+  // Fil rouge si une connexion existe déjà entre source et cible survolée
+  const isDuplicate = toNode != null && loreEdges.some(
+    (e) =>
+      (e.from_node_id === fromNode.id && e.to_node_id === toNode.id) ||
+      (e.from_node_id === toNode.id  && e.to_node_id === fromNode.id)
+  );
+
+  const color     = isDuplicate ? "#EF4444" : "#F59E0B";
+  const glowColor = isDuplicate ? "rgba(239,68,68,0.75)" : "rgba(245,158,11,0.75)";
+
   // fromX/fromY ≈ handle bottom-center. On recalcule le centre du nœud
   // puis on utilise boxEdgePoint pour un point de sortie exact sur la surface.
   const nodeCenterX = fromX;
@@ -547,9 +564,9 @@ function GoldenConnectionLine({ fromX, fromY, toX, toY }: ConnectionLineComponen
   });
 
   return (
-    <g style={{ filter: "drop-shadow(0 0 4px rgba(245,158,11,0.75))" }}>
-      <path d={edgePath} stroke="#F59E0B" strokeWidth={1.4} fill="none" strokeLinecap="round" strokeDasharray="6 4" />
-      <circle cx={toX} cy={toY} r={4} fill="#F59E0B" fillOpacity={0.85} />
+    <g style={{ filter: `drop-shadow(0 0 4px ${glowColor})` }}>
+      <path d={edgePath} stroke={color} strokeWidth={1.4} fill="none" strokeLinecap="round" strokeDasharray="6 4" />
+      <circle cx={toX} cy={toY} r={4} fill={color} fillOpacity={0.85} />
     </g>
   );
 }
@@ -1246,33 +1263,35 @@ export function LoreGraphView({ project, assets }: Props) {
         </div>
       )}
 
-      <ReactFlow
-        nodes={rfNodes}
-        edges={rfEdges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onConnect={handleConnect}
-        onNodeDragStart={handleNodeDragStart}
-        onNodeDragStop={handleNodeDragStop}
-        onNodeClick={handleNodeClick}
-        onEdgeClick={handleEdgeClick}
-        nodeTypes={NODE_TYPES}
-        edgeTypes={EDGE_TYPES}
-        connectionMode={ConnectionMode.Loose}
-        connectionRadius={80}
-        isValidConnection={isValidConnection}
-        connectionLineComponent={GoldenConnectionLine}
-        fitView
-        fitViewOptions={{ padding: 0.35, maxZoom: 0.65 }}
-        minZoom={0.15}
-        maxZoom={2}
-        className="bg-transparent"
-        deleteKeyCode={null}
-        proOptions={{ hideAttribution: true }}
-      >
-        <ZoomController containerRef={containerRef} />
-        <Background variant={BackgroundVariant.Dots} gap={22} size={1} color="rgba(255,255,255,0.05)" />
-      </ReactFlow>
+      <LoreEdgesCtx.Provider value={loreEdges}>
+        <ReactFlow
+          nodes={rfNodes}
+          edges={rfEdges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          onConnect={handleConnect}
+          onNodeDragStart={handleNodeDragStart}
+          onNodeDragStop={handleNodeDragStop}
+          onNodeClick={handleNodeClick}
+          onEdgeClick={handleEdgeClick}
+          nodeTypes={NODE_TYPES}
+          edgeTypes={EDGE_TYPES}
+          connectionMode={ConnectionMode.Loose}
+          connectionRadius={80}
+          isValidConnection={isValidConnection}
+          connectionLineComponent={GoldenConnectionLine}
+          fitView
+          fitViewOptions={{ padding: 0.35, maxZoom: 0.65 }}
+          minZoom={0.15}
+          maxZoom={2}
+          className="bg-transparent"
+          deleteKeyCode={null}
+          proOptions={{ hideAttribution: true }}
+        >
+          <ZoomController containerRef={containerRef} />
+          <Background variant={BackgroundVariant.Dots} gap={22} size={1} color="rgba(255,255,255,0.05)" />
+        </ReactFlow>
+      </LoreEdgesCtx.Provider>
 
       {/* État vide */}
       {!isLoading && loreNodes.length === 0 && (

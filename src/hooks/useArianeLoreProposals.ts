@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -127,10 +127,39 @@ export function useArianeLoreProposals(projectId: string) {
       });
     }
 
+    // Nettoyage : dismiss les doublons actifs déjà en BDD (même titre normalisé, garder le plus ancien)
+    const { data: activeNow } = await supabase
+      .from("compass_proposals")
+      .select("id, title, created_at")
+      .eq("project_id", projectId)
+      .eq("proposal_type", "lore_asset")
+      .eq("status", "active")
+      .order("created_at", { ascending: true });
+
+    if (activeNow && activeNow.length > 0) {
+      const seenTitlesClean = new Map<string, string>();
+      const toDismiss: string[] = [];
+      for (const p of activeNow) {
+        const key = p.title.toLowerCase().trim();
+        if (seenTitlesClean.has(key)) {
+          toDismiss.push(p.id);
+        } else {
+          seenTitlesClean.set(key, p.id);
+        }
+      }
+      if (toDismiss.length > 0) {
+        await supabase
+          .from("compass_proposals")
+          .update({ status: "dismissed" })
+          .in("id", toDismiss);
+      }
+    }
+
     if (toInsert.length > 0) {
       await supabase.from("compass_proposals").insert(toInsert);
-      qc.invalidateQueries({ queryKey: ["lore-proposals", projectId] });
     }
+
+    qc.invalidateQueries({ queryKey: ["lore-proposals", projectId] });
   }, [projectId, user, qc]);
 
   const { data: chaptersSignature } = useQuery({
@@ -228,8 +257,19 @@ export function useArianeLoreProposals(projectId: string) {
     }
   }, [proposals, acceptMutation]);
 
+  // Filet client-side : déduplique par titre normalisé avant affichage
+  const deduplicatedProposals = useMemo(() => {
+    const seen = new Set<string>();
+    return proposals.filter((p) => {
+      const key = p.title.toLowerCase().trim();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [proposals]);
+
   return {
-    proposals,
+    proposals: deduplicatedProposals,
     acceptProposal: (p: CompassProposal, onNodeCreated?: (node: LoreNode) => void) =>
       acceptMutation.mutate({ proposal: p, onNodeCreated }),
     acceptAll,

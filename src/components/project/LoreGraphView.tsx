@@ -571,6 +571,36 @@ function GoldenConnectionLine({ fromX, fromY, toX, toY, fromNode, toNode }: Conn
   );
 }
 
+// ── NavigateController — navigation vers un nœud (doit être enfant de ReactFlow) ─
+// useReactFlow() n'est accessible qu'à l'intérieur du provider de ReactFlow.
+// On expose la fonction de navigation via un ref mutable pour que le parent puisse l'appeler.
+
+const ZOOM_THRESHOLD = 0.4;  // en-dessous → zoom forcé
+const ZOOM_TARGET    = 0.85; // valeur fixe appliquée si zoom trop faible
+
+function NavigateController({
+  rfNodesRef,
+  navigateRef,
+}: {
+  rfNodesRef: React.MutableRefObject<Node<LoreNodeData>[]>;
+  navigateRef: React.MutableRefObject<((node: LoreNode) => void) | null>;
+}) {
+  const { setCenter, getViewport } = useReactFlow();
+
+  useEffect(() => {
+    navigateRef.current = (node: LoreNode) => {
+      const rfNode = rfNodesRef.current.find((n) => n.id === node.id);
+      if (!rfNode) return;
+      const cx = rfNode.position.x + NODE_CARD_W / 2;
+      const cy = rfNode.position.y + NODE_CARD_H / 2;
+      const { zoom } = getViewport();
+      setCenter(cx, cy, { zoom: zoom < ZOOM_THRESHOLD ? ZOOM_TARGET : zoom, duration: 450 });
+    };
+  }, [setCenter, getViewport, rfNodesRef, navigateRef]);
+
+  return null;
+}
+
 // ── ZoomController — zoom rapide (capture phase, avant React Flow) ─
 
 function ZoomController({ containerRef }: { containerRef: React.RefObject<HTMLDivElement | null> }) {
@@ -736,6 +766,9 @@ export function LoreGraphView({ project, assets }: Props) {
 
 
   const [search, setSearch] = useState("");
+  const [searchFocused, setSearchFocused] = useState(false);
+  const navigateRef = useRef<((node: LoreNode) => void) | null>(null);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
   const [pendingConn, setPendingConn] = useState<Connection | null>(null);
   const [connLabel, setConnLabel] = useState("");
   const connInputRef = useRef<HTMLInputElement>(null);
@@ -848,20 +881,14 @@ export function LoreGraphView({ project, assets }: Props) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loreEdges, rfNodesPosKey, setRfEdges]);
 
-  // Filtre de recherche — atténue les nœuds non correspondants
-  useEffect(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) {
-      setRfNodes((prev) => prev.map((rn) => ({ ...rn, style: undefined })));
-      return;
-    }
-    setRfNodes((prev) =>
-      prev.map((rn) => {
-        const matches = (rn.data as LoreNodeData).loreNode.name.toLowerCase().includes(q);
-        return { ...rn, style: matches ? undefined : { opacity: 0.15 } };
-      })
-    );
-  }, [search, setRfNodes]);
+  // Résultats de recherche — alimentent le dropdown
+  const searchQuery = search.trim().toLowerCase();
+  const searchResults = searchQuery
+    ? loreNodes
+        .filter((n) => n.name.toLowerCase().includes(searchQuery))
+        .slice(0, 8)
+    : [];
+  const showSearchDropdown = searchFocused && searchResults.length > 0;
 
   // Résout les chevauchements entre nœuds par repulsion itérative
   const resolveOverlaps = useCallback((nodes: LoreNode[]) => {
@@ -1289,6 +1316,7 @@ export function LoreGraphView({ project, assets }: Props) {
           proOptions={{ hideAttribution: true }}
         >
           <ZoomController containerRef={containerRef} />
+          <NavigateController rfNodesRef={rfNodesRef} navigateRef={navigateRef} />
           <Background variant={BackgroundVariant.Dots} gap={22} size={1} color="rgba(255,255,255,0.05)" />
         </ReactFlow>
       </LoreEdgesCtx.Provider>
@@ -1304,15 +1332,42 @@ export function LoreGraphView({ project, assets }: Props) {
       {/* Toolbar haut */}
       <div className="absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-2 z-10">
         <div className="flex items-center gap-2 px-3 py-2 glass rounded-2xl border border-white/10 backdrop-blur-md shadow-dream">
-          {/* Barre de recherche */}
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+          {/* Barre de recherche + dropdown résultats */}
+          <div className="relative" ref={searchContainerRef}>
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none z-10" />
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
+              onFocus={() => setSearchFocused(true)}
+              onBlur={() => setTimeout(() => setSearchFocused(false), 200)}
+              onKeyDown={(e) => { if (e.key === "Escape") { setSearch(""); setSearchFocused(false); } }}
               placeholder="Rechercher…"
-              className="pl-8 h-8 w-40 bg-white/5 border-white/10 text-xs focus-visible:ring-amber-500/40"
+              className="pl-8 h-8 w-44 bg-white/5 border-white/10 text-xs focus-visible:ring-amber-500/40"
             />
+            {showSearchDropdown && (
+              <div className="absolute top-full left-0 mt-1.5 w-56 glass border border-white/15 rounded-xl shadow-2xl overflow-hidden py-1 z-50">
+                {searchResults.map((n) => {
+                  const cfg = LORE_NODE_TYPE_CONFIG[n.type];
+                  return (
+                    <button
+                      key={n.id}
+                      type="button"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        setSearch("");
+                        setSearchFocused(false);
+                        navigateRef.current?.(n);
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 text-xs hover:bg-white/10 transition-colors text-left"
+                    >
+                      <span className="text-base leading-none">{cfg.emoji}</span>
+                      <span className="flex-1 truncate font-medium">{n.name}</span>
+                      <span className="text-muted-foreground/50 text-[10px] shrink-0">{cfg.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           <div className="w-px h-5 bg-white/10" />

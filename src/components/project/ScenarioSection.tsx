@@ -38,6 +38,7 @@ import {
   useReorderScenarioChapters,
 } from "@/hooks/useScenarioChapters";
 import { useScenarioAI } from "@/hooks/useScenarioAI";
+import { useNarrativeDirections } from "@/hooks/useNarrativeDirections";
 import { AIChapterPreviewModal } from "@/components/project/AIChapterPreviewModal";
 import { estimatePanelCount } from "@/services/panels";
 import type { Project, ScenarioChapter, AssetType } from "@/types";
@@ -65,6 +66,7 @@ export function ScenarioSection({ projectId, project }: ScenarioSectionProps) {
   const deleteChapterMutation = useDeleteScenarioChapter();
   const reorderChapters = useReorderScenarioChapters();
   const scenarioAI = useScenarioAI();
+  const narrativeDirections = useNarrativeDirections(projectId);
 
   const nextChapterNumber = useMemo(() => {
     const used = new Set(chapters.map((c) => c.chapter_number));
@@ -301,7 +303,9 @@ export function ScenarioSection({ projectId, project }: ScenarioSectionProps) {
             className="gap-2 px-4 py-2.5 rounded-xl text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 border border-amber-500/25 hover:border-amber-500/40 transition-all"
           >
             <Compass className="h-4 w-4" />
-            Propositions Ariane
+            {narrativeDirections.directions.length > 0
+              ? "Voir les propositions Ariane"
+              : "Propositions Ariane"}
           </Button>
         </div>
 
@@ -381,8 +385,17 @@ export function ScenarioSection({ projectId, project }: ScenarioSectionProps) {
       <ArianeNarrativeSheet
         open={narrativeSheetOpen}
         onOpenChange={setNarrativeSheetOpen}
-        projectId={projectId}
-        onSelectDirection={(prompt) => setAiPrompt(prompt)}
+        directions={narrativeDirections.directions}
+        isGenerating={narrativeDirections.isGenerating}
+        error={narrativeDirections.error}
+        pendingProposalsCount={narrativeDirections.pendingProposalsCount}
+        loreStats={narrativeDirections.loreStats}
+        generate={narrativeDirections.generate}
+        reset={narrativeDirections.reset}
+        onSelectDirection={(prompt) => {
+          setAiPrompt(prompt);
+          narrativeDirections.reset();
+        }}
       />
 
       {/* ── Chapitres ────────────────────────────────────────── */}

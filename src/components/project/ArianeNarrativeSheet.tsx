@@ -1,19 +1,33 @@
-import { Sparkles, Loader2, RefreshCw, Star, AlertTriangle, Map, ArrowRight } from "lucide-react";
+import { Sparkles, Loader2, Star, AlertTriangle, Map, ArrowRight } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { useNarrativeDirections } from "@/hooks/useNarrativeDirections";
+import type { NarrativeDirection } from "@/services/scenarioAI";
 
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  projectId: string;
+  directions: NarrativeDirection[];
+  isGenerating: boolean;
+  error: string | null;
+  pendingProposalsCount: number;
+  loreStats: { total: number; withDescription: number };
+  generate: () => void;
+  reset: () => void;
   onSelectDirection?: (prompt: string) => void;
 }
 
-export function ArianeNarrativeSheet({ open, onOpenChange, projectId, onSelectDirection }: Props) {
-  const { directions, isGenerating, error, pendingProposalsCount, loreStats, generate, reset } =
-    useNarrativeDirections(projectId);
-
+export function ArianeNarrativeSheet({
+  open,
+  onOpenChange,
+  directions,
+  isGenerating,
+  error,
+  pendingProposalsCount,
+  loreStats,
+  generate,
+  reset,
+  onSelectDirection,
+}: Props) {
   const handleClose = (v: boolean) => {
     if (!v) reset();
     onOpenChange(v);
@@ -21,7 +35,11 @@ export function ArianeNarrativeSheet({ open, onOpenChange, projectId, onSelectDi
 
   const handleSelect = (body: string) => {
     onSelectDirection?.(body);
-    handleClose(false);
+    onOpenChange(false);
+  };
+
+  const handleNoSelect = () => {
+    onOpenChange(false);
   };
 
   return (
@@ -52,7 +70,6 @@ export function ArianeNarrativeSheet({ open, onOpenChange, projectId, onSelectDi
                 </div>
               </div>
 
-              {/* Pending proposals warning */}
               {pendingProposalsCount > 0 && (
                 <div className="flex items-start gap-3 px-3 py-2.5 rounded-xl bg-amber-500/10 border border-amber-500/25">
                   <AlertTriangle className="h-4 w-4 text-amber-400 mt-0.5 shrink-0" />
@@ -117,13 +134,12 @@ export function ArianeNarrativeSheet({ open, onOpenChange, projectId, onSelectDi
               {error && <p className="text-xs text-red-400 px-1">{error}</p>}
 
               <Button
-                onClick={() => { reset(); generate(); }}
+                onClick={handleNoSelect}
                 variant="ghost"
                 size="sm"
-                className="w-full gap-1.5 text-muted-foreground hover:text-foreground"
+                className="w-full text-muted-foreground hover:text-foreground"
               >
-                <RefreshCw className="h-3.5 w-3.5" />
-                Regénérer
+                Ne pas sélectionner
               </Button>
             </>
           )}

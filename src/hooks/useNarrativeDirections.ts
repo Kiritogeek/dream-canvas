@@ -42,11 +42,11 @@ export function useNarrativeDirections(projectId: string) {
     enabled: !!projectId && !!user,
   });
 
-  const generate = useCallback(async () => {
+  const generate = useCallback(async (chapterNumber?: number) => {
     setIsGenerating(true);
     setError(null);
     try {
-      const result = await generateNarrativeDirections(projectId);
+      const result = await generateNarrativeDirections(projectId, chapterNumber);
       setDirections(result.directions ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur lors de la génération");

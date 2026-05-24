@@ -60,6 +60,7 @@ export interface SuggestBlockPromptRequest {
 export interface NarrativeDirectionsRequest {
   mode: "narrative_directions";
   project_id: string;
+  chapter_number?: number;
 }
 
 export interface NarrativeDirection {
@@ -225,11 +226,13 @@ export async function callSuggestBlockPrompt(
 
 /** Génère des directions narratives basées sur le Lore + scénario du projet. */
 export async function generateNarrativeDirections(
-  projectId: string
+  projectId: string,
+  chapterNumber?: number
 ): Promise<NarrativeDirectionsResponse> {
   return callEdgeFunction<NarrativeDirectionsResponse>({
     mode: "narrative_directions",
     project_id: projectId,
+    chapter_number: chapterNumber,
   });
 }
 

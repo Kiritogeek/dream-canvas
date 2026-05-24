@@ -6,6 +6,7 @@ import type { NarrativeDirection } from "@/services/scenarioAI";
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  nextChapterNumber: number;
   directions: NarrativeDirection[];
   isGenerating: boolean;
   error: string | null;
@@ -19,6 +20,7 @@ interface Props {
 export function ArianeNarrativeSheet({
   open,
   onOpenChange,
+  nextChapterNumber,
   directions,
   isGenerating,
   error,
@@ -48,7 +50,7 @@ export function ArianeNarrativeSheet({
         <DialogHeader className="pb-4 border-b border-white/10">
           <DialogTitle className="text-gradient flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-amber-400" />
-            Propositions Ariane
+            Propositions Ariane — Chapitre {nextChapterNumber}
           </DialogTitle>
         </DialogHeader>
 

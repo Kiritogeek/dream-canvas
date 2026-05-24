@@ -46,7 +46,10 @@ import {
   SUGGEST_PROMPT_SYSTEM_PROMPT,
   buildSuggestPromptPrompt,
 } from "./system-prompts/suggest-prompt.ts";
-import { NARRATIVE_DIRECTIONS_SYSTEM_PROMPT } from "./system-prompts/narrative-directions.ts";
+import {
+  NARRATIVE_DIRECTIONS_SYSTEM_PROMPT,
+  NARRATIVE_DIRECTIONS_SYSTEM_PROMPT_CHAPTER_1,
+} from "./system-prompts/narrative-directions.ts";
 
 // ═══════════════════════════════════════════════════════════════
 // CONFIGURATION
@@ -665,7 +668,11 @@ RÈGLES ABSOLUES :
           }).join("\n\n---\n\n")
         : "(aucun chapitre écrit)";
 
-      systemPrompt = NARRATIVE_DIRECTIONS_SYSTEM_PROMPT;
+      const isFirstChapter = chapters.length === 0;
+      const nextChapterNumber = isFirstChapter ? 1 : chapters[chapters.length - 1].chapter_number + 1;
+      systemPrompt = isFirstChapter
+        ? NARRATIVE_DIRECTIONS_SYSTEM_PROMPT_CHAPTER_1
+        : NARRATIVE_DIRECTIONS_SYSTEM_PROMPT;
       userPrompt = `UNIVERS CARTOGRAPHIÉ :
 ${loreSection}
 
@@ -678,7 +685,10 @@ ${pendingSection}
 SCÉNARIO (derniers chapitres) :
 ${chaptersSection}
 
-Génère 4 directions narratives pour la suite de cette histoire.`;
+${isFirstChapter
+  ? "Propose 3 directions pour démarrer le Chapitre 1 — le tout début de cette histoire."
+  : `Génère 3 directions narratives pour le Chapitre ${nextChapterNumber}.`
+}`;
 
     } else {
       // mode === "baseline"

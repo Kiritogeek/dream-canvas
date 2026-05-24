@@ -390,7 +390,8 @@ export function ScenarioSection({ projectId, project }: ScenarioSectionProps) {
         error={narrativeDirections.error}
         pendingProposalsCount={narrativeDirections.pendingProposalsCount}
         loreStats={narrativeDirections.loreStats}
-        generate={narrativeDirections.generate}
+        nextChapterNumber={nextChapterNumber}
+        generate={() => narrativeDirections.generate(nextChapterNumber)}
         reset={narrativeDirections.reset}
         onSelectDirection={(prompt) => {
           setAiPrompt(prompt);

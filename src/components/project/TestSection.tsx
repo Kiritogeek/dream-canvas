@@ -1,14 +1,20 @@
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { FlaskConical, Trash2, Loader2, Check } from "lucide-react";
+import { FlaskConical, Trash2, Loader2, Check, Globe, Link2, BookMarked, ScanLine, ShieldCheck, Unlock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useNarraMindAlerts } from "@/hooks/useNarramindAlerts";
-import { useScenarioChapters } from "@/hooks/useScenarioChapters";
+import { useScenarioChapters, useValidateChapter, useUnvalidateChapter } from "@/hooks/useScenarioChapters";
+import { useChapters } from "@/hooks/useChapters";
+import { useLoreNodes } from "@/hooks/useLoreNodes";
+import { useLoreEdges, useCreateLoreEdge } from "@/hooks/useLoreEdges";
+import { useAssets } from "@/hooks/useAssets";
+import { useArianeLoreProposals } from "@/hooks/useArianeLoreProposals";
 import { supabase } from "@/integrations/supabase/client";
 import { ArianeThreadIcon } from "@/components/ariane/ArianeThreadIcon";
+import { ArianeOrbitIcon } from "@/components/ariane/ArianeOrbitIcon";
 import { cn } from "@/lib/utils";
 import type { NarrativeAlertSeverity } from "@/types";
 
@@ -51,12 +57,28 @@ export function TestSection({ projectId }: { projectId: string }) {
   const { user } = useAuth();
   const { toast } = useToast();
   const qc = useQueryClient();
-  const { data: chapters = [] } = useScenarioChapters(projectId);
+  const { data: scenarioChapters = [] } = useScenarioChapters(projectId);
+  const { data: canvasChapters = [] } = useChapters(projectId);
   const { data: allAlerts = [] } = useNarraMindAlerts(projectId, { statuses: ["active"] });
   const [injecting, setInjecting] = useState<NarrativeAlertSeverity | null>(null);
   const [cleaning, setCleaning] = useState(false);
 
-  const firstChapter = chapters[0];
+  const { data: loreNodes = [] } = useLoreNodes(projectId);
+  const { data: loreEdges = [] } = useLoreEdges(projectId);
+  const { data: assets = [] } = useAssets(projectId);
+  const createEdge = useCreateLoreEdge();
+  const validateChapter = useValidateChapter();
+  const unvalidateChapter = useUnvalidateChapter();
+  const { triggerScan, triggerForceScan } = useArianeLoreProposals(projectId, { enableAutoScan: false });
+  const [loreInjecting, setLoreInjecting] = useState<string | null>(null);
+  const [loreCleaning, setLoreCleaning] = useState(false);
+  const [hasInjectedLore, setHasInjectedLore] = useState(false);
+  const [scanRunning, setScanRunning] = useState(false);
+
+  const testLoreEdges = loreEdges.filter((e) => e.label === "Test — connexion");
+
+  const firstChapter = scenarioChapters[0];
+  const firstCanvasChapter = canvasChapters[0];
   const testAlerts = allAlerts.filter((a) => a.dedupeKey.startsWith(TEST_DEDUPE_PREFIX));
 
   const injectAlert = async (alert: (typeof TEST_ALERTS)[number]) => {
@@ -100,6 +122,141 @@ export function TestSection({ projectId }: { projectId: string }) {
       toast({ title: "Erreur", description: "Impossible de nettoyer.", variant: "destructive" });
     } finally {
       setCleaning(false);
+    }
+  };
+
+  const injectLoreNode = async () => {
+    if (!user) return;
+    const asset = assets[0];
+    if (!asset) {
+      toast({ title: "Aucun asset disponible", description: "Créez d'abord un asset dans le projet pour tester cette injection.", variant: "destructive" });
+      return;
+    }
+    setLoreInjecting("node");
+    try {
+      const dedupeKey = `lore-test-asset-${asset.id}-${Date.now()}`;
+      const { error } = await supabase.from("compass_proposals").insert({
+        project_id: projectId,
+        user_id: user.id,
+        proposal_type: "lore_asset",
+        origin: "extracted",
+        title: asset.name,
+        content: asset.name,
+        prefill_data: {
+          asset_id: asset.id,
+          asset_type: asset.asset_type,
+          chapter_id: firstCanvasChapter?.id ?? null,
+          chapter_number: firstCanvasChapter?.chapter_number ?? null,
+        },
+        status: "active",
+        dedupe_key: dedupeKey,
+      });
+      if (error) throw error;
+      await qc.invalidateQueries({ queryKey: ["lore-proposals", projectId] });
+      setHasInjectedLore(true);
+      toast({ title: "Proposition Ariane injectée", description: "Visible dans le bouton Ariane → onglet Univers." });
+    } catch {
+      toast({ title: "Erreur", variant: "destructive" });
+    } finally {
+      setLoreInjecting(null);
+    }
+  };
+
+  const injectLoreEdge = async () => {
+    if (!user) return;
+    if (loreNodes.length < 2) {
+      toast({
+        title: "Pas assez d'éléments",
+        description: "Acceptez d'abord 2 propositions d'éléments dans l'onglet Univers, puis revenez ici.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setLoreInjecting("edge");
+    try {
+      const [a, b] = loreNodes.slice(0, 2);
+      await createEdge.mutateAsync({
+        project_id: projectId,
+        user_id: user.id,
+        from_node_id: a.id,
+        to_node_id: b.id,
+        label: "Test — connexion",
+      });
+      setHasInjectedLore(true);
+      toast({ title: "Connexion de test créée dans l'Univers" });
+    } catch {
+      toast({ title: "Erreur", variant: "destructive" });
+    } finally {
+      setLoreInjecting(null);
+    }
+  };
+
+  const injectChapterLink = async () => {
+    if (!user) return;
+    // Utilise les chapitres scénario pour la garde (l'utilisateur crée d'abord dans Scénario)
+    const firstScenarioChapter = scenarioChapters[0];
+    if (!firstScenarioChapter) {
+      toast({ title: "Aucun chapitre Scénario", description: "Créez au moins un chapitre dans l'onglet Scénario.", variant: "destructive" });
+      return;
+    }
+    if (loreNodes.length === 0) {
+      toast({ title: "Aucun élément dans l'Univers", description: "Acceptez d'abord une proposition d'élément dans l'onglet Univers.", variant: "destructive" });
+      return;
+    }
+    setLoreInjecting("chapter");
+    try {
+      const node = loreNodes[0];
+      // Recherche le chapitre canvas correspondant (même chapter_number) — peut être null
+      const matchingCanvas = canvasChapters.find(
+        (c) => c.chapter_number === firstScenarioChapter.chapter_number
+      );
+      const dedupeKey = `lore-test-chapter-${node.id}-${Date.now()}`;
+      const { error } = await supabase.from("compass_proposals").insert({
+        project_id: projectId,
+        user_id: user.id,
+        proposal_type: "lore_chapter_update",
+        origin: "extracted",
+        title: node.name,
+        content: node.name,
+        prefill_data: {
+          node_id: node.id,
+          asset_id: node.asset_id,
+          chapter_id: matchingCanvas?.id ?? null,
+          chapter_number: firstScenarioChapter.chapter_number,
+          current_chapter_id: null,
+        },
+        status: "active",
+        dedupe_key: dedupeKey,
+      });
+      if (error) throw error;
+      await qc.invalidateQueries({ queryKey: ["lore-proposals", projectId] });
+      setHasInjectedLore(true);
+      toast({ title: "Proposition de lien chapitre injectée dans l'Univers" });
+    } catch {
+      toast({ title: "Erreur", variant: "destructive" });
+    } finally {
+      setLoreInjecting(null);
+    }
+  };
+
+  const cleanLoreTest = async () => {
+    setLoreCleaning(true);
+    try {
+      if (testLoreEdges.length > 0) {
+        await supabase.from("lore_edges").delete().in("id", testLoreEdges.map((e) => e.id));
+      }
+      await supabase.from("compass_proposals")
+        .delete()
+        .eq("project_id", projectId)
+        .like("dedupe_key", "lore-test-%");
+      await qc.invalidateQueries({ queryKey: ["lore-edges", projectId] });
+      await qc.invalidateQueries({ queryKey: ["lore-proposals", projectId] });
+      setHasInjectedLore(false);
+      toast({ title: "Données Univers de test supprimées" });
+    } catch {
+      toast({ title: "Erreur", variant: "destructive" });
+    } finally {
+      setLoreCleaning(false);
     }
   };
 
@@ -164,6 +321,192 @@ export function TestSection({ projectId }: { projectId: string }) {
             </div>
           ))}
         </div>
+      </div>
+
+      {/* Univers */}
+      <div className="glass rounded-2xl p-6 space-y-4">
+        <div className="flex items-center gap-3">
+          <Globe className="h-6 w-6 text-amber-400" />
+          <div>
+            <h2 className="font-display font-bold text-lg">Univers — Test</h2>
+            <p className="text-sm text-muted-foreground">
+              Injecte des données de test dans l'Univers (nœuds, connexions, propositions de lien).
+            </p>
+          </div>
+        </div>
+        <div className="grid gap-3">
+          {[
+            { key: "node", icon: Globe, label: "Proposition d'élément", desc: "Injecte une lore_asset proposal → à accepter dans l'onglet Univers (nécessite un asset)." },
+            { key: "edge", icon: Link2, label: "Ajout de connexion", desc: "Connexion directe entre les 2 premiers nœuds — nécessite d'avoir accepté 2 propositions d'éléments." },
+            { key: "chapter", icon: BookMarked, label: "Proposition lien chapitre", desc: "Injecte une lore_chapter_update proposal pour le 1er élément Univers → nécessite un chapitre Scénario." },
+          ].map(({ key, icon: Icon, label, desc }) => (
+            <div key={key} className="flex items-start gap-4 rounded-xl border border-border/60 bg-background/40 p-4">
+              <Icon className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
+              <div className="flex-1 min-w-0 space-y-0.5">
+                <p className="text-sm font-medium">{label}</p>
+                <p className="text-xs text-muted-foreground">{desc}</p>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                className="shrink-0 gap-1.5 h-8 text-xs"
+                disabled={loreInjecting !== null}
+                onClick={key === "node" ? injectLoreNode : key === "edge" ? injectLoreEdge : injectChapterLink}
+              >
+                {loreInjecting === key ? <Loader2 className="h-3 w-3 animate-spin" /> : <FlaskConical className="h-3 w-3" />}
+                Injecter
+              </Button>
+            </div>
+          ))}
+        </div>
+        {(hasInjectedLore || testLoreEdges.length > 0) && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 border-destructive/40 text-destructive hover:bg-destructive/10"
+            disabled={loreCleaning}
+            onClick={cleanLoreTest}
+          >
+            {loreCleaning ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+            Supprimer les données Univers de test
+          </Button>
+        )}
+      </div>
+
+      {/* Ariane Univers — Scan manuel */}
+      <div className="glass rounded-2xl p-6 space-y-4">
+        <div className="flex items-center gap-3">
+          <ArianeOrbitIcon size={28} />
+          <div>
+            <h2 className="font-display font-bold text-lg">Ariane Univers — Scan manuel</h2>
+            <p className="text-sm text-muted-foreground">
+              Simule la validation d'un chapitre et déclenche le scan Ariane immédiatement.
+            </p>
+          </div>
+        </div>
+
+        {!firstChapter ? (
+          <p className="text-sm text-amber-700 dark:text-amber-300 bg-amber-500/10 border border-amber-500/25 rounded-lg px-4 py-3">
+            Aucun chapitre de scénario — créez-en un dans l'onglet Scénario.
+          </p>
+        ) : (
+          <div className="space-y-3">
+            {/* Statut chapitres */}
+            <div className="flex flex-wrap gap-2">
+              {scenarioChapters.map((ch) => (
+                <span
+                  key={ch.id}
+                  className={cn(
+                    "inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-lg border",
+                    ch.validated
+                      ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-700 dark:text-emerald-300"
+                      : "bg-muted/40 border-border/60 text-muted-foreground"
+                  )}
+                >
+                  {ch.validated ? <ShieldCheck className="h-3 w-3" /> : <Unlock className="h-3 w-3 opacity-50" />}
+                  Chap. {ch.chapter_number}
+                  {ch.validated ? " — validé" : " — non validé"}
+                </span>
+              ))}
+            </div>
+
+            <div className="grid gap-3">
+              {/* Valider + Scanner */}
+              <div className="flex items-start gap-4 rounded-xl border border-border/60 bg-background/40 p-4">
+                <ShieldCheck className="h-4 w-4 mt-0.5 text-emerald-400 shrink-0" />
+                <div className="flex-1 min-w-0 space-y-0.5">
+                  <p className="text-sm font-medium">Valider Chap. {firstChapter.chapter_number} + Scanner</p>
+                  <p className="text-xs text-muted-foreground">
+                    Marque le chapitre comme validé (comme en prod) puis lance le scan Ariane immédiatement.
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="shrink-0 gap-1.5 h-8 text-xs"
+                  disabled={scanRunning || validateChapter.isPending}
+                  onClick={async () => {
+                    setScanRunning(true);
+                    try {
+                      if (!firstChapter.validated) {
+                        await validateChapter.mutateAsync({ id: firstChapter.id, projectId });
+                      }
+                      await triggerForceScan();
+                      toast({ title: "Scan Ariane terminé", description: "Toutes les propositions remontent — celles en rouge étaient ignorées." });
+                    } catch {
+                      toast({ title: "Erreur lors du scan", variant: "destructive" });
+                    } finally {
+                      setScanRunning(false);
+                    }
+                  }}
+                >
+                  {scanRunning ? <Loader2 className="h-3 w-3 animate-spin" /> : <ScanLine className="h-3 w-3" />}
+                  Valider + Scanner
+                </Button>
+              </div>
+
+              {/* Scanner uniquement */}
+              <div className="flex items-start gap-4 rounded-xl border border-border/60 bg-background/40 p-4">
+                <ScanLine className="h-4 w-4 mt-0.5 text-amber-400 shrink-0" />
+                <div className="flex-1 min-w-0 space-y-0.5">
+                  <p className="text-sm font-medium">Scanner uniquement</p>
+                  <p className="text-xs text-muted-foreground">
+                    Lance le scan sans changer l'état de validation — utile pour tester avec des chapitres déjà validés.
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="shrink-0 gap-1.5 h-8 text-xs"
+                  disabled={scanRunning}
+                  onClick={async () => {
+                    setScanRunning(true);
+                    try {
+                      await triggerScan();
+                      await qc.invalidateQueries({ queryKey: ["lore-proposals", projectId] });
+                      toast({ title: "Scan Ariane terminé" });
+                    } catch {
+                      toast({ title: "Erreur lors du scan", variant: "destructive" });
+                    } finally {
+                      setScanRunning(false);
+                    }
+                  }}
+                >
+                  {scanRunning ? <Loader2 className="h-3 w-3 animate-spin" /> : <ScanLine className="h-3 w-3" />}
+                  Scanner
+                </Button>
+              </div>
+
+              {/* Dévalider */}
+              {scenarioChapters.some((ch) => ch.validated) && (
+                <div className="flex items-start gap-4 rounded-xl border border-border/60 bg-background/40 p-4">
+                  <Unlock className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
+                  <div className="flex-1 min-w-0 space-y-0.5">
+                    <p className="text-sm font-medium">Dévalider tous les chapitres</p>
+                    <p className="text-xs text-muted-foreground">
+                      Remet tous les chapitres en état "non validé" pour repartir d'un état propre.
+                    </p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="shrink-0 gap-1.5 h-8 text-xs border-destructive/40 text-destructive hover:bg-destructive/10"
+                    disabled={unvalidateChapter.isPending}
+                    onClick={async () => {
+                      for (const ch of scenarioChapters.filter((c) => c.validated)) {
+                        await unvalidateChapter.mutateAsync({ id: ch.id, projectId });
+                      }
+                      toast({ title: "Chapitres dévalidés" });
+                    }}
+                  >
+                    {unvalidateChapter.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Unlock className="h-3 w-3" />}
+                    Dévalider
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="glass rounded-2xl p-6 space-y-4">

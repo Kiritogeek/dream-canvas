@@ -313,7 +313,7 @@ export function useArianeLoreProposals(projectId: string, { enableAutoScan = tru
       }
 
       if (connectionInserts.length > 0) {
-        await Promise.all(connectionInserts.map(async (ci) => {
+        for (const ci of connectionInserts) {
           const pf = ci.prefill_data as LoreConnectionPrefill;
           try {
             const fromAsset = (assets ?? []).find(a => a.name === pf.from_name);
@@ -332,7 +332,8 @@ export function useArianeLoreProposals(projectId: string, { enableAutoScan = tru
             });
             if (!error && data?.label) pf.proposed_label = String(data.label).trim().slice(0, 50);
           } catch { /* graceful: no label */ }
-        }));
+          await new Promise(resolve => setTimeout(resolve, 350));
+        }
         await supabase.from("compass_proposals").insert(connectionInserts);
         qc.invalidateQueries({ queryKey: ["lore-proposals", projectId] });
       }
@@ -533,6 +534,18 @@ export function useArianeLoreProposals(projectId: string, { enableAutoScan = tru
 
   const triggerForceScan = useCallback(async () => {
     if (!user || !projectId) return;
+
+    // Sauvegarder les labels de connexion existants AVANT purge (évite de reconsommer du quota Gemini)
+    const { data: existingConnections } = await supabase
+      .from("compass_proposals")
+      .select("dedupe_key, prefill_data")
+      .eq("project_id", projectId)
+      .eq("proposal_type", "lore_connection");
+    const savedConnectionLabels = new Map<string, string>();
+    for (const p of existingConnections ?? []) {
+      const lbl = (p.prefill_data as { proposed_label?: string } | null)?.proposed_label;
+      if (lbl) savedConnectionLabels.set(p.dedupe_key, lbl);
+    }
 
     // Collecter les données complètes des proposals dismissées AVANT purge
     const { data: dismissed } = await supabase
@@ -750,28 +763,30 @@ export function useArianeLoreProposals(projectId: string, { enableAutoScan = tru
     }
 
     // Générer les labels Ariane pour les connexions avant insert
+    // Priorité : réutiliser le label sauvegardé → appel Gemini séquentiel uniquement pour les nouvelles connexions
     const connectionForceInserts = forceInserts.filter(ci => ci.proposal_type === "lore_connection");
-    if (connectionForceInserts.length > 0) {
-      await Promise.all(connectionForceInserts.map(async (ci) => {
-        const pf = ci.prefill_data as LoreConnectionPrefill;
-        try {
-          const fromAsset = (assets ?? []).find(a => a.name === pf.from_name);
-          const toAsset = (assets ?? []).find(a => a.name === pf.to_name);
-          const { data, error } = await supabase.functions.invoke("generate-scenario-ai", {
-            body: {
-              mode: "suggest_connection_label",
-              from_name: pf.from_name,
-              from_type: ASSET_TO_LORE_TYPE[fromAsset?.asset_type ?? ""] ?? "element",
-              from_description: fromAsset?.prompt ?? undefined,
-              to_name: pf.to_name,
-              to_type: ASSET_TO_LORE_TYPE[toAsset?.asset_type ?? ""] ?? "element",
-              to_description: toAsset?.prompt ?? undefined,
-              context_excerpt: pf.context_excerpt ?? "",
-            },
-          });
-          if (!error && data?.label) pf.proposed_label = String(data.label).trim().slice(0, 50);
-        } catch { /* graceful: no label */ }
-      }));
+    for (const ci of connectionForceInserts) {
+      const pf = ci.prefill_data as LoreConnectionPrefill;
+      const saved = savedConnectionLabels.get(ci.dedupe_key);
+      if (saved) { pf.proposed_label = saved; continue; }
+      try {
+        const fromAsset = (assets ?? []).find(a => a.name === pf.from_name);
+        const toAsset = (assets ?? []).find(a => a.name === pf.to_name);
+        const { data, error } = await supabase.functions.invoke("generate-scenario-ai", {
+          body: {
+            mode: "suggest_connection_label",
+            from_name: pf.from_name,
+            from_type: ASSET_TO_LORE_TYPE[fromAsset?.asset_type ?? ""] ?? "element",
+            from_description: fromAsset?.prompt ?? undefined,
+            to_name: pf.to_name,
+            to_type: ASSET_TO_LORE_TYPE[toAsset?.asset_type ?? ""] ?? "element",
+            to_description: toAsset?.prompt ?? undefined,
+            context_excerpt: pf.context_excerpt ?? "",
+          },
+        });
+        if (!error && data?.label) pf.proposed_label = String(data.label).trim().slice(0, 50);
+      } catch { /* graceful: no label */ }
+      await new Promise(resolve => setTimeout(resolve, 350));
     }
 
     if (forceInserts.length > 0) {

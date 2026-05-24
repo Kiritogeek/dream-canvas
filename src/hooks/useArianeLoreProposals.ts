@@ -756,14 +756,16 @@ export function useArianeLoreProposals(projectId: string, { enableAutoScan = tru
     const existingEventNames = new Set(
       loreNodeRows.filter(n => n.type === "event").map(n => n.name?.toLowerCase().trim()).filter(Boolean) as string[]
     );
+    let eventAiBlocked = false;
     for (const sc of validatedChapters) {
       if (!sc.content?.trim()) continue;
       let aiSucceeded = false;
-      try {
+      if (!eventAiBlocked) try {
         const { data, error } = await supabase.functions.invoke("generate-scenario-ai", {
           body: { mode: "extract_events", chapter_content: sc.content, chapter_number: sc.chapter_number },
         });
-        if (!error && Array.isArray(data?.events)) {
+        if (error) { eventAiBlocked = true; }
+        else if (Array.isArray(data?.events)) {
           aiSucceeded = true;
           for (const eventName of (data.events as string[]).slice(0, 5)) {
             const trimmed = eventName.trim();
@@ -785,7 +787,7 @@ export function useArianeLoreProposals(projectId: string, { enableAutoScan = tru
             });
           }
         }
-      } catch { /* graceful */ }
+      } catch { eventAiBlocked = true; }
       // Si l'IA a échoué, restaurer les événements sauvegardés pour ce chapitre
       if (!aiSucceeded) {
         for (const saved of savedEventsByChapter.get(sc.id) ?? []) {

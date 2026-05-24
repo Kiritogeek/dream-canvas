@@ -1,4 +1,4 @@
--- Étend la contrainte proposal_type pour inclure lore_chapter_update et lore_connection
+-- Étend la contrainte proposal_type pour inclure lore_chapter_update, lore_connection et lore_event
 ALTER TABLE public.compass_proposals
   DROP CONSTRAINT IF EXISTS compass_proposals_proposal_type_check;
 
@@ -9,6 +9,7 @@ ALTER TABLE public.compass_proposals
     'lore_asset',
     'lore_chapter_update',
     'lore_connection',
+    'lore_event',
     'narrative_direction',
     'asset_prefill'
   ));

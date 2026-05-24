@@ -809,8 +809,19 @@ export function useArianeLoreProposals(projectId: string, { enableAutoScan = tru
       await new Promise(resolve => setTimeout(resolve, 350));
     }
 
+    // Insert par type : une contrainte check violée sur un type ne bloque pas les autres
     if (forceInserts.length > 0) {
-      await supabase.from("compass_proposals").insert(forceInserts);
+      const byType = new Map<string, typeof forceInserts>();
+      for (const ins of forceInserts) {
+        const bucket = byType.get(ins.proposal_type) ?? [];
+        bucket.push(ins);
+        byType.set(ins.proposal_type, bucket);
+      }
+      for (const [, batch] of byType) {
+        if (batch.length > 0) {
+          await supabase.from("compass_proposals").insert(batch);
+        }
+      }
     }
 
     // Récupérer les IDs insérés et construire forcedInfo par ID

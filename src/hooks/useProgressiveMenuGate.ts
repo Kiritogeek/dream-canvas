@@ -23,7 +23,7 @@ export type ProgressiveTabKey = "style" | ProgressiveMenuStep;
 
 export type ProgressiveAccess = Record<ProgressiveTabKey, boolean>;
 
-const ORDER: ProgressiveTabKey[] = ["style", "universe", "scenario", "assets", "edition"];
+const ORDER: ProgressiveTabKey[] = ["style", "assets", "universe", "scenario", "edition"];
 
 export function getMaxAccessibleTab(accessible: ProgressiveAccess): ProgressiveTabKey {
   let last: ProgressiveTabKey = "style";
@@ -75,11 +75,6 @@ export function useProgressiveMenuAccess(projectId: string | undefined) {
 
   const hasScenarioChapter = scenarioChapters.length >= 1;
   const hasGeneratedAsset = assets.some((a) => !!a.image_url);
-  const hasUniverseLoreSaved = useMemo(() => {
-    const world = (project?.universe_lore ?? "").trim().length > 0;
-    const assetLore = assets.some((a) => (a.lore ?? "").trim().length > 0);
-    return world || assetLore;
-  }, [project?.universe_lore, assets]);
 
   const accessible = useMemo<ProgressiveAccess>(() => {
     // Style non validé → tous les onglets verrouillés, quel que soit le type d'utilisateur
@@ -90,20 +85,19 @@ export function useProgressiveMenuAccess(projectId: string | undefined) {
     if (!appliesProgressiveFlow) {
       return { style: true, scenario: true, assets: true, universe: true, edition: true };
     }
-    // Flow progressif avec style validé
+    // Flow progressif avec style validé — ordre : Style → Assets → Univers → Scénario → Édition
     return {
       style: true,
-      universe: true,
-      scenario: hasUniverseLoreSaved,
-      assets: hasUniverseLoreSaved && hasScenarioChapter,
-      edition: hasUniverseLoreSaved && hasScenarioChapter && hasGeneratedAsset,
+      assets: true,
+      universe: hasGeneratedAsset,
+      scenario: hasGeneratedAsset,
+      edition: hasGeneratedAsset && hasScenarioChapter,
     };
   }, [
     appliesProgressiveFlow,
     styleValidated,
     hasScenarioChapter,
     hasGeneratedAsset,
-    hasUniverseLoreSaved,
   ]);
 
   return {
@@ -134,7 +128,7 @@ export function useProgressiveMenuSidebarState(
   useEffect(() => {
     if (!userId || !projectId || !appliesProgressiveFlow || !isResolved) return;
     if (sidebarActiveStep === "style") return;
-    const steps: ProgressiveMenuStep[] = ["universe", "scenario", "assets", "edition"];
+    const steps: ProgressiveMenuStep[] = ["assets", "universe", "scenario", "edition"];
     if (!steps.includes(sidebarActiveStep as ProgressiveMenuStep)) return;
     const step = sidebarActiveStep as ProgressiveMenuStep;
     if (!accessibleRef.current[step]) return;
@@ -160,7 +154,7 @@ export function useProgressiveMenuSidebarState(
             universe: false,
             edition: false,
           };
-          const steps: ProgressiveMenuStep[] = ["universe", "scenario", "assets", "edition"];
+          const steps: ProgressiveMenuStep[] = ["assets", "universe", "scenario", "edition"];
           const out = { ...base };
           for (const s of steps) {
             out[s] = accessible[s] && !isMenuNewDismissed(userId, s);

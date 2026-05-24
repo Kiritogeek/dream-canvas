@@ -95,7 +95,7 @@ export function resetProgressiveOnboardingSimulation(userId: string | undefined)
   if (!userId || typeof window === "undefined") return;
   try {
     localStorage.removeItem(journeyFinalKey(userId));
-    for (const step of ["universe", "scenario", "assets", "edition"] as const) {
+    for (const step of ["assets", "universe", "scenario", "edition"] as const) {
       localStorage.removeItem(menuNewKey(userId, step));
     }
     localStorage.removeItem(`dw.ariane_onboarding_v1_dismissed_${userId}`);

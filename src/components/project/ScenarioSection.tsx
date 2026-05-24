@@ -301,7 +301,7 @@ export function ScenarioSection({ projectId, project }: ScenarioSectionProps) {
             className="gap-2 px-4 py-2.5 rounded-xl text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 border border-amber-500/25 hover:border-amber-500/40 transition-all"
           >
             <Compass className="h-4 w-4" />
-            Directions narratives
+            Propositions Ariane
           </Button>
         </div>
 
@@ -382,6 +382,7 @@ export function ScenarioSection({ projectId, project }: ScenarioSectionProps) {
         open={narrativeSheetOpen}
         onOpenChange={setNarrativeSheetOpen}
         projectId={projectId}
+        onSelectDirection={(prompt) => setAiPrompt(prompt)}
       />
 
       {/* ── Chapitres ────────────────────────────────────────── */}

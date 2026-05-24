@@ -352,13 +352,13 @@ export function ArianeOnboardingCard({ className }: ArianeOnboardingCardProps) {
                 className="mt-2 block w-full text-pretty text-muted-foreground md:mt-2.5"
                 variants={arianeBubbleTextItem}
               >
-                J’ai lu votre synopsis — je vais vous proposer des <strong className="font-semibold text-foreground">personnages, lieux et objets</strong> à ajouter dans votre <strong className="font-semibold text-foreground">Univers</strong> dès maintenant.
+                Commencez par définir votre <strong className="font-semibold text-foreground">style</strong>, puis créez les <strong className="font-semibold text-foreground">assets</strong> de votre histoire — personnages, décors, objets. J’analyserai ensuite votre synopsis pour enrichir votre <strong className="font-semibold text-foreground">Univers</strong>.
               </motion.span>
               <motion.span
                 className="mt-2 block w-full text-pretty text-muted-foreground md:mt-2.5"
                 variants={arianeBubbleTextItem}
               >
-                Le parcours : <strong className="font-semibold text-foreground">Style</strong> → <strong className="font-semibold text-foreground">Univers</strong> → <strong className="font-semibold text-foreground">Assets</strong> → <strong className="font-semibold text-foreground">Scénario</strong> → <strong className="font-semibold text-foreground">Édition</strong>. Chaque étape enrichit la suivante.
+                Le parcours : <strong className="font-semibold text-foreground">Style</strong> → <strong className="font-semibold text-foreground">Assets</strong> → <strong className="font-semibold text-foreground">Univers</strong> → <strong className="font-semibold text-foreground">Scénario</strong> → <strong className="font-semibold text-foreground">Édition</strong>. Chaque étape enrichit la suivante.
               </motion.span>
               <motion.div
                 className={cn(

@@ -18,4 +18,4 @@ FORMAT JSON STRICT — réponds UNIQUEMENT avec ce JSON, sans texte autour :
   ]
 }
 
-Génère exactement 4 directions.`;
+Génère exactement 3 directions.`;

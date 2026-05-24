@@ -1,4 +1,4 @@
-import { Sparkles, Loader2, RefreshCw, Star, AlertTriangle, Map } from "lucide-react";
+import { Sparkles, Loader2, RefreshCw, Star, AlertTriangle, Map, ArrowRight } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useNarrativeDirections } from "@/hooks/useNarrativeDirections";
@@ -7,9 +7,10 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   projectId: string;
+  onSelectDirection?: (prompt: string) => void;
 }
 
-export function ArianeNarrativeSheet({ open, onOpenChange, projectId }: Props) {
+export function ArianeNarrativeSheet({ open, onOpenChange, projectId, onSelectDirection }: Props) {
   const { directions, isGenerating, error, pendingProposalsCount, loreStats, generate, reset } =
     useNarrativeDirections(projectId);
 
@@ -18,13 +19,18 @@ export function ArianeNarrativeSheet({ open, onOpenChange, projectId }: Props) {
     onOpenChange(v);
   };
 
+  const handleSelect = (body: string) => {
+    onSelectDirection?.(body);
+    handleClose(false);
+  };
+
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="glass border-white/10 sm:max-w-lg max-h-[85vh] overflow-y-auto">
+      <DialogContent className="glass border-white/10 sm:max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader className="pb-4 border-b border-white/10">
           <DialogTitle className="text-gradient flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-amber-400" />
-            Directions narratives — Ariane
+            Propositions Ariane
           </DialogTitle>
         </DialogHeader>
 
@@ -41,7 +47,7 @@ export function ArianeNarrativeSheet({ open, onOpenChange, projectId }: Props) {
                   <p className="text-xs text-muted-foreground mt-0.5">
                     {loreStats.withDescription} avec description ·{" "}
                     {loreStats.total - loreStats.withDescription} sans —{" "}
-                    plus le Lore est détaillé, plus les directions sont précises
+                    plus le Lore est détaillé, plus les propositions sont précises
                   </p>
                 </div>
               </div>
@@ -57,8 +63,7 @@ export function ArianeNarrativeSheet({ open, onOpenChange, projectId }: Props) {
                       {pendingProposalsCount !== 1 ? "s" : ""} non encore dans l'Univers
                     </p>
                     <p className="text-xs text-amber-400/70 mt-0.5">
-                      Ariane les inclut dans l'analyse. Les intégrer à l'Univers (onglet Univers → FAB
-                      Ariane) affinera les directions.
+                      Ariane les inclut dans l'analyse. Les intégrer à l'Univers affinera les propositions.
                     </p>
                   </div>
                 </div>
@@ -66,7 +71,7 @@ export function ArianeNarrativeSheet({ open, onOpenChange, projectId }: Props) {
 
               <p className="text-xs text-muted-foreground px-1">
                 Ariane analyse ton Lore, les éléments détectés dans le scénario et tes derniers
-                chapitres pour suggérer 4 pistes narratives pour la suite.
+                chapitres pour suggérer 3 pistes narratives pour la suite.
               </p>
 
               {error && <p className="text-xs text-red-400 px-1">{error}</p>}
@@ -86,19 +91,25 @@ export function ArianeNarrativeSheet({ open, onOpenChange, projectId }: Props) {
             </div>
           ) : (
             <>
-              <div className="space-y-3">
-                {directions.map((d, i) => (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {directions.slice(0, 3).map((d, i) => (
                   <div
                     key={i}
-                    className="px-4 py-3.5 rounded-xl bg-white/5 border border-white/10 hover:border-amber-500/30 transition-colors duration-150"
+                    className="flex flex-col gap-3 px-4 py-4 rounded-xl bg-white/5 border border-white/10 hover:border-amber-500/40 transition-colors duration-150"
                   >
-                    <div className="flex items-start gap-2.5">
+                    <div className="flex items-start gap-2">
                       <Star className="h-4 w-4 text-amber-400 mt-0.5 shrink-0" />
-                      <div>
-                        <p className="text-sm font-semibold">{d.title}</p>
-                        <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{d.body}</p>
-                      </div>
+                      <p className="text-sm font-semibold leading-snug">{d.title}</p>
                     </div>
+                    <p className="text-xs text-muted-foreground leading-relaxed flex-1">{d.body}</p>
+                    <Button
+                      size="sm"
+                      onClick={() => handleSelect(d.body)}
+                      className="w-full gap-1.5 gradient-primary text-primary-foreground mt-auto"
+                    >
+                      Sélectionner
+                      <ArrowRight className="h-3.5 w-3.5" />
+                    </Button>
                   </div>
                 ))}
               </div>

@@ -1,5 +1,5 @@
 import { Sparkles, Loader2, RefreshCw, Star, AlertTriangle, Map } from "lucide-react";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useNarrativeDirections } from "@/hooks/useNarrativeDirections";
 
@@ -19,16 +19,16 @@ export function ArianeNarrativeSheet({ open, onOpenChange, projectId }: Props) {
   };
 
   return (
-    <Sheet open={open} onOpenChange={handleClose}>
-      <SheetContent className="glass border-white/10 w-full sm:max-w-lg overflow-y-auto">
-        <SheetHeader className="pb-4 border-b border-white/10">
-          <SheetTitle className="text-gradient flex items-center gap-2">
+    <Dialog open={open} onOpenChange={handleClose}>
+      <DialogContent className="glass border-white/10 sm:max-w-lg max-h-[85vh] overflow-y-auto">
+        <DialogHeader className="pb-4 border-b border-white/10">
+          <DialogTitle className="text-gradient flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-amber-400" />
             Directions narratives — Ariane
-          </SheetTitle>
-        </SheetHeader>
+          </DialogTitle>
+        </DialogHeader>
 
-        <div className="space-y-4 pt-4">
+        <div className="space-y-4 pt-2">
           {directions.length === 0 && !isGenerating ? (
             <>
               {/* Lore stats */}
@@ -117,7 +117,7 @@ export function ArianeNarrativeSheet({ open, onOpenChange, projectId }: Props) {
             </>
           )}
         </div>
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   );
 }

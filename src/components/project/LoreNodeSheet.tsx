@@ -387,7 +387,7 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
           ].join(" ")}>
             {imageUrl ? (
               <>
-                <img src={imageUrl} alt={name} className="absolute inset-0 w-full h-full object-cover" />
+                <img src={imageUrl} alt={name} className="absolute inset-0 w-full h-full object-cover object-top" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-transparent to-transparent" />
 
                 {/* Bouton Dissocier — coin supérieur droit */}

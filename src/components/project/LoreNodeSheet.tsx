@@ -20,7 +20,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useUpdateLoreNode, useDeleteLoreNode } from "@/hooks/useLoreNodes";
 import { useCreateLoreEdge, useDeleteLoreEdge } from "@/hooks/useLoreEdges";
-import { useChapters } from "@/hooks/useChapters";
+import { useScenarioChapters } from "@/hooks/useScenarioChapters";
 import { useCompassProposals } from "@/hooks/useCompassProposals";
 import { CompassSuggestionsPanel } from "./CompassSuggestionsPanel";
 import type { LoreNode, LoreEdge, LoreNodeType, Asset } from "@/types";
@@ -126,7 +126,7 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
   const deleteNode = useDeleteLoreNode();
   const createEdge = useCreateLoreEdge();
   const deleteEdge = useDeleteLoreEdge();
-  const { data: chapters = [] } = useChapters(projectId);
+  const { data: chapters = [] } = useScenarioChapters(projectId);
   const sortedChapters = [...chapters].sort((a, b) => a.chapter_number - b.chapter_number);
   const {
     proposals,
@@ -639,6 +639,27 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
                     <span className="text-[10px] text-muted-foreground/40 text-right block">
                       {(sections[activeSection] ?? "").length}/300
                     </span>
+                  </div>
+
+                  {/* Chapitre d'apparition */}
+                  <div className="flex items-center gap-3 pt-1">
+                    <span className="text-[11px] text-muted-foreground whitespace-nowrap shrink-0">Chap. d'apparition</span>
+                    <Select
+                      value={chapterId ?? "none"}
+                      onValueChange={(v) => { setChapterId(v === "none" ? null : v); triggerAutoSave(); }}
+                    >
+                      <SelectTrigger className="h-7 text-xs border-white/15 bg-white/5 text-white/70 hover:text-white flex-1 gap-1">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-popover border-white/10">
+                        <SelectItem value="none">Non défini</SelectItem>
+                        {sortedChapters.map((ch) => (
+                          <SelectItem key={ch.id} value={ch.id}>
+                            Chap. {ch.chapter_number} — {ch.title}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   {/* Ariane */}

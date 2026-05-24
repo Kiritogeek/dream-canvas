@@ -13,6 +13,24 @@ interface LorePrefillData {
   chapter_number: number | null;
 }
 
+interface LoreChapterUpdatePrefill {
+  node_id: string;
+  asset_id: string | null;
+  chapter_id: string;
+  chapter_number: number;
+  current_chapter_id: string | null;
+}
+
+interface LoreConnectionPrefill {
+  from_node_id: string;
+  to_node_id: string;
+  from_name: string;
+  to_name: string;
+  chapter_number: number;
+  context_excerpt?: string;
+  proposed_label?: string;
+}
+
 const ASSET_TO_LORE_TYPE: Record<string, LoreNodeType> = {
   character: "character",
   background: "location",
@@ -23,7 +41,15 @@ function escapeRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-export function useArianeLoreProposals(projectId: string) {
+function extractContextSentence(text: string, nameA: string, nameB: string): string {
+  const reA = new RegExp(`\\b${escapeRegex(nameA)}\\b`, "i");
+  const reB = new RegExp(`\\b${escapeRegex(nameB)}\\b`, "i");
+  const sentences = text.replace(/\r?\n/g, " ").split(/(?<=[.!?])\s+/).map(s => s.trim()).filter(Boolean);
+  const match = sentences.find(s => reA.test(s) && reB.test(s));
+  return (match ?? text.slice(0, 150)).slice(0, 200);
+}
+
+export function useArianeLoreProposals(projectId: string, { enableAutoScan = true }: { enableAutoScan?: boolean } = {}) {
   const { user } = useAuth();
   const qc = useQueryClient();
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -36,7 +62,7 @@ export function useArianeLoreProposals(projectId: string) {
         .from("compass_proposals")
         .select("*")
         .eq("project_id", projectId)
-        .eq("proposal_type", "lore_asset")
+        .in("proposal_type", ["lore_asset", "lore_chapter_update", "lore_connection"])
         .eq("status", "active")
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -51,16 +77,14 @@ export function useArianeLoreProposals(projectId: string) {
     const [
       { data: assets },
       { data: scenarioChapters },
-      { data: canvasChapters },
       { data: existingNodes },
       { data: existingProposals },
       { data: projectData },
     ] = await Promise.all([
-      supabase.from("assets").select("id, name, asset_type").eq("project_id", projectId),
-      supabase.from("scenario_chapters").select("id, chapter_number, content").eq("project_id", projectId).order("chapter_number"),
-      supabase.from("chapters").select("id, chapter_number").eq("project_id", projectId),
-      supabase.from("lore_nodes").select("id, asset_id, chapter_id").eq("project_id", projectId),
-      supabase.from("compass_proposals").select("dedupe_key").eq("project_id", projectId).eq("proposal_type", "lore_asset"),
+      supabase.from("assets").select("id, name, asset_type, prompt").eq("project_id", projectId),
+      supabase.from("scenario_chapters").select("id, chapter_number, content, validated").eq("project_id", projectId).order("chapter_number"),
+      supabase.from("lore_nodes").select("id, name, asset_id, chapter_id, type").eq("project_id", projectId),
+      supabase.from("compass_proposals").select("dedupe_key").eq("project_id", projectId).in("proposal_type", ["lore_asset", "lore_chapter_update", "lore_connection"]),
       supabase.from("projects").select("description").eq("id", projectId).single(),
     ]);
 
@@ -69,30 +93,9 @@ export function useArianeLoreProposals(projectId: string) {
     const hasContent = (scenarioChapters?.length ?? 0) > 0 || projectDescription.trim().length > 0;
     if (!hasContent) return;
 
-    const loreNodeRows = (existingNodes ?? []) as Array<{ id: string; asset_id: string | null; chapter_id: string | null }>;
+    const loreNodeRows = (existingNodes ?? []) as Array<{ id: string; name: string; asset_id: string | null; chapter_id: string | null; type: string }>;
     const alreadyInLore = new Set(loreNodeRows.map((n) => n.asset_id).filter(Boolean) as string[]);
     const alreadyProposed = new Set((existingProposals ?? []).map((p) => p.dedupe_key));
-    const canvasMap = new Map((canvasChapters ?? []).map((c) => [c.chapter_number, c.id]));
-
-    // Auto-link : lore_nodes sans chapter_id → assigner le premier chapitre où l'asset apparaît
-    const unlinkednodes = loreNodeRows.filter((n) => n.asset_id && !n.chapter_id);
-    if (unlinkednodes.length > 0 && (scenarioChapters ?? []).length > 0) {
-      for (const loreNode of unlinkednodes) {
-        const asset = (assets ?? []).find((a) => a.id === loreNode.asset_id);
-        if (!asset) continue;
-        const wordRe = new RegExp(`\\b${escapeRegex(asset.name)}\\b`, "i");
-        for (const sc of (scenarioChapters ?? [])) {
-          if (wordRe.test(sc.content ?? "")) {
-            const chapterId = canvasMap.get(sc.chapter_number) ?? null;
-            if (chapterId) {
-              await supabase.from("lore_nodes").update({ chapter_id: chapterId }).eq("id", loreNode.id);
-            }
-            break;
-          }
-        }
-      }
-      qc.invalidateQueries({ queryKey: ["lore-nodes", projectId] });
-    }
 
     const seenNames = new Set<string>();
 
@@ -124,7 +127,7 @@ export function useArianeLoreProposals(projectId: string) {
       const wordRe = new RegExp(`\\b${escapeRegex(asset.name)}\\b`, "i");
       for (const sc of (scenarioChapters ?? [])) {
         if (wordRe.test(sc.content ?? "")) {
-          firstChapterId = canvasMap.get(sc.chapter_number) ?? null;
+          firstChapterId = sc.id;
           firstChapterNumber = sc.chapter_number;
           break;
         }
@@ -186,6 +189,149 @@ export function useArianeLoreProposals(projectId: string) {
       await supabase.from("compass_proposals").insert(toInsert);
     }
 
+    // Scan : liaisons chapitre sur les nœuds existants (assets + événements)
+    const chapterUpdateInserts: typeof toInsert = [];
+    for (const loreNode of loreNodeRows) {
+      let searchName: string;
+      let assetId: string | null = null;
+      if (loreNode.asset_id) {
+        const asset = (assets ?? []).find((a) => a.id === loreNode.asset_id);
+        if (!asset) continue;
+        searchName = asset.name;
+        assetId = asset.id;
+      } else if (loreNode.type === "event" && loreNode.name) {
+        searchName = loreNode.name;
+      } else {
+        continue;
+      }
+      const wordRe = new RegExp(`\\b${escapeRegex(searchName)}\\b`, "i");
+      let firstChapterId: string | null = null;
+      let firstChapterNumber: number | null = null;
+      for (const sc of (scenarioChapters ?? [])) {
+        if (wordRe.test(sc.content ?? "")) {
+          firstChapterId = sc.id;
+          firstChapterNumber = sc.chapter_number;
+          break;
+        }
+      }
+      if (!firstChapterNumber) continue;
+      if (loreNode.chapter_id === firstChapterId) continue;
+      const dedupeKey = `lore_chapter_update-${loreNode.id}`;
+      if (alreadyProposed.has(dedupeKey)) continue;
+      chapterUpdateInserts.push({
+        project_id: projectId,
+        user_id: user.id,
+        proposal_type: "lore_chapter_update",
+        origin: "extracted",
+        title: searchName,
+        content: searchName,
+        prefill_data: {
+          node_id: loreNode.id,
+          asset_id: assetId,
+          chapter_id: firstChapterId,
+          chapter_number: firstChapterNumber,
+          current_chapter_id: loreNode.chapter_id,
+        } as LoreChapterUpdatePrefill,
+        status: "active",
+        dedupe_key: dedupeKey,
+      });
+    }
+    if (chapterUpdateInserts.length > 0) {
+      await supabase.from("compass_proposals").insert(chapterUpdateInserts);
+      qc.invalidateQueries({ queryKey: ["lore-proposals", projectId] });
+    }
+
+    // Scan : connexions entre éléments co-présents dans les chapitres VALIDÉS
+    const validatedChapters = (scenarioChapters ?? []).filter((sc) => (sc as { validated?: boolean }).validated === true);
+    if (validatedChapters.length > 0 && loreNodeRows.length >= 2) {
+      const { data: existingEdges } = await supabase
+        .from("lore_edges")
+        .select("from_node_id, to_node_id")
+        .eq("project_id", projectId);
+
+      const edgeSet = new Set(
+        (existingEdges ?? []).map((e) => [e.from_node_id, e.to_node_id].sort().join("|"))
+      );
+
+      // Assets + événements manuels (nœuds sans asset_id mais type=event)
+      const nodesForConnections = loreNodeRows.filter((n) => n.asset_id || n.type === "event");
+      const connectionInserts: typeof toInsert = [];
+
+      outer: for (let i = 0; i < nodesForConnections.length; i++) {
+        for (let j = i + 1; j < nodesForConnections.length; j++) {
+          const nodeA = nodesForConnections[i];
+          const nodeB = nodesForConnections[j];
+          const assetA = nodeA.asset_id ? (assets ?? []).find((a) => a.id === nodeA.asset_id) : null;
+          const assetB = nodeB.asset_id ? (assets ?? []).find((a) => a.id === nodeB.asset_id) : null;
+          if (nodeA.asset_id && !assetA) continue;
+          if (nodeB.asset_id && !assetB) continue;
+          const nameA = assetA?.name ?? nodeA.name;
+          const nameB = assetB?.name ?? nodeB.name;
+
+          const sorted = [nodeA.id, nodeB.id].sort();
+          const dedupeKey = `lore_connection-${sorted[0]}-${sorted[1]}`;
+          if (alreadyProposed.has(dedupeKey)) continue;
+          if (edgeSet.has(sorted.join("|"))) continue;
+
+          const reA = new RegExp(`\\b${escapeRegex(nameA)}\\b`, "i");
+          const reB = new RegExp(`\\b${escapeRegex(nameB)}\\b`, "i");
+
+          for (const sc of validatedChapters) {
+            const text = sc.content ?? "";
+            if (reA.test(text) && reB.test(text)) {
+              const [fromNode, toNode] = sorted[0] === nodeA.id ? [nodeA, nodeB] : [nodeB, nodeA];
+              const [fromName, toName] = sorted[0] === nodeA.id ? [nameA, nameB] : [nameB, nameA];
+              connectionInserts.push({
+                project_id: projectId,
+                user_id: user.id,
+                proposal_type: "lore_connection",
+                origin: "extracted",
+                title: `${fromName} ↔ ${toName}`,
+                content: `Co-présents dans le Chapitre ${sc.chapter_number}`,
+                prefill_data: {
+                  from_node_id: fromNode.id,
+                  to_node_id: toNode.id,
+                  from_name: fromName,
+                  to_name: toName,
+                  chapter_number: sc.chapter_number,
+                  context_excerpt: extractContextSentence(text, fromName, toName),
+                } as LoreConnectionPrefill,
+                status: "active",
+                dedupe_key: dedupeKey,
+              });
+              break;
+            }
+          }
+          if (connectionInserts.length >= 5) break outer;
+        }
+      }
+
+      if (connectionInserts.length > 0) {
+        await Promise.all(connectionInserts.map(async (ci) => {
+          const pf = ci.prefill_data as LoreConnectionPrefill;
+          try {
+            const fromAsset = (assets ?? []).find(a => a.name === pf.from_name);
+            const toAsset = (assets ?? []).find(a => a.name === pf.to_name);
+            const { data, error } = await supabase.functions.invoke("generate-scenario-ai", {
+              body: {
+                mode: "suggest_connection_label",
+                from_name: pf.from_name,
+                from_type: ASSET_TO_LORE_TYPE[fromAsset?.asset_type ?? ""] ?? "element",
+                from_description: fromAsset?.prompt ?? undefined,
+                to_name: pf.to_name,
+                to_type: ASSET_TO_LORE_TYPE[toAsset?.asset_type ?? ""] ?? "element",
+                to_description: toAsset?.prompt ?? undefined,
+                context_excerpt: pf.context_excerpt ?? "",
+              },
+            });
+            if (!error && data?.label) pf.proposed_label = String(data.label).trim().slice(0, 50);
+          } catch { /* graceful: no label */ }
+        }));
+        await supabase.from("compass_proposals").insert(connectionInserts);
+        qc.invalidateQueries({ queryKey: ["lore-proposals", projectId] });
+      }
+    }
+
     qc.invalidateQueries({ queryKey: ["lore-proposals", projectId] });
   }, [projectId, user, qc]);
 
@@ -199,12 +345,13 @@ export function useArianeLoreProposals(projectId: string) {
         .order("updated_at", { ascending: false });
       return data?.map((c) => `${c.id}:${c.updated_at}`).join("|") ?? "";
     },
-    enabled: !!projectId && !!user,
+    enabled: !!projectId && !!user && enableAutoScan,
     refetchInterval: 30_000,
     staleTime: 0,
   });
 
   useEffect(() => {
+    if (!enableAutoScan) return;
     if (chaptersSignature === undefined) return;
 
     if (!hasMounted.current) {
@@ -219,49 +366,101 @@ export function useArianeLoreProposals(projectId: string) {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [chaptersSignature, runScan]);
+  }, [chaptersSignature, runScan, enableAutoScan]);
 
   const acceptMutation = useMutation({
     mutationFn: async ({
       proposal,
       onNodeCreated,
+      connectionLabel,
     }: {
       proposal: CompassProposal;
       onNodeCreated?: (node: LoreNode) => void;
+      connectionLabel?: string;
     }) => {
       if (!user) throw new Error("Not authenticated");
-      const prefill = proposal.prefill_data as unknown as LorePrefillData;
-      const loreType: LoreNodeType = ASSET_TO_LORE_TYPE[prefill.asset_type] ?? "object";
 
-      const { data: newNode, error: nodeError } = await supabase
-        .from("lore_nodes")
-        .insert({
+      if (proposal.proposal_type === "lore_chapter_update") {
+        const prefill = proposal.prefill_data as unknown as LoreChapterUpdatePrefill;
+
+        // Résout par chapter_number dans scenario_chapters (compatible anciens et nouveaux prefills)
+        let safeChapterId: string | null = null;
+        if (prefill.chapter_number != null) {
+          const { data: sc } = await supabase
+            .from("scenario_chapters")
+            .select("id")
+            .eq("project_id", projectId)
+            .eq("chapter_number", prefill.chapter_number)
+            .maybeSingle();
+          if (sc) safeChapterId = sc.id;
+        } else {
+          safeChapterId = prefill.chapter_id ?? null;
+        }
+
+        const { error } = await supabase
+          .from("lore_nodes")
+          .update({ chapter_id: safeChapterId })
+          .eq("id", prefill.node_id);
+        if (error) throw error;
+      } else if (proposal.proposal_type === "lore_connection") {
+        const prefill = proposal.prefill_data as unknown as LoreConnectionPrefill;
+        const { error } = await supabase.from("lore_edges").insert({
           project_id: projectId,
           user_id: user.id,
-          type: loreType,
-          name: proposal.title,
-          description: null,
-          image_url: null,
-          asset_id: prefill.asset_id,
-          chapter_id: prefill.chapter_id,
-          pos_x: 200 + Math.random() * 400,
-          pos_y: 200 + Math.random() * 300,
-        })
-        .select("*")
-        .single();
-      if (nodeError) throw nodeError;
+          from_node_id: prefill.from_node_id,
+          to_node_id: prefill.to_node_id,
+          label: connectionLabel?.trim() || null,
+        });
+        if (error) throw error;
+      } else {
+        // lore_asset
+        const prefill = proposal.prefill_data as unknown as LorePrefillData;
+        const loreType: LoreNodeType = ASSET_TO_LORE_TYPE[prefill.asset_type] ?? "object";
+
+        // Résout par chapter_number dans scenario_chapters (compatible anciens et nouveaux prefills)
+        let safeChapterId: string | null = null;
+        if (prefill.chapter_number != null) {
+          const { data: sc } = await supabase
+            .from("scenario_chapters")
+            .select("id")
+            .eq("project_id", projectId)
+            .eq("chapter_number", prefill.chapter_number)
+            .maybeSingle();
+          if (sc) safeChapterId = sc.id;
+        } else {
+          safeChapterId = prefill.chapter_id ?? null;
+        }
+
+        const { data: newNode, error: nodeError } = await supabase
+          .from("lore_nodes")
+          .insert({
+            project_id: projectId,
+            user_id: user.id,
+            type: loreType,
+            name: proposal.title,
+            description: null,
+            image_url: null,
+            asset_id: prefill.asset_id,
+            chapter_id: safeChapterId,
+            pos_x: 200 + Math.random() * 400,
+            pos_y: 200 + Math.random() * 300,
+          })
+          .select("*")
+          .single();
+        if (nodeError) throw nodeError;
+        onNodeCreated?.(newNode as LoreNode);
+      }
 
       const { error: propError } = await supabase
         .from("compass_proposals")
         .update({ status: "accepted" })
         .eq("id", proposal.id);
       if (propError) throw propError;
-
-      onNodeCreated?.(newNode as LoreNode);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["lore-proposals", projectId] });
       qc.invalidateQueries({ queryKey: ["lore-nodes", projectId] });
+      qc.invalidateQueries({ queryKey: ["lore_edges", projectId] });
     },
   });
 
@@ -288,19 +487,266 @@ export function useArianeLoreProposals(projectId: string) {
   const deduplicatedProposals = useMemo(() => {
     const seen = new Set<string>();
     return proposals.filter((p) => {
-      const key = p.title.toLowerCase().trim();
+      const key = `${p.proposal_type}:${p.title.toLowerCase().trim()}`;
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
     });
   }, [proposals]);
 
+  // forcedInfo : map proposal_id → raison (jamais auto-fetchée, uniquement via setQueryData)
+  type ForcedReason = "already_exists" | "ignored";
+  type ForcedInfo = Record<string, ForcedReason>;
+  const { data: forcedInfo = {} } = useQuery<ForcedInfo>({
+    queryKey: ["ariane-forced-ids", projectId],
+    queryFn: async () => ({}),
+    enabled: false,
+    staleTime: Infinity,
+    gcTime: Infinity,
+  });
+
+  const triggerForceScan = useCallback(async () => {
+    if (!user || !projectId) return;
+
+    // Collecter les données complètes des proposals dismissées AVANT purge
+    const { data: dismissed } = await supabase
+      .from("compass_proposals")
+      .select("dedupe_key, proposal_type, title, content, prefill_data")
+      .eq("project_id", projectId)
+      .in("proposal_type", ["lore_asset", "lore_chapter_update", "lore_connection"])
+      .eq("status", "dismissed");
+    const dismissedDedupeKeys = new Set((dismissed ?? []).map((p) => p.dedupe_key));
+    // Map dedupe_key → full dismissed proposal (pour ré-insérer même si absent du texte)
+    const dismissedByDedupe = new Map(
+      (dismissed ?? []).map((p) => [p.dedupe_key, p])
+    );
+
+    // Purger TOUTES les proposals lore
+    await supabase
+      .from("compass_proposals")
+      .delete()
+      .eq("project_id", projectId)
+      .in("proposal_type", ["lore_asset", "lore_chapter_update", "lore_connection"]);
+
+    // Fetch toutes les données nécessaires
+    const [
+      { data: assets },
+      { data: scenarioChapters },
+      { data: loreNodes },
+      { data: loreEdges },
+      { data: projectData },
+    ] = await Promise.all([
+      supabase.from("assets").select("id, name, asset_type, prompt").eq("project_id", projectId),
+      supabase.from("scenario_chapters").select("id, chapter_number, content, validated").eq("project_id", projectId).order("chapter_number"),
+      supabase.from("lore_nodes").select("id, name, asset_id, chapter_id, type").eq("project_id", projectId),
+      supabase.from("lore_edges").select("from_node_id, to_node_id").eq("project_id", projectId),
+      supabase.from("projects").select("description").eq("id", projectId).single(),
+    ]);
+
+    if (!assets?.length) {
+      await qc.invalidateQueries({ queryKey: ["lore-proposals", projectId] });
+      return;
+    }
+
+    const projectDescription = (projectData as { description?: string | null } | null)?.description ?? "";
+    const loreNodeRows = (loreNodes ?? []) as Array<{ id: string; name: string; asset_id: string | null; chapter_id: string | null; type: string }>;
+    const alreadyInLore = new Set(loreNodeRows.map((n) => n.asset_id).filter(Boolean) as string[]);
+    const edgeSet = new Set((loreEdges ?? []).map((e) => [e.from_node_id, e.to_node_id].sort().join("|")));
+
+    // Map dedupe_key → raison (construite pendant le scan)
+    const reasonByDedupe = new Map<string, ForcedReason>();
+
+    const forceInserts: Array<{
+      project_id: string; user_id: string; proposal_type: string; origin: string;
+      title: string; content: string; prefill_data: unknown; status: string; dedupe_key: string;
+    }> = [];
+
+    // ── lore_asset : tous les assets détectés ──────────────────────────────
+    for (const asset of assets) {
+      if (asset.name.trim().length < 2) continue;
+      const wordRe = new RegExp(`\\b${escapeRegex(asset.name)}\\b`, "i");
+      let firstChapterId: string | null = null;
+      let firstChapterNumber: number | null = null;
+      for (const sc of (scenarioChapters ?? [])) {
+        if (wordRe.test(sc.content ?? "")) {
+          firstChapterId = sc.id;
+          firstChapterNumber = sc.chapter_number;
+          break;
+        }
+      }
+      const foundInDescription = !firstChapterNumber && wordRe.test(projectDescription);
+      if (!firstChapterNumber && !foundInDescription) continue;
+
+      const dedupeKey = `lore_asset-${asset.id}`;
+      if (alreadyInLore.has(asset.id)) reasonByDedupe.set(dedupeKey, "already_exists");
+      else if (dismissedDedupeKeys.has(dedupeKey)) reasonByDedupe.set(dedupeKey, "ignored");
+
+      forceInserts.push({
+        project_id: projectId, user_id: user.id,
+        proposal_type: "lore_asset", origin: "extracted",
+        title: asset.name, content: asset.name,
+        prefill_data: { asset_id: asset.id, asset_type: asset.asset_type, chapter_id: firstChapterId, chapter_number: firstChapterNumber },
+        status: "active", dedupe_key: dedupeKey,
+      });
+    }
+
+    // ── lore_chapter_update : tous les nœuds Lore existants (assets + événements) ─
+    for (const loreNode of loreNodeRows) {
+      let searchName: string;
+      let assetId: string | null = null;
+      if (loreNode.asset_id) {
+        const asset = (assets ?? []).find((a) => a.id === loreNode.asset_id);
+        if (!asset) continue;
+        searchName = asset.name;
+        assetId = asset.id;
+      } else if (loreNode.type === "event" && loreNode.name) {
+        searchName = loreNode.name;
+      } else {
+        continue;
+      }
+      const wordRe = new RegExp(`\\b${escapeRegex(searchName)}\\b`, "i");
+      let firstChapterId: string | null = null;
+      let firstChapterNumber: number | null = null;
+      for (const sc of (scenarioChapters ?? [])) {
+        if (wordRe.test(sc.content ?? "")) {
+          firstChapterId = sc.id;
+          firstChapterNumber = sc.chapter_number;
+          break;
+        }
+      }
+      if (!firstChapterNumber) continue;
+
+      const dedupeKey = `lore_chapter_update-${loreNode.id}`;
+      if (loreNode.chapter_id === firstChapterId) reasonByDedupe.set(dedupeKey, "already_exists");
+      else if (dismissedDedupeKeys.has(dedupeKey)) reasonByDedupe.set(dedupeKey, "ignored");
+
+      forceInserts.push({
+        project_id: projectId, user_id: user.id,
+        proposal_type: "lore_chapter_update", origin: "extracted",
+        title: searchName, content: searchName,
+        prefill_data: { node_id: loreNode.id, asset_id: assetId, chapter_id: firstChapterId, chapter_number: firstChapterNumber, current_chapter_id: loreNode.chapter_id },
+        status: "active", dedupe_key: dedupeKey,
+      });
+    }
+
+    // ── lore_connection : toutes les paires co-présentes (chapitres validés, assets + événements) ─
+    const validatedChapters = (scenarioChapters ?? []).filter((sc) => (sc as { validated?: boolean }).validated === true);
+    if (validatedChapters.length > 0) {
+      const nodesForConnections = loreNodeRows.filter((n) => n.asset_id || n.type === "event");
+      let connectionCount = 0;
+      outer: for (let i = 0; i < nodesForConnections.length; i++) {
+        for (let j = i + 1; j < nodesForConnections.length; j++) {
+          const nodeA = nodesForConnections[i];
+          const nodeB = nodesForConnections[j];
+          const assetA = nodeA.asset_id ? assets.find((a) => a.id === nodeA.asset_id) : null;
+          const assetB = nodeB.asset_id ? assets.find((a) => a.id === nodeB.asset_id) : null;
+          if (nodeA.asset_id && !assetA) continue;
+          if (nodeB.asset_id && !assetB) continue;
+          const nameA = assetA?.name ?? nodeA.name;
+          const nameB = assetB?.name ?? nodeB.name;
+          const sorted = [nodeA.id, nodeB.id].sort();
+          const dedupeKey = `lore_connection-${sorted[0]}-${sorted[1]}`;
+          const reA = new RegExp(`\\b${escapeRegex(nameA)}\\b`, "i");
+          const reB = new RegExp(`\\b${escapeRegex(nameB)}\\b`, "i");
+          for (const sc of validatedChapters) {
+            const text = sc.content ?? "";
+            if (reA.test(text) && reB.test(text)) {
+              const [fromNode, toNode] = sorted[0] === nodeA.id ? [nodeA, nodeB] : [nodeB, nodeA];
+              const [fromName, toName] = sorted[0] === nodeA.id ? [nameA, nameB] : [nameB, nameA];
+              if (edgeSet.has(sorted.join("|"))) reasonByDedupe.set(dedupeKey, "already_exists");
+              else if (dismissedDedupeKeys.has(dedupeKey)) reasonByDedupe.set(dedupeKey, "ignored");
+              forceInserts.push({
+                project_id: projectId, user_id: user.id,
+                proposal_type: "lore_connection", origin: "extracted",
+                title: `${fromName} ↔ ${toName}`,
+                content: `Co-présents dans le Chapitre ${sc.chapter_number}`,
+                prefill_data: { from_node_id: fromNode.id, to_node_id: toNode.id, from_name: fromName, to_name: toName, chapter_number: sc.chapter_number, context_excerpt: extractContextSentence(text, fromName, toName) },
+                status: "active", dedupe_key: dedupeKey,
+              });
+              connectionCount++;
+              break;
+            }
+          }
+          if (connectionCount >= 5) break outer;
+        }
+      }
+    }
+
+    // Ré-insérer les proposals dismissées non capturées par le scan normal (asset plus dans le texte, etc.)
+    for (const [dedupeKey, p] of dismissedByDedupe) {
+      if (!forceInserts.some((ins) => ins.dedupe_key === dedupeKey)) {
+        reasonByDedupe.set(dedupeKey, "ignored");
+        forceInserts.push({
+          project_id: projectId,
+          user_id: user.id,
+          proposal_type: p.proposal_type,
+          origin: "extracted",
+          title: p.title,
+          content: p.content,
+          prefill_data: p.prefill_data,
+          status: "active",
+          dedupe_key: dedupeKey,
+        });
+      }
+    }
+
+    // Générer les labels Ariane pour les connexions avant insert
+    const connectionForceInserts = forceInserts.filter(ci => ci.proposal_type === "lore_connection");
+    if (connectionForceInserts.length > 0) {
+      await Promise.all(connectionForceInserts.map(async (ci) => {
+        const pf = ci.prefill_data as LoreConnectionPrefill;
+        try {
+          const fromAsset = (assets ?? []).find(a => a.name === pf.from_name);
+          const toAsset = (assets ?? []).find(a => a.name === pf.to_name);
+          const { data, error } = await supabase.functions.invoke("generate-scenario-ai", {
+            body: {
+              mode: "suggest_connection_label",
+              from_name: pf.from_name,
+              from_type: ASSET_TO_LORE_TYPE[fromAsset?.asset_type ?? ""] ?? "element",
+              from_description: fromAsset?.prompt ?? undefined,
+              to_name: pf.to_name,
+              to_type: ASSET_TO_LORE_TYPE[toAsset?.asset_type ?? ""] ?? "element",
+              to_description: toAsset?.prompt ?? undefined,
+              context_excerpt: pf.context_excerpt ?? "",
+            },
+          });
+          if (!error && data?.label) pf.proposed_label = String(data.label).trim().slice(0, 50);
+        } catch { /* graceful: no label */ }
+      }));
+    }
+
+    if (forceInserts.length > 0) {
+      await supabase.from("compass_proposals").insert(forceInserts);
+    }
+
+    // Récupérer les IDs insérés et construire forcedInfo par ID
+    const dedupeKeysWithReason = [...reasonByDedupe.keys()];
+    const newForcedInfo: ForcedInfo = {};
+    if (dedupeKeysWithReason.length > 0) {
+      const { data: insertedWithReason } = await supabase
+        .from("compass_proposals")
+        .select("id, dedupe_key")
+        .eq("project_id", projectId)
+        .in("dedupe_key", dedupeKeysWithReason);
+      for (const p of insertedWithReason ?? []) {
+        const reason = reasonByDedupe.get(p.dedupe_key);
+        if (reason) newForcedInfo[p.id] = reason;
+      }
+    }
+    qc.setQueryData<ForcedInfo>(["ariane-forced-ids", projectId], newForcedInfo);
+
+    await qc.invalidateQueries({ queryKey: ["lore-proposals", projectId] });
+  }, [user, projectId, qc]);
+
   return {
     proposals: deduplicatedProposals,
-    acceptProposal: (p: CompassProposal, onNodeCreated?: (node: LoreNode) => void) =>
-      acceptMutation.mutate({ proposal: p, onNodeCreated }),
+    forcedInfo,
+    acceptProposal: (p: CompassProposal, onNodeCreated?: (node: LoreNode) => void, connectionLabel?: string) =>
+      acceptMutation.mutate({ proposal: p, onNodeCreated, connectionLabel }),
     acceptAll,
     dismissProposal: (id: string) => dismissMutation.mutate(id),
     isAccepting: acceptMutation.isPending,
+    triggerScan: runScan,
+    triggerForceScan,
   };
 }

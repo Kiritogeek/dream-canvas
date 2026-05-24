@@ -323,8 +323,10 @@ export function useArianeLoreProposals(projectId: string, { enableAutoScan = tru
       }
 
       if (connectionInserts.length > 0) {
+        let labelBlocked = false;
         for (const ci of connectionInserts) {
           const pf = ci.prefill_data as LoreConnectionPrefill;
+          if (labelBlocked) continue;
           try {
             const fromAsset = (assets ?? []).find(a => a.name === pf.from_name);
             const toAsset = (assets ?? []).find(a => a.name === pf.to_name);
@@ -340,9 +342,10 @@ export function useArianeLoreProposals(projectId: string, { enableAutoScan = tru
                 context_excerpt: pf.context_excerpt ?? "",
               },
             });
-            if (!error && data?.label) pf.proposed_label = String(data.label).trim().slice(0, 50);
-          } catch { /* graceful: no label */ }
-          await new Promise(resolve => setTimeout(resolve, 350));
+            if (error) { labelBlocked = true; }
+            else if (data?.label) pf.proposed_label = String(data.label).trim().slice(0, 50);
+          } catch { labelBlocked = true; }
+          await new Promise(resolve => setTimeout(resolve, 500));
         }
         await supabase.from("compass_proposals").insert(connectionInserts);
         qc.invalidateQueries({ queryKey: ["lore-proposals", projectId] });
@@ -786,11 +789,14 @@ export function useArianeLoreProposals(projectId: string, { enableAutoScan = tru
 
     // Générer les labels Ariane pour les connexions avant insert
     // Priorité : réutiliser le label sauvegardé → appel Gemini séquentiel uniquement pour les nouvelles connexions
+    // Circuit breaker : dès la première erreur API (429 inclus), on arrête les appels labels
     const connectionForceInserts = forceInserts.filter(ci => ci.proposal_type === "lore_connection");
+    let labelBlocked = false;
     for (const ci of connectionForceInserts) {
       const pf = ci.prefill_data as LoreConnectionPrefill;
       const saved = savedConnectionLabels.get(ci.dedupe_key);
       if (saved) { pf.proposed_label = saved; continue; }
+      if (labelBlocked) continue;
       try {
         const fromAsset = (assets ?? []).find(a => a.name === pf.from_name);
         const toAsset = (assets ?? []).find(a => a.name === pf.to_name);
@@ -806,9 +812,10 @@ export function useArianeLoreProposals(projectId: string, { enableAutoScan = tru
             context_excerpt: pf.context_excerpt ?? "",
           },
         });
-        if (!error && data?.label) pf.proposed_label = String(data.label).trim().slice(0, 50);
-      } catch { /* graceful: no label */ }
-      await new Promise(resolve => setTimeout(resolve, 350));
+        if (error) { labelBlocked = true; }
+        else if (data?.label) pf.proposed_label = String(data.label).trim().slice(0, 50);
+      } catch { labelBlocked = true; }
+      await new Promise(resolve => setTimeout(resolve, 500));
     }
 
     // Insert par type : une contrainte check violée sur un type ne bloque pas les autres

@@ -560,6 +560,22 @@ export function useArianeLoreProposals(projectId: string, { enableAutoScan = tru
       if (lbl) savedConnectionLabels.set(p.dedupe_key, lbl);
     }
 
+    // Sauvegarder les événements actifs AVANT purge — restaurés si l'appel IA échoue (persistance)
+    const { data: existingEventProposals } = await supabase
+      .from("compass_proposals")
+      .select("dedupe_key, title, content, prefill_data")
+      .eq("project_id", projectId)
+      .eq("proposal_type", "lore_event")
+      .eq("status", "active");
+    const savedEventsByChapter = new Map<string, Array<{ dedupe_key: string; title: string; content: string; prefill_data: unknown }>>();
+    for (const ev of existingEventProposals ?? []) {
+      const chapterId = (ev.prefill_data as { chapter_id?: string } | null)?.chapter_id;
+      if (!chapterId) continue;
+      const bucket = savedEventsByChapter.get(chapterId) ?? [];
+      bucket.push(ev);
+      savedEventsByChapter.set(chapterId, bucket);
+    }
+
     // Collecter les données complètes des proposals dismissées AVANT purge
     const { data: dismissed } = await supabase
       .from("compass_proposals")
@@ -742,31 +758,48 @@ export function useArianeLoreProposals(projectId: string, { enableAutoScan = tru
     );
     for (const sc of validatedChapters) {
       if (!sc.content?.trim()) continue;
+      let aiSucceeded = false;
       try {
         const { data, error } = await supabase.functions.invoke("generate-scenario-ai", {
           body: { mode: "extract_events", chapter_content: sc.content, chapter_number: sc.chapter_number },
         });
-        if (error || !Array.isArray(data?.events)) continue;
-        for (const eventName of (data.events as string[]).slice(0, 5)) {
-          const trimmed = eventName.trim();
-          if (!trimmed || trimmed.length < 3) continue;
-          const slug = trimmed.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "").slice(0, 50);
-          const dedupeKey = `lore_event-${sc.id}-${slug}`;
-          if (existingEventNames.has(trimmed.toLowerCase())) {
-            reasonByDedupe.set(dedupeKey, "already_exists");
-          } else if (dismissedDedupeKeys.has(dedupeKey)) {
-            reasonByDedupe.set(dedupeKey, "ignored");
+        if (!error && Array.isArray(data?.events)) {
+          aiSucceeded = true;
+          for (const eventName of (data.events as string[]).slice(0, 5)) {
+            const trimmed = eventName.trim();
+            if (!trimmed || trimmed.length < 3) continue;
+            const slug = trimmed.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "").slice(0, 50);
+            const dedupeKey = `lore_event-${sc.id}-${slug}`;
+            if (existingEventNames.has(trimmed.toLowerCase())) {
+              reasonByDedupe.set(dedupeKey, "already_exists");
+            } else if (dismissedDedupeKeys.has(dedupeKey)) {
+              reasonByDedupe.set(dedupeKey, "ignored");
+            }
+            forceInserts.push({
+              project_id: projectId, user_id: user.id,
+              proposal_type: "lore_event", origin: "extracted",
+              title: trimmed,
+              content: `Chapitre ${sc.chapter_number}`,
+              prefill_data: { event_name: trimmed, chapter_number: sc.chapter_number, chapter_id: sc.id } satisfies LoreEventPrefill,
+              status: "active", dedupe_key: dedupeKey,
+            });
           }
-          forceInserts.push({
-            project_id: projectId, user_id: user.id,
-            proposal_type: "lore_event", origin: "extracted",
-            title: trimmed,
-            content: `Chapitre ${sc.chapter_number}`,
-            prefill_data: { event_name: trimmed, chapter_number: sc.chapter_number, chapter_id: sc.id } satisfies LoreEventPrefill,
-            status: "active", dedupe_key: dedupeKey,
-          });
         }
-      } catch { /* graceful: skip chapter */ }
+      } catch { /* graceful */ }
+      // Si l'IA a échoué, restaurer les événements sauvegardés pour ce chapitre
+      if (!aiSucceeded) {
+        for (const saved of savedEventsByChapter.get(sc.id) ?? []) {
+          if (!dismissedDedupeKeys.has(saved.dedupe_key)) {
+            forceInserts.push({
+              project_id: projectId, user_id: user.id,
+              proposal_type: "lore_event", origin: "extracted",
+              title: saved.title, content: saved.content,
+              prefill_data: saved.prefill_data,
+              status: "active", dedupe_key: saved.dedupe_key,
+            });
+          }
+        }
+      }
     }
 
     // Ré-insérer les proposals dismissées non capturées par le scan normal (asset plus dans le texte, etc.)

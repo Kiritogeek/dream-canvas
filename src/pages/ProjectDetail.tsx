@@ -96,9 +96,19 @@ export default function ProjectDetail() {
         : null;
     if (simKey === ARIANE_FORCED_PROGRESSIVE_PENDING) return;
     if (!isResolved || appliesProgressiveFlow) return;
+    if (!accessible.edition) return;
     dismissJourneyFinal(user.id);
     setSearchParams({ tab: "edition" }, { replace: true });
-  }, [user?.id, rawTab, isResolved, appliesProgressiveFlow, setSearchParams]);
+  }, [user?.id, rawTab, isResolved, appliesProgressiveFlow, accessible.edition, setSearchParams]);
+
+  // Protège l'URL directe vers un onglet verrouillé — ramène vers style
+  useEffect(() => {
+    if (!isResolved || !rawTab) return;
+    const t = rawTab as keyof typeof accessible;
+    if (t in accessible && !accessible[t]) {
+      setSearchParams({ tab: "style" }, { replace: true });
+    }
+  }, [isResolved, rawTab, accessible, setSearchParams]);
 
   const [styleDraft, setStyleDraft] = useState<string | undefined>(undefined);
   const [journeyCompleteOpen, setJourneyCompleteOpen] = useState(false);
@@ -328,7 +338,7 @@ export default function ProjectDetail() {
 
   const handleNavigateToCreateAsset = useCallback(
     (name: string, type: AssetType) => {
-      if (isResolved && appliesProgressiveFlow && !accessible.assets) {
+      if (isResolved && !accessible.assets) {
         setSearchParams({ tab: getMaxAccessibleTab(accessible) }, { replace: true });
         return;
       }
@@ -336,12 +346,12 @@ export default function ProjectDetail() {
       setPendingAssetType(type);
       setSearchParams({ tab: "assets" });
     },
-    [setSearchParams, isResolved, appliesProgressiveFlow, accessible]
+    [setSearchParams, isResolved, accessible]
   );
 
   const handleCreateMissingAsset = useCallback(
     (name: string) => {
-      if (isResolved && appliesProgressiveFlow && !accessible.assets) {
+      if (isResolved && !accessible.assets) {
         setSearchParams({ tab: getMaxAccessibleTab(accessible) }, { replace: true });
         return;
       }
@@ -350,7 +360,7 @@ export default function ProjectDetail() {
       setPendingAssetType(undefined);
       setSearchParams({ tab: "assets" });
     },
-    [setSearchParams, isResolved, appliesProgressiveFlow, accessible]
+    [setSearchParams, isResolved, accessible]
   );
 
   const handleNavigateToChapter = useCallback(
@@ -457,7 +467,7 @@ export default function ProjectDetail() {
                 return;
               }
               const t = tab as keyof typeof accessible;
-              if (appliesProgressiveFlow && !accessible[t]) return;
+              if (!accessible[t]) return;
               setSearchParams({ tab });
             }}
             className="space-y-4 sm:space-y-6"

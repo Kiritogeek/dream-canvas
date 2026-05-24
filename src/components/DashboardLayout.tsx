@@ -92,16 +92,13 @@ function ProjectStepsSection({ projectId, onLinkClick }: { projectId: string; on
     ? (() => { try { return localStorage.getItem(`${ARIANE_STYLE_ONBOARDING_STORAGE_KEY}_${user.id}`) === "1"; } catch { return false; } })()
     : false;
 
-  const sidebarSteps =
-    appliesProgressiveFlow
-      ? baseSteps.filter((step) => {
-          if (step.key === "style") return true;
-          if (step.key === "test") return isAdmin;
-          if (!styleOnboardingDone) return false;
-          if (!isResolved) return false;
-          return accessible[step.key as keyof typeof accessible];
-        })
-      : baseSteps;
+  const sidebarSteps = baseSteps.filter((step) => {
+    if (step.key === "test") return isAdmin;
+    if (step.key === "style") return true;
+    if (!isResolved) return false;
+    if (appliesProgressiveFlow && !styleOnboardingDone) return false;
+    return accessible[step.key as keyof typeof accessible];
+  });
 
   return (
     <div className="mt-3">

@@ -82,25 +82,21 @@ export function useProgressiveMenuAccess(projectId: string | undefined) {
   }, [project?.universe_lore, assets]);
 
   const accessible = useMemo<ProgressiveAccess>(() => {
-    if (!appliesProgressiveFlow) {
-      return {
-        style: true,
-        scenario: true,
-        assets: true,
-        universe: true,
-        edition: true,
-      };
+    // Style non validé → tous les onglets verrouillés, quel que soit le type d'utilisateur
+    if (!styleValidated) {
+      return { style: true, universe: false, scenario: false, assets: false, edition: false };
     }
+    // Utilisateur vétéran (multi-projets, pas de flow progressif) → tout accessible
+    if (!appliesProgressiveFlow) {
+      return { style: true, scenario: true, assets: true, universe: true, edition: true };
+    }
+    // Flow progressif avec style validé
     return {
       style: true,
-      universe: styleValidated,
-      scenario: styleValidated && hasUniverseLoreSaved,
-      assets: styleValidated && hasUniverseLoreSaved && hasScenarioChapter,
-      edition:
-        styleValidated &&
-        hasUniverseLoreSaved &&
-        hasScenarioChapter &&
-        hasGeneratedAsset,
+      universe: true,
+      scenario: hasUniverseLoreSaved,
+      assets: hasUniverseLoreSaved && hasScenarioChapter,
+      edition: hasUniverseLoreSaved && hasScenarioChapter && hasGeneratedAsset,
     };
   }, [
     appliesProgressiveFlow,
@@ -114,6 +110,7 @@ export function useProgressiveMenuAccess(projectId: string | undefined) {
     isResolved,
     appliesProgressiveFlow,
     accessible,
+    styleValidated,
     userId,
   };
 }

@@ -88,13 +88,23 @@ export function useArianeLoreProposals(projectId: string, { enableAutoScan = tru
       { data: projectData },
     ] = await Promise.all([
       supabase.from("assets").select("id, name, asset_type, prompt").eq("project_id", projectId),
-      supabase.from("scenario_chapters").select("id, chapter_number, content, validated").eq("project_id", projectId).order("chapter_number"),
+      supabase.from("scenario_chapters").select("id, chapter_number, content").eq("project_id", projectId).order("chapter_number"),
       supabase.from("lore_nodes").select("id, name, asset_id, chapter_id, type").eq("project_id", projectId),
       supabase.from("compass_proposals").select("dedupe_key").eq("project_id", projectId).in("proposal_type", ["lore_asset", "lore_chapter_update", "lore_connection", "lore_event"]),
       supabase.from("projects").select("description").eq("id", projectId).single(),
     ]);
 
     if (!assets?.length) return;
+
+    // Validated chapters — requête séparée pour ne pas casser le scan si la migration n'est pas encore appliquée
+    const { data: validatedData, error: validatedError } = await supabase
+      .from("scenario_chapters")
+      .select("id")
+      .eq("project_id", projectId)
+      .eq("validated", true);
+    const validatedIds = new Set<string>(
+      !validatedError && validatedData ? validatedData.map((r: { id: string }) => r.id) : []
+    );
     const projectDescription = (projectData as { description?: string | null } | null)?.description ?? "";
     const hasContent = (scenarioChapters?.length ?? 0) > 0 || projectDescription.trim().length > 0;
     if (!hasContent) return;
@@ -248,7 +258,7 @@ export function useArianeLoreProposals(projectId: string, { enableAutoScan = tru
     }
 
     // Scan : connexions entre éléments co-présents dans les chapitres VALIDÉS
-    const validatedChapters = (scenarioChapters ?? []).filter((sc) => (sc as { validated?: boolean }).validated === true);
+    const validatedChapters = (scenarioChapters ?? []).filter((sc) => validatedIds.has(sc.id));
     if (validatedChapters.length > 0 && loreNodeRows.length >= 2) {
       const { data: existingEdges } = await supabase
         .from("lore_edges")
@@ -576,11 +586,21 @@ export function useArianeLoreProposals(projectId: string, { enableAutoScan = tru
       { data: projectData },
     ] = await Promise.all([
       supabase.from("assets").select("id, name, asset_type, prompt").eq("project_id", projectId),
-      supabase.from("scenario_chapters").select("id, chapter_number, content, validated").eq("project_id", projectId).order("chapter_number"),
+      supabase.from("scenario_chapters").select("id, chapter_number, content").eq("project_id", projectId).order("chapter_number"),
       supabase.from("lore_nodes").select("id, name, asset_id, chapter_id, type").eq("project_id", projectId),
       supabase.from("lore_edges").select("from_node_id, to_node_id").eq("project_id", projectId),
       supabase.from("projects").select("description").eq("id", projectId).single(),
     ]);
+
+    // Validated chapters — requête séparée pour ne pas casser le scan si la migration n'est pas encore appliquée
+    const { data: validatedData, error: validatedError } = await supabase
+      .from("scenario_chapters")
+      .select("id")
+      .eq("project_id", projectId)
+      .eq("validated", true);
+    const validatedIds = new Set<string>(
+      !validatedError && validatedData ? validatedData.map((r: { id: string }) => r.id) : []
+    );
 
     if (!assets?.length) {
       await qc.invalidateQueries({ queryKey: ["lore-proposals", projectId] });
@@ -669,7 +689,7 @@ export function useArianeLoreProposals(projectId: string, { enableAutoScan = tru
     }
 
     // ── lore_connection : toutes les paires co-présentes (chapitres validés, assets + événements) ─
-    const validatedChapters = (scenarioChapters ?? []).filter((sc) => (sc as { validated?: boolean }).validated === true);
+    const validatedChapters = (scenarioChapters ?? []).filter((sc) => validatedIds.has(sc.id));
     if (validatedChapters.length > 0) {
       const nodesForConnections = loreNodeRows.filter((n) => n.asset_id || n.type === "event");
       let connectionCount = 0;

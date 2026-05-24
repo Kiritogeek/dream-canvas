@@ -1,4 +1,4 @@
-import { useCallback, useContext, useEffect, useRef, useState, createContext } from "react";
+import { useCallback, useContext, useEffect, useMemo, useRef, useState, createContext } from "react";
 import {
   ReactFlow,
   Background,
@@ -65,6 +65,7 @@ const TYPE_PLACEHOLDER_BG: Record<string, string> = {
 interface LoreNodeData {
   label: string;
   loreNode: LoreNode;
+  chapter_number?: number | null;
   _highlight?: boolean;
   [key: string]: unknown;
 }
@@ -121,6 +122,11 @@ function LoreNodeCard({ data, selected }: { data: LoreNodeData; selected?: boole
             <div className="absolute inset-0 opacity-10"
               style={{ backgroundImage: "repeating-linear-gradient(0deg, transparent, transparent 18px, rgba(74,222,128,0.3) 18px, rgba(74,222,128,0.3) 19px)" }} />
             <span className="text-4xl relative z-10">{cfg.emoji}</span>
+            {data.chapter_number != null && (
+              <div className="absolute bottom-1 right-1 z-10 flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-black/70 backdrop-blur-sm border border-white/20 text-[9px] font-semibold text-white/80 leading-none">
+                Chap. {data.chapter_number}
+              </div>
+            )}
           </div>
         ) : (
           <div className={["relative w-full h-[110px]", TYPE_PLACEHOLDER_BG[loreNode.type] ?? "bg-black/60"].join(" ")}>
@@ -133,6 +139,11 @@ function LoreNodeCard({ data, selected }: { data: LoreNodeData; selected?: boole
             ) : (
               <div className="w-full h-full flex items-center justify-center">
                 <span className="text-4xl opacity-50">{cfg.emoji}</span>
+              </div>
+            )}
+            {data.chapter_number != null && (
+              <div className="absolute bottom-1 right-1 z-10 flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-black/70 backdrop-blur-sm border border-white/20 text-[9px] font-semibold text-white/80 leading-none">
+                Chap. {data.chapter_number}
               </div>
             )}
           </div>
@@ -1049,6 +1060,11 @@ export function LoreGraphView({ project, assets }: Props) {
   const { user } = useAuth();
   const userId = user?.id ?? "";
 
+  const { data: editionChapters = [] } = useChapters(project.id);
+  const chapterMap = useMemo(
+    () => new Map(editionChapters.map((c) => [c.id, c.chapter_number])),
+    [editionChapters]
+  );
 
   const { data: loreNodes = [], isLoading } = useLoreNodes(project.id);
   const { data: loreEdges = [] } = useLoreEdges(project.id);
@@ -1099,13 +1115,32 @@ export function LoreGraphView({ project, assets }: Props) {
     // Intentionnellement : ne dépend que de loreNodes pour éviter une boucle infinie
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loreNodes]);
+  const { toast } = useToast();
+  const updateProject = useUpdateProject();
+  const [loreText, setLoreText] = useState(project.universe_lore ?? project.description ?? "");
+  const [formDone, setFormDone] = useState(!!project.universe_lore);
+  const [loreFormSaving, setLoreFormSaving] = useState(false);
+
+  const handleLoreFormSave = useCallback(async () => {
+    setLoreFormSaving(true);
+    try {
+      await updateProject.mutateAsync({ id: project.id, updates: { universe_lore: loreText.trim() } });
+      toast({ title: "Univers initialisé — Ariane va scanner ton scénario" });
+      setFormDone(true);
+    } catch {
+      toast({ title: "Erreur", description: "Impossible de sauvegarder.", variant: "destructive" });
+    } finally {
+      setLoreFormSaving(false);
+    }
+  }, [loreText, project.id, updateProject, toast]);
+
   const [worldRulesOpen, setWorldRulesOpen] = useState(false);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [addEventDialogOpen, setAddEventDialogOpen] = useState(false);
   const [editingEdge, setEditingEdge] = useState<LoreEdge | null>(null);
   const [edgeEditOpen, setEdgeEditOpen] = useState(false);
 
-  const { proposals, acceptProposal, acceptAll, dismissProposal, isAccepting } =
+  const { proposals, forcedInfo, acceptProposal, dismissProposal, isAccepting } =
     useArianeLoreProposals(project.id);
 
   // Résout l'image d'un nœud : lore_node.image_url → asset.image_url → asset.image_url_sheet
@@ -1133,11 +1168,15 @@ export function LoreGraphView({ project, assets }: Props) {
       return loreNodes.map((n) => ({
         id: n.id,
         position: prevPos.get(n.id) ?? { x: n.pos_x, y: n.pos_y },
-        data: { label: n.name, loreNode: { ...n, image_url: resolveNodeImage(n) } },
+        data: {
+          label: n.name,
+          loreNode: { ...n, image_url: resolveNodeImage(n) },
+          chapter_number: n.chapter_id ? (chapterMap.get(n.chapter_id) ?? null) : null,
+        },
         type: "loreNode",
       }));
     });
-  }, [loreNodes, assets, setRfNodes, resolveNodeImage]);
+  }, [loreNodes, assets, setRfNodes, resolveNodeImage, chapterMap]);
 
   // Auto-heal : si un nœud a asset_id mais image_url null en BDD, on le corrige une fois
   useEffect(() => {
@@ -1402,10 +1441,18 @@ export function LoreGraphView({ project, assets }: Props) {
     setSelectedNode(updated);
     setRfNodes((prev) => prev.map((rn) =>
       rn.id === updated.id
-        ? { ...rn, data: { label: updated.name, loreNode: { ...updated, image_url: resolveNodeImage(updated) } } }
+        ? {
+            ...rn,
+            data: {
+              ...rn.data,
+              label: updated.name,
+              loreNode: { ...updated, image_url: resolveNodeImage(updated) },
+              chapter_number: updated.chapter_id ? (chapterMap.get(updated.chapter_id) ?? null) : null,
+            },
+          }
         : rn
     ));
-  }, [resolveNodeImage, setRfNodes]);
+  }, [resolveNodeImage, setRfNodes, chapterMap]);
 
   // ── applyLayout — Animation + persistance partagée par les 3 layouts ────────
   // Anime depuis la position courante vers les cibles en 600ms ease-out-cubic.
@@ -1768,11 +1815,41 @@ export function LoreGraphView({ project, assets }: Props) {
         </ReactFlow>
       </LoreEdgesCtx.Provider>
 
-      {/* État vide */}
-      {!isLoading && loreNodes.length === 0 && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 pointer-events-none">
-          <p className="text-muted-foreground/60 text-sm">Ton univers est vide</p>
-          <p className="text-muted-foreground/40 text-xs">Clique sur + pour ajouter ton premier élément</p>
+      {/* État vide — formulaire guidé Règles du Monde */}
+      {!formDone && !isLoading && loreNodes.length === 0 && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 px-4">
+          <div className="glass border border-white/10 rounded-2xl shadow-dream p-6 w-full max-w-md space-y-4">
+            <div className="flex items-center gap-2.5">
+              <Globe className="h-5 w-5 text-amber-400 shrink-0" />
+              <h2 className="text-base font-semibold text-gradient">Construis ton Univers</h2>
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Ariane scannera ton scénario pour peupler l'univers automatiquement. Commence par décrire les lois fondamentales de ton monde.
+            </p>
+            <div className="space-y-1.5">
+              <Textarea
+                value={loreText}
+                onChange={(e) => setLoreText(e.target.value.slice(0, 1000))}
+                placeholder="Magie, règles du monde, sociétés, géographie globale, lois qui régissent tout…"
+                className="resize-none h-28 text-sm bg-white/5 border-white/10 focus-visible:ring-amber-500/40"
+              />
+              <p className="text-[10px] text-muted-foreground/60 text-right">{loreText.length}/1000</p>
+            </div>
+            <Button
+              onClick={handleLoreFormSave}
+              disabled={loreFormSaving || loreText.trim().length === 0}
+              className="w-full gradient-primary text-white font-semibold"
+            >
+              {loreFormSaving ? (
+                <><Loader2 className="h-4 w-4 animate-spin mr-2" />Sauvegarde…</>
+              ) : (
+                "Démarrer"
+              )}
+            </Button>
+          </div>
+          <p className="text-[11px] text-muted-foreground/50 pointer-events-none">
+            Ou ajoute directement un élément ↑
+          </p>
         </div>
       )}
 
@@ -1849,14 +1926,11 @@ export function LoreGraphView({ project, assets }: Props) {
 
       <LoreUniversProposalsSheet
         proposals={proposals}
+        forcedInfo={forcedInfo}
         onAccept={acceptProposal}
-        onAcceptAll={acceptAll}
         onDismiss={dismissProposal}
         isAccepting={isAccepting}
-        onNodeCreated={(node) => {
-          setSelectedNode(node);
-          setSheetOpen(true);
-        }}
+        onNodeCreated={handleNodeCreated}
       />
 
       {/* Bouton Monde — au-dessus du FAB Ariane */}

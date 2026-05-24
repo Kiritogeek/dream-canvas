@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Check, X, BookOpen, Link2, BookMarked, Sparkles, Tag, Zap } from "lucide-react";
+import { X, BookOpen, Link2, BookMarked, Sparkles, Tag, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -61,7 +61,6 @@ interface Props {
   proposals: CompassProposal[];
   forcedInfo?: Record<string, ForcedReason>;
   onAccept: (proposal: CompassProposal, onNodeCreated?: (node: LoreNode) => void, connectionLabel?: string) => void;
-  onAcceptAll: () => void;
   onDismiss: (id: string) => void;
   isAccepting: boolean;
   onNodeCreated: (node: LoreNode) => void;
@@ -112,7 +111,6 @@ export function LoreUniversProposalsSheet({
   proposals,
   forcedInfo,
   onAccept,
-  onAcceptAll,
   onDismiss,
   isAccepting,
   onNodeCreated,
@@ -135,10 +133,6 @@ export function LoreUniversProposalsSheet({
     }
   };
 
-  const handleAcceptAll = () => {
-    onAcceptAll();
-    setOpen(false);
-  };
 
   const grouped = SECTION_ORDER.reduce<Record<string, CompassProposal[]>>((acc, type) => {
     acc[type] = proposals.filter((p) => p.proposal_type === type);
@@ -236,22 +230,6 @@ export function LoreUniversProposalsSheet({
           </SheetHeader>
 
           <div className="py-3 space-y-3 flex-1 min-h-0 flex flex-col">
-            {count > 1 && (
-              <div className="flex justify-end">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={handleAcceptAll}
-                  disabled={isAccepting}
-                  className="h-8 text-xs gap-1.5"
-                >
-                  <Check className="h-3.5 w-3.5" />
-                  Tout ajouter
-                </Button>
-              </div>
-            )}
-
             <ScrollArea className="flex-1 min-h-[50vh] pr-2">
               <div className="space-y-5 pb-4">
                 {activeSections.map((type, sectionIndex) => {

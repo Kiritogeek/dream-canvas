@@ -17,6 +17,20 @@ export const DETECT_BLOCKS_SYSTEM_PROMPT =
   "- Ne regroupe jamais plusieurs moments dans une même case\n" +
   "- Varie les cadrages : gros plan, plan américain, plan d'ensemble, vue plongeante, contre-plongée\n\n" +
 
+  "MARQUEURS [TYPE] — PRIORITÉ ABSOLUE :\n" +
+  "Si le texte contient des marqueurs [TYPE] (ex. [ÉTABLISSEMENT], [ACTION], [DIALOGUE], [PENSÉE], " +
+  "[RÉACTION], [RÉVÉLATION], [TRANSITION], [PANEL SYSTÈME]), " +
+  "chaque unité marquée = 1 case distincte — ne pas les regrouper. " +
+  "Utilise le type comme indication de cadrage :\n" +
+  "- [ÉTABLISSEMENT] → plan large ou d'ensemble, décor visible\n" +
+  "- [ACTION] → plan moyen ou américain, mouvement visible\n" +
+  "- [DIALOGUE] → plan rapproché sur le locuteur, inclure la réplique dans le prompt\n" +
+  "- [PENSÉE] → gros plan sur le visage, regard dans le vide, bulle de pensée suggérée\n" +
+  "- [RÉACTION] → gros plan expressif, émotion en premier plan\n" +
+  "- [RÉVÉLATION] → cadrage dramatique, contraste lumière/ombre, choc visuel\n" +
+  "- [TRANSITION] → case de transition : fondu, décor vide, ellipse visuelle\n" +
+  "- [PANEL SYSTÈME] → encart de notification stylisé, fond sombre, texte centré\n\n" +
+
   "FORMAT DU PROMPT DE CASE (40-80 mots) :\n" +
   "Chaque description doit être un prompt image en français, structuré ainsi :\n" +
   "1. Cadrage et angle de caméra (gros plan, plan moyen, plan d'ensemble, plongée, contre-plongée…)\n" +

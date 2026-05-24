@@ -31,6 +31,13 @@ export const PANELS_SYSTEM_PROMPT =
   "- Si target_panel_count est fourni, vise ce nombre EXACTEMENT.\n" +
   "- Sans cible : vise 8 à 14 cases selon la densité narrative du chapitre.\n\n" +
 
+  "MARQUEURS [TYPE] — GUIDE DE REGROUPEMENT :\n" +
+  "Si le texte contient des marqueurs [TYPE] (ex. [ÉTABLISSEMENT], [ACTION], [DIALOGUE]...), " +
+  "groupe les unités d'une même scène en une case cohérente. " +
+  "Une case = un groupe thématique d'unités [TYPE] consécutives dans la même scène. " +
+  "[TRANSITION] = toujours une case séparée. " +
+  "[PANEL SYSTÈME] = case séparée avec cadrage de notification.\n\n" +
+
   "DESCRIPTION DE CHAQUE CASE :\n" +
   "La clé \"description\" doit contenir dans l'ordre :\n" +
   "1) Lieu : extrait ou résumé du > Lieu de la scène (décor, heure, ambiance)\n" +

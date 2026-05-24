@@ -31,6 +31,12 @@ interface LoreConnectionPrefill {
   proposed_label?: string;
 }
 
+interface LoreEventPrefill {
+  event_name: string;
+  chapter_number: number;
+  chapter_id: string;
+}
+
 const ASSET_TO_LORE_TYPE: Record<string, LoreNodeType> = {
   character: "character",
   background: "location",
@@ -62,7 +68,7 @@ export function useArianeLoreProposals(projectId: string, { enableAutoScan = tru
         .from("compass_proposals")
         .select("*")
         .eq("project_id", projectId)
-        .in("proposal_type", ["lore_asset", "lore_chapter_update", "lore_connection"])
+        .in("proposal_type", ["lore_asset", "lore_chapter_update", "lore_connection", "lore_event"])
         .eq("status", "active")
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -84,7 +90,7 @@ export function useArianeLoreProposals(projectId: string, { enableAutoScan = tru
       supabase.from("assets").select("id, name, asset_type, prompt").eq("project_id", projectId),
       supabase.from("scenario_chapters").select("id, chapter_number, content, validated").eq("project_id", projectId).order("chapter_number"),
       supabase.from("lore_nodes").select("id, name, asset_id, chapter_id, type").eq("project_id", projectId),
-      supabase.from("compass_proposals").select("dedupe_key").eq("project_id", projectId).in("proposal_type", ["lore_asset", "lore_chapter_update", "lore_connection"]),
+      supabase.from("compass_proposals").select("dedupe_key").eq("project_id", projectId).in("proposal_type", ["lore_asset", "lore_chapter_update", "lore_connection", "lore_event"]),
       supabase.from("projects").select("description").eq("id", projectId).single(),
     ]);
 
@@ -412,6 +418,26 @@ export function useArianeLoreProposals(projectId: string, { enableAutoScan = tru
           label: connectionLabel?.trim() || null,
         });
         if (error) throw error;
+      } else if (proposal.proposal_type === "lore_event") {
+        const prefill = proposal.prefill_data as unknown as LoreEventPrefill;
+        const { data: newNode, error: nodeError } = await supabase
+          .from("lore_nodes")
+          .insert({
+            project_id: projectId,
+            user_id: user.id,
+            type: "event" as LoreNodeType,
+            name: prefill.event_name,
+            description: null,
+            image_url: null,
+            asset_id: null,
+            chapter_id: prefill.chapter_id,
+            pos_x: 200 + Math.random() * 400,
+            pos_y: 200 + Math.random() * 300,
+          })
+          .select("*")
+          .single();
+        if (nodeError) throw nodeError;
+        onNodeCreated?.(newNode as LoreNode);
       } else {
         // lore_asset
         const prefill = proposal.prefill_data as unknown as LorePrefillData;
@@ -513,7 +539,7 @@ export function useArianeLoreProposals(projectId: string, { enableAutoScan = tru
       .from("compass_proposals")
       .select("dedupe_key, proposal_type, title, content, prefill_data")
       .eq("project_id", projectId)
-      .in("proposal_type", ["lore_asset", "lore_chapter_update", "lore_connection"])
+      .in("proposal_type", ["lore_asset", "lore_chapter_update", "lore_connection", "lore_event"])
       .eq("status", "dismissed");
     const dismissedDedupeKeys = new Set((dismissed ?? []).map((p) => p.dedupe_key));
     // Map dedupe_key → full dismissed proposal (pour ré-insérer même si absent du texte)
@@ -526,7 +552,7 @@ export function useArianeLoreProposals(projectId: string, { enableAutoScan = tru
       .from("compass_proposals")
       .delete()
       .eq("project_id", projectId)
-      .in("proposal_type", ["lore_asset", "lore_chapter_update", "lore_connection"]);
+      .in("proposal_type", ["lore_asset", "lore_chapter_update", "lore_connection", "lore_event"]);
 
     // Fetch toutes les données nécessaires
     const [
@@ -670,6 +696,39 @@ export function useArianeLoreProposals(projectId: string, { enableAutoScan = tru
           if (connectionCount >= 5) break outer;
         }
       }
+    }
+
+    // ── lore_event : extraction IA des événements narratifs (chapitres validés) ──
+    const existingEventNames = new Set(
+      loreNodeRows.filter(n => n.type === "event").map(n => n.name?.toLowerCase().trim()).filter(Boolean) as string[]
+    );
+    for (const sc of validatedChapters) {
+      if (!sc.content?.trim()) continue;
+      try {
+        const { data, error } = await supabase.functions.invoke("generate-scenario-ai", {
+          body: { mode: "extract_events", chapter_content: sc.content, chapter_number: sc.chapter_number },
+        });
+        if (error || !Array.isArray(data?.events)) continue;
+        for (const eventName of (data.events as string[]).slice(0, 5)) {
+          const trimmed = eventName.trim();
+          if (!trimmed || trimmed.length < 3) continue;
+          const slug = trimmed.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "").slice(0, 50);
+          const dedupeKey = `lore_event-${sc.id}-${slug}`;
+          if (existingEventNames.has(trimmed.toLowerCase())) {
+            reasonByDedupe.set(dedupeKey, "already_exists");
+          } else if (dismissedDedupeKeys.has(dedupeKey)) {
+            reasonByDedupe.set(dedupeKey, "ignored");
+          }
+          forceInserts.push({
+            project_id: projectId, user_id: user.id,
+            proposal_type: "lore_event", origin: "extracted",
+            title: trimmed,
+            content: `Chapitre ${sc.chapter_number}`,
+            prefill_data: { event_name: trimmed, chapter_number: sc.chapter_number, chapter_id: sc.id } satisfies LoreEventPrefill,
+            status: "active", dedupe_key: dedupeKey,
+          });
+        }
+      } catch { /* graceful: skip chapter */ }
     }
 
     // Ré-insérer les proposals dismissées non capturées par le scan normal (asset plus dans le texte, etc.)

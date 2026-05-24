@@ -6,12 +6,14 @@
 // le même format body/parsing qu'auparavant sans adaptation.
 //
 // Modes supportés :
-//   "scenario"             → IA Scénario (scénariste, au service de l'UTILISATEUR)
-//   "chapter"              → IA Chapitre (éditeur, au service du LECTEUR)
-//   "panels"               → Découpage panels (JSON)
-//   "detect_blocks"        → Détection de blocs visuels (JSON)
-//   "ai_summary"           → Résumé de chapitre
-//   "suggest_block_prompt" → Suggestion de prompt pour un bloc
+//   "scenario"                  → IA Scénario (scénariste, au service de l'UTILISATEUR)
+//   "chapter"                   → IA Chapitre (éditeur, au service du LECTEUR)
+//   "panels"                    → Découpage panels (JSON)
+//   "detect_blocks"             → Détection de blocs visuels (JSON)
+//   "ai_summary"                → Résumé de chapitre
+//   "suggest_block_prompt"      → Suggestion de prompt pour un bloc
+//   "suggest_connection_label"  → Suggestion de nom de connexion Ariane Univers
+//   "extract_events"            → Extraction d'événements narratifs d'un chapitre (JSON)
 
 import { getCorsHeaders, makeJsonResponse, isAllowedOriginConfigured } from "../_shared/cors.ts";
 
@@ -50,6 +52,14 @@ import {
   NARRATIVE_DIRECTIONS_SYSTEM_PROMPT,
   NARRATIVE_DIRECTIONS_SYSTEM_PROMPT_CHAPTER_1,
 } from "./system-prompts/narrative-directions.ts";
+import {
+  SUGGEST_CONNECTION_LABEL_SYSTEM_PROMPT,
+  buildSuggestConnectionLabelPrompt,
+} from "./system-prompts/suggest-connection-label.ts";
+import {
+  EXTRACT_EVENTS_SYSTEM_PROMPT,
+  buildExtractEventsPrompt,
+} from "./system-prompts/extract-events.ts";
 
 // ═══════════════════════════════════════════════════════════════
 // CONFIGURATION
@@ -407,7 +417,7 @@ Deno.serve(async (req) => {
 
     // 4. Parse body
     let body: {
-      mode?: "scenario" | "chapter" | "panels" | "detect_blocks" | "ai_summary" | "suggest_block_prompt" | "baseline" | "narramind" | "narrative_directions";
+      mode?: "scenario" | "chapter" | "panels" | "detect_blocks" | "ai_summary" | "suggest_block_prompt" | "baseline" | "narramind" | "narrative_directions" | "suggest_connection_label" | "extract_events";
       prompt?: string;
       num_chapters?: number;
       existing_content?: string;
@@ -420,6 +430,13 @@ Deno.serve(async (req) => {
       target_panel_count?: number;
       previous_summaries?: string;
       previous_prompts?: string[];
+      from_name?: string;
+      from_type?: string;
+      from_description?: string;
+      to_name?: string;
+      to_type?: string;
+      to_description?: string;
+      context_excerpt?: string;
     };
     try {
       body = (await req.json()) as typeof body;
@@ -430,12 +447,12 @@ Deno.serve(async (req) => {
     const { mode, prompt } = body;
     if (
       !mode ||
-      !["scenario", "chapter", "panels", "detect_blocks", "ai_summary", "suggest_block_prompt", "baseline", "narramind", "narrative_directions"].includes(mode)
+      !["scenario", "chapter", "panels", "detect_blocks", "ai_summary", "suggest_block_prompt", "baseline", "narramind", "narrative_directions", "suggest_connection_label", "extract_events"].includes(mode)
     ) {
       return jsonResponse({ error: 'Le champ "mode" est requis.' }, 400);
     }
     if (
-      !["panels", "detect_blocks", "ai_summary", "suggest_block_prompt", "baseline", "narramind", "narrative_directions"].includes(mode) &&
+      !["panels", "detect_blocks", "ai_summary", "suggest_block_prompt", "baseline", "narramind", "narrative_directions", "suggest_connection_label", "extract_events"].includes(mode) &&
       !prompt?.trim()
     ) {
       return jsonResponse(
@@ -690,6 +707,27 @@ ${isFirstChapter
   : `Génère 3 directions narratives pour le Chapitre ${nextChapterNumber}.`
 }`;
 
+    } else if (mode === "suggest_connection_label") {
+      if (!body.from_name || !body.to_name) {
+        return jsonResponse({ error: '"from_name" et "to_name" requis pour suggest_connection_label.' }, 400);
+      }
+      systemPrompt = SUGGEST_CONNECTION_LABEL_SYSTEM_PROMPT;
+      userPrompt = buildSuggestConnectionLabelPrompt({
+        fromName: body.from_name,
+        fromType: body.from_type ?? "élément",
+        fromDescription: body.from_description,
+        toName: body.to_name,
+        toType: body.to_type ?? "élément",
+        toDescription: body.to_description,
+        contextExcerpt: body.context_excerpt,
+      });
+    } else if (mode === "extract_events") {
+      if (!body.chapter_content?.trim()) {
+        return jsonResponse({ error: '"chapter_content" requis pour extract_events.' }, 400);
+      }
+      systemPrompt = EXTRACT_EVENTS_SYSTEM_PROMPT;
+      const safeContent = shrinkTextByTokens(body.chapter_content.trim(), 3_000);
+      userPrompt = buildExtractEventsPrompt(safeContent, body.chapter_number ?? 1);
     } else {
       // mode === "baseline"
       if (!body.project_id) {
@@ -727,7 +765,7 @@ Maintenant, écris le chapitre suivant en respectant les personnages, décors et
     });
 
     // Activer le mode JSON strict pour les modes structurés
-    const jsonMode = mode === "panels" || mode === "detect_blocks" || mode === "narrative_directions";
+    const jsonMode = mode === "panels" || mode === "detect_blocks" || mode === "narrative_directions" || mode === "extract_events";
     const result = await callAI(systemPrompt, userPrompt, geminiKey, jsonMode, requestId);
 
     if ("error" in result) {
@@ -859,6 +897,29 @@ Maintenant, écris le chapitre suivant en respectant les personnages, décors et
       }
       const directions = Array.isArray(parsed.directions) ? parsed.directions : [];
       return jsonResponse({ directions, mode, model: result.modelUsed, request_id: requestId }, 200);
+    }
+
+    // Mode suggest_connection_label : retourner { label }
+    if (mode === "suggest_connection_label") {
+      const label = result.text.trim().replace(/^["']|["']$/g, "").slice(0, 50);
+      return jsonResponse({ label, mode, model: result.modelUsed, request_id: requestId }, 200);
+    }
+
+    // Mode extract_events : parser le tableau JSON et retourner { events }
+    if (mode === "extract_events") {
+      let events: string[] = [];
+      try {
+        const raw = result.text.trim();
+        const startIdx = raw.indexOf("[");
+        const endIdx = raw.lastIndexOf("]");
+        if (startIdx !== -1 && endIdx !== -1) {
+          const parsed = JSON.parse(raw.slice(startIdx, endIdx + 1));
+          if (Array.isArray(parsed)) {
+            events = parsed.filter((e): e is string => typeof e === "string" && e.trim().length > 0).slice(0, 5);
+          }
+        }
+      } catch { /* graceful: events = [] */ }
+      return jsonResponse({ events, mode, model: result.modelUsed, request_id: requestId }, 200);
     }
 
     // Modes texte : scenario, chapter, ai_summary, suggest_block_prompt

@@ -55,13 +55,30 @@ export interface SuggestBlockPromptRequest {
   previous_prompts?: string[];
 }
 
+export interface NarrativeDirectionsRequest {
+  mode: "narrative_directions";
+  project_id: string;
+}
+
+export interface NarrativeDirection {
+  title: string;
+  body: string;
+}
+
+export interface NarrativeDirectionsResponse {
+  directions: NarrativeDirection[];
+  mode: "narrative_directions";
+  model: string;
+}
+
 export type AIRequest =
   | ScenarioAIRequest
   | ChapterAIRequest
   | PanelsAIRequest
   | DetectBlocksRequest
   | AiSummaryRequest
-  | SuggestBlockPromptRequest;
+  | SuggestBlockPromptRequest
+  | NarrativeDirectionsRequest;
 
 export interface AIResponse {
   text: string;
@@ -202,6 +219,16 @@ export async function callSuggestBlockPrompt(
   payload: SuggestBlockPromptRequest
 ): Promise<SuggestBlockPromptResponse> {
   return callEdgeFunction<SuggestBlockPromptResponse>(payload);
+}
+
+/** Génère des directions narratives basées sur le Lore + scénario du projet. */
+export async function generateNarrativeDirections(
+  projectId: string
+): Promise<NarrativeDirectionsResponse> {
+  return callEdgeFunction<NarrativeDirectionsResponse>({
+    mode: "narrative_directions",
+    project_id: projectId,
+  });
 }
 
 // ── NarraMind Update ──────────────────────────────────────────

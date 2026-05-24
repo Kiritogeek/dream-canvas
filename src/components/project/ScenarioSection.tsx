@@ -15,7 +15,9 @@ import {
   MousePointer2,
   ArrowRight,
   CheckCircle2,
+  Compass,
 } from "lucide-react";
+import { ArianeNarrativeSheet } from "./ArianeNarrativeSheet";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -95,6 +97,7 @@ export function ScenarioSection({ projectId, project }: ScenarioSectionProps) {
   const [aiResult, setAiResult] = useState<string | null>(null);
   const [isAccepting, setIsAccepting] = useState(false);
   const [showChapterChoiceDialog, setShowChapterChoiceDialog] = useState(false);
+  const [narrativeSheetOpen, setNarrativeSheetOpen] = useState(false);
   const [selectedAiChapterNumber, setSelectedAiChapterNumber] = useState<number>(
     chapterNumberChoices[0] ?? nextChapterNumber
   );
@@ -290,6 +293,15 @@ export function ScenarioSection({ projectId, project }: ScenarioSectionProps) {
             )}
           </Button>
 
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => setNarrativeSheetOpen(true)}
+            className="gap-2 px-4 py-2.5 rounded-xl text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 border border-amber-500/25 hover:border-amber-500/40 transition-all"
+          >
+            <Compass className="h-4 w-4" />
+            Directions narratives
+          </Button>
         </div>
 
         <AIChapterPreviewModal
@@ -364,6 +376,12 @@ export function ScenarioSection({ projectId, project }: ScenarioSectionProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ArianeNarrativeSheet
+        open={narrativeSheetOpen}
+        onOpenChange={setNarrativeSheetOpen}
+        projectId={projectId}
+      />
 
       {/* ── Chapitres ────────────────────────────────────────── */}
       <div className="rounded-2xl p-6 sm:p-8 space-y-5 border border-[hsl(var(--peach)/0.65)] dark:border-[hsl(var(--peach)/0.3)] bg-white/85 dark:bg-card/30 shadow-sm">

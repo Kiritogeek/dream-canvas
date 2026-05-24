@@ -46,6 +46,7 @@ import {
   SUGGEST_PROMPT_SYSTEM_PROMPT,
   buildSuggestPromptPrompt,
 } from "./system-prompts/suggest-prompt.ts";
+import { NARRATIVE_DIRECTIONS_SYSTEM_PROMPT } from "./system-prompts/narrative-directions.ts";
 
 // ═══════════════════════════════════════════════════════════════
 // CONFIGURATION
@@ -365,7 +366,7 @@ Deno.serve(async (req) => {
 
     // 4. Parse body
     let body: {
-      mode?: "scenario" | "chapter" | "panels" | "detect_blocks" | "ai_summary" | "suggest_block_prompt" | "baseline" | "narramind";
+      mode?: "scenario" | "chapter" | "panels" | "detect_blocks" | "ai_summary" | "suggest_block_prompt" | "baseline" | "narramind" | "narrative_directions";
       prompt?: string;
       num_chapters?: number;
       existing_content?: string;
@@ -388,12 +389,12 @@ Deno.serve(async (req) => {
     const { mode, prompt } = body;
     if (
       !mode ||
-      !["scenario", "chapter", "panels", "detect_blocks", "ai_summary", "suggest_block_prompt", "baseline", "narramind"].includes(mode)
+      !["scenario", "chapter", "panels", "detect_blocks", "ai_summary", "suggest_block_prompt", "baseline", "narramind", "narrative_directions"].includes(mode)
     ) {
       return jsonResponse({ error: 'Le champ "mode" est requis.' }, 400);
     }
     if (
-      !["panels", "detect_blocks", "ai_summary", "suggest_block_prompt", "baseline", "narramind"].includes(mode) &&
+      !["panels", "detect_blocks", "ai_summary", "suggest_block_prompt", "baseline", "narramind", "narrative_directions"].includes(mode) &&
       !prompt?.trim()
     ) {
       return jsonResponse(
@@ -542,6 +543,97 @@ RÈGLES ABSOLUES :
 
 Écris le chapitre demandé.`;
       userPrompt = prompt?.trim() ?? 'Écris le prochain chapitre.';
+    } else if (mode === "narrative_directions") {
+      if (!body.project_id) {
+        return jsonResponse({ error: '"project_id" requis pour narrative_directions.' }, 400);
+      }
+
+      const headers = { apikey: serviceKey!, Authorization: `Bearer ${serviceKey}` };
+      const base = `${supabaseUrl}/rest/v1`;
+
+      const [nodesRes, edgesRes, proposalsRes, chaptersRes] = await Promise.all([
+        fetch(`${base}/lore_nodes?project_id=eq.${body.project_id}&select=id,name,type,description&order=type.asc`, { headers }),
+        fetch(`${base}/lore_edges?project_id=eq.${body.project_id}&select=from_node_id,to_node_id,label`, { headers }),
+        fetch(`${base}/compass_proposals?project_id=eq.${body.project_id}&proposal_type=eq.lore_asset&status=eq.active&select=title`, { headers }),
+        fetch(`${base}/scenario_chapters?project_id=eq.${body.project_id}&select=chapter_number,title,content,ai_summary&order=chapter_number.desc&limit=5`, { headers }),
+      ]);
+
+      type LoreNodeRow = { id: string; name: string; type: string; description: string | null };
+      type LoreEdgeRow = { from_node_id: string; to_node_id: string; label: string | null };
+      type ProposalRow = { title: string };
+      type ChapterRow = { chapter_number: number; title: string; content: string | null; ai_summary: string | null };
+
+      const nodes: LoreNodeRow[]   = nodesRes.ok     ? await nodesRes.json()     : [];
+      const edges: LoreEdgeRow[]   = edgesRes.ok     ? await edgesRes.json()     : [];
+      const proposals: ProposalRow[] = proposalsRes.ok ? await proposalsRes.json() : [];
+      const chaptersRaw: ChapterRow[] = chaptersRes.ok ? await chaptersRes.json()  : [];
+      const chapters = [...chaptersRaw].sort((a, b) => a.chapter_number - b.chapter_number);
+
+      // Map id → name pour les connexions
+      const nodeById = new Map(nodes.map((n) => [n.id, n.name]));
+
+      // Groupe par type
+      const byType: Record<string, LoreNodeRow[]> = {};
+      for (const n of nodes) {
+        if (!byType[n.type]) byType[n.type] = [];
+        byType[n.type].push(n);
+      }
+
+      const TYPE_LABEL: Record<string, string> = {
+        character: "Personnages",
+        location: "Lieux",
+        object: "Objets",
+        event: "Événements",
+      };
+
+      const loreSection = Object.entries(byType)
+        .map(([type, list]) => {
+          const label = TYPE_LABEL[type] ?? type;
+          const items = list.map((n) =>
+            `  - ${n.name}${n.description?.trim() ? ` : "${clip(n.description.trim(), 200)}"` : " (aucune description)"}`
+          ).join("\n");
+          return `${label} :\n${items}`;
+        })
+        .join("\n\n") || "(Univers vide — aucun élément cartographié)";
+
+      const connectionsSection = edges.length > 0
+        ? edges
+            .map((e) => `  - ${nodeById.get(e.from_node_id) ?? "?"} ↔ ${nodeById.get(e.to_node_id) ?? "?"}${e.label ? ` (${e.label})` : ""}`)
+            .join("\n")
+        : "  (aucune connexion)";
+
+      const pendingSection = proposals.length > 0
+        ? proposals.map((p) => `  - ${p.title}`).join("\n")
+        : "  (aucun)";
+
+      const chaptersSection = chapters.length > 0
+        ? chapters.map((c) => {
+            const summary = c.ai_summary?.trim();
+            const content = c.content?.trim();
+            const body = summary
+              ? `Résumé : ${clip(summary, 300)}`
+              : content
+                ? clip(content, 400)
+                : "(vide)";
+            return `Chapitre ${c.chapter_number} — ${c.title}\n${body}`;
+          }).join("\n\n---\n\n")
+        : "(aucun chapitre écrit)";
+
+      systemPrompt = NARRATIVE_DIRECTIONS_SYSTEM_PROMPT;
+      userPrompt = `UNIVERS CARTOGRAPHIÉ :
+${loreSection}
+
+CONNEXIONS :
+${connectionsSection}
+
+ÉLÉMENTS DÉTECTÉS DANS LE SCÉNARIO MAIS PAS ENCORE DANS L'UNIVERS :
+${pendingSection}
+
+SCÉNARIO (derniers chapitres) :
+${chaptersSection}
+
+Génère 4 directions narratives pour la suite de cette histoire.`;
+
     } else {
       // mode === "baseline"
       if (!body.project_id) {
@@ -579,7 +671,7 @@ Maintenant, écris le chapitre suivant en respectant les personnages, décors et
     });
 
     // Activer le mode JSON strict pour les modes structurés
-    const jsonMode = mode === "panels" || mode === "detect_blocks";
+    const jsonMode = mode === "panels" || mode === "detect_blocks" || mode === "narrative_directions";
     const result = await callAI(systemPrompt, userPrompt, geminiKey, jsonMode, requestId);
 
     if ("error" in result) {
@@ -698,6 +790,19 @@ Maintenant, écris le chapitre suivant en respectant les personnages, décors et
         );
       }
       return jsonResponse({ blocks, mode, model: result.modelUsed, request_id: requestId }, 200);
+    }
+
+    // Mode narrative_directions : parser le JSON et retourner { directions }
+    if (mode === "narrative_directions") {
+      const cleaned = extractJsonObject(result.text);
+      let parsed: { directions?: Array<{ title: string; body: string }> };
+      try {
+        parsed = JSON.parse(cleaned) as typeof parsed;
+      } catch {
+        return jsonResponse({ error: "Ariane n'a pas pu générer des directions valides. Réessayez." }, 502);
+      }
+      const directions = Array.isArray(parsed.directions) ? parsed.directions : [];
+      return jsonResponse({ directions, mode, model: result.modelUsed, request_id: requestId }, 200);
     }
 
     // Modes texte : scenario, chapter, ai_summary, suggest_block_prompt

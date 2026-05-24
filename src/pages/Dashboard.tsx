@@ -52,6 +52,14 @@ export default function Dashboard() {
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle.trim()) return;
+    if (!newSynopsis.trim()) {
+      toast({ title: "Synopsis requis", description: "Décris ton histoire en quelques phrases pour qu'Ariane puisse t'aider dès l'Univers.", variant: "destructive" });
+      return;
+    }
+    if (!selectedGenre) {
+      toast({ title: "Genre requis", description: "Choisis un genre pour que l'IA adapte ses suggestions à ton univers.", variant: "destructive" });
+      return;
+    }
     if (limits.maxProjects !== null && projectCount >= limits.maxProjects) {
       toast({
         title: "Limite de projets atteinte",
@@ -319,7 +327,7 @@ export default function Dashboard() {
             {/* Genre + Tonalité côte à côte */}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label>Genre</Label>
+                <Label>Genre <span className="text-red-400 text-xs">*</span></Label>
                 <Select value={selectedGenre} onValueChange={setSelectedGenre}>
                   <SelectTrigger>
                     <SelectValue placeholder="Choisir…" />
@@ -360,13 +368,17 @@ export default function Dashboard() {
 
             {/* Synopsis */}
             <div className="space-y-2">
-              <Label>Synopsis <span className="text-muted-foreground font-normal text-xs">(optionnel)</span></Label>
+              <Label>
+                Synopsis <span className="text-red-400 text-xs">*</span>
+                <span className="text-muted-foreground font-normal text-xs ml-1">— Ariane s'en sert pour peupler ton Univers</span>
+              </Label>
               <Textarea
                 value={newSynopsis}
                 onChange={(e) => setNewSynopsis(e.target.value)}
-                placeholder="En quelques phrases, de quoi parle votre histoire ?"
-                rows={3}
+                placeholder="En quelques phrases, de quoi parle ton histoire ? Quels sont les personnages principaux, le contexte, les enjeux ?"
+                rows={4}
                 className="resize-none"
+                required
               />
             </div>
 

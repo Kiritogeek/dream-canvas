@@ -59,7 +59,7 @@ export function useArianeLoreProposals(projectId: string) {
       supabase.from("assets").select("id, name, asset_type").eq("project_id", projectId),
       supabase.from("scenario_chapters").select("id, chapter_number, content").eq("project_id", projectId).order("chapter_number"),
       supabase.from("chapters").select("id, chapter_number").eq("project_id", projectId),
-      supabase.from("lore_nodes").select("asset_id").eq("project_id", projectId),
+      supabase.from("lore_nodes").select("id, asset_id, chapter_id").eq("project_id", projectId),
       supabase.from("compass_proposals").select("dedupe_key").eq("project_id", projectId).eq("proposal_type", "lore_asset"),
       supabase.from("projects").select("description").eq("id", projectId).single(),
     ]);
@@ -69,11 +69,31 @@ export function useArianeLoreProposals(projectId: string) {
     const hasContent = (scenarioChapters?.length ?? 0) > 0 || projectDescription.trim().length > 0;
     if (!hasContent) return;
 
-    const alreadyInLore = new Set(
-      (existingNodes ?? []).map((n) => n.asset_id).filter(Boolean) as string[]
-    );
+    const loreNodeRows = (existingNodes ?? []) as Array<{ id: string; asset_id: string | null; chapter_id: string | null }>;
+    const alreadyInLore = new Set(loreNodeRows.map((n) => n.asset_id).filter(Boolean) as string[]);
     const alreadyProposed = new Set((existingProposals ?? []).map((p) => p.dedupe_key));
     const canvasMap = new Map((canvasChapters ?? []).map((c) => [c.chapter_number, c.id]));
+
+    // Auto-link : lore_nodes sans chapter_id → assigner le premier chapitre où l'asset apparaît
+    const unlinkednodes = loreNodeRows.filter((n) => n.asset_id && !n.chapter_id);
+    if (unlinkednodes.length > 0 && (scenarioChapters ?? []).length > 0) {
+      for (const loreNode of unlinkednodes) {
+        const asset = (assets ?? []).find((a) => a.id === loreNode.asset_id);
+        if (!asset) continue;
+        const wordRe = new RegExp(`\\b${escapeRegex(asset.name)}\\b`, "i");
+        for (const sc of (scenarioChapters ?? [])) {
+          if (wordRe.test(sc.content ?? "")) {
+            const chapterId = canvasMap.get(sc.chapter_number) ?? null;
+            if (chapterId) {
+              await supabase.from("lore_nodes").update({ chapter_id: chapterId }).eq("id", loreNode.id);
+            }
+            break;
+          }
+        }
+      }
+      qc.invalidateQueries({ queryKey: ["lore-nodes", projectId] });
+    }
+
     const seenNames = new Set<string>();
 
     const toInsert: Array<{

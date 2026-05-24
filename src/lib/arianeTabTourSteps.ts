@@ -42,10 +42,17 @@ const SCENARIO: ArianeTabTourStep[] = [
     ],
   },
   {
+    title: "L’Univers guide l’IA",
+    paragraphs: [
+      "L’**IA Scénario** connaît déjà votre Univers : personnages, lieux, objets que vous y avez ajoutés sont injectés automatiquement dans sa mémoire.",
+      "**Générez votre Chapitre 1** — l’IA s’appuiera sur ces fondations pour rester cohérente.",
+    ],
+  },
+  {
     title: "Créer votre 1er chapitre",
     paragraphs: [
       "**Créez un chapitre** par vous-même ou utilisez l’**IA Scénario** pour vous en générer un automatiquement.",
-      "Après cela, accédez à l’onglet **Assets**.",
+      "Dès qu’un chapitre existe, je lierai automatiquement chaque élément de votre Univers au chapitre où il **apparaît pour la première fois**.",
     ],
   },
 ];
@@ -76,24 +83,24 @@ const ASSETS: ArianeTabTourStep[] = [
 
 const UNIVERSE: ArianeTabTourStep[] = [
   {
-    title: "Poser les règles de votre monde",
+    title: "Votre Univers, depuis votre synopsis",
     paragraphs: [
-      "Avant de générer des visuels, posez les **fondations de votre univers** : les règles de votre fiction, vos personnages, leurs motivations, les lois de votre monde.",
-      "C’est ce contexte que je lis pour repérer les **incohérences** avant qu’elles ne se propagent dans vos chapitres.",
+      "J’ai analysé le **synopsis** que vous avez écrit à la création du projet. Je vous propose les **personnages, lieux et objets** que j’y ai détectés — acceptez-les pour les ajouter à votre Univers en un clic.",
+      "Plus votre synopsis est détaillé, plus mes propositions sont précises.",
     ],
   },
   {
-    title: "Deux espaces d’écriture",
+    title: "Enrichir chaque fiche",
     paragraphs: [
-      "Complétez la **zone « Monde »** pour les règles globales de votre fiction. Ajoutez ensuite une **fiche** par personnage ou élément clé.",
-      "Plus vous renseignez, plus je peux vous signaler tôt ce qui risque de **tirer votre récit dans des directions différentes**.",
+      "Chaque élément de l’Univers dispose d’une **fiche Lore** : décrivez l’apparence, les motivations, les relations.",
+      "Ces descriptions sont injectées directement dans l’**IA de génération de scénario** — vos personnages resteront cohérents chapitre après chapitre.",
     ],
   },
   {
-    title: "Débloquer le Scénario",
+    title: "Le lien avec vos chapitres",
     paragraphs: [
-      "**Enregistrez au moins un bloc de lore** — monde ou fiche — pour déverrouiller l’onglet **Scénario**.",
-      "Vous pourrez alors écrire votre histoire avec un univers déjà posé pour guider la cohérence de votre récit.",
+      "Quand vous écrirez votre scénario, je détecterai **à quel chapitre chaque élément apparaît pour la première fois** et mettrai à jour sa fiche automatiquement.",
+      "**Enrichissez votre Univers maintenant** pour déverrouiller l’onglet **Scénario**.",
     ],
   },
 ];

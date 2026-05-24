@@ -77,10 +77,55 @@ const AI_FALLBACK_MODEL = "gemini-2.5-flash-lite";
 const AI_TIMEOUT_MS = 60_000;
 const AI_MAX_OUTPUT_TOKENS = 8_192;
 
+const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
+const GROQ_EXTRACT_EVENTS_MODEL = "llama-3.3-70b-versatile";
+
 
 function clip(value: string, max = 1000): string {
   if (value.length <= max) return value;
   return `${value.slice(0, max)}…`;
+}
+
+async function callGroqOnce(
+  model: string,
+  systemPrompt: string,
+  userPrompt: string,
+  apiKey: string,
+  requestId?: string
+): Promise<AIResult> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), AI_TIMEOUT_MS);
+  try {
+    const res = await fetch(GROQ_API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+        temperature: 0.2,
+        max_tokens: 512,
+      }),
+      signal: controller.signal,
+    });
+    const raw = await res.text();
+    if (!res.ok) {
+      console.error("[generate-scenario-ai] Groq error", { request_id: requestId, status: res.status, raw: clip(raw, 200) });
+      return { error: `Groq erreur ${res.status}`, status: res.status };
+    }
+    let json: { choices?: Array<{ message?: { content?: string } }> };
+    try { json = JSON.parse(raw); } catch { return { error: "Réponse Groq invalide" }; }
+    const text = json.choices?.[0]?.message?.content?.trim();
+    if (!text) return { error: "Groq n'a pas retourné de texte" };
+    return { text, modelUsed: `groq/${model}` };
+  } catch (err) {
+    if (err instanceof Error && err.name === "AbortError") return { error: "Timeout Groq." };
+    return { error: err instanceof Error ? err.message : String(err) };
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 function estimateTokens(text: string): number {
@@ -765,10 +810,33 @@ Maintenant, écris le chapitre suivant en respectant les personnages, décors et
     });
 
     // Activer le mode JSON strict pour les modes structurés
-    const jsonMode = mode === "panels" || mode === "detect_blocks" || mode === "narrative_directions" || mode === "extract_events";
+    const jsonMode = mode === "panels" || mode === "detect_blocks" || mode === "narrative_directions";
     const result = await callAI(systemPrompt, userPrompt, geminiKey, jsonMode, requestId);
 
     if ("error" in result) {
+      // Fallback Groq pour extract_events si Gemini est indisponible (quota, erreur)
+      if (mode === "extract_events") {
+        const groqKey = Deno.env.get("GROQ_API_KEY");
+        if (groqKey) {
+          const groqResult = await callGroqOnce(GROQ_EXTRACT_EVENTS_MODEL, systemPrompt, userPrompt, groqKey, requestId);
+          if ("text" in groqResult) {
+            let events: string[] = [];
+            try {
+              const raw = groqResult.text.trim();
+              const startIdx = raw.indexOf("[");
+              const endIdx = raw.lastIndexOf("]");
+              if (startIdx !== -1 && endIdx !== -1) {
+                const parsed = JSON.parse(raw.slice(startIdx, endIdx + 1));
+                if (Array.isArray(parsed)) {
+                  events = parsed.filter((e): e is string => typeof e === "string" && e.trim().length > 0).slice(0, 5);
+                }
+              }
+            } catch { /* graceful */ }
+            return jsonResponse({ events, mode, model: groqResult.modelUsed, request_id: requestId }, 200);
+          }
+        }
+      }
+
       // Propager le 429 tel quel (rate limit / quota Gemini épuisé) pour
       // que le client affiche un message dédié.
       if (result.rateLimited) {

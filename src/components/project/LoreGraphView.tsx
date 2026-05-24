@@ -1,4 +1,4 @@
-import { useCallback, useContext, useEffect, useMemo, useRef, useState, createContext } from "react";
+import { useCallback, useContext, useEffect, useRef, useState, createContext } from "react";
 import {
   ReactFlow,
   Background,
@@ -156,23 +156,7 @@ function LoreNodeCard({ data, selected }: { data: LoreNodeData; selected?: boole
   );
 }
 
-// ── ChapterLabelNode — en-tête de colonne en mode Timeline ──────────
-interface ChapterLabelData { label: string; [key: string]: unknown }
-
-function ChapterLabelNode({ data }: { data: ChapterLabelData }) {
-  return (
-    <div
-      style={{ width: NODE_CARD_W }}
-      className="flex items-center justify-center py-1.5 px-2 rounded-lg border border-amber-500/25 bg-background/90 backdrop-blur-sm text-center pointer-events-none"
-    >
-      <span className="text-[11px] font-bold text-amber-300 truncate leading-snug">
-        {data.label as string}
-      </span>
-    </div>
-  );
-}
-
-const NODE_TYPES: NodeTypes = { loreNode: LoreNodeCard, chapterLabel: ChapterLabelNode };
+const NODE_TYPES: NodeTypes = { loreNode: LoreNodeCard };
 
 // ── WorldRulesDialog ──────────────────────────────────────────────
 
@@ -396,11 +380,6 @@ function AddNodeDialog({
 const NODE_CARD_W = 150;
 const NODE_CARD_H = 140; // 110 image + 30 band
 const MIN_NODE_GAP = 60; // zone invisible autour de chaque carte
-
-// ── Timeline layout constants ─────────────────────────────────────
-const TL_COL_GAP = 50;  // espace horizontal entre colonnes
-const TL_HDR_H   = 72;  // hauteur réservée aux labels de chapitre
-const TL_ROW_GAP = 24;  // espace vertical entre cartes
 
 // ── deconflict — résolution des chevauchements (partagée entre les layouts) ───
 // 3 passes : anti-overlap → DC nœud-arête → second anti-overlap post-DC.
@@ -974,10 +953,10 @@ function AddEventDialog({
   const createNode = useCreateLoreNode();
   const { toast } = useToast();
   const [name, setName] = useState("");
-  const [chapterId, setChapterId] = useState("");
+  const [chapterId, setChapterId] = useState("none");
 
   useEffect(() => {
-    if (open) { setName(""); setChapterId(""); }
+    if (open) { setName(""); setChapterId("none"); }
   }, [open]);
 
   const sorted = [...chapters].sort((a, b) => a.chapter_number - b.chapter_number);
@@ -993,7 +972,7 @@ function AddEventDialog({
         description: null,
         image_url: null,
         asset_id: null,
-        chapter_id: chapterId || null,
+        chapter_id: chapterId === "none" ? null : chapterId,
         pos_x: Math.round(Math.random() * 600),
         pos_y: Math.round(Math.random() * 400),
       });
@@ -1032,9 +1011,10 @@ function AddEventDialog({
               </label>
               <Select value={chapterId} onValueChange={setChapterId}>
                 <SelectTrigger className="bg-white/5 border-white/10 text-sm h-9">
-                  <SelectValue placeholder="Avant l'histoire / non défini" />
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-popover border-white/10">
+                  <SelectItem value="none">Avant l'histoire / non défini</SelectItem>
                   {sorted.map((ch) => (
                     <SelectItem key={ch.id} value={ch.id}>
                       Chap. {ch.chapter_number} — {ch.title}
@@ -1127,20 +1107,6 @@ export function LoreGraphView({ project, assets }: Props) {
 
   const { proposals, acceptProposal, acceptAll, dismissProposal, isAccepting } =
     useArianeLoreProposals(project.id);
-
-  const { data: chapters = [] } = useChapters(project.id);
-  const [viewMode, setViewMode] = useState<"connexions" | "timeline">("connexions");
-
-  const sortedChapters = useMemo(
-    () => [...chapters].sort((a, b) => a.chapter_number - b.chapter_number),
-    [chapters]
-  );
-
-  // Fit-view à chaque changement de mode
-  useEffect(() => {
-    const t = setTimeout(() => fitViewRef.current?.(), 120);
-    return () => clearTimeout(t);
-  }, [viewMode]);
 
   // Résout l'image d'un nœud : lore_node.image_url → asset.image_url → asset.image_url_sheet
   const resolveNodeImage = useCallback(
@@ -1242,69 +1208,6 @@ export function LoreGraphView({ project, assets }: Props) {
   // rfNodesPosKey change quand les positions bougent de ≥50px → recompute corridors
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loreEdges, rfNodesPosKey, setRfEdges]);
-
-  // ── Nœuds et edges adaptés au mode actif ────────────────────────
-  const { displayNodes, displayEdges } = useMemo(() => {
-    if (viewMode === "connexions") return { displayNodes: rfNodes, displayEdges: rfEdges };
-
-    // Mode timeline : positionne les nœuds par chapter_id
-    const colIdxById = new Map(sortedChapters.map((ch, i) => [ch.id, i + 1]));
-    const byCol = new Map<number, string[]>();
-
-    for (const n of loreNodes) {
-      const col = n.chapter_id && colIdxById.has(n.chapter_id)
-        ? colIdxById.get(n.chapter_id)!
-        : 0;
-      if (!byCol.has(col)) byCol.set(col, []);
-      byCol.get(col)!.push(n.id);
-    }
-
-    const posMap = new Map<string, { x: number; y: number }>();
-    for (const [col, ids] of byCol.entries()) {
-      const x = col * (NODE_CARD_W + TL_COL_GAP);
-      ids.forEach((id, row) => {
-        posMap.set(id, { x, y: TL_HDR_H + row * (NODE_CARD_H + TL_ROW_GAP) });
-      });
-    }
-
-    const movedNodes = rfNodes.map((n) => {
-      const pos = posMap.get(n.id);
-      return pos ? { ...n, position: pos, draggable: false } : { ...n, draggable: false };
-    });
-
-    // Labels de chapitre (non interactifs)
-    const colCount = sortedChapters.length;
-    const labelNodes = [
-      {
-        id: "__tl-lore-etabli__",
-        type: "chapterLabel" as const,
-        position: { x: 0, y: 0 },
-        data: { label: "📚 Lore établi" } as ChapterLabelData,
-        draggable: false,
-        selectable: false,
-        focusable: false,
-      },
-      ...sortedChapters.map((ch, i) => ({
-        id: `__tl-ch-${ch.id}__`,
-        type: "chapterLabel" as const,
-        position: { x: (i + 1) * (NODE_CARD_W + TL_COL_GAP), y: 0 },
-        data: { label: `Ch. ${ch.chapter_number}${ch.title ? ` — ${ch.title}` : ""}` } as ChapterLabelData,
-        draggable: false,
-        selectable: false,
-        focusable: false,
-      })),
-    ];
-
-    // Masquer la colonne "Lore établi" s'il n'y a aucun nœud sans chapter_id
-    const hasFloating = loreNodes.some((n) => !n.chapter_id);
-    const filteredLabels = colCount === 0
-      ? []
-      : hasFloating
-        ? labelNodes
-        : labelNodes.slice(1); // retire le label "Lore établi"
-
-    return { displayNodes: [...movedNodes, ...filteredLabels], displayEdges: [] };
-  }, [viewMode, rfNodes, rfEdges, loreNodes, sortedChapters]);
 
   // Résultats de recherche — alimentent le dropdown
   const searchQuery = search.trim().toLowerCase();
@@ -1485,15 +1388,6 @@ export function LoreGraphView({ project, assets }: Props) {
       if (found) { setEditingEdge(found); setEdgeEditOpen(true); }
     },
     [loreEdges]
-  );
-
-  // En mode timeline : ignore tous les changements React Flow (pas de drag, labels non dans l'état)
-  const handleNodesChange = useCallback(
-    (changes: Parameters<typeof onNodesChange>[0]) => {
-      if (viewMode === "timeline") return;
-      onNodesChange(changes);
-    },
-    [viewMode, onNodesChange]
   );
 
   const handleNodeCreated = useCallback((node: LoreNode) => {
@@ -1845,23 +1739,21 @@ export function LoreGraphView({ project, assets }: Props) {
 
       <LoreEdgesCtx.Provider value={loreEdges}>
         <ReactFlow
-          nodes={displayNodes}
-          edges={displayEdges}
-          onNodesChange={handleNodesChange}
-          onEdgesChange={viewMode === "connexions" ? onEdgesChange : undefined}
-          onConnect={viewMode === "connexions" ? handleConnect : undefined}
-          onNodeDragStart={viewMode === "connexions" ? handleNodeDragStart : undefined}
-          onNodeDragStop={viewMode === "connexions" ? handleNodeDragStop : undefined}
+          nodes={rfNodes}
+          edges={rfEdges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          onConnect={handleConnect}
+          onNodeDragStart={handleNodeDragStart}
+          onNodeDragStop={handleNodeDragStop}
           onNodeClick={handleNodeClick}
-          onEdgeClick={viewMode === "connexions" ? handleEdgeClick : undefined}
+          onEdgeClick={handleEdgeClick}
           nodeTypes={NODE_TYPES}
           edgeTypes={EDGE_TYPES}
           connectionMode={ConnectionMode.Loose}
           connectionRadius={80}
           isValidConnection={isValidConnection}
           connectionLineComponent={GoldenConnectionLine}
-          nodesDraggable={viewMode === "connexions"}
-          nodesConnectable={viewMode === "connexions"}
           fitView
           fitViewOptions={{ padding: 0.35, maxZoom: 0.65 }}
           minZoom={0.15}
@@ -1945,44 +1837,12 @@ export function LoreGraphView({ project, assets }: Props) {
 
           <div className="w-px h-5 bg-white/10" />
 
-          {/* Bouton Réorganiser — visible uniquement en mode Connexions */}
-          {viewMode === "connexions" && (
-            <Button size="sm" variant="ghost" onClick={runChronoLayout} disabled={loreNodes.length < 2}
-              className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground hover:bg-white/10"
-              title="Réorganiser — Chronologique si des événements existent, force-directed sinon">
-              <GitCommitHorizontal className="h-3.5 w-3.5" />
-            </Button>
-          )}
-
-          <div className="w-px h-5 bg-white/10" />
-
-          {/* Toggle Connexions / Timeline */}
-          <div className="flex items-center gap-0.5 bg-white/5 rounded-lg p-0.5">
-            <button
-              type="button"
-              onClick={() => setViewMode("connexions")}
-              className={[
-                "px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors duration-150",
-                viewMode === "connexions"
-                  ? "bg-white/15 text-foreground"
-                  : "text-muted-foreground hover:text-foreground",
-              ].join(" ")}
-            >
-              🕸 Connexions
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode("timeline")}
-              className={[
-                "px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors duration-150",
-                viewMode === "timeline"
-                  ? "bg-white/15 text-foreground"
-                  : "text-muted-foreground hover:text-foreground",
-              ].join(" ")}
-            >
-              📅 Timeline
-            </button>
-          </div>
+          {/* Bouton Réorganiser */}
+          <Button size="sm" variant="ghost" onClick={runChronoLayout} disabled={loreNodes.length < 2}
+            className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground hover:bg-white/10"
+            title="Réorganiser — Chronologique si des événements existent, force-directed sinon">
+            <GitCommitHorizontal className="h-3.5 w-3.5" />
+          </Button>
         </div>
 
       </div>

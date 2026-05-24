@@ -449,12 +449,12 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
                   /* Événements : sélecteur de chapitre source */
                   <div className="w-full px-3 space-y-1.5">
                     <p className="text-[10px] text-white/40 uppercase tracking-widest text-center">Chapitre source</p>
-                    <Select value={chapterId ?? ""} onValueChange={(v) => { setChapterId(v || null); triggerAutoSave(); }}>
+                    <Select value={chapterId ?? "none"} onValueChange={(v) => { setChapterId(v === "none" ? null : v); triggerAutoSave(); }}>
                       <SelectTrigger className="h-8 text-xs border-white/20 bg-white/10 text-white/70 hover:text-white w-full gap-1">
-                        <SelectValue placeholder="Avant l'histoire" />
+                        <SelectValue />
                       </SelectTrigger>
                       <SelectContent className="bg-popover border-white/10">
-                        <SelectItem value="">Avant l'histoire</SelectItem>
+                        <SelectItem value="none">Avant l'histoire</SelectItem>
                         {sortedChapters.map((ch) => (
                           <SelectItem key={ch.id} value={ch.id}>
                             Chap. {ch.chapter_number} — {ch.title}

@@ -92,6 +92,39 @@ export function useUpdateScenarioChapter() {
   });
 }
 
+/** Validation (verrou) d'un chapitre de scénario */
+export function useValidateChapter() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id }: { id: string; projectId: string }) =>
+      scenarioService.updateScenarioChapter(id, {
+        validated: true,
+        validated_at: new Date().toISOString(),
+      }),
+    onSuccess: (data, variables) => {
+      // Mise à jour immédiate du cache — l'UI réagit sans attendre le refetch réseau
+      qc.setQueryData(keys.chapter(variables.id), data);
+      qc.invalidateQueries({ queryKey: keys.chapters(variables.projectId) });
+    },
+  });
+}
+
+/** Déverrouillage d'un chapitre de scénario */
+export function useUnvalidateChapter() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id }: { id: string; projectId: string }) =>
+      scenarioService.updateScenarioChapter(id, {
+        validated: false,
+        validated_at: null,
+      }),
+    onSuccess: (data, variables) => {
+      qc.setQueryData(keys.chapter(variables.id), data);
+      qc.invalidateQueries({ queryKey: keys.chapters(variables.projectId) });
+    },
+  });
+}
+
 /** Suppression d'un chapitre de scénario */
 export function useDeleteScenarioChapter() {
   const qc = useQueryClient();

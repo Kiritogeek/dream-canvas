@@ -500,6 +500,7 @@ export default function ProjectDetail() {
               <ScenarioSection
                 projectId={project.id}
                 project={project}
+                assets={assets}
                 onNavigateToCreateAsset={handleNavigateToCreateAsset}
               />
             </TabsContent>

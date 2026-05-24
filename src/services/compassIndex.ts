@@ -41,6 +41,40 @@ export async function triggerCompassIndex(
   }
 }
 
+// Fire-and-forget — persiste les propositions lore en BDD sans bloquer l'UX
+export async function triggerCompassPropose(
+  projectId: string,
+  contextText: string,
+  sourceId?: string
+): Promise<void> {
+  if (!contextText?.trim()) return;
+  try {
+    await supabase.auth.refreshSession();
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData?.session?.access_token;
+    if (!token) return;
+
+    const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/narramind-compass`;
+    await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+        apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? "",
+      },
+      body: JSON.stringify({
+        mode: "propose",
+        project_id: projectId,
+        context_text: contextText,
+        proposal_type: "lore_asset",
+        source_id: sourceId,
+      }),
+    });
+  } catch (err) {
+    console.error("[CompassPropose] Échec silencieux:", err);
+  }
+}
+
 export async function fetchCompassProposals(
   projectId: string,
   proposalType: CompassProposalType,

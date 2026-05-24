@@ -6,5 +6,3 @@ export const PROJECT_MENU_LABEL = {
   universe: "Univers",
   edition: "Édition",
 } as const;
-
-export type ProjectMenuKey = keyof typeof PROJECT_MENU_LABEL;

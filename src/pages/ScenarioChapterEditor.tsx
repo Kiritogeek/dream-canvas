@@ -16,6 +16,8 @@ import {
   Package,
   Type,
   AlertTriangle,
+  Lock,
+  Unlock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,17 +27,29 @@ import {
   useUpdateScenarioChapter,
   useScenarioChapters,
   useCreateScenarioChapter,
+  useValidateChapter,
+  useUnvalidateChapter,
 } from "@/hooks/useScenarioChapters";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { useProject, useUpdateProject } from "@/hooks/useProjects";
+import { useChapters } from "@/hooks/useChapters";
+import * as chapterService from "@/services/chapters";
+import { ArianeAnalysisModal } from "@/components/project/ArianeAnalysisModal";
 import { getMaxAccessibleTab, useProgressiveMenuAccess } from "@/hooks/useProgressiveMenuGate";
 import { useAssets } from "@/hooks/useAssets";
 import { useScenarioAI } from "@/hooks/useScenarioAI";
 import { useUserPlan } from "@/hooks/useUserPlan";
-import { planDisplayName } from "@/types";
+import { useAuth } from "@/hooks/useAuth";
 import { callDetectBlocks, callGenerateAiSummary } from "@/services/scenarioAI";
 import { useNarraMindDebounce } from "@/hooks/useNarraMindDebounce";
 import { useCompassIndex } from "@/hooks/useCompassIndex";
-import { estimatePanelCount } from "@/services/panels";
+import { estimatePanelCount, createPanelsFromOutline } from "@/services/panels";
 import { ScenarioTextHighlighter } from "@/components/project/ScenarioTextHighlighter";
 import { ChapterStatusBar } from "@/components/project/ChapterStatusBar";
 import { useToast } from "@/hooks/use-toast";
@@ -45,6 +59,19 @@ import type { LockedBlock, DetectedBlock, AssetType } from "@/types";
 
 /** NarraMind : auto-save uniquement, pas d’appel manuel — garde-fous tokens. */
 const NARRAMIND_AUTOSAVE_MIN_WORDS = 80;
+
+
+function stripTypeMarkers(text: string): string {
+  return text
+    .split("\n")
+    .map((line) => {
+      const m = line.match(/^(\[[^\]]+\])\s*/);
+      let cleaned = m ? line.slice(m[0].length) : line;
+      cleaned = cleaned.replace(/\*([^*\n]+)\*/g, "$1");
+      return cleaned;
+    })
+    .join("\n");
+}
 
 const EDITOR_FONT_STYLE: React.CSSProperties = {
   fontFamily: "inherit",
@@ -140,21 +167,23 @@ function renderFormatCHighlight(text: string): React.ReactNode[] {
       nodes.push(
         <span key={wrapKey}>{renderLineSegments(line, lineStart, null, { color: "hsl(0, 0%, 58%)" })}</span>
       );
-    } else if (/«/.test(line)) {
-      nodes.push(
-        <span key={wrapKey}>
-          {renderLineSegments(line, lineStart, null, {
-            fontStyle: "italic",
-            color: "hsl(275, 22%, 52%)",
-          })}
-        </span>
-      );
     } else {
-      nodes.push(
-        <span key={wrapKey}>
-          {renderLineSegments(line, lineStart, null, { color: "hsl(var(--foreground))" })}
-        </span>
-      );
+      if (/«/.test(line)) {
+        nodes.push(
+          <span key={wrapKey}>
+            {renderLineSegments(line, lineStart, null, {
+              fontStyle: "italic",
+              color: "hsl(275, 22%, 52%)",
+            })}
+          </span>
+        );
+      } else {
+        nodes.push(
+          <span key={wrapKey}>
+            {renderLineSegments(line, lineStart, null, { color: "hsl(var(--foreground))" })}
+          </span>
+        );
+      }
     }
 
     offset += line.length + (i < lines.length - 1 ? 1 : 0);
@@ -259,7 +288,11 @@ export default function ScenarioChapterEditor() {
   );
   const updateChapter = useUpdateScenarioChapter();
   const createChapter = useCreateScenarioChapter();
+  const validateChapter = useValidateChapter();
+  const unvalidateChapter = useUnvalidateChapter();
   const updateProject = useUpdateProject();
+  const { user } = useAuth();
+  const { data: editionChapters = [] } = useChapters(projectId);
 
   const nextChapterNumber = useMemo(() => {
     const used = new Set(allChapters.map((c) => c.chapter_number));
@@ -269,7 +302,7 @@ export default function ScenarioChapterEditor() {
   }, [allChapters]);
   const chapterAI = useScenarioAI();
   const { plan } = useUserPlan();
-  const isPro = plan === "createur" || plan === "studio";
+  const _isPro = plan === "createur" || plan === "studio";
   const { schedule: scheduleNarraMind } = useNarraMindDebounce();
   const { indexContent } = useCompassIndex();
 
@@ -286,7 +319,7 @@ export default function ScenarioChapterEditor() {
 
   // Local state — UI
   const [viewMode, setViewMode] = useState<"edit" | "visuels">("edit");
-  const [showAssets, setShowAssets] = useState(false);
+  const [showAssets, setShowAssets] = useState(true);
   const [saveState, setSaveState] = useState<"clean" | "dirty" | "saving">(
     "clean"
   );
@@ -329,6 +362,9 @@ export default function ScenarioChapterEditor() {
   const [isWritingManually, setIsWritingManually] = useState(false);
   const [showInlineAI, setShowInlineAI] = useState(false);
   const [inlineAIPrompt, setInlineAIPrompt] = useState("");
+  const [showValidateConfirm, setShowValidateConfirm] = useState(false);
+  const [showArianeAfterValidation, setShowArianeAfterValidation] = useState(false);
+  const [isCreatingEditionChapter, setIsCreatingEditionChapter] = useState(false);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -341,6 +377,53 @@ export default function ScenarioChapterEditor() {
   const initialSyncDoneRef = useRef(false);
   // Throttle ai_summary : max 1 appel Groq toutes les 2 min pour économiser le budget TPM
   const lastAiSummaryCallRef = useRef<number>(0);
+
+  // Ariane — détection transition validé : non-validé → validé
+  const prevValidatedRef = useRef<boolean | null>(null);
+  const lastAnalyzedContentRef = useRef<string>("");
+  const contentRef = useRef(content);
+
+  useEffect(() => { contentRef.current = content; }, [content]);
+
+  // Lance Ariane dès que le chapitre passe de non-validé → validé.
+  // Si l'utilisateur déverrouille puis re-valide SANS modifier le texte, Ariane ne re-tourne pas.
+  useEffect(() => {
+    if (!chapter) { console.log("[Ariane] useEffect — chapter undefined, skip"); return; }
+    const isNowValidated = chapter.validated ?? false;
+    console.log("[Ariane] useEffect fired — validated:", isNowValidated, "| prev:", prevValidatedRef.current);
+
+    if (prevValidatedRef.current === null) {
+      prevValidatedRef.current = isNowValidated;
+      if (isNowValidated) {
+        lastAnalyzedContentRef.current = chapter.content ?? "";
+        console.log("[Ariane] Init — chapitre déjà validé, lastAnalyzed initialisé");
+      } else {
+        console.log("[Ariane] Init — chapitre non validé");
+      }
+      return;
+    }
+
+    const prev = prevValidatedRef.current;
+    prevValidatedRef.current = isNowValidated;
+    console.log("[Ariane] Transition prev:", prev, "→ now:", isNowValidated);
+
+    if (!prev && isNowValidated) {
+      const same = contentRef.current.trim() === lastAnalyzedContentRef.current.trim();
+      console.log("[Ariane] Validation détectée — contenu changé:", !same);
+      if (!same) {
+        lastAnalyzedContentRef.current = contentRef.current;
+        console.log("[Ariane] Timer 10s lancé — modal Ariane dans 10s");
+        const timer = setTimeout(() => {
+          console.log("[Ariane] Timer expiré — ouverture modal");
+          setShowArianeAfterValidation(true);
+        }, 10_000);
+        return () => { console.log("[Ariane] Timer annulé (cleanup)"); clearTimeout(timer); };
+      } else {
+        console.log("[Ariane] Contenu inchangé depuis dernière analyse — skip");
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chapter?.id, chapter?.validated]);
 
   useEffect(() => {
     progressiveRedirectRef.current = false;
@@ -368,7 +451,7 @@ export default function ScenarioChapterEditor() {
 
   useEffect(() => {
     if (chapter) {
-      setContent(chapter.content ?? "");
+      setContent(stripTypeMarkers(chapter.content ?? ""));
       setIsWritingManually(false);
       setShowInlineAI(false);
       setInlineAIPrompt("");
@@ -484,12 +567,12 @@ export default function ScenarioChapterEditor() {
       );
       setReadingInfo({
         words,
-        panels: estimatePanelCount(content),
+        panels: estimatePanelCount(content, targetPanels),
         minutes: totalMins,
       });
     }, 800);
     return () => clearTimeout(t);
-  }, [content, lockedBlocks.length]);
+  }, [content, lockedBlocks.length, targetPanels]);
 
   // Assets mentionnés dans ce chapitre (par correspondance de nom)
   const assetsInChapter = useMemo(() => {
@@ -501,6 +584,16 @@ export default function ScenarioChapterEditor() {
       return new RegExp(`\\b${escaped}\\b`, "i").test(content);
     });
   }, [assets, content]);
+
+  const canValidate = useMemo(
+    () => !!content.trim() && assetsInChapter.every((a) => !!a.image_url),
+    [content, assetsInChapter]
+  );
+
+  const linkedEditionChapter = useMemo(
+    () => editionChapters.find((c) => c.linked_scenario_chapter_id === chapter?.id) ?? null,
+    [editionChapters, chapter?.id]
+  );
 
   // ── Auto-save (debounce 2s) ──────────────────────────────────
 
@@ -730,6 +823,11 @@ export default function ScenarioChapterEditor() {
     [detectedBlocks]
   );
 
+  const allBlocksLocked = useMemo(
+    () => cases.length > 0 && cases.every((c) => lockedKeySet.has(`${c.panel_number}-${c.block_number}`)),
+    [cases, lockedKeySet]
+  );
+
   // ── IA chapitre complet ──────────────────────────────────────
 
   const handleChapterAI = useCallback(() => {
@@ -859,6 +957,31 @@ export default function ScenarioChapterEditor() {
     );
   }, [chapter, inlineAIPrompt, contextChapters, project, chapterAI, toast]);
 
+  const handleEditChapter = useCallback(async () => {
+    if (!chapter || !projectId || !user) return;
+    if (linkedEditionChapter) {
+      navigate(`/dashboard/projects/${projectId}/chapter/${linkedEditionChapter.id}`);
+      return;
+    }
+    setIsCreatingEditionChapter(true);
+    try {
+      const newChapter = await chapterService.createChapter({
+        project_id: projectId,
+        user_id: user.id,
+        title: chapter.title,
+        chapter_number: chapter.chapter_number,
+        linked_scenario_chapter_id: chapter.id,
+      });
+      if (lockedBlocks.length > 0) {
+        await createPanelsFromOutline(newChapter.id, lockedBlocks, user.id);
+      }
+      navigate(`/dashboard/projects/${projectId}/chapter/${newChapter.id}`);
+    } catch (err) {
+      toast({ title: "Erreur", description: (err as Error).message, variant: "destructive" });
+      setIsCreatingEditionChapter(false);
+    }
+  }, [chapter, projectId, user, linkedEditionChapter, lockedBlocks, navigate, toast]);
+
   // ── Loading / error states ───────────────────────────────────
 
   if (isLoadingChapter) {
@@ -887,7 +1010,8 @@ export default function ScenarioChapterEditor() {
 
   // ── Rendu ────────────────────────────────────────────────────
 
-  const _targetPanels = project?.panels_target_per_chapter ?? null;
+  const isValidated = chapter.validated ?? false;
+  const targetPanels = project?.panels_target_per_chapter ?? null;
 
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">
@@ -902,10 +1026,18 @@ export default function ScenarioChapterEditor() {
           Retour au projet
         </Link>
 
-        {/* Colonne centre : titre */}
-        <span className="text-sm font-medium text-foreground whitespace-nowrap">
-          Chapitre {chapter.chapter_number}
-        </span>
+        {/* Colonne centre : titre + badge validé */}
+        <div className="flex items-center justify-center gap-2">
+          <span className={`text-sm font-medium whitespace-nowrap transition-colors ${isValidated ? "text-emerald-500 dark:text-emerald-400" : "text-foreground"}`}>
+            Chapitre {chapter.chapter_number}
+          </span>
+          {isValidated && (
+            <span className="flex items-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 rounded-full px-2 py-0.5 shrink-0">
+              <Lock className="h-2.5 w-2.5" />
+              Validé
+            </span>
+          )}
+        </div>
 
         {/* Colonne droite : stats + save */}
         <div className="flex items-center justify-end gap-2">
@@ -930,21 +1062,25 @@ export default function ScenarioChapterEditor() {
             </>
           )}
 
-          <div className="text-xs text-muted-foreground flex items-center gap-1 shrink-0">
-            {saveState === "saving" && <><Loader2 className="h-3 w-3 animate-spin" /><span className="hidden sm:inline">Sauvegarde...</span></>}
-            {saveState === "clean" && <Check className="h-3 w-3 text-emerald-500" />}
-            {saveState === "dirty" && <span className="text-amber-500">•</span>}
-          </div>
+          {!isValidated && (
+            <>
+              <div className="text-xs text-muted-foreground flex items-center gap-1 shrink-0">
+                {saveState === "saving" && <><Loader2 className="h-3 w-3 animate-spin" /><span className="hidden sm:inline">Sauvegarde...</span></>}
+                {saveState === "clean" && <Check className="h-3 w-3 text-emerald-500" />}
+                {saveState === "dirty" && <span className="text-amber-500">•</span>}
+              </div>
 
-          <Button
-            size="sm"
-            onClick={handleManualSave}
-            disabled={saveState === "clean" || saveState === "saving"}
-            className="h-7 gap-1.5 gradient-primary text-primary-foreground shrink-0 text-xs"
-          >
-            <Save className="h-3 w-3" />
-            <span className="hidden sm:inline">Sauvegarder</span>
-          </Button>
+              <Button
+                size="sm"
+                onClick={handleManualSave}
+                disabled={saveState === "clean" || saveState === "saving"}
+                className="h-7 gap-1.5 gradient-primary text-primary-foreground shrink-0 text-xs"
+              >
+                <Save className="h-3 w-3" />
+                <span className="hidden sm:inline">Sauvegarder</span>
+              </Button>
+            </>
+          )}
 
           <Button
             size="sm"
@@ -975,7 +1111,7 @@ export default function ScenarioChapterEditor() {
       >
         <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
           {/* Toolbar fine — toggle Écriture/Cases + toggle Assets */}
-          <div className="flex items-center gap-2 px-4 sm:px-8 py-1.5 border-b border-border/50 shrink-0 bg-background/95 backdrop-blur-xl">
+          <div className={`flex items-center gap-2 px-4 sm:px-8 py-1.5 border-b border-border/50 shrink-0 bg-background/95 backdrop-blur-xl${isValidated ? " pointer-events-none opacity-40" : ""}`}>
             {!chapterAIResult && (
               <div className="flex items-center gap-1 bg-muted/50 rounded-lg p-1">
                 <button
@@ -990,26 +1126,18 @@ export default function ScenarioChapterEditor() {
                   Écriture
                 </button>
                 <button
-                  onClick={isPro ? () => setViewMode("visuels") : () => navigate("/dashboard/plans")}
-                  title={!isPro ? `Réservé au plan ${planDisplayName("createur")} — cliquez pour vous abonner` : undefined}
+                  onClick={() => setViewMode("visuels")}
                   className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
-                    isPro
-                      ? viewMode === "visuels"
-                        ? "bg-background shadow-sm text-foreground"
-                        : "text-muted-foreground hover:text-foreground"
-                      : "text-muted-foreground/60 hover:text-muted-foreground"
+                    viewMode === "visuels"
+                      ? "bg-background shadow-sm text-foreground"
+                      : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
                   <Layers className="h-3 w-3" />
                   Cases
-                  {isPro && cases.length > 0 && (
+                  {cases.length > 0 && (
                     <span className="ml-0.5 bg-primary/20 text-primary text-[10px] font-bold rounded px-1">
                       {cases.length}
-                    </span>
-                  )}
-                  {!isPro && (
-                    <span className="ml-0.5 bg-amber-400/20 text-amber-600 dark:text-amber-400 border border-amber-400/30 text-[9px] font-bold rounded px-1 tracking-wide">
-                      PRO
                     </span>
                   )}
                 </button>
@@ -1098,7 +1226,22 @@ export default function ScenarioChapterEditor() {
 
             {!chapterAIResult && (
             <div className="max-w-3xl mx-auto px-8 py-8">
-              {viewMode === "visuels" ? (
+              {isValidated ? (
+                <>
+                  <ScenarioTextHighlighter
+                    text={content}
+                    assets={assets}
+                    wordMappings={wordMappings}
+                    onAssignWord={handleAssignWord}
+                    onCreateAsset={handleCreateAssetFromText}
+                    onDismissMissing={handleDismissMissing}
+                    dismissedMissingNames={dismissedMissingNames}
+                    className=""
+                    hideIndicator
+                  />
+                  <div style={{ height: "40vh" }} />
+                </>
+              ) : viewMode === "visuels" ? (
                 /* Vue Cases plate : un bloc = une case numérotée globalement */
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
@@ -1205,21 +1348,6 @@ export default function ScenarioChapterEditor() {
                     </div>
                   )}
                 </div>
-              ) : showAssets ? (
-                <>
-                  <ScenarioTextHighlighter
-                    text={content}
-                    assets={assets}
-                    wordMappings={wordMappings}
-                    onAssignWord={handleAssignWord}
-                    onCreateAsset={handleCreateAssetFromText}
-                    onDismissMissing={handleDismissMissing}
-                    dismissedMissingNames={dismissedMissingNames}
-                    className=""
-                    hideIndicator
-                  />
-                  <div style={{ height: "40vh" }} />
-                </>
               ) : !content.trim() && !isWritingManually ? (
                 showInlineAI ? (
                   <div className="flex flex-col gap-5 py-16">
@@ -1303,6 +1431,21 @@ export default function ScenarioChapterEditor() {
                     </div>
                   </div>
                 )
+              ) : showAssets ? (
+                <>
+                  <ScenarioTextHighlighter
+                    text={content}
+                    assets={assets}
+                    wordMappings={wordMappings}
+                    onAssignWord={handleAssignWord}
+                    onCreateAsset={handleCreateAssetFromText}
+                    onDismissMissing={handleDismissMissing}
+                    dismissedMissingNames={dismissedMissingNames}
+                    className=""
+                    hideIndicator
+                  />
+                  <div style={{ height: "40vh" }} />
+                </>
               ) : (
                 <>
                   <FormatCEditor
@@ -1326,6 +1469,7 @@ export default function ScenarioChapterEditor() {
             assetsGenerated={assetsInChapter.filter((a) => !!a.image_url).length}
             assetsUngenerated={assetsInChapter.filter((a) => !a.image_url).length}
             saveState={saveState}
+            isValidated={isValidated}
             onShowUngenerated={() => setShowAssets(true)}
           />
         </main>
@@ -1414,46 +1558,127 @@ export default function ScenarioChapterEditor() {
       {/* FABs — pills flottantes bas-droite */}
       {!chapterAIResult && !showIABar && (
         <div className="fixed bottom-12 right-6 flex flex-col items-end gap-2.5 z-40">
-          <button
-            onClick={() => setShowIABar(true)}
-            className="flex items-center gap-2 pl-3.5 pr-4 h-10 rounded-full bg-background/95 backdrop-blur-xl border border-border hover:border-primary/50 shadow-md text-sm font-medium text-primary transition-[box-shadow,border-color,transform] duration-200 hover:shadow-glow hover:scale-[1.03]"
-          >
-            <Sparkles className="h-4 w-4 shrink-0" />
-            <span>IA Chapitre</span>
-          </button>
+          {isValidated ? (
+            /* Chapitre validé */
+            <>
+              <button
+                onClick={() => unvalidateChapter.mutate({ id: chapter.id, projectId: projectId! })}
+                disabled={unvalidateChapter.isPending}
+                className="flex items-center gap-2 pl-3.5 pr-4 h-9 rounded-full bg-background/95 backdrop-blur-xl border border-border/60 hover:border-border shadow-md text-xs font-medium text-muted-foreground hover:text-foreground transition-[box-shadow,border-color,transform,color] duration-200 hover:scale-[1.03] disabled:opacity-50"
+              >
+                {unvalidateChapter.isPending ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
+                ) : (
+                  <Unlock className="h-3.5 w-3.5 shrink-0" />
+                )}
+                <span>Déverrouiller</span>
+              </button>
 
-          <button
-            onClick={isPro ? handleDetectBlocks : () => navigate("/dashboard/plans")}
-            disabled={isDetecting || (isPro && !content.trim()) || (isPro && cases.length > 0 && detectedAtContent !== "" && content === detectedAtContent)}
-            title={!isPro ? `Réservé au plan ${planDisplayName("createur")} — cliquez pour vous abonner` : undefined}
-            className={`flex items-center gap-2 pl-4 pr-5 h-12 rounded-full text-sm font-semibold transition-[box-shadow,transform,opacity] duration-200 disabled:opacity-50 disabled:pointer-events-none ${
-              isPro
-                ? "gradient-primary text-primary-foreground shadow-dream hover:scale-[1.03]"
-                : "bg-white/10 text-white/60 border border-white/15 cursor-pointer hover:bg-white/15"
-            }`}
-          >
-            {isDetecting ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin shrink-0" />
-                <span>Découpage en cours…</span>
-              </>
-            ) : isPro ? (
-              <>
-                <Scissors className="h-4 w-4 shrink-0" />
-                <span>Diviser en cases</span>
-              </>
-            ) : (
-              <>
-                <Scissors className="h-4 w-4 shrink-0" />
-                <span>Diviser en cases</span>
-                <span className="ml-1 text-[11px] bg-amber-400/30 text-amber-300 border border-amber-400/40 px-2 py-0.5 rounded-full font-bold tracking-wide">
-                  PRO
-                </span>
-              </>
-            )}
-          </button>
+              {allBlocksLocked ? (
+                <button
+                  onClick={handleEditChapter}
+                  disabled={isCreatingEditionChapter}
+                  className="flex items-center gap-2 pl-4 pr-5 h-12 rounded-full text-sm font-semibold gradient-primary text-primary-foreground shadow-dream hover:scale-[1.03] transition-[box-shadow,transform,opacity] duration-200 disabled:opacity-50 disabled:pointer-events-none"
+                >
+                  {isCreatingEditionChapter ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                      <span>Création…</span>
+                    </>
+                  ) : (
+                    <>
+                      <PenLine className="h-4 w-4 shrink-0" />
+                      <span>{linkedEditionChapter ? "Éditer le chapitre" : "Créer & éditer"}</span>
+                    </>
+                  )}
+                </button>
+              ) : (
+                <button
+                  onClick={handleDetectBlocks}
+                  disabled={isDetecting || !content.trim() || (cases.length > 0 && detectedAtContent !== "" && content === detectedAtContent)}
+                  className="flex items-center gap-2 pl-4 pr-5 h-12 rounded-full text-sm font-semibold gradient-primary text-primary-foreground shadow-dream hover:scale-[1.03] transition-[box-shadow,transform,opacity] duration-200 disabled:opacity-50 disabled:pointer-events-none"
+                >
+                  {isDetecting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                      <span>Découpage en cours…</span>
+                    </>
+                  ) : (
+                    <>
+                      <Scissors className="h-4 w-4 shrink-0" />
+                      <span>Diviser en cases</span>
+                    </>
+                  )}
+                </button>
+              )}
+            </>
+          ) : (
+            /* Chapitre non validé → IA Chapitre + Valider */
+            <>
+              <button
+                onClick={() => setShowIABar(true)}
+                className="flex items-center gap-2 pl-3.5 pr-4 h-10 rounded-full bg-background/95 backdrop-blur-xl border border-border hover:border-primary/50 shadow-md text-sm font-medium text-primary transition-[box-shadow,border-color,transform] duration-200 hover:shadow-glow hover:scale-[1.03]"
+              >
+                <Sparkles className="h-4 w-4 shrink-0" />
+                <span>IA Chapitre</span>
+              </button>
+
+              <button
+                onClick={() => canValidate && setShowValidateConfirm(true)}
+                disabled={!canValidate}
+                title={
+                  !content.trim()
+                    ? "Le chapitre est vide"
+                    : assetsInChapter.some((a) => !a.image_url)
+                    ? `${assetsInChapter.filter((a) => !a.image_url).length} asset(s) détecté(s) non générés`
+                    : undefined
+                }
+                className="flex items-center gap-2 pl-4 pr-5 h-12 rounded-full text-sm font-semibold bg-background/95 backdrop-blur-xl border border-emerald-500/40 text-emerald-600 dark:text-emerald-400 shadow-md hover:bg-emerald-500/8 hover:scale-[1.03] transition-[box-shadow,transform,opacity] duration-200 disabled:opacity-40 disabled:pointer-events-none"
+              >
+                <Lock className="h-4 w-4 shrink-0" />
+                <span>Valider le chapitre</span>
+              </button>
+            </>
+          )}
         </div>
       )}
+
+      {/* Popup confirmation validation */}
+      <Dialog open={showValidateConfirm} onOpenChange={setShowValidateConfirm}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Valider le Chapitre {chapter?.chapter_number} ?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            Ce chapitre passera en lecture seule. Ariane analysera votre scénario et vous proposera d'enrichir votre Univers avec les personnages, lieux et événements détectés — accessibles dans le menu <strong className="text-foreground">Univers</strong>.
+          </p>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setShowValidateConfirm(false)}>
+              Annuler
+            </Button>
+            <Button
+              onClick={() => {
+                validateChapter.mutate(
+                  { id: chapter!.id, projectId: projectId! },
+                  {
+                    onSuccess: () => setShowValidateConfirm(false),
+                    onError: () => toast({ title: "Erreur", description: "Impossible de valider le chapitre.", variant: "destructive" }),
+                  }
+                );
+              }}
+              disabled={validateChapter.isPending}
+              className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              {validateChapter.isPending ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Lock className="h-3.5 w-3.5" />
+              )}
+              Valider
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* PANNEAU STATS cible — rendu hors flux, accessible via le panneau Stats supprimé */}
       {/* La cible cases est accessible via le chip "~N cases" dans le header */}
@@ -1486,6 +1711,18 @@ export default function ScenarioChapterEditor() {
             </Button>
           </div>
         </div>
+      )}
+
+      {/* Ariane — analyse auto après validation */}
+      {chapter && (
+        <ArianeAnalysisModal
+          isOpen={showArianeAfterValidation}
+          onClose={() => setShowArianeAfterValidation(false)}
+          projectId={projectId!}
+          chapterId={chapter.id}
+          chapterContent={content}
+          chapterNumber={chapter.chapter_number}
+        />
       )}
     </div>
   );

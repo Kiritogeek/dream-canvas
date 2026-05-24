@@ -25,12 +25,12 @@ export interface TierLimits {
 export const TIER_CONFIG: Record<UserPlan, TierLimits> = {
   libre: {
     maxGenerationsPerMonth: 20,
-    maxProjects: 1,
+    maxProjects: null,
     allowReferenceImages: true,
-    allowScenarioAI: false,
-    allowFullExport: false,
+    allowScenarioAI: true,
+    allowFullExport: true,
     allowLongMemory: false,
-    filArianeLimit: 3,
+    filArianeLimit: null,
     model: "flux-2-pro",
     label: "Libre",
     price: 0,
@@ -377,7 +377,7 @@ export interface NarramindMissingAsset {
 
 export type CompassSourceType = "chapter" | "lore_world_section" | "asset_lore" | "summary";
 
-export type CompassProposalType = "lore_world" | "lore_asset" | "narrative_direction" | "asset_prefill";
+export type CompassProposalType = "lore_world" | "lore_asset" | "lore_chapter_update" | "lore_connection" | "narrative_direction" | "asset_prefill";
 
 export interface CompassProposal {
   id: string;

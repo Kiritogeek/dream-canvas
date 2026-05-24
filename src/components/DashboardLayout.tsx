@@ -6,6 +6,7 @@ import {
   Palette, Image as ImageIcon, BookOpen, Layers, Plus, Pencil, Globe, FlaskConical,
   BarChart2,
 } from "lucide-react";
+import { ArianeOrbitIcon } from "@/components/ariane/ArianeOrbitIcon";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,6 +19,7 @@ import { planDisplayName } from "@/types";
 import { useProject, useProjects, useUpdateProject } from "@/hooks/useProjects";
 import { useProgressiveMenuSidebarState } from "@/hooks/useProgressiveMenuGate";
 import { useHasAssetNotif, useBlockNotifsForProject } from "@/lib/generationPending";
+import { useArianeSidebarNotifs } from "@/hooks/useArianeSidebarNotifs";
 import { useToast } from "@/hooks/use-toast";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { ArianeOnboardingCard } from "@/components/ariane";
@@ -32,11 +34,11 @@ const ALL_NAV_LINKS = [
 ];
 
 const projectSteps = [
-  { key: "style",    label: PROJECT_MENU_LABEL.style,    icon: Palette   },
-  { key: "assets",   label: PROJECT_MENU_LABEL.assets,   icon: ImageIcon },
-  { key: "universe", label: PROJECT_MENU_LABEL.universe, icon: Globe     },
-  { key: "scenario", label: PROJECT_MENU_LABEL.scenario, icon: BookOpen  },
   { key: "edition",  label: PROJECT_MENU_LABEL.edition,  icon: Layers    },
+  { key: "scenario", label: PROJECT_MENU_LABEL.scenario, icon: BookOpen  },
+  { key: "universe", label: PROJECT_MENU_LABEL.universe, icon: Globe     },
+  { key: "assets",   label: PROJECT_MENU_LABEL.assets,   icon: ImageIcon },
+  { key: "style",    label: PROJECT_MENU_LABEL.style,    icon: Palette   },
 ] as const;
 
 function ProjectStepsSection({ projectId, onLinkClick }: { projectId: string; onLinkClick?: () => void }) {
@@ -57,6 +59,7 @@ function ProjectStepsSection({ projectId, onLinkClick }: { projectId: string; on
   );
   const hasAssetNotif = useHasAssetNotif(projectId);
   const blockNotifs = useBlockNotifsForProject(projectId);
+  const { hasUniverseNotif, hasScenarioNotif } = useArianeSidebarNotifs(projectId);
   const updateProject = useUpdateProject();
   const { toast } = useToast();
 
@@ -152,6 +155,13 @@ function ProjectStepsSection({ projectId, onLinkClick }: { projectId: string; on
                 </span>
               </span>
             ) : null;
+            const showArianeNotif = !isActive && (
+              (step.key === "universe" && hasUniverseNotif) ||
+              (step.key === "scenario" && hasScenarioNotif)
+            );
+            const arianeNotifBadge = showArianeNotif ? (
+              <ArianeOrbitIcon size={16} className="shrink-0" />
+            ) : null;
             return (
               <motion.div
                 key={step.key}
@@ -169,6 +179,7 @@ function ProjectStepsSection({ projectId, onLinkClick }: { projectId: string; on
                   <span className="flex-1 truncate">{step.label}</span>
                   {newBadge}
                   {genNotifBadge}
+                  {arianeNotifBadge}
                 </Link>
               </motion.div>
             );

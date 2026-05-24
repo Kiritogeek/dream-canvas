@@ -4,7 +4,7 @@
 // + panneau « éléments non créés » avec hover → créer comme asset
 // ═══════════════════════════════════════════════════════════════
 
-import { useMemo, useState, useCallback, useRef, useEffect } from "react";
+import { useMemo, useState, useCallback, useRef, useEffect, Fragment } from "react";
 import { Plus, UserRound, Image, Package, Ban, Link2, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
@@ -729,9 +729,8 @@ function renderPlainWithContext(
     if (pi < parts.length - 1) result.push("\n");
   });
 
-  return <>{result}</>;
-
   void allLines; // utilisé via lineStyles, référence gardée pour la signature
+  return <Fragment key={fragIdx}>{result}</Fragment>;
 }
 
 // ── Composant principal (texte surligné uniquement) ───────────

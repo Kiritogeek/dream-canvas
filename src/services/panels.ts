@@ -82,17 +82,18 @@ export function getPanelSpeechBubbles(panel: Panel | null | undefined): SpeechBu
 
 /**
  * Estime le nombre de panels à partir du contenu textuel du chapitre.
- * Indicatif uniquement ; basé sur la longueur du texte (≈ 400–600 caractères par panel).
+ * ≈ 45 mots par panel (densité typique webtoon). Si le projet a une cible définie,
+ * elle est utilisée directement car c'est ce que l'auteur vise pour ce chapitre.
  */
-export function estimatePanelCount(content: string | null | undefined): number {
+export function estimatePanelCount(
+  content: string | null | undefined,
+  targetPerChapter?: number | null
+): number {
   if (!content?.trim()) return 0;
   const words = content.trim().split(/\s+/).filter(Boolean).length;
-  if (words < 100) return PANELS_REFERENCE_MIN;
-  // Scale: 100 words → 8 panels, 1000+ words → 14 panels
-  const scale = Math.min(1, (words - 100) / 900);
-  return Math.round(
-    PANELS_REFERENCE_MIN + scale * (PANELS_REFERENCE_MAX - PANELS_REFERENCE_MIN)
-  );
+  if (words < 30) return 0;
+  if (targetPerChapter && targetPerChapter > 0) return targetPerChapter;
+  return Math.max(1, Math.round(words / 45));
 }
 
 // ── API Panels ────────────────────────────────────────────────────

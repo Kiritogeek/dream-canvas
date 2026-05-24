@@ -1,4 +1,4 @@
-import { Type, Layers, Check, Save } from "lucide-react";
+import { Type, Layers, Check, Save, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type ChapterStatusBarProps = {
@@ -9,6 +9,7 @@ type ChapterStatusBarProps = {
   assetsGenerated: number;
   assetsUngenerated: number;
   saveState: "clean" | "dirty" | "saving";
+  isValidated?: boolean;
   onShowUngenerated: () => void;
 };
 
@@ -20,6 +21,7 @@ export function ChapterStatusBar({
   assetsGenerated,
   assetsUngenerated,
   saveState,
+  isValidated = false,
   onShowUngenerated,
 }: ChapterStatusBarProps) {
   const allValidated = casesCount > 0 && validatedCount >= casesCount;
@@ -88,6 +90,11 @@ export function ChapterStatusBar({
                 · {assetsUngenerated} manquant{assetsUngenerated !== 1 ? "s" : ""}
               </span>
             </>
+          ) : isValidated ? (
+            <span className="flex items-center gap-1 text-emerald-500">
+              <Lock className="h-3 w-3" />
+              Chapitre validé
+            </span>
           ) : (
             <span>Tous les assets générés — chapitre validable</span>
           )}
@@ -97,13 +104,15 @@ export function ChapterStatusBar({
       {/* Spacer */}
       <span className="flex-1" />
 
-      {/* Auto-sauvegarde */}
-      <span className="hidden sm:flex items-center gap-1 shrink-0">
-        <Save className="h-3 w-3" />
-        {saveState === "saving" && "Sauvegarde…"}
-        {saveState === "clean" && <span className="text-emerald-500">Auto-sauvegardé</span>}
-        {saveState === "dirty" && <span className="text-amber-500">Non sauvegardé</span>}
-      </span>
+      {/* Auto-sauvegarde — masquée quand le chapitre est validé (lecture seule) */}
+      {!isValidated && (
+        <span className="hidden sm:flex items-center gap-1 shrink-0">
+          <Save className="h-3 w-3" />
+          {saveState === "saving" && "Sauvegarde…"}
+          {saveState === "clean" && <span className="text-emerald-500">Auto-sauvegardé</span>}
+          {saveState === "dirty" && <span className="text-amber-500">Non sauvegardé</span>}
+        </span>
+      )}
     </footer>
   );
 }

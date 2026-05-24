@@ -1728,7 +1728,7 @@ export default function ChapterDetail() {
           <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
             {generatedCasesCount} case{generatedCasesCount !== 1 ? "s" : ""} générée{generatedCasesCount !== 1 ? "s" : ""}
           </span>
-          {isPro && detectedCasesCount !== null && (
+          {detectedCasesCount !== null && (
             <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-muted text-muted-foreground border border-border">
               {detectedCasesCount} détectée{detectedCasesCount !== 1 ? "s" : ""}
             </span>
@@ -1744,16 +1744,11 @@ export default function ChapterDetail() {
           )}
           <button
             type="button"
-            onClick={() => isPro ? setSliceModalOpen(true) : navigate("/dashboard/plans")}
+            onClick={() => setSliceModalOpen(true)}
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border bg-muted/50 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-            title={isPro ? "Découper & télécharger ZIP" : "Export disponible en plan Créateur"}
+            title="Découper & télécharger ZIP"
           >
             <Download className="h-3.5 w-3.5" />
-            {!isPro && (
-              <span className="text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 rounded px-1 py-0.5 leading-none">
-                Pro
-              </span>
-            )}
           </button>
         </div>
       </header>
@@ -1914,8 +1909,8 @@ export default function ChapterDetail() {
             </CollapsibleContent>
           </Collapsible>
 
-          {/* Cases section — Créateur/Studio uniquement */}
-          {isPro && linkedScenarioChapter && detectedCasesCount !== null && detectedCasesCount > 0 && (
+          {/* Cases section */}
+          {linkedScenarioChapter && detectedCasesCount !== null && detectedCasesCount > 0 && (
             <div className="border-b border-border">
               <div className="flex items-center gap-2 px-4 py-3">
                 <Layers className="h-4 w-4 text-primary" />

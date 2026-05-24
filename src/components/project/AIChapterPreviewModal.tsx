@@ -32,8 +32,9 @@ function renderHighlight(text: string): React.ReactNode[] {
 
     if (scenePrefix) {
       span = (
-        <span key={`h-${i}`} style={{ color: "hsl(275, 45%, 60%)", fontWeight: 700 }}>
-          {line.slice(scenePrefix.length)}
+        <span key={`h-${i}`}>
+          <span style={{ fontSize: 0 }}>{scenePrefix}</span>
+          <span style={{ color: "hsl(275, 45%, 60%)", fontWeight: 700 }}>{line.slice(scenePrefix.length)}</span>
         </span>
       );
     } else if (bqPrefix) {
@@ -41,7 +42,12 @@ function renderHighlight(text: string): React.ReactNode[] {
       const color = /^Personnages\s*:/i.test(rest)
         ? "hsl(275, 38%, 55%)"
         : "hsl(170, 40%, 55%)";
-      span = <span key={`h-${i}`} style={{ color }}>{rest}</span>;
+      span = (
+        <span key={`h-${i}`}>
+          <span style={{ fontSize: 0 }}>{bqPrefix}</span>
+          <span style={{ color }}>{rest}</span>
+        </span>
+      );
     } else if (/^-{3,}\s*$/.test(line)) {
       span = <span key={`h-${i}`} style={{ color: "hsl(0, 0%, 58%)" }}>{line}</span>;
     } else if (/«/.test(line)) {
@@ -113,6 +119,20 @@ function InlineFormatCEditor({
   );
 }
 
+// ── Nettoyage des marqueurs [TYPE] legacy ─────────────────────
+
+function stripTypeMarkers(text: string): string {
+  return text
+    .split("\n")
+    .map((line) => {
+      const m = line.match(/^(\[[^\]]+\])\s*/);
+      let cleaned = m ? line.slice(m[0].length) : line;
+      cleaned = cleaned.replace(/\*([^*\n]+)\*/g, "$1");
+      return cleaned;
+    })
+    .join("\n");
+}
+
 // ── Composant ────────────────────────────────────────────────
 
 export function AIChapterPreviewModal({
@@ -123,10 +143,10 @@ export function AIChapterPreviewModal({
   onAccept,
   isAccepting = false,
 }: AIChapterPreviewModalProps) {
-  const [editedContent, setEditedContent] = useState(content);
+  const [editedContent, setEditedContent] = useState(() => stripTypeMarkers(content));
 
   useEffect(() => {
-    if (isOpen) setEditedContent(content);
+    if (isOpen) setEditedContent(stripTypeMarkers(content));
   }, [isOpen, content]);
 
   return (

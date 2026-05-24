@@ -16,6 +16,7 @@ import {
   ArrowRight,
   CheckCircle2,
   Compass,
+  Lock,
 } from "lucide-react";
 import { ArianeNarrativeSheet } from "./ArianeNarrativeSheet";
 import { Button } from "@/components/ui/button";
@@ -36,18 +37,23 @@ import {
   useCreateScenarioChapter,
   useDeleteScenarioChapter,
   useReorderScenarioChapters,
+  useValidateChapter,
 } from "@/hooks/useScenarioChapters";
 import { useScenarioAI } from "@/hooks/useScenarioAI";
 import { useNarrativeDirections } from "@/hooks/useNarrativeDirections";
 import { AIChapterPreviewModal } from "@/components/project/AIChapterPreviewModal";
 import { estimatePanelCount } from "@/services/panels";
-import type { Project, ScenarioChapter, AssetType } from "@/types";
+import { triggerCompassIndex, triggerCompassPropose } from "@/services/compassIndex";
+import { triggerNarraMindUpdate } from "@/services/scenarioAI";
+import { getDetectedAssets, detectMissingNames } from "@/components/project/ScenarioTextHighlighter";
+import type { Project, ScenarioChapter, Asset, AssetType } from "@/types";
 
 // ── Props ─────────────────────────────────────────────────────
 
 interface ScenarioSectionProps {
   projectId: string;
   project: Project;
+  assets?: Asset[];
   /** Navigue vers l'onglet Assets avec le dialog de création pré-rempli */
   onNavigateToCreateAsset?: (name: string, type: AssetType) => void;
 }
@@ -56,7 +62,7 @@ const SCENARIO_RECENT_CHAPTERS_FOR_IA = 5;
 
 // ── Composant principal ───────────────────────────────────────
 
-export function ScenarioSection({ projectId, project }: ScenarioSectionProps) {
+export function ScenarioSection({ projectId, project, assets = [] }: ScenarioSectionProps) {
   const { toast } = useToast();
   const navigate = useNavigate();
   const aiBlockRef = useRef<HTMLDivElement>(null);
@@ -331,6 +337,13 @@ export function ScenarioSection({ projectId, project }: ScenarioSectionProps) {
                   setAiPrompt("");
                   setIsAccepting(false);
                   toast({ title: "Chapitre créé" });
+                  // Analyse Ariane fire-and-forget : index + lore + anomalies
+                  void triggerCompassIndex(projectId, "chapter", data.id, finalContent);
+                  void triggerCompassPropose(projectId, finalContent, data.id);
+                  const wordCount = finalContent.trim().split(/\s+/).filter(Boolean).length;
+                  if (wordCount >= 80) {
+                    void triggerNarraMindUpdate(projectId, data.id).catch(() => {});
+                  }
                   navigate(`/dashboard/projects/${projectId}/scenario/${data.id}`);
                 },
                 onError: (err) => {
@@ -486,6 +499,7 @@ export function ScenarioSection({ projectId, project }: ScenarioSectionProps) {
                 key={chapter.id}
                 chapter={chapter}
                 projectId={projectId}
+                assets={assets}
                 onRequestDelete={() => setDeleteTarget(chapter)}
                 onMoveUp={idx > 0 ? () => handleMoveChapter(chapter.id, "up") : undefined}
                 onMoveDown={
@@ -634,11 +648,20 @@ export function ScenarioSection({ projectId, project }: ScenarioSectionProps) {
   );
 }
 
+function stripMarkdownForPreview(text: string): string {
+  return text
+    .split("\n")
+    .map((l) => l.replace(/^#{1,6}\s*/, "").replace(/^>\s*/, "").trim())
+    .filter(Boolean)
+    .join(" ");
+}
+
 // ── Carte chapitre ────────────────────────────────────────────
 
 interface ChapterCardProps {
   chapter: ScenarioChapter;
   projectId: string;
+  assets: Asset[];
   onRequestDelete: () => void;
   onMoveUp?: () => void;
   onMoveDown?: () => void;
@@ -648,14 +671,19 @@ interface ChapterCardProps {
 function ChapterCard({
   chapter,
   projectId,
+  assets,
   onRequestDelete,
   onMoveUp,
   onMoveDown,
   isReordering,
 }: ChapterCardProps) {
+  const validateMutation = useValidateChapter();
+
   const wordCount =
     chapter.content?.trim().split(/\s+/).filter(Boolean).length ?? 0;
-  const preview = chapter.content?.trim().slice(0, 80) ?? null;
+  const preview = chapter.content?.trim()
+    ? stripMarkdownForPreview(chapter.content.trim()).slice(0, 80) || null
+    : null;
 
   type OutlineBlock = { panel_number: number; locked?: boolean };
   const outline = useMemo(
@@ -675,88 +703,160 @@ function ChapterCard({
   );
   const panelEstimate = estimatePanelCount(chapter.content);
 
+  // Conditions de validation
+  const canValidate = useMemo(() => {
+    if (!chapter.content?.trim()) return false;
+    const detectedAssets = getDetectedAssets(chapter.content, assets);
+    const allGenerated = detectedAssets.every((a) => !!a.image_url);
+    const missing = detectMissingNames(chapter.content, assets);
+    const dismissed = (() => {
+      try {
+        const saved = localStorage.getItem(`dw:dismissed-missing:${projectId}`);
+        return saved ? new Set(JSON.parse(saved) as string[]) : new Set<string>();
+      } catch { return new Set<string>(); }
+    })();
+    const undismissed = missing.filter((n) => !dismissed.has(n.toLowerCase()));
+    return allGenerated && undismissed.length === 0;
+  }, [chapter.content, assets, projectId]);
+
+  const isValidated = chapter.validated ?? false;
+
   return (
     <Link
       to={`/dashboard/projects/${projectId}/scenario/${chapter.id}`}
-      className="relative flex flex-col gap-3 rounded-2xl border border-[hsl(var(--peach)/0.75)] dark:border-[hsl(var(--peach)/0.4)] bg-white dark:bg-card p-4 shadow-sm cursor-pointer group
-        hover:shadow-dream hover:border-[hsl(var(--lavender)/0.85)] dark:hover:border-[hsl(var(--lavender)/0.6)] hover:-translate-y-0.5
-        transition-[box-shadow,border-color,transform] duration-200"
-    >
-      {/* Actions en haut-droite */}
-      <div className="absolute top-3 right-3 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button
-          type="button"
-          disabled={!onMoveUp || isReordering}
-          onClick={(e) => { e.stopPropagation(); e.preventDefault(); onMoveUp?.(); }}
-          className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-[hsl(var(--lavender)/0.1)] disabled:opacity-30 disabled:pointer-events-none transition-colors"
-          title="Monter"
-        >
-          <ChevronUp className="h-3.5 w-3.5" />
-        </button>
-        <button
-          type="button"
-          disabled={!onMoveDown || isReordering}
-          onClick={(e) => { e.stopPropagation(); e.preventDefault(); onMoveDown?.(); }}
-          className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-[hsl(var(--lavender)/0.1)] disabled:opacity-30 disabled:pointer-events-none transition-colors"
-          title="Descendre"
-        >
-          <ChevronDown className="h-3.5 w-3.5" />
-        </button>
-        <button
-          type="button"
-          onClick={(e) => { e.stopPropagation(); e.preventDefault(); onRequestDelete(); }}
-          className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-          title="Supprimer"
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-        </button>
-      </div>
-
-      {/* Badge numéro + titre */}
-      <div className="flex items-start gap-3">
-        <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full gradient-primary text-primary-foreground text-lg font-bold font-display min-w-[2.25rem] shrink-0">
-          {chapter.chapter_number}
-        </span>
-        <p className="font-semibold text-base leading-snug pt-0.5 pr-16 truncate">
-          {chapter.title}
-        </p>
-      </div>
-
-      {/* Aperçu du contenu */}
-      {preview && (
-        <p className="text-xs text-muted-foreground italic leading-relaxed line-clamp-2">
-          {preview}{chapter.content && chapter.content.trim().length > 80 ? "…" : ""}
-        </p>
-      )}
-
-      {/* Stats + indicateur hover */}
-      <div className="flex items-center justify-between gap-2 mt-auto pt-1">
-        <div className="flex items-center gap-2 flex-wrap">
-          {wordCount > 0 ? (
+        className={`relative flex flex-col gap-3 rounded-2xl border p-4 shadow-sm cursor-pointer group transition-[box-shadow,border-color,transform] duration-200
+          ${isValidated
+            ? "border-emerald-500/40 bg-emerald-500/5 dark:bg-emerald-500/5 hover:border-emerald-500/60"
+            : "border-[hsl(var(--peach)/0.75)] dark:border-[hsl(var(--peach)/0.4)] bg-white dark:bg-card hover:shadow-dream hover:border-[hsl(var(--lavender)/0.85)] dark:hover:border-[hsl(var(--lavender)/0.6)] hover:-translate-y-0.5"
+          }`}
+      >
+        {/* Actions en haut-droite */}
+        <div className="absolute top-3 right-3 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+          {!isValidated && (
             <>
-              <span className="px-2.5 py-1 rounded-full bg-[hsl(var(--mint)/0.2)] text-[hsl(170_40%_35%)] dark:text-[hsl(var(--mint))] text-xs font-semibold border border-[hsl(var(--mint)/0.35)]">
-                {wordCount.toLocaleString()} mots
-              </span>
-              <span className="px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400 text-xs font-semibold border border-amber-500/25">
-                {detectedPanelCount !== null ? `${detectedPanelCount} case${detectedPanelCount > 1 ? "s" : ""}` : `~${panelEstimate} cases`}
-              </span>
-              {lockedCount > 0 && (
-                <span className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-xs font-semibold border border-emerald-500/25">
-                  <CheckCircle2 className="h-3 w-3" />
-                  {lockedCount} validée{lockedCount > 1 ? "s" : ""}
-                </span>
-              )}
+              <button
+                type="button"
+                disabled={!onMoveUp || isReordering}
+                onClick={(e) => { e.stopPropagation(); e.preventDefault(); onMoveUp?.(); }}
+                className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-[hsl(var(--lavender)/0.1)] disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                title="Monter"
+              >
+                <ChevronUp className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                disabled={!onMoveDown || isReordering}
+                onClick={(e) => { e.stopPropagation(); e.preventDefault(); onMoveDown?.(); }}
+                className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-[hsl(var(--lavender)/0.1)] disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                title="Descendre"
+              >
+                <ChevronDown className="h-3.5 w-3.5" />
+              </button>
             </>
-          ) : (
-            <span className="text-xs text-muted-foreground italic">Vide — cliquez pour écrire</span>
+          )}
+          {!isValidated && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); e.preventDefault(); onRequestDelete(); }}
+              className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+              title="Supprimer"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
           )}
         </div>
 
-        <span className="shrink-0 flex items-center gap-1 text-xs font-semibold text-[hsl(var(--lavender))] opacity-0 group-hover:opacity-100 transition-opacity">
-          Ouvrir
-          <ArrowRight className="h-3.5 w-3.5" />
-        </span>
-      </div>
-    </Link>
+        {/* Badge numéro + titre + badge Validé */}
+        <div className="flex items-start gap-3">
+          <span className={`inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-lg font-bold font-display min-w-[2.25rem] shrink-0 ${
+            isValidated
+              ? "bg-emerald-500 text-white"
+              : "gradient-primary text-primary-foreground"
+          }`}>
+            {isValidated ? <Lock className="h-4 w-4" /> : chapter.chapter_number}
+          </span>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 pr-16">
+              <p className="font-semibold text-base leading-snug truncate">
+                {chapter.title}
+              </p>
+              {isValidated && (
+                <span className="shrink-0 flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 text-[10px] font-bold border border-emerald-500/30 uppercase tracking-wide">
+                  <CheckCircle2 className="h-2.5 w-2.5" />
+                  Validé
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Aperçu du contenu */}
+        {preview && (
+          <p className="text-xs text-muted-foreground italic leading-relaxed line-clamp-2">
+            {preview}{chapter.content && chapter.content.trim().length > 80 ? "…" : ""}
+          </p>
+        )}
+
+        {/* Stats */}
+        <div className="flex items-center justify-between gap-2 mt-auto pt-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            {wordCount > 0 ? (
+              <>
+                <span className="px-2.5 py-1 rounded-full bg-[hsl(var(--mint)/0.2)] text-[hsl(170_40%_35%)] dark:text-[hsl(var(--mint))] text-xs font-semibold border border-[hsl(var(--mint)/0.35)]">
+                  {wordCount.toLocaleString()} mots
+                </span>
+                <span className="px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400 text-xs font-semibold border border-amber-500/25">
+                  {detectedPanelCount !== null ? `${detectedPanelCount} case${detectedPanelCount > 1 ? "s" : ""}` : `~${panelEstimate} cases`}
+                </span>
+                {lockedCount > 0 && (
+                  <span className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-xs font-semibold border border-emerald-500/25">
+                    <CheckCircle2 className="h-3 w-3" />
+                    {lockedCount} validée{lockedCount > 1 ? "s" : ""}
+                  </span>
+                )}
+              </>
+            ) : (
+              <span className="text-xs text-muted-foreground italic">Vide — cliquez pour écrire</span>
+            )}
+          </div>
+
+          {!isValidated && (
+            <span className="shrink-0 flex items-center gap-1 text-xs font-semibold text-[hsl(var(--lavender))] opacity-0 group-hover:opacity-100 transition-opacity">
+              Ouvrir
+              <ArrowRight className="h-3.5 w-3.5" />
+            </span>
+          )}
+        </div>
+
+        {/* Actions bas de carte */}
+        {!isValidated && (
+          <div className="flex items-center gap-2 pt-1 border-t border-border/40 mt-1">
+            {canValidate ? (
+              <button
+                type="button"
+                disabled={validateMutation.isPending}
+                onClick={(e) => {
+                  e.stopPropagation(); e.preventDefault();
+                  validateMutation.mutate({ id: chapter.id, projectId });
+                }}
+                className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20 transition-colors font-medium ml-auto"
+              >
+                {validateMutation.isPending ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <Lock className="h-3 w-3" />
+                )}
+                Valider le chapitre
+              </button>
+            ) : (
+              <span className="text-[10px] text-muted-foreground/60 italic">
+                {!chapter.content?.trim()
+                  ? "Chapitre vide"
+                  : "Générez les assets détectés pour valider"}
+              </span>
+            )}
+          </div>
+        )}
+      </Link>
   );
 }

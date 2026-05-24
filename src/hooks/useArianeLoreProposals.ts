@@ -634,10 +634,12 @@ export function useArianeLoreProposals(projectId: string, { enableAutoScan = tru
         }
       }
       const foundInDescription = !firstChapterNumber && wordRe.test(projectDescription);
-      if (!firstChapterNumber && !foundInDescription) continue;
+      const inLore = alreadyInLore.has(asset.id);
+      // Skip si absent du texte ET pas encore en lore (les assets en lore remontent toujours)
+      if (!firstChapterNumber && !foundInDescription && !inLore) continue;
 
       const dedupeKey = `lore_asset-${asset.id}`;
-      if (alreadyInLore.has(asset.id)) reasonByDedupe.set(dedupeKey, "already_exists");
+      if (inLore) reasonByDedupe.set(dedupeKey, "already_exists");
       else if (dismissedDedupeKeys.has(dedupeKey)) reasonByDedupe.set(dedupeKey, "ignored");
 
       forceInserts.push({

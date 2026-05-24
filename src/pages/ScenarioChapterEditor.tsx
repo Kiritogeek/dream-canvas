@@ -302,6 +302,7 @@ export default function ScenarioChapterEditor() {
   }, [allChapters]);
   const chapterAI = useScenarioAI();
   const { plan } = useUserPlan();
+  const targetPanels = project?.panels_target_per_chapter ?? null;
   const _isPro = plan === "createur" || plan === "studio";
   const { schedule: scheduleNarraMind } = useNarraMindDebounce();
   const { indexContent } = useCompassIndex();
@@ -1011,7 +1012,6 @@ export default function ScenarioChapterEditor() {
   // ── Rendu ────────────────────────────────────────────────────
 
   const isValidated = chapter.validated ?? false;
-  const targetPanels = project?.panels_target_per_chapter ?? null;
 
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">

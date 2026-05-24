@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { X, Plus, Trash2, Save, Loader2, Sparkles, AlertTriangle, Unlink } from "lucide-react";
+import { X, Plus, Trash2, Sparkles, AlertTriangle, Unlink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -145,7 +145,6 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
   const [activeSection, setActiveSection] = useState<string>("");
   const [showPicker, setShowPicker] = useState(false);
   const [newCustomName, setNewCustomName] = useState("");
-  const [saving, setSaving] = useState(false);
   const [showTypePicker, setShowTypePicker] = useState(false);
   const [newEdgeTargetId, setNewEdgeTargetId] = useState<string>("");
   const [newEdgeLabel, setNewEdgeLabel] = useState("");
@@ -228,7 +227,6 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
 
   const handleSave = useCallback(async () => {
     if (!node) return;
-    setSaving(true);
     const loreDescription = buildDescription(sections, LORE_CHIPS[type]);
     try {
       const result = await updateNode.mutateAsync({
@@ -237,11 +235,8 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
         updates: { name, type, description: loreDescription || null, chapter_id: chapterId },
       });
       onNodeUpdated?.(result);
-      toast({ title: "Sauvegardé", description: name });
     } catch {
       toast({ title: "Erreur", description: "Impossible de sauvegarder.", variant: "destructive" });
-    } finally {
-      setSaving(false);
     }
   }, [node, projectId, name, type, sections, chapterId, updateNode, onNodeUpdated, toast]);
 
@@ -748,13 +743,6 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
                 <Trash2 className="h-3.5 w-3.5" />
                 Supprimer
               </Button>
-              {activeTab === "lore" && (
-                <Button size="sm" onClick={handleSave} disabled={saving}
-                  className="gradient-primary text-primary-foreground gap-1.5">
-                  {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-                  Sauvegarder
-                </Button>
-              )}
             </div>
 
           </div>

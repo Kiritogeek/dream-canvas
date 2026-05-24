@@ -741,6 +741,7 @@ export default function ScenarioChapterEditor() {
         chapter_title: chapter.title,
         chapter_content: content,
         chapter_number: chapter.chapter_number,
+        project_id: projectId ?? undefined,
       },
       {
         onSuccess: (data) => {
@@ -756,7 +757,7 @@ export default function ScenarioChapterEditor() {
           }),
       }
     );
-  }, [chapter, chapterAIPrompt, content, chapterAI, toast]);
+  }, [chapter, chapterAIPrompt, content, projectId, chapterAI, toast]);
 
   // ── Cible panels projet ──────────────────────────────────────
 

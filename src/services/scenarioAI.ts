@@ -11,6 +11,7 @@ export interface ScenarioAIRequest {
   existing_content?: string;
   project_description?: string;
   next_chapter_number?: number;
+  project_id?: string;
 }
 
 export interface ChapterAIRequest {
@@ -19,6 +20,7 @@ export interface ChapterAIRequest {
   chapter_title: string;
   chapter_content: string;
   chapter_number?: number;
+  project_id?: string;
 }
 
 export interface PanelsAIRequest {

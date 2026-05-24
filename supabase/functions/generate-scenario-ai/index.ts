@@ -309,6 +309,44 @@ function extractJsonObject(raw: string): string {
   return s.slice(start);
 }
 
+// ── Lore context builder (pour modes scenario & chapter) ────────
+const LORE_TYPE_LABEL: Record<string, string> = {
+  character: "Personnages",
+  location: "Lieux",
+  object: "Objets",
+  event: "Événements",
+};
+
+async function fetchLoreContext(
+  supabaseUrl: string,
+  serviceKey: string,
+  projectId: string
+): Promise<string> {
+  const res = await fetch(
+    `${supabaseUrl}/rest/v1/lore_nodes?project_id=eq.${projectId}&select=name,type,description&order=type.asc`,
+    { headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` } }
+  );
+  if (!res.ok) return "";
+  const nodes = (await res.json()) as Array<{ name: string; type: string; description: string | null }>;
+  if (!nodes.length) return "";
+
+  const byType: Record<string, typeof nodes> = {};
+  for (const n of nodes) {
+    if (!byType[n.type]) byType[n.type] = [];
+    byType[n.type].push(n);
+  }
+
+  return Object.entries(byType)
+    .map(([type, list]) => {
+      const label = LORE_TYPE_LABEL[type] ?? type;
+      const items = list
+        .map((n) => `  - ${n.name}${n.description?.trim() ? ` : ${clip(n.description.trim(), 150)}` : ""}`)
+        .join("\n");
+      return `${label} :\n${items}`;
+    })
+    .join("\n");
+}
+
 // ═══════════════════════════════════════════════════════════════
 // HANDLER PRINCIPAL
 // ═══════════════════════════════════════════════════════════════
@@ -420,6 +458,10 @@ Deno.serve(async (req) => {
         projectDescription: body.project_description,
         nextChapterNumber: body.next_chapter_number,
       });
+      if (body.project_id) {
+        const loreCtx = await fetchLoreContext(supabaseUrl!, serviceKey!, body.project_id);
+        if (loreCtx) userPrompt = `UNIVERS (éléments établis à respecter) :\n${loreCtx}\n\n${userPrompt}`;
+      }
     } else if (mode === "chapter") {
       if (!body.chapter_content?.trim()) {
         return jsonResponse(
@@ -439,6 +481,10 @@ Deno.serve(async (req) => {
         chapterContent: safeChapterContent,
         chapterNumber: body.chapter_number,
       });
+      if (body.project_id) {
+        const loreCtx = await fetchLoreContext(supabaseUrl!, serviceKey!, body.project_id);
+        if (loreCtx) userPrompt = `UNIVERS (éléments établis à respecter) :\n${loreCtx}\n\n${userPrompt}`;
+      }
     } else if (mode === "panels") {
       if (!body.chapter_content?.trim()) {
         return jsonResponse(

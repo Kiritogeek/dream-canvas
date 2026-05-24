@@ -141,6 +141,7 @@ export function ScenarioSection({ projectId, project }: ScenarioSectionProps) {
           existing_content: existingContent,
           project_description: project.description ?? undefined,
           next_chapter_number: targetChapterNumber,
+          project_id: projectId,
         },
         {
           onSuccess: (data) => {
@@ -152,7 +153,7 @@ export function ScenarioSection({ projectId, project }: ScenarioSectionProps) {
         }
       );
     },
-    [aiPrompt, chapters, project.description, scenarioAI, toast]
+    [aiPrompt, chapters, project.description, projectId, scenarioAI, toast]
   );
 
   const handleMoveChapter = useCallback(

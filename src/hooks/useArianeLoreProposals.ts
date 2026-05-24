@@ -54,15 +54,20 @@ export function useArianeLoreProposals(projectId: string) {
       { data: canvasChapters },
       { data: existingNodes },
       { data: existingProposals },
+      { data: projectData },
     ] = await Promise.all([
       supabase.from("assets").select("id, name, asset_type").eq("project_id", projectId),
       supabase.from("scenario_chapters").select("id, chapter_number, content").eq("project_id", projectId).order("chapter_number"),
       supabase.from("chapters").select("id, chapter_number").eq("project_id", projectId),
       supabase.from("lore_nodes").select("asset_id").eq("project_id", projectId),
       supabase.from("compass_proposals").select("dedupe_key").eq("project_id", projectId).eq("proposal_type", "lore_asset"),
+      supabase.from("projects").select("description").eq("id", projectId).single(),
     ]);
 
-    if (!assets?.length || !scenarioChapters?.length) return;
+    if (!assets?.length) return;
+    const projectDescription = (projectData as { description?: string | null } | null)?.description ?? "";
+    const hasContent = (scenarioChapters?.length ?? 0) > 0 || projectDescription.trim().length > 0;
+    if (!hasContent) return;
 
     const alreadyInLore = new Set(
       (existingNodes ?? []).map((n) => n.asset_id).filter(Boolean) as string[]
@@ -97,7 +102,7 @@ export function useArianeLoreProposals(projectId: string) {
       let firstChapterNumber: number | null = null;
 
       const wordRe = new RegExp(`\\b${escapeRegex(asset.name)}\\b`, "i");
-      for (const sc of scenarioChapters) {
+      for (const sc of (scenarioChapters ?? [])) {
         if (wordRe.test(sc.content ?? "")) {
           firstChapterId = canvasMap.get(sc.chapter_number) ?? null;
           firstChapterNumber = sc.chapter_number;
@@ -105,7 +110,9 @@ export function useArianeLoreProposals(projectId: string) {
         }
       }
 
-      if (!firstChapterNumber) continue;
+      // Si absent des chapitres, chercher dans la description projet
+      const foundInDescription = !firstChapterNumber && wordRe.test(projectDescription);
+      if (!firstChapterNumber && !foundInDescription) continue;
 
       seenNames.add(normalizedName);
 

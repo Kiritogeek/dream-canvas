@@ -164,8 +164,10 @@ export interface PanelOutlineItem {
  */
 export type PanelBlockShape =
   | "rect"        // rectangle plein (défaut)
-  | "diagonal-r"  // bord droit en biais (→ bas-gauche) : action, élan vers la droite
-  | "diagonal-l"  // bord gauche en biais (→ bas-droite) : action, élan vers la gauche
+  | "diagonal-r"  // bord DROIT vertical en biais : action latérale droite (pour panels côte à côte)
+  | "diagonal-l"  // bord GAUCHE vertical en biais : action latérale gauche (pour panels côte à côte)
+  | "taper-r"     // bord BAS diagonal bas-gauche→haut-droit : panel du HAUT en coupe diagonale verticale
+  | "taper-l"     // bord HAUT diagonal haut-gauche→bas-droit : panel du BAS en coupe diagonale verticale
   | "angle-tr"    // coin haut-droit coupé : focus, révélation sur un visage
   | "angle-br"    // coin bas-droit coupé : transition descendante
   | "angle-tl"    // coin haut-gauche coupé
@@ -189,6 +191,12 @@ export interface PanelBlock {
   dialogue_text?: string | null;
   /** Forme de découpe du bloc (clip-path). Défaut : "rect". */
   shape?: PanelBlockShape;
+  /**
+   * Intensité de la diagonale (0–100, valeur brute en %).
+   * taper-r : Y% du coin bas-droit (défaut 65). taper-l : Y% du coin haut-gauche (défaut 35).
+   * diagonal-r : X% du coin bas-droit (défaut 87). diagonal-l : X% du coin haut-gauche (défaut 13).
+   */
+  shapeOffset?: number;
 }
 
 /** Layout d'un panel : liste de blocs + hauteur du panel. Stocké dans panels.layout (JSONB). */

@@ -7,13 +7,30 @@ import { getPanelHeight, RESIZE_HANDLE_CORNER_PX, RESIZE_HANDLE_EDGE_PX } from "
 
 /**
  * Retourne le clip-path CSS correspondant à la forme du bloc.
- * Les valeurs % sont calculées pour un découpe visuelle ~12% de la dimension concernée.
+ * shapeOffset (0-100) module l'intensité de la diagonale — valeur par défaut par shape.
  * La bounding box reste rectangulaire → les poignées de resize fonctionnent normalement.
  */
-function getBlockClipPath(shape?: PanelBlockShape): string | undefined {
+function getBlockClipPath(shape?: PanelBlockShape, shapeOffset?: number): string | undefined {
   switch (shape) {
-    case "diagonal-r":  return "polygon(0 0, 100% 0, 87% 100%, 0 100%)";
-    case "diagonal-l":  return "polygon(13% 0, 100% 0, 100% 100%, 0 100%)";
+    // ── Diagonales latérales (panels côte à côte, composition I) ──
+    case "diagonal-r": {
+      const o = shapeOffset ?? 87;
+      return `polygon(0 0, 100% 0, ${o}% 100%, 0 100%)`;
+    }
+    case "diagonal-l": {
+      const o = shapeOffset ?? 13;
+      return `polygon(${o}% 0, 100% 0, 100% 100%, 0 100%)`;
+    }
+    // ── Diagonales verticales (panels empilés, composition N) ──
+    case "taper-r": {
+      const o = shapeOffset ?? 65;
+      return `polygon(0 0, 100% 0, 100% ${o}%, 0 100%)`;
+    }
+    case "taper-l": {
+      const o = shapeOffset ?? 35;
+      return `polygon(0 ${o}%, 100% 0, 100% 100%, 0 100%)`;
+    }
+    // ── Coins coupés ──
     case "angle-tr":    return "polygon(0 0, 83% 0, 100% 11%, 100% 100%, 0 100%)";
     case "angle-br":    return "polygon(0 0, 100% 0, 100% 89%, 83% 100%, 0 100%)";
     case "angle-tl":    return "polygon(13% 0, 100% 0, 100% 100%, 0 100%, 0 11%)";
@@ -92,7 +109,7 @@ const ImageBlockItem = memo(function ImageBlockItem({
         width: geom.width,
         height: geom.height,
         zIndex: isSelected ? 99999 : (block.zIndex ?? 0) + 1000,
-        clipPath: getBlockClipPath(block.shape),
+        clipPath: getBlockClipPath(block.shape, block.shapeOffset),
         ...(block.hidden ? { opacity: 0, pointerEvents: "none" } : {}),
       }}
       title={block.name ?? `Case ${blockIndex + 1}`}

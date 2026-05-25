@@ -14,7 +14,7 @@ import {
   chapterCanvasToolbarIconButtonClass,
 } from "@/components/chapter/chapterCanvasToolbar";
 import { cn } from "@/lib/utils";
-import type { PanelBlock, ColorBlock, ColorBlockFill, Asset } from "@/types";
+import type { PanelBlock, ColorBlock, ColorBlockFill, Asset, PanelBlockShape } from "@/types";
 
 function DreamWeaveLogo({ size = 14 }: { size?: number }) {
   return (
@@ -34,6 +34,14 @@ const ASSET_TYPE_ICON: Record<string, string> = {
   object: "📦",
 };
 
+/** Plages d'offset par shape diagonale. */
+const SHAPE_OFFSET_RANGE: Partial<Record<PanelBlockShape, { min: number; max: number; default: number; label: string }>> = {
+  "taper-r":    { min: 30, max: 90, default: 65, label: "Angle bas-droit" },
+  "taper-l":    { min: 10, max: 70, default: 35, label: "Angle haut-gauche" },
+  "diagonal-r": { min: 60, max: 97, default: 87, label: "Angle bas-droit" },
+  "diagonal-l": { min: 3,  max: 40, default: 13, label: "Angle haut-gauche" },
+};
+
 type ImageVariant = {
   type: "image";
   block: PanelBlock;
@@ -50,6 +58,7 @@ type ImageVariant = {
   onSuggestPrompt: () => void;
   onGenerate: () => void;
   onDelete: () => void;
+  onShapeOffsetChange?: (offset: number) => void;
 };
 
 type ColorVariant = {
@@ -80,9 +89,12 @@ function ImageBlockToolbar(props: ImageVariant) {
     onSuggestPrompt,
     onGenerate,
     onDelete,
+    onShapeOffsetChange,
   } = props;
 
   const [open, setOpen] = useState(false);
+
+  const shapeRange = block.shape ? SHAPE_OFFSET_RANGE[block.shape] : undefined;
 
   const detectedAssets = useMemo(
     () => getDetectedAssets(promptDraft, assets),
@@ -147,6 +159,30 @@ function ImageBlockToolbar(props: ImageVariant) {
           >
             <Trash2 className="h-4 w-4" />
           </button>
+
+          {shapeRange && onShapeOffsetChange && (
+            <>
+              {sep}
+              <div
+                className="flex items-center gap-2 px-1"
+                title={shapeRange.label}
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <span className="text-[10px] text-muted-foreground font-medium shrink-0 leading-none">⟋</span>
+                <input
+                  type="range"
+                  min={shapeRange.min}
+                  max={shapeRange.max}
+                  step={1}
+                  value={block.shapeOffset ?? shapeRange.default}
+                  onChange={(e) => onShapeOffsetChange(parseInt(e.target.value, 10))}
+                  className="w-20 h-1.5 accent-primary cursor-pointer"
+                  aria-label={shapeRange.label}
+                />
+              </div>
+            </>
+          )}
         </div>
       </PopoverAnchor>
 

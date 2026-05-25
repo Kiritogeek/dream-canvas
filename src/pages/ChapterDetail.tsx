@@ -1223,6 +1223,17 @@ export default function ChapterDetail() {
       );
     };
 
+    const handleBlockShapeOffsetChange = (block: PanelBlock, offset: number) => {
+      const nextBlocks = layout.blocks.map((b) => (b.id === block.id ? { ...b, shapeOffset: offset } : b));
+      // Mise à jour optimiste immédiate (pas de toast — c'est temps-réel via slider)
+      const previousPanels = queryClient.getQueryData<Panel[]>(panelsQueryKey);
+      queryClient.setQueryData<Panel[]>(panelsQueryKey, (old) => (!old ? old : old.map((p) => (p.id === panel.id ? { ...p, layout: { ...layout, blocks: nextBlocks } as unknown as Json } : p))));
+      updatePanelMutation.mutate(
+        { id: panel.id, updates: { layout: { ...layout, blocks: nextBlocks } as unknown as Json } },
+        { onError: (err) => { if (previousPanels) queryClient.setQueryData(panelsQueryKey, previousPanels); toast({ title: "Erreur", description: err.message, variant: "destructive" }); } }
+      );
+    };
+
     const handlePanelHeightChange = (newHeight: number) => {
       const h = Math.max(PANEL_HEIGHT_MIN, Math.min(PANEL_HEIGHT_MAX, newHeight));
       const clampedBlocks = layout.blocks.map((b) => {
@@ -1617,6 +1628,7 @@ export default function ChapterDetail() {
                       onSuggestPrompt={() => handleSuggestBlockPrompt(selectedBlock)}
                       onGenerate={() => handleGenerateBlock(selectedBlock)}
                       onDelete={() => handleDeleteBlock(selectedBlock)}
+                      onShapeOffsetChange={(offset) => handleBlockShapeOffsetChange(selectedBlock, offset)}
                     />
                   );
                 })()}

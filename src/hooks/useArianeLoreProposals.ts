@@ -77,7 +77,6 @@ export function useArianeLoreProposals(projectId: string, { enableAutoScan = tru
     enabled: !!projectId && !!user,
     staleTime: Infinity,
     refetchOnWindowFocus: false,
-    refetchOnMount: false,
   });
 
   const runScan = useCallback(async () => {

@@ -505,8 +505,16 @@ function normalizeScenes(
 
 function processComposition(
   scenes: AISimpleScene[],
-  panelsOutline: PanelOutlineBlock[]
+  panelsOutline: PanelOutlineBlock[],
+  existingBlocks?: Array<{ prompt?: string | null; image_url?: string | null; name?: string | null }>
 ): { blocks: object[]; speechBubbles: object[]; panelHeight: number } {
+  // Index des images existantes par prompt (recomposition) — préserve le travail déjà généré
+  const existingImageByPrompt = new Map<string, string>();
+  for (const eb of existingBlocks ?? []) {
+    if (eb.image_url && eb.prompt) {
+      existingImageByPrompt.set(eb.prompt.trim(), eb.image_url);
+    }
+  }
   const blocks: object[] = [];
   const usedSourceIndices = new Set<number>();
   let yOffset = 0;
@@ -539,6 +547,14 @@ function processComposition(
       usedSourceIndices.add(pb.source_index);
 
       const sourceBlock = panelsOutline[pb.source_index];
+      const promptText = sourceBlock?.description ?? "";
+      const blockName = sourceBlock
+        ? (sourceBlock.block_number && sourceBlock.block_number > 1)
+          ? `Case ${sourceBlock.panel_number}.${sourceBlock.block_number}`
+          : `Case ${sourceBlock.panel_number}`
+        : null;
+      const restoredImage = existingImageByPrompt.get(promptText.trim()) ?? null;
+
       blocks.push({
         id: crypto.randomUUID(),
         x: pb.x,
@@ -546,10 +562,11 @@ function processComposition(
         width: pb.width,
         height: pb.height,
         shape: pb.shape ?? undefined,
-        prompt: sourceBlock?.description ?? "",
+        name: blockName,
+        prompt: promptText,
         dialogue_text: sourceBlock?.text_excerpt?.trim() || null,
         asset_refs: [],
-        image_url: null,
+        image_url: restoredImage,
       });
     }
 
@@ -565,14 +582,22 @@ function processComposition(
     if (!usedSourceIndices.has(i)) {
       const sourceBlock = panelsOutline[i];
       console.warn(`[compose] source_index ${i} manquant — bloc par défaut ajouté`);
+      const promptText = sourceBlock?.description ?? "";
+      const blockName = sourceBlock
+        ? (sourceBlock.block_number && sourceBlock.block_number > 1)
+          ? `Case ${sourceBlock.panel_number}.${sourceBlock.block_number}`
+          : `Case ${sourceBlock.panel_number}`
+        : null;
+      const restoredImage = existingImageByPrompt.get(promptText.trim()) ?? null;
       blocks.push({
         id: crypto.randomUUID(),
         x: 0, y: yOffset,
         width: 800, height: 850,
         shape: undefined,
-        prompt: sourceBlock?.description ?? "",
+        name: blockName,
+        prompt: promptText,
         dialogue_text: sourceBlock?.text_excerpt?.trim() || null,
-        asset_refs: [], image_url: null,
+        asset_refs: [], image_url: restoredImage,
       });
       yOffset += 850 + GAP_FALLBACK_PX;
     }
@@ -694,6 +719,8 @@ Deno.serve(async (req: Request) => {
     chapter_title?: string;
     chapter_synopsis?: string;
     chapter_scenario_content?: string;
+    /** Blocs existants du canvas (recomposition) — pour préserver les images générées */
+    existing_blocks?: Array<{ prompt?: string | null; image_url?: string | null; name?: string | null }>;
   };
 
   try {
@@ -702,7 +729,7 @@ Deno.serve(async (req: Request) => {
     return json({ error: "Corps de requête invalide" }, 400);
   }
 
-  const { chapter_id, panels_outline, project_style, characters, chapter_title, chapter_synopsis, chapter_scenario_content } = body;
+  const { chapter_id, panels_outline, project_style, characters, chapter_title, chapter_synopsis, chapter_scenario_content, existing_blocks } = body;
 
   if (!chapter_id) return json({ error: "chapter_id requis" }, 400);
   if (!Array.isArray(panels_outline) || panels_outline.length === 0) {
@@ -751,7 +778,8 @@ Deno.serve(async (req: Request) => {
   // ── Placement serveur ─────────────────────────────────────────
   const { blocks, speechBubbles, panelHeight } = processComposition(
     normalizedScenes,
-    panels_outline
+    panels_outline,
+    Array.isArray(existing_blocks) ? existing_blocks : undefined
   );
 
   const layout = { blocks, panelHeight };

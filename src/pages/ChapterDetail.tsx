@@ -1894,6 +1894,13 @@ export default function ChapterDetail() {
               text_excerpt?: string;
               locked?: boolean;
             }>;
+            // Blocs existants avec images — pour les préserver lors d'une recomposition
+            const existingBlocksForRecompose = isRecompose
+              ? getPanelLayout(panel).blocks
+                  .filter((b) => b.prompt?.trim())
+                  .map((b) => ({ prompt: b.prompt, image_url: b.image_url ?? null, name: b.name ?? null }))
+              : undefined;
+
             composeLayout.mutate(
               {
                 chapterId: chapterId!,
@@ -1905,6 +1912,7 @@ export default function ChapterDetail() {
                 chapterTitle: chapter?.title ?? undefined,
                 chapterSynopsis: linkedScenarioChapter?.synopsis ?? undefined,
                 chapterScenarioContent: linkedScenarioChapter?.content ?? undefined,
+                existingBlocks: existingBlocksForRecompose,
               },
               {
                 onSuccess: (result) => {

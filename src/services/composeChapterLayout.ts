@@ -14,6 +14,8 @@ export interface ComposeChapterLayoutParams {
   chapterTitle?: string;
   chapterSynopsis?: string;
   chapterScenarioContent?: string;
+  /** Blocs existants avec images (recomposition) — le serveur les restaure sur les blocs au même prompt */
+  existingBlocks?: Array<{ prompt?: string | null; image_url?: string | null; name?: string | null }>;
 }
 
 export interface ComposeChapterLayoutResult {
@@ -49,6 +51,7 @@ export async function composeChapterLayout(
       chapter_title: params.chapterTitle,
       chapter_synopsis: params.chapterSynopsis ?? undefined,
       chapter_scenario_content: params.chapterScenarioContent ?? undefined,
+      existing_blocks: params.existingBlocks?.length ? params.existingBlocks : undefined,
     }),
   });
 

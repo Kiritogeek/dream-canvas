@@ -50,6 +50,7 @@ interface AIOutputBlock {
   y: number;
   width: number;
   height: number;
+  shape?: string;
 }
 
 interface AIOutputBubble {
@@ -190,6 +191,7 @@ function processComposition(
         y: yOffset + Math.max(0, b.y ?? 0),
         width: Math.max(100, Math.min(800, b.width ?? 800)),
         height: Math.max(100, Math.min(5000, b.height ?? 600)),
+        shape: b.shape && b.shape !== "rect" ? b.shape : undefined,
         prompt: promptText,
         dialogue_text: dialogueText,
         asset_refs: [],

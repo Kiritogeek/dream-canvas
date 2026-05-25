@@ -157,6 +157,20 @@ export interface PanelOutlineItem {
   context?: { lieu?: string; scene?: string; personnages?: string };
 }
 
+/**
+ * Forme de découpe d'un bloc image (clip-path CSS).
+ * "rect" = rectangle standard (défaut, pas de clip-path).
+ * Formes diagonales : inspirées des panels d'action Solo Leveling.
+ */
+export type PanelBlockShape =
+  | "rect"        // rectangle plein (défaut)
+  | "diagonal-r"  // bord droit en biais (→ bas-gauche) : action, élan vers la droite
+  | "diagonal-l"  // bord gauche en biais (→ bas-droite) : action, élan vers la gauche
+  | "angle-tr"    // coin haut-droit coupé : focus, révélation sur un visage
+  | "angle-br"    // coin bas-droit coupé : transition descendante
+  | "angle-tl"    // coin haut-gauche coupé
+  | "angle-bl";   // coin bas-gauche coupé
+
 /** Un bloc d'image dans le layout d'un panel (800×hauteur). Dimensions en px. */
 export interface PanelBlock {
   id: string;
@@ -173,6 +187,8 @@ export interface PanelBlock {
   hidden?: boolean;
   /** Texte dialogue/pensée du bloc (stocké par compose, utilisé par la génération post-image des bulles). */
   dialogue_text?: string | null;
+  /** Forme de découpe du bloc (clip-path). Défaut : "rect". */
+  shape?: PanelBlockShape;
 }
 
 /** Layout d'un panel : liste de blocs + hauteur du panel. Stocké dans panels.layout (JSONB). */

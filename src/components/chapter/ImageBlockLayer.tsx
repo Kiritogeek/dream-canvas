@@ -2,8 +2,25 @@ import { useState, useRef, useCallback, memo } from "react";
 import { Plus, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ImageWithFallback } from "@/components/ui/ImageWithFallback";
-import type { Panel, PanelBlock } from "@/types";
+import type { Panel, PanelBlock, PanelBlockShape } from "@/types";
 import { getPanelHeight, RESIZE_HANDLE_CORNER_PX, RESIZE_HANDLE_EDGE_PX } from "@/services/panels";
+
+/**
+ * Retourne le clip-path CSS correspondant à la forme du bloc.
+ * Les valeurs % sont calculées pour un découpe visuelle ~12% de la dimension concernée.
+ * La bounding box reste rectangulaire → les poignées de resize fonctionnent normalement.
+ */
+function getBlockClipPath(shape?: PanelBlockShape): string | undefined {
+  switch (shape) {
+    case "diagonal-r":  return "polygon(0 0, 100% 0, 87% 100%, 0 100%)";
+    case "diagonal-l":  return "polygon(13% 0, 100% 0, 100% 100%, 0 100%)";
+    case "angle-tr":    return "polygon(0 0, 83% 0, 100% 11%, 100% 100%, 0 100%)";
+    case "angle-br":    return "polygon(0 0, 100% 0, 100% 89%, 83% 100%, 0 100%)";
+    case "angle-tl":    return "polygon(13% 0, 100% 0, 100% 100%, 0 100%, 0 11%)";
+    case "angle-bl":    return "polygon(0 0, 100% 0, 100% 100%, 17% 100%, 0 89%)";
+    default:            return undefined;
+  }
+}
 import { useDragBlock } from "@/hooks/useDragBlock";
 import type { DragHandlers } from "@/hooks/useDragBlock";
 import { useResizeBlock } from "@/hooks/useResizeBlock";
@@ -75,6 +92,7 @@ const ImageBlockItem = memo(function ImageBlockItem({
         width: geom.width,
         height: geom.height,
         zIndex: isSelected ? 99999 : (block.zIndex ?? 0) + 1000,
+        clipPath: getBlockClipPath(block.shape),
         ...(block.hidden ? { opacity: 0, pointerEvents: "none" } : {}),
       }}
       title={block.name ?? `Case ${blockIndex + 1}`}

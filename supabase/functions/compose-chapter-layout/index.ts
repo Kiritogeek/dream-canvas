@@ -82,109 +82,147 @@ interface PositionedBlock {
   shape?: string;
 }
 
+// ── Hauteur par contenu ────────────────────────────────────────
+// Chaque bloc obtient une hauteur adaptée à CE qu'il montre, pas au hint de scène.
+function inferBlockHeight(description: string, baseH: number): number {
+  const d = description.toLowerCase();
+
+  // Plans ultra-serrés → strip
+  if (/extrême gros plan|ultra gros|très gros plan/.test(d))
+    return 280;
+
+  // Gros plans / détails → compact
+  if (/gros plan|zoom|détail|yeux|regard|main|doigt|pied|lèvre|plante|fleur|insecte|larme|sueur|cicatrice|bague|symbole/.test(d))
+    return Math.min(520, baseH);
+
+  // Plans larges / panoramas → grand
+  if (/panorama|vue d'ensemble|plan large|plan général|plan d'ensemble|ville entière|paysage|horizon|immense|vaste|foule|armée|ciel|montagne|mer|forêt entière/.test(d))
+    return Math.max(1400, baseH);
+
+  // Scènes d'arrivée, révélation de lieu → grand
+  if (/donjon|entrée|arrivée|découvrent le|bâtiment|château|salle immense|couloir|portail/.test(d))
+    return Math.max(1100, baseH);
+
+  return baseH;
+}
+
+// Largeurs variées pour E — ni mécaniques ni répétitives
+const E_WIDTH_PATTERNS: Array<{ x: number; width: number }> = [
+  { x: 0,   width: 800 },  // plein
+  { x: 110, width: 580 },  // indent gauche
+  { x: 0,   width: 640 },  // légèrement réduit gauche
+  { x: 160, width: 640 },  // indent droite
+  { x: 0,   width: 800 },  // plein
+  { x: 60,  width: 680 },  // légèrement centré
+];
+
 function fallbackLayout(
   indices: number[],
-  h: number
+  h: number,
+  descriptions: string[] = []
 ): { positioned: PositionedBlock[]; sectionHeight: number } {
-  const bh = Math.max(600, Math.min(1000, h));
   const gap = 120;
-  return {
-    positioned: indices.map((idx, i) => ({
-      source_index: idx,
-      x: 0, y: i * (bh + gap), width: 800, height: bh,
-    })),
-    sectionHeight: indices.length * (bh + gap) - gap,
-  };
+  const positioned: PositionedBlock[] = [];
+  let cy = 0;
+  for (let i = 0; i < indices.length; i++) {
+    const bh = Math.max(500, Math.min(1200, inferBlockHeight(descriptions[i] ?? "", h)));
+    positioned.push({ source_index: indices[i], x: 0, y: cy, width: 800, height: bh });
+    cy += bh + gap;
+  }
+  return { positioned, sectionHeight: cy - gap };
 }
 
 function computeSceneLayout(
   composition: string,
   indices: number[],
-  hint: HeightHint
+  hint: HeightHint,
+  descriptions: string[] = []   // descriptions[i] correspond à indices[i]
 ): { positioned: PositionedBlock[]; sectionHeight: number } {
-  const h = HINT_PX[hint] ?? 900;
+  const baseH = HINT_PX[hint] ?? 900;
   const c = composition.toUpperCase();
   const n = indices.length;
   if (n === 0) return { positioned: [], sectionHeight: 0 };
 
   switch (c) {
     case "A": { // Splash — pleine largeur
-      const ah = Math.max(1200, h);
+      const ah = Math.max(1200, inferBlockHeight(descriptions[0] ?? "", baseH));
       return {
         positioned: [{ source_index: indices[0], x: 0, y: 0, width: 800, height: ah }],
         sectionHeight: ah,
       };
     }
 
-    case "B": { // Isolement — centré avec blanc
+    case "B": { // Isolement centré — blanc massif autour
+      const bh = Math.max(500, Math.min(800, inferBlockHeight(descriptions[0] ?? "", 600)));
       return {
-        positioned: [{ source_index: indices[0], x: 160, y: 0, width: 480, height: 600 }],
-        sectionHeight: 600,
-      };
-    }
-
-    case "C": { // Séquence rapide — blocs serrés
-      const bh = 420;
-      const positioned: PositionedBlock[] = [];
-      let cy = 0;
-      for (const idx of indices) {
-        positioned.push({ source_index: idx, x: 0, y: cy, width: 800, height: bh });
-        cy += bh + 20;
-      }
-      return { positioned, sectionHeight: cy - 20 };
-    }
-
-    case "D": { // Face-à-face asymétrique 500+300
-      if (n < 2) return fallbackLayout(indices, h);
-      const bh = Math.max(700, Math.min(1000, h));
-      return {
-        positioned: [
-          { source_index: indices[0], x: 0,   y: 0, width: 500, height: bh },
-          { source_index: indices[1], x: 500, y: 0, width: 300, height: bh },
-        ],
+        positioned: [{ source_index: indices[0], x: 160, y: 0, width: 480, height: bh }],
         sectionHeight: bh,
       };
     }
 
-    case "E": { // Dialogue — empilés, largeurs alternées 800/580, 120px espace
-      const bh = Math.max(650, Math.min(1200, h));
+    case "C": { // Séquence rapide — serrés, hauteurs légèrement variées
       const positioned: PositionedBlock[] = [];
       let cy = 0;
       for (let i = 0; i < n; i++) {
-        const alt = i % 2 === 1;
-        positioned.push({
-          source_index: indices[i],
-          x: alt ? 110 : 0,
-          y: cy,
-          width: alt ? 580 : 800,
-          height: bh,
-        });
+        const bh = inferBlockHeight(descriptions[i] ?? "", 400 + (i % 2) * 60);
+        const clamped = Math.max(320, Math.min(560, bh));
+        positioned.push({ source_index: indices[i], x: 0, y: cy, width: 800, height: clamped });
+        cy += clamped + 15;
+      }
+      return { positioned, sectionHeight: cy - 15 };
+    }
+
+    case "D": { // Face-à-face — largeurs reflétant l'importance narrative
+      if (n < 2) return fallbackLayout(indices, baseH, descriptions);
+      const h0 = Math.max(600, Math.min(1100, inferBlockHeight(descriptions[0] ?? "", baseH)));
+      const h1 = Math.max(600, Math.min(1100, inferBlockHeight(descriptions[1] ?? "", baseH)));
+      const maxH = Math.max(h0, h1);
+      // Le plus grand panel prend 520px, l'autre 280px
+      const w0 = h0 >= h1 ? 520 : 280;
+      const w1 = 800 - w0;
+      return {
+        positioned: [
+          { source_index: indices[0], x: 0,  y: 0, width: w0, height: maxH },
+          { source_index: indices[1], x: w0, y: 0, width: w1, height: maxH },
+        ],
+        sectionHeight: maxH,
+      };
+    }
+
+    case "E": { // Dialogue — hauteurs par contenu, largeurs non-mécaniques
+      const positioned: PositionedBlock[] = [];
+      let cy = 0;
+      for (let i = 0; i < n; i++) {
+        const bh = Math.max(550, Math.min(1300, inferBlockHeight(descriptions[i] ?? "", baseH)));
+        const pat = E_WIDTH_PATTERNS[i % E_WIDTH_PATTERNS.length];
+        positioned.push({ source_index: indices[i], x: pat.x, y: cy, width: pat.width, height: bh });
         cy += bh + 120;
       }
       return { positioned, sectionHeight: cy - 120 };
     }
 
     case "F": { // Établissement — grand décor + réaction centrée
-      if (n < 2) return fallbackLayout(indices, h);
-      const decorH = Math.max(1100, Math.min(1800, h));
-      const reactH = 650;
+      if (n < 2) return fallbackLayout(indices, baseH, descriptions);
+      const decorH = Math.max(1100, Math.min(1900, inferBlockHeight(descriptions[0] ?? "", baseH)));
+      const reactH = Math.max(500, Math.min(800, inferBlockHeight(descriptions[1] ?? "", 650)));
       return {
         positioned: [
-          { source_index: indices[0], x: 0,   y: 0,              width: 800, height: decorH },
+          { source_index: indices[0], x: 0,   y: 0,            width: 800, height: decorH },
           { source_index: indices[1], x: 110, y: decorH + 150, width: 580, height: reactH },
         ],
         sectionHeight: decorH + 150 + reactH,
       };
     }
 
-    case "G": { // Réplique isolée — 600px centré
+    case "G": { // Réplique isolée — panel réduit centré
+      const bh = Math.max(400, Math.min(700, inferBlockHeight(descriptions[0] ?? "", 550)));
       return {
-        positioned: [{ source_index: indices[0], x: 100, y: 0, width: 600, height: 550 }],
-        sectionHeight: 550,
+        positioned: [{ source_index: indices[0], x: 100, y: 0, width: 600, height: bh }],
+        sectionHeight: bh,
       };
     }
 
-    case "H": { // Transition — petit centré
+    case "H": { // Transition — mini panel centré
       return {
         positioned: [{ source_index: indices[0], x: 200, y: 0, width: 400, height: 380 }],
         sectionHeight: 380,
@@ -192,8 +230,8 @@ function computeSceneLayout(
     }
 
     case "I": { // Diagonale latérale — collision horizontale
-      if (n < 2) return fallbackLayout(indices, h);
-      const bh = Math.max(800, Math.min(1200, h));
+      if (n < 2) return fallbackLayout(indices, baseH, descriptions);
+      const bh = Math.max(800, Math.min(1300, baseH));
       return {
         positioned: [
           { source_index: indices[0], x: 0,   y: 0, width: 380, height: bh, shape: "diagonal-r" },
@@ -204,8 +242,8 @@ function computeSceneLayout(
     }
 
     case "J": { // Incrustation — fond + petit chevauchant
-      if (n < 2) return fallbackLayout(indices, h);
-      const fondH = Math.max(1200, Math.min(2000, h));
+      if (n < 2) return fallbackLayout(indices, baseH, descriptions);
+      const fondH = Math.max(1200, Math.min(2000, inferBlockHeight(descriptions[0] ?? "", baseH)));
       return {
         positioned: [
           { source_index: indices[0], x: 0,   y: 0,   width: 800, height: fondH },
@@ -216,60 +254,79 @@ function computeSceneLayout(
     }
 
     case "K": { // Flash séquence — ultra-fins alternés
-      const bh = 260;
       const positioned: PositionedBlock[] = [];
       let cy = 0;
-      for (let i = 0; i < Math.min(n, 6); i++) {
+      for (let i = 0; i < Math.min(n, 4); i++) {
         positioned.push({
           source_index: indices[i],
-          x: 0, y: cy, width: 800, height: bh,
+          x: 0, y: cy, width: 800, height: 260,
           shape: i % 2 === 0 ? "diagonal-r" : "diagonal-l",
         });
-        cy += bh;
+        cy += 260;
       }
       return { positioned, sectionHeight: cy };
     }
 
-    case "L": { // Strip + Grand — signature SL (300px espace interne)
-      if (n < 2) return fallbackLayout(indices, h);
-      const stripH = 280;
-      const grandH = Math.max(1000, Math.min(1800, h));
+    case "L": { // Strip + Grand — signature SL (300px tension interne)
+      if (n < 2) return fallbackLayout(indices, baseH, descriptions);
+      const stripH = Math.max(240, Math.min(350, inferBlockHeight(descriptions[0] ?? "", 280)));
+      const grandH = Math.max(1000, Math.min(1900, inferBlockHeight(descriptions[1] ?? "", baseH)));
       return {
         positioned: [
-          { source_index: indices[0], x: 0, y: 0,              width: 800, height: stripH },
+          { source_index: indices[0], x: 0, y: 0,            width: 800, height: stripH },
           { source_index: indices[1], x: 0, y: stripH + 300, width: 800, height: grandH },
         ],
         sectionHeight: stripH + 300 + grandH,
       };
     }
 
-    case "M": { // Triptyque — 3 côte à côte
-      if (n < 3) return fallbackLayout(indices, h);
-      const bh = Math.max(500, Math.min(900, h));
+    case "M": { // Triptyque — 3 côte à côte, hauteurs indépendantes
+      if (n < 3) return fallbackLayout(indices, baseH, descriptions);
+      const heights = descriptions.slice(0, 3).map(d => Math.max(450, Math.min(950, inferBlockHeight(d, baseH))));
+      const maxH = Math.max(...heights);
       return {
         positioned: [
-          { source_index: indices[0], x: 0,   y: 0, width: 260, height: bh },
-          { source_index: indices[1], x: 260, y: 0, width: 280, height: bh },
-          { source_index: indices[2], x: 540, y: 0, width: 260, height: bh },
+          { source_index: indices[0], x: 0,   y: maxH - heights[0], width: 260, height: heights[0] },
+          { source_index: indices[1], x: 260, y: maxH - heights[1], width: 280, height: heights[1] },
+          { source_index: indices[2], x: 540, y: maxH - heights[2], width: 260, height: heights[2] },
         ],
-        sectionHeight: bh,
+        sectionHeight: maxH,
       };
     }
 
-    case "N": { // Diagonale verticale — attaque/contre-attaque joints
-      if (n < 2) return fallbackLayout(indices, h);
-      const bh = Math.max(700, Math.min(1100, h));
+    case "N": { // Diagonale verticale — attaque/contre-attaque jointifs
+      if (n < 2) return fallbackLayout(indices, baseH, descriptions);
+      const bh = Math.max(700, Math.min(1100, baseH));
       return {
         positioned: [
-          { source_index: indices[0], x: 0, y: 0,   width: 800, height: bh, shape: "taper-r" },
-          { source_index: indices[1], x: 0, y: bh,  width: 800, height: bh, shape: "taper-l" },
+          { source_index: indices[0], x: 0, y: 0,  width: 800, height: bh, shape: "taper-r" },
+          { source_index: indices[1], x: 0, y: bh, width: 800, height: bh, shape: "taper-l" },
         ],
         sectionHeight: bh * 2,
       };
     }
 
+    case "O": { // Panel ancré GAUCHE — blanc massif à droite
+      const bh = Math.max(450, Math.min(900, inferBlockHeight(descriptions[0] ?? "", 650)));
+      const bw = Math.round(bh * 0.75); // ratio carré-ish, max 560
+      const w = Math.min(560, bw);
+      return {
+        positioned: [{ source_index: indices[0], x: 0, y: 0, width: w, height: bh }],
+        sectionHeight: bh,
+      };
+    }
+
+    case "P": { // Panel ancré DROITE — blanc massif à gauche
+      const bh = Math.max(450, Math.min(900, inferBlockHeight(descriptions[0] ?? "", 650)));
+      const w = Math.min(560, Math.round(bh * 0.75));
+      return {
+        positioned: [{ source_index: indices[0], x: 800 - w, y: 0, width: w, height: bh }],
+        sectionHeight: bh,
+      };
+    }
+
     default:
-      return fallbackLayout(indices, h);
+      return fallbackLayout(indices, baseH, descriptions);
   }
 }
 
@@ -370,11 +427,11 @@ async function callAIOnce(
 
 // Blocs max par composition. Au-delà → on coupe et redistribue.
 const MAX_BLOCKS_PER_COMP: Record<string, number> = {
-  A: 1, B: 1, G: 1, H: 1,          // 1 bloc uniquement
-  D: 2, I: 2, J: 2, L: 2, N: 2,    // exactement 2
-  M: 3,                              // exactement 3
-  C: 5, E: 5,                        // empilés libres
-  K: 4,                              // flash limité à 4
+  A: 1, B: 1, G: 1, H: 1, O: 1, P: 1,   // 1 bloc uniquement
+  D: 2, I: 2, J: 2, L: 2, N: 2,          // exactement 2
+  M: 3,                                    // exactement 3
+  C: 5, E: 5,                              // empilés libres
+  K: 4,                                    // flash limité à 4
 };
 
 function normalizeScenes(
@@ -405,7 +462,9 @@ function normalizeScenes(
 
     const effectiveComp = (scene.composition ?? "E").toUpperCase();
     const maxB = MAX_BLOCKS_PER_COMP[effectiveComp] ?? 5;
-    const indices = scene.source_indices ?? [];
+    // Trier les source_indices en ordre croissant = ordre narratif garanti
+    const indices = [...(scene.source_indices ?? [])].sort((a, b) => a - b);
+    scene.source_indices = indices;
 
     if (indices.length > maxB) {
       overflow.push(...indices.slice(maxB));
@@ -466,10 +525,13 @@ function processComposition(
         : "standard"
     );
 
+    const descriptions = indices.map(idx => panelsOutline[idx]?.description ?? "");
+
     const { positioned, sectionHeight } = computeSceneLayout(
       scene.composition ?? "E",
       indices,
-      hint
+      hint,
+      descriptions
     );
 
     for (const pb of positioned) {

@@ -208,6 +208,20 @@ function getAssetReferencePromptLabel(asset: Asset): string {
   return `object: "${name}"`;
 }
 
+// Détecte si deux blocs partagent un lien visuel (même lieu, mêmes personnages).
+// Si oui → passer l'image précédente comme référence de continuité.
+// Si non → scène différente, pas de référence (évite les contaminations visuelles).
+const STOP_WORDS = new Set(["dans", "avec", "vers", "sous", "sur", "entre", "pour", "une", "des", "les", "son", "ses", "leur", "qui", "que", "est", "sont", "elle", "ils", "elles", "mais", "puis", "alors"]);
+function hasVisualLink(promptA: string, promptB: string): boolean {
+  const tokenize = (s: string) =>
+    s.toLowerCase().replace(/[^a-zàâéèêëîïôùûüç\s]/g, " ").split(/\s+/)
+      .filter((w) => w.length > 4 && !STOP_WORDS.has(w));
+  const wordsA = new Set(tokenize(promptA));
+  const wordsB = tokenize(promptB);
+  const shared = wordsB.filter((w) => wordsA.has(w));
+  return shared.length >= 2;
+}
+
 
 export default function ChapterDetail() {
   const { id: projectId, chapterId } = useParams<{ id: string; chapterId: string }>();
@@ -861,7 +875,10 @@ export default function ChapterDetail() {
     if (!project || !panels.length) return;
     const panel = panels[0];
     const layout = getPanelLayout(panel);
-    const blocksToGen = layout.blocks.filter((b) => b.prompt?.trim() && !b.image_url);
+    // Triés par Y : ordre visuel top→bottom = ordre narratif garanti
+    const blocksToGen = layout.blocks
+      .filter((b) => b.prompt?.trim() && !b.image_url)
+      .sort((a, b) => a.y - b.y);
 
     if (!blocksToGen.length) {
       toast({ title: "Toutes les cases ont déjà une image" });
@@ -875,8 +892,9 @@ export default function ChapterDetail() {
     setGeneratingAllProgress({ current: 0, total: blocksToGen.length });
     let currentLayout: PanelLayout = { ...layout, blocks: [...layout.blocks] };
     let generated = 0;
-    // Continuité visuelle : URL de l'image du bloc généré juste avant dans la séquence
+    // Continuité visuelle : image + prompt du bloc précédent
     let lastGeneratedImageUrl: string | null = null;
+    let lastGeneratedPrompt: string | null = null;
 
     for (const block of blocksToGen) {
       if (usageInfo.count + generated >= usageInfo.limit) {
@@ -890,6 +908,11 @@ export default function ChapterDetail() {
         const blockAssetImageUrls = refAssets.map(getAssetReferenceImageUrl).filter((u): u is string => !!u);
         const blockAssetNames = refAssets.map(getAssetReferencePromptLabel);
 
+        // Continuité : utiliser l'image précédente seulement si lien visuel détecté
+        const visuallyLinked = lastGeneratedImageUrl && lastGeneratedPrompt
+          ? hasVisualLink(prompt, lastGeneratedPrompt)
+          : false;
+
         const result = await generatePanelBlockImage({
           panelId: panel.id,
           blockId: block.id,
@@ -899,7 +922,7 @@ export default function ChapterDetail() {
           project,
           blockAssetImageUrls: blockAssetImageUrls.length ? blockAssetImageUrls : undefined,
           blockAssetNames: blockAssetNames.length ? blockAssetNames : undefined,
-          previousImageUrl: lastGeneratedImageUrl ?? undefined,
+          previousImageUrl: visuallyLinked ? (lastGeneratedImageUrl ?? undefined) : undefined,
         });
 
         currentLayout = {
@@ -917,6 +940,7 @@ export default function ChapterDetail() {
         );
         notifyBlockDone(project.id, chapterId ?? "");
         lastGeneratedImageUrl = result.image_url;
+        lastGeneratedPrompt = prompt;
         generated++;
         setGeneratingAllProgress({ current: generated, total: blocksToGen.length });
       } catch {
@@ -1495,10 +1519,14 @@ export default function ChapterDetail() {
         .filter((u): u is string => !!u);
       const blockAssetNames = refAssets.map(getAssetReferencePromptLabel);
 
-      // Bloc généré le plus proche au-dessus (par Y) — continuité narrative
-      const previousImageUrl = layout.blocks
+      // Bloc généré le plus proche au-dessus (par Y) avec lien visuel détecté
+      const closestAbove = layout.blocks
         .filter((b) => b.id !== block.id && !!b.image_url && b.y < block.y)
-        .sort((a, b) => b.y - a.y)[0]?.image_url ?? undefined;
+        .sort((a, b) => b.y - a.y)[0];
+      const previousImageUrl =
+        closestAbove?.image_url && hasVisualLink(promptToUse, closestAbove.prompt ?? "")
+          ? closestAbove.image_url
+          : undefined;
 
       generatePanelImage.mutate(
         {

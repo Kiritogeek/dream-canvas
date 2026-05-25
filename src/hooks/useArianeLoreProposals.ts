@@ -254,7 +254,6 @@ export function useArianeLoreProposals(projectId: string, { enableAutoScan = tru
     }
     if (chapterUpdateInserts.length > 0) {
       await supabase.from("compass_proposals").insert(chapterUpdateInserts);
-      qc.invalidateQueries({ queryKey: ["lore-proposals", projectId] });
     }
 
     // Scan : connexions entre éléments co-présents dans les chapitres VALIDÉS
@@ -348,7 +347,6 @@ export function useArianeLoreProposals(projectId: string, { enableAutoScan = tru
           await new Promise(resolve => setTimeout(resolve, 500));
         }
         await supabase.from("compass_proposals").insert(connectionInserts);
-        qc.invalidateQueries({ queryKey: ["lore-proposals", projectId] });
       }
     }
 

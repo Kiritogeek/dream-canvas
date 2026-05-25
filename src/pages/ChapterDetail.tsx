@@ -92,7 +92,7 @@ import { EditorRightPanel } from "@/components/chapter/EditorRightPanel";
 import { EditorLeftSidebar, type SidebarTab } from "@/components/chapter/EditorLeftSidebar";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import type { Json } from "@/integrations/supabase/types";
-import type { Panel, PanelBlock, PanelLayout, ColorBlock, ColorBlockFill, SpeechBubble, Asset } from "@/types";
+import type { Panel, PanelBlock, PanelLayout, PanelBlockShape, ColorBlock, ColorBlockFill, SpeechBubble, Asset } from "@/types";
 import {
   DEFAULT_SPEECH_BUBBLE_WIDTH,
   DEFAULT_SPEECH_BUBBLE_HEIGHT,
@@ -992,7 +992,7 @@ export default function ChapterDetail() {
       ? speechBubbles.find((b) => b.id === selectedSpeechBubbleIdInModal.bubbleId)
       : null;
 
-    const handleAddBlock = (atX?: number, atY?: number, width = DEFAULT_BLOCK_WIDTH, height = DEFAULT_BLOCK_HEIGHT) => {
+    const handleAddBlock = (atX?: number, atY?: number, width = DEFAULT_BLOCK_WIDTH, height = DEFAULT_BLOCK_HEIGHT, shape?: PanelBlockShape) => {
       const w = Math.max(100, Math.min(PANEL_WIDTH, width));
       const h = Math.max(100, Math.min(panelHeight, height));
       const placed =
@@ -1014,6 +1014,7 @@ export default function ChapterDetail() {
         x, y, width: w, height: h,
         name: `Case ${layout.blocks.length + 1}`,
         prompt: null, image_url: null,
+        ...(shape && shape !== "rect" ? { shape } : {}),
         zIndex: maxZ + 10,
       };
       const newLayout: PanelLayout = { ...layout, blocks: [...layout.blocks, newBlock] };
@@ -1158,8 +1159,10 @@ export default function ChapterDetail() {
         if (data.type === "new-block") {
           const w = typeof data.width === "number" ? data.width : DEFAULT_BLOCK_WIDTH;
           const h = typeof data.height === "number" ? data.height : DEFAULT_BLOCK_HEIGHT;
+          const rawShape = (data as { shape?: string }).shape;
+          const blockShape = typeof rawShape === "string" ? rawShape as PanelBlockShape : undefined;
           const { x, y } = getCanvasDropPosition(e, canvasEl, w, h);
-          handleAddBlock(x, y, w, h);
+          handleAddBlock(x, y, w, h, blockShape);
           setDraggingBlock(null);
           setDragPreview(null);
           return;

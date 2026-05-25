@@ -7,7 +7,7 @@ import { ChapterImageHistoryList } from "@/components/chapter/ChapterImageHistor
 import { BubblePreview } from "@/components/chapter/SpeechBubbleShape";
 import { BLOCK_PRESETS } from "@/services/panels";
 import { SPEECH_BUBBLE_TYPE_LABELS } from "@/types";
-import type { Panel, ColorBlockFill, SpeechBubbleType } from "@/types";
+import type { Panel, ColorBlockFill, SpeechBubbleType, PanelBlockShape } from "@/types";
 import { cn } from "@/lib/utils";
 import {
   CHAPTER_EDITOR_RAIL_ASIDE_CLASS,
@@ -16,6 +16,48 @@ import {
   CHAPTER_EDITOR_RAIL_BTN_BASE,
   CHAPTER_EDITOR_RAIL_BTN_IDLE,
 } from "@/components/chapter/chapterCanvasToolbar";
+
+const DIAGONAL_SHAPE_PRESETS: Array<{
+  label: string;
+  description: string;
+  shape: PanelBlockShape;
+  width: number;
+  height: number;
+  clipPath: string;
+}> = [
+  {
+    label: "Diag. droite",
+    description: "Bord droit biais — compo I (gauche)",
+    shape: "diagonal-r",
+    width: 380,
+    height: 900,
+    clipPath: "polygon(0 0, 100% 0, 87% 100%, 0 100%)",
+  },
+  {
+    label: "Diag. gauche",
+    description: "Bord gauche biais — compo I (droite)",
+    shape: "diagonal-l",
+    width: 420,
+    height: 900,
+    clipPath: "polygon(13% 0, 100% 0, 100% 100%, 0 100%)",
+  },
+  {
+    label: "Biseau haut",
+    description: "Bas diagonal — panel haut compo N",
+    shape: "taper-r",
+    width: 800,
+    height: 900,
+    clipPath: "polygon(0 0, 100% 0, 100% 65%, 0 100%)",
+  },
+  {
+    label: "Biseau bas",
+    description: "Haut diagonal — panel bas compo N",
+    shape: "taper-l",
+    width: 800,
+    height: 900,
+    clipPath: "polygon(0 35%, 100% 0, 100% 100%, 0 100%)",
+  },
+];
 
 const COLOR_PRESETS_SIDEBAR = [
   { label: "Blanc",  color: "#ffffff" },
@@ -48,7 +90,7 @@ interface EditorLeftSidebarProps {
   restoringHistoryId: string | null;
   imageHistoryRestoredIds: ReadonlySet<string>;
   onRestoreImageHistory: (entry: ChapterCanvasImageHistoryRow) => void | Promise<void>;
-  onAddBlock: (x?: number, y?: number, width?: number, height?: number) => void;
+  onAddBlock: (x?: number, y?: number, width?: number, height?: number, shape?: PanelBlockShape) => void;
   /** Si x/y sont omis ou `undefined`, le parent positionne sous le centre visible du canvas. */
   onAddColorBlock: (x: number | undefined, y: number | undefined, width: number, height: number, fill?: ColorBlockFill) => void;
   onAddSpeechBubble: (type: SpeechBubbleType, x?: number, y?: number) => void;
@@ -255,57 +297,111 @@ export function EditorLeftSidebar({
             />
           )}
           {activeSidebarTab === "blocs" && (
-            <div className="space-y-3">
+            <div className="space-y-5">
               <p className="text-sm text-muted-foreground leading-snug">
                 Clic : sous la zone visible du canvas ; glisser : position précise au dépôt.
               </p>
-              <div className="flex flex-col gap-2.5">
-                {BLOCK_PRESETS.map((preset) => {
-                  const MAX_W = 72,
-                    MAX_H = 56;
-                  const scale = Math.min(MAX_W / preset.width, MAX_H / preset.height);
-                  const thumbW = Math.round(preset.width * scale);
-                  const thumbH = Math.round(preset.height * scale);
-                  const orientation = preset.width > preset.height ? "Paysage" : preset.width < preset.height ? "Portrait" : "Carré";
-                  return (
-                    <div
-                      key={preset.label}
-                      draggable
-                      onDragStart={(e) => {
-                        setDraggingKey(preset.label);
-                        e.dataTransfer.setData("application/json", JSON.stringify({ type: "new-block", width: preset.width, height: preset.height }));
-                        e.dataTransfer.effectAllowed = "copy";
-                        const ghost = newBlockDragGhostRef.current;
-                        if (ghost) {
-                          const MAX = 104;
-                          const s = Math.min(MAX / preset.width, MAX / preset.height);
-                          const gw = Math.max(56, Math.round(preset.width * s));
-                          const gh = Math.max(40, Math.round(preset.height * s));
-                          ghost.style.width = `${gw}px`;
-                          ghost.style.height = `${gh}px`;
-                          ghost.textContent = `${preset.width}×${preset.height}`;
-                          e.dataTransfer.setDragImage(ghost, gw / 2, gh / 2);
-                        }
-                      }}
-                      onDragEnd={() => setDraggingKey(null)}
-                      onClick={() => onAddBlock(undefined, undefined, preset.width, preset.height)}
-                      className={`cursor-grab active:cursor-grabbing active:scale-[0.98] rounded-xl border bg-card px-4 py-3 transition-all duration-150 flex items-center gap-3.5 select-none hover:-translate-y-0.5 hover:shadow-md hover:border-border ${draggingKey === preset.label ? "opacity-50 scale-[0.98] border-border" : "border-border/60"}`}
-                    >
-                      <div className="shrink-0 flex items-center justify-center" style={{ width: MAX_W, height: MAX_H }}>
-                        <div
-                          className="rounded-lg border-2 border-dashed border-muted-foreground/25 bg-muted/50 flex items-center justify-center"
-                          style={{ width: thumbW, height: thumbH }}
-                        >
-                          <LayoutPanelTop className="opacity-25 shrink-0" style={{ width: Math.max(12, Math.min(18, thumbW * 0.28)), height: Math.max(12, Math.min(18, thumbW * 0.28)) }} />
+
+              {/* Blocs rectangulaires */}
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Rectangulaires</p>
+                <div className="flex flex-col gap-2.5">
+                  {BLOCK_PRESETS.map((preset) => {
+                    const MAX_W = 72,
+                      MAX_H = 56;
+                    const scale = Math.min(MAX_W / preset.width, MAX_H / preset.height);
+                    const thumbW = Math.round(preset.width * scale);
+                    const thumbH = Math.round(preset.height * scale);
+                    const orientation = preset.width > preset.height ? "Paysage" : preset.width < preset.height ? "Portrait" : "Carré";
+                    return (
+                      <div
+                        key={preset.label}
+                        draggable
+                        onDragStart={(e) => {
+                          setDraggingKey(preset.label);
+                          e.dataTransfer.setData("application/json", JSON.stringify({ type: "new-block", width: preset.width, height: preset.height }));
+                          e.dataTransfer.effectAllowed = "copy";
+                          const ghost = newBlockDragGhostRef.current;
+                          if (ghost) {
+                            const MAX = 104;
+                            const s = Math.min(MAX / preset.width, MAX / preset.height);
+                            const gw = Math.max(56, Math.round(preset.width * s));
+                            const gh = Math.max(40, Math.round(preset.height * s));
+                            ghost.style.width = `${gw}px`;
+                            ghost.style.height = `${gh}px`;
+                            ghost.textContent = `${preset.width}×${preset.height}`;
+                            e.dataTransfer.setDragImage(ghost, gw / 2, gh / 2);
+                          }
+                        }}
+                        onDragEnd={() => setDraggingKey(null)}
+                        onClick={() => onAddBlock(undefined, undefined, preset.width, preset.height)}
+                        className={`cursor-grab active:cursor-grabbing active:scale-[0.98] rounded-xl border bg-card px-4 py-3 transition-all duration-150 flex items-center gap-3.5 select-none hover:-translate-y-0.5 hover:shadow-md hover:border-border ${draggingKey === preset.label ? "opacity-50 scale-[0.98] border-border" : "border-border/60"}`}
+                      >
+                        <div className="shrink-0 flex items-center justify-center" style={{ width: MAX_W, height: MAX_H }}>
+                          <div
+                            className="rounded-lg border-2 border-dashed border-muted-foreground/25 bg-muted/50 flex items-center justify-center"
+                            style={{ width: thumbW, height: thumbH }}
+                          >
+                            <LayoutPanelTop className="opacity-25 shrink-0" style={{ width: Math.max(12, Math.min(18, thumbW * 0.28)), height: Math.max(12, Math.min(18, thumbW * 0.28)) }} />
+                          </div>
+                        </div>
+                        <div className="flex flex-col min-w-0 gap-1">
+                          <span className="text-sm font-semibold text-foreground leading-snug">{preset.label}</span>
+                          <span className="text-xs text-muted-foreground leading-snug">{orientation}</span>
                         </div>
                       </div>
-                      <div className="flex flex-col min-w-0 gap-1">
-                        <span className="text-sm font-semibold text-foreground leading-snug">{preset.label}</span>
-                        <span className="text-xs text-muted-foreground leading-snug">{orientation}</span>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Blocs diagonaux */}
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Formes diagonales</p>
+                <div className="flex flex-col gap-2.5">
+                  {DIAGONAL_SHAPE_PRESETS.map((preset) => {
+                    const THUMB_W = 52;
+                    const THUMB_H = 44;
+                    const key = `shape-${preset.shape}`;
+                    return (
+                      <div
+                        key={key}
+                        draggable
+                        onDragStart={(e) => {
+                          setDraggingKey(key);
+                          e.dataTransfer.setData("application/json", JSON.stringify({ type: "new-block", width: preset.width, height: preset.height, shape: preset.shape }));
+                          e.dataTransfer.effectAllowed = "copy";
+                          const ghost = newBlockDragGhostRef.current;
+                          if (ghost) {
+                            ghost.style.width = "72px";
+                            ghost.style.height = "56px";
+                            ghost.textContent = preset.label;
+                            e.dataTransfer.setDragImage(ghost, 36, 28);
+                          }
+                        }}
+                        onDragEnd={() => setDraggingKey(null)}
+                        onClick={() => onAddBlock(undefined, undefined, preset.width, preset.height, preset.shape)}
+                        className={`cursor-grab active:cursor-grabbing active:scale-[0.98] rounded-xl border bg-card px-4 py-3 transition-all duration-150 flex items-center gap-3.5 select-none hover:-translate-y-0.5 hover:shadow-md hover:border-primary/40 ${draggingKey === key ? "opacity-50 scale-[0.98] border-border" : "border-border/60"}`}
+                      >
+                        <div className="shrink-0 flex items-center justify-center" style={{ width: 72, height: 56 }}>
+                          <div
+                            style={{
+                              width: THUMB_W,
+                              height: THUMB_H,
+                              clipPath: preset.clipPath,
+                              background: "linear-gradient(135deg, hsl(var(--primary)/0.25), hsl(var(--primary)/0.12))",
+                              border: "1.5px solid hsl(var(--primary)/0.4)",
+                            }}
+                          />
+                        </div>
+                        <div className="flex flex-col min-w-0 gap-1">
+                          <span className="text-sm font-semibold text-foreground leading-snug">{preset.label}</span>
+                          <span className="text-xs text-muted-foreground leading-snug">{preset.description}</span>
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
             </div>
           )}

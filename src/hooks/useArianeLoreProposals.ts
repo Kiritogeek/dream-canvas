@@ -762,16 +762,16 @@ export function useArianeLoreProposals(projectId: string, { enableAutoScan = tru
       loreNodeRows.filter(n => n.type === "event").map(n => n.name?.toLowerCase().trim()).filter(Boolean) as string[]
     );
     let eventAiBlocked = false;
+    const aiHandledChapterIds = new Set<string>();
     for (const sc of validatedChapters) {
       if (!sc.content?.trim()) continue;
-      let aiSucceeded = false;
       if (!eventAiBlocked) try {
         const { data, error } = await supabase.functions.invoke("generate-scenario-ai", {
           body: { mode: "extract_events", chapter_content: sc.content, chapter_number: sc.chapter_number },
         });
         if (error) { eventAiBlocked = true; }
         else if (Array.isArray(data?.events)) {
-          aiSucceeded = true;
+          aiHandledChapterIds.add(sc.id);
           for (const eventName of (data.events as string[]).slice(0, 5)) {
             const trimmed = eventName.trim();
             if (!trimmed || trimmed.length < 3) continue;
@@ -793,19 +793,22 @@ export function useArianeLoreProposals(projectId: string, { enableAutoScan = tru
           }
         }
       } catch { eventAiBlocked = true; }
-      // Si l'IA a échoué, restaurer les événements sauvegardés pour ce chapitre
-      if (!aiSucceeded) {
-        for (const saved of savedEventsByChapter.get(sc.id) ?? []) {
-          if (!dismissedDedupeKeys.has(saved.dedupe_key)) {
-            forceInserts.push({
-              project_id: projectId, user_id: user.id,
-              proposal_type: "lore_event", origin: "extracted",
-              title: saved.title, content: saved.content,
-              prefill_data: saved.prefill_data,
-              status: "active", dedupe_key: saved.dedupe_key,
-            });
-          }
-        }
+    }
+
+    // Restauration inconditionnelle : tous les events sauvegardés non couverts par l'IA
+    // (chapitres non validés, migration absent, IA bloquée, ou aucun chapitre validé)
+    for (const [chapterId, savedEvents] of savedEventsByChapter) {
+      if (aiHandledChapterIds.has(chapterId)) continue;
+      for (const saved of savedEvents) {
+        if (dismissedDedupeKeys.has(saved.dedupe_key)) continue;
+        if (forceInserts.some(ins => ins.dedupe_key === saved.dedupe_key)) continue;
+        forceInserts.push({
+          project_id: projectId, user_id: user.id,
+          proposal_type: "lore_event", origin: "extracted",
+          title: saved.title, content: saved.content,
+          prefill_data: saved.prefill_data,
+          status: "active", dedupe_key: saved.dedupe_key,
+        });
       }
     }
 

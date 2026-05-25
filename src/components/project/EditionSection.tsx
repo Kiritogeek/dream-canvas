@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo, memo, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Plus,
@@ -254,6 +254,7 @@ interface EditionSectionProps {
 
 export function EditionSection({ projectId }: EditionSectionProps) {
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
 
   useEffect(() => {
@@ -285,6 +286,18 @@ export function EditionSection({ projectId }: EditionSectionProps) {
 
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [newTitle, setNewTitle] = useState("");
+
+  // Pré-ouvrir le dialog si on arrive depuis "Créer & éditer" dans ScenarioChapterEditor
+  useEffect(() => {
+    const state = location.state as { openCreate?: boolean; defaultTitle?: string } | null;
+    if (state?.openCreate) {
+      if (state.defaultTitle) setNewTitle(state.defaultTitle);
+      setCreateDialogOpen(true);
+      // Nettoyer le state pour éviter la réouverture sur retour arrière
+      window.history.replaceState({}, "");
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [deleteTarget, setDeleteTarget] = useState<Chapter | null>(null);
   const [editTarget, setEditTarget] = useState<Chapter | null>(null);
   const [editTitle, setEditTitle] = useState("");

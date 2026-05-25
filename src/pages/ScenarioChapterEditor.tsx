@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useBackgroundJobs } from "@/contexts/BackgroundJobsContext";
 import { useParams, Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft,
@@ -39,7 +40,6 @@ import {
 } from "@/components/ui/dialog";
 import { useProject, useUpdateProject } from "@/hooks/useProjects";
 import { useChapters } from "@/hooks/useChapters";
-import * as chapterService from "@/services/chapters";
 import { ArianeAnalysisModal } from "@/components/project/ArianeAnalysisModal";
 import { getMaxAccessibleTab, useProgressiveMenuAccess } from "@/hooks/useProgressiveMenuGate";
 import { useAssets } from "@/hooks/useAssets";
@@ -49,7 +49,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { callDetectBlocks, callGenerateAiSummary } from "@/services/scenarioAI";
 import { useNarraMindDebounce } from "@/hooks/useNarraMindDebounce";
 import { useCompassIndex } from "@/hooks/useCompassIndex";
-import { estimatePanelCount, createPanelsFromOutline } from "@/services/panels";
+import { estimatePanelCount } from "@/services/panels";
 import { ScenarioTextHighlighter } from "@/components/project/ScenarioTextHighlighter";
 import { ChapterStatusBar } from "@/components/project/ChapterStatusBar";
 import { useToast } from "@/hooks/use-toast";
@@ -273,6 +273,7 @@ export default function ScenarioChapterEditor() {
   }>();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { startJob, completeJob, clearJob } = useBackgroundJobs();
 
   // Data
   const { data: chapter, isLoading: isLoadingChapter } =
@@ -291,7 +292,7 @@ export default function ScenarioChapterEditor() {
   const validateChapter = useValidateChapter();
   const unvalidateChapter = useUnvalidateChapter();
   const updateProject = useUpdateProject();
-  const { user } = useAuth();
+  useAuth();
   const { data: editionChapters = [] } = useChapters(projectId);
 
   const nextChapterNumber = useMemo(() => {
@@ -331,6 +332,11 @@ export default function ScenarioChapterEditor() {
   const [isDetecting, setIsDetecting] = useState(false);
   // Contenu au moment de la dernière détection — pour P2 warning
   const [detectedAtContent, setDetectedAtContent] = useState("");
+  // Track montage pour éviter setState sur composant démonté (background)
+  const isMountedRef = useRef(true);
+  useEffect(() => () => { isMountedRef.current = false; }, []);
+  // Effacer le badge ciseau vert dès que l'utilisateur arrive sur la page du chapitre
+  useEffect(() => { if (chapter?.id) clearJob(chapter.id); }, [chapter?.id, clearJob]);
 
   // Local state — IA barre
   const [showIABar, setShowIABar] = useState(false);
@@ -365,7 +371,7 @@ export default function ScenarioChapterEditor() {
   const [inlineAIPrompt, setInlineAIPrompt] = useState("");
   const [showValidateConfirm, setShowValidateConfirm] = useState(false);
   const [showArianeAfterValidation, setShowArianeAfterValidation] = useState(false);
-  const [isCreatingEditionChapter, setIsCreatingEditionChapter] = useState(false);
+  const [isCreatingEditionChapter, _setIsCreatingEditionChapter] = useState(false);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -678,6 +684,13 @@ export default function ScenarioChapterEditor() {
   const handleDetectBlocks = useCallback(async () => {
     if (!chapter || !content.trim()) return;
     setIsDetecting(true);
+    // Capturer les valeurs avant tout await (navigation possible pendant l'attente)
+    const capturedChapterId = chapter.id;
+    const capturedChapterNumber = chapter.chapter_number;
+    const capturedChapterTitle = chapter.title;
+    const capturedContent = content;
+    const capturedProjectId = projectId!;
+    startJob(capturedChapterId, capturedChapterNumber);
     try {
       // Construire le contexte assets : nom + type (limité à 80 chars/asset, max 20 assets)
       const assetsContext = assets.length > 0
@@ -694,38 +707,52 @@ export default function ScenarioChapterEditor() {
 
       const result = await callDetectBlocks({
         mode: "detect_blocks",
-        chapter_content: content,
-        chapter_title: chapter.title,
-        chapter_number: chapter.chapter_number,
+        chapter_content: capturedContent,
+        chapter_title: capturedChapterTitle,
+        chapter_number: capturedChapterNumber,
         target_panel_count: project?.panels_target_per_chapter ?? undefined,
         assets_context: assetsContext,
         universe_lore: project?.universe_lore?.trim() || undefined,
       });
-      setDetectedBlocks(result.blocks);
-      if (result.blocks.length === 0) {
-        toast({
-          title: "Aucune case détectée",
-          description: "Le chapitre est peut-être trop court.",
-        });
-      } else {
-        setDetectedAtContent(content);
-        setViewMode("visuels");
+
+      // Sauvegarder en BDD quelle que soit la navigation courante
+      if (result.blocks.length > 0) {
         updateChapter.mutate({
-          id: chapter.id,
-          projectId: projectId!,
+          id: capturedChapterId,
+          projectId: capturedProjectId,
           updates: {
             panels_outline: result.blocks.map((b) => ({ ...b, locked: false })),
           },
         });
+        completeJob(capturedChapterId);
+      } else {
+        clearJob(capturedChapterId);
+      }
+
+      // Mise à jour UI uniquement si encore sur la page
+      if (isMountedRef.current) {
+        if (result.blocks.length === 0) {
+          toast({
+            title: "Aucune case détectée",
+            description: "Le chapitre est peut-être trop court.",
+          });
+        } else {
+          setDetectedBlocks(result.blocks);
+          setDetectedAtContent(capturedContent);
+          setViewMode("visuels");
+        }
       }
     } catch (err) {
-      toast({
-        title: "Erreur",
-        description: (err as Error).message,
-        variant: "destructive",
-      });
+      clearJob(capturedChapterId);
+      if (isMountedRef.current) {
+        toast({
+          title: "Erreur",
+          description: (err as Error).message,
+          variant: "destructive",
+        });
+      }
     } finally {
-      setIsDetecting(false);
+      if (isMountedRef.current) setIsDetecting(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chapter, content, toast]);
@@ -958,30 +985,17 @@ export default function ScenarioChapterEditor() {
     );
   }, [chapter, inlineAIPrompt, contextChapters, project, chapterAI, toast]);
 
-  const handleEditChapter = useCallback(async () => {
-    if (!chapter || !projectId || !user) return;
+  const handleEditChapter = useCallback(() => {
+    if (!chapter || !projectId) return;
     if (linkedEditionChapter) {
       navigate(`/dashboard/projects/${projectId}/chapter/${linkedEditionChapter.id}`);
       return;
     }
-    setIsCreatingEditionChapter(true);
-    try {
-      const newChapter = await chapterService.createChapter({
-        project_id: projectId,
-        user_id: user.id,
-        title: chapter.title,
-        chapter_number: chapter.chapter_number,
-        linked_scenario_chapter_id: chapter.id,
-      });
-      if (lockedBlocks.length > 0) {
-        await createPanelsFromOutline(newChapter.id, lockedBlocks, user.id);
-      }
-      navigate(`/dashboard/projects/${projectId}/chapter/${newChapter.id}`);
-    } catch (err) {
-      toast({ title: "Erreur", description: (err as Error).message, variant: "destructive" });
-      setIsCreatingEditionChapter(false);
-    }
-  }, [chapter, projectId, user, linkedEditionChapter, lockedBlocks, navigate, toast]);
+    // Rediriger vers l'onglet Édition avec le dialog de création pré-ouvert
+    navigate(`/dashboard/projects/${projectId}?tab=edition`, {
+      state: { openCreate: true, defaultTitle: chapter.title },
+    });
+  }, [chapter, projectId, linkedEditionChapter, navigate]);
 
   // ── Loading / error states ───────────────────────────────────
 
@@ -1111,7 +1125,7 @@ export default function ScenarioChapterEditor() {
       >
         <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
           {/* Toolbar fine — toggle Écriture/Cases + toggle Assets */}
-          <div className={`flex items-center gap-2 px-4 sm:px-8 py-1.5 border-b border-border/50 shrink-0 bg-background/95 backdrop-blur-xl${isValidated ? " pointer-events-none opacity-40" : ""}`}>
+          <div className="flex items-center gap-2 px-4 sm:px-8 py-1.5 border-b border-border/50 shrink-0 bg-background/95 backdrop-blur-xl">
             {!chapterAIResult && (
               <div className="flex items-center gap-1 bg-muted/50 rounded-lg p-1">
                 <button
@@ -1226,22 +1240,7 @@ export default function ScenarioChapterEditor() {
 
             {!chapterAIResult && (
             <div className="max-w-3xl mx-auto px-8 py-8">
-              {isValidated ? (
-                <>
-                  <ScenarioTextHighlighter
-                    text={content}
-                    assets={assets}
-                    wordMappings={wordMappings}
-                    onAssignWord={handleAssignWord}
-                    onCreateAsset={handleCreateAssetFromText}
-                    onDismissMissing={handleDismissMissing}
-                    dismissedMissingNames={dismissedMissingNames}
-                    className=""
-                    hideIndicator
-                  />
-                  <div style={{ height: "40vh" }} />
-                </>
-              ) : viewMode === "visuels" ? (
+              {viewMode === "visuels" ? (
                 /* Vue Cases plate : un bloc = une case numérotée globalement */
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">

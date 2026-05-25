@@ -72,6 +72,7 @@ export function TestSection({ projectId }: { projectId: string }) {
   const { triggerScan, triggerForceScan } = useArianeLoreProposals(projectId, { enableAutoScan: false });
   const [loreInjecting, setLoreInjecting] = useState<string | null>(null);
   const [loreCleaning, setLoreCleaning] = useState(false);
+  const [clearingProposals, setClearingProposals] = useState(false);
   const [hasInjectedLore, setHasInjectedLore] = useState(false);
   const [scanRunning, setScanRunning] = useState(false);
 
@@ -239,6 +240,24 @@ export function TestSection({ projectId }: { projectId: string }) {
     }
   };
 
+  const clearAllUniversProposals = async () => {
+    setClearingProposals(true);
+    try {
+      const { error } = await supabase
+        .from("compass_proposals")
+        .delete()
+        .eq("project_id", projectId)
+        .in("proposal_type", ["lore_asset", "lore_chapter_update", "lore_connection", "lore_event"]);
+      if (error) throw error;
+      await qc.invalidateQueries({ queryKey: ["lore-proposals", projectId] });
+      toast({ title: "Toutes les propositions Univers supprimées" });
+    } catch {
+      toast({ title: "Erreur", variant: "destructive" });
+    } finally {
+      setClearingProposals(false);
+    }
+  };
+
   const cleanLoreTest = async () => {
     setLoreCleaning(true);
     try {
@@ -359,18 +378,30 @@ export function TestSection({ projectId }: { projectId: string }) {
             </div>
           ))}
         </div>
-        {(hasInjectedLore || testLoreEdges.length > 0) && (
+        <div className="flex flex-wrap gap-2">
+          {(hasInjectedLore || testLoreEdges.length > 0) && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 border-destructive/40 text-destructive hover:bg-destructive/10"
+              disabled={loreCleaning}
+              onClick={cleanLoreTest}
+            >
+              {loreCleaning ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+              Supprimer les données Univers de test
+            </Button>
+          )}
           <Button
             variant="outline"
             size="sm"
             className="gap-1.5 border-destructive/40 text-destructive hover:bg-destructive/10"
-            disabled={loreCleaning}
-            onClick={cleanLoreTest}
+            disabled={clearingProposals}
+            onClick={clearAllUniversProposals}
           >
-            {loreCleaning ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
-            Supprimer les données Univers de test
+            {clearingProposals ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+            Vider toutes les propositions
           </Button>
-        )}
+        </div>
       </div>
 
       {/* Ariane Univers — Scan manuel */}

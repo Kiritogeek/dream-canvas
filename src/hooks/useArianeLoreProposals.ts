@@ -595,6 +595,14 @@ export function useArianeLoreProposals(projectId: string, { enableAutoScan = tru
     const dismissedByDedupe = new Map(
       (dismissed ?? []).map((p) => [p.dedupe_key, p])
     );
+    // Index titre normalisé → raison pour les lore_event dismissés
+    // (fallback quand l'IA retourne un titre légèrement différent entre deux scans)
+    const dismissedEventByTitle = new Map<string, true>();
+    for (const [, p] of dismissedByDedupe) {
+      if (p.proposal_type === "lore_event") {
+        dismissedEventByTitle.set(p.title.toLowerCase().trim(), true);
+      }
+    }
 
     // Purger TOUTES les proposals lore
     await supabase
@@ -779,9 +787,10 @@ export function useArianeLoreProposals(projectId: string, { enableAutoScan = tru
             if (!trimmed || trimmed.length < 3) continue;
             const slug = trimmed.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "").slice(0, 50);
             const dedupeKey = `lore_event-${sc.id}-${slug}`;
-            if (existingEventNames.has(trimmed.toLowerCase())) {
+            const normalizedTitle = trimmed.toLowerCase();
+            if (existingEventNames.has(normalizedTitle)) {
               reasonByDedupe.set(dedupeKey, "already_exists");
-            } else if (dismissedDedupeKeys.has(dedupeKey)) {
+            } else if (dismissedDedupeKeys.has(dedupeKey) || dismissedEventByTitle.has(normalizedTitle)) {
               reasonByDedupe.set(dedupeKey, "ignored");
             }
             forceInserts.push({
@@ -817,6 +826,13 @@ export function useArianeLoreProposals(projectId: string, { enableAutoScan = tru
     // Ré-insérer les proposals dismissées non capturées par le scan normal (asset plus dans le texte, etc.)
     for (const [dedupeKey, p] of dismissedByDedupe) {
       if (!forceInserts.some((ins) => ins.dedupe_key === dedupeKey)) {
+        // Pour lore_event : skip si l'IA a déjà inséré un événement avec le même titre normalisé
+        // (évite le doublon "Mort de Satoru" dismissed + "Mort de Satoru" généré par l'IA)
+        if (p.proposal_type === "lore_event" &&
+          forceInserts.some(ins => ins.proposal_type === "lore_event" &&
+            ins.title.toLowerCase().trim() === p.title.toLowerCase().trim())) {
+          continue;
+        }
         reasonByDedupe.set(dedupeKey, "ignored");
         forceInserts.push({
           project_id: projectId,

@@ -53,7 +53,7 @@ Règle : ne jamais hardcoder des couleurs — utiliser les tokens HSL ou les cla
 | `projects` | user_id, title, description, style_template, style_image_urls (JSONB), cover_url, panels_target_per_chapter |
 | `assets` | project_id, name, asset_type, prompt, image_url, image_url_profile_left/right/back, image_url_sheet |
 | `chapters` | project_id, chapter_number, title, synopsis, linked_scenario_chapter_id |
-| `chapter_canvases` | chapter_id, panel_number, prompt, image_url, layout (JSONB), speech_bubbles (JSONB), color_blocks (JSONB) |
+| `chapter_canvases` | chapter_id, panel_number, prompt, image_url, layout (JSONB `{blocks[], panelHeight}`), speech_bubbles (JSONB), color_blocks (JSONB) — **toujours 1 seule ligne par chapter** (le canvas = le chapitre entier en scroll vertical, 800px × jusqu'à 100 000px) |
 | `scenario_chapters` | project_id, chapter_number, title, content, panels_outline (JSONB), narramind_anomalies (vidé après chaque run NarraMind), narramind_checked_at |
 | `usage` | user_id, action ('image_generation'), created_at — comptage mensuel |
 | `project_embeddings` | project_id, source_type, source_id, section_key, content, embedding vector(768) — index vectoriel Compass |

@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import { BackgroundJobsProvider } from "@/contexts/BackgroundJobsContext";
 
 // Recharge la page si un chunk JS est introuvable après un nouveau déploiement (hash périmé en cache).
 function lazyWithReload<T extends React.ComponentType<unknown>>(
@@ -62,6 +63,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
+          <BackgroundJobsProvider>
           <Suspense fallback={<PageLoader />}>
             <Routes>
               <Route path="/" element={<Landing />} />
@@ -135,6 +137,7 @@ const App = () => (
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>
+          </BackgroundJobsProvider>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>

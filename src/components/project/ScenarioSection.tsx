@@ -17,7 +17,9 @@ import {
   CheckCircle2,
   Compass,
   Lock,
+  Scissors,
 } from "lucide-react";
+import { useBackgroundJobs } from "@/contexts/BackgroundJobsContext";
 import { ArianeNarrativeSheet } from "./ArianeNarrativeSheet";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -678,6 +680,8 @@ function ChapterCard({
   isReordering,
 }: ChapterCardProps) {
   const validateMutation = useValidateChapter();
+  const { jobs, clearJob } = useBackgroundJobs();
+  const detectJob = jobs.get(chapter.id);
 
   const wordCount =
     chapter.content?.trim().split(/\s+/).filter(Boolean).length ?? 0;
@@ -724,6 +728,7 @@ function ChapterCard({
   return (
     <Link
       to={`/dashboard/projects/${projectId}/scenario/${chapter.id}`}
+      onClick={() => { if (detectJob?.status === "done") clearJob(chapter.id); }}
         className={`relative flex flex-col gap-3 rounded-2xl border p-4 shadow-sm cursor-pointer group transition-[box-shadow,border-color,transform] duration-200
           ${isValidated
             ? "border-emerald-500/40 bg-emerald-500/5 dark:bg-emerald-500/5 hover:border-emerald-500/60"
@@ -784,6 +789,18 @@ function ChapterCard({
                 <span className="shrink-0 flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 text-[10px] font-bold border border-emerald-500/30 uppercase tracking-wide">
                   <CheckCircle2 className="h-2.5 w-2.5" />
                   Validé
+                </span>
+              )}
+              {detectJob?.status === "running" && (
+                <span className="shrink-0 flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 text-[10px] font-bold border border-amber-500/30 uppercase tracking-wide animate-pulse">
+                  <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                  Découpage…
+                </span>
+              )}
+              {detectJob?.status === "done" && (
+                <span className="shrink-0 flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 text-[10px] font-bold border border-emerald-500/30 uppercase tracking-wide">
+                  <Scissors className="h-2.5 w-2.5" />
+                  Découpé ✓
                 </span>
               )}
             </div>

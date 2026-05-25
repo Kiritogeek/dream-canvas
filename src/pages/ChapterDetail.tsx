@@ -1494,6 +1494,12 @@ export default function ChapterDetail() {
         .map(getAssetReferenceImageUrl)
         .filter((u): u is string => !!u);
       const blockAssetNames = refAssets.map(getAssetReferencePromptLabel);
+
+      // Bloc généré le plus proche au-dessus (par Y) — continuité narrative
+      const previousImageUrl = layout.blocks
+        .filter((b) => b.id !== block.id && !!b.image_url && b.y < block.y)
+        .sort((a, b) => b.y - a.y)[0]?.image_url ?? undefined;
+
       generatePanelImage.mutate(
         {
           panel: { id: panel.id, prompt: promptToUse },
@@ -1501,6 +1507,7 @@ export default function ChapterDetail() {
           project,
           blockAssetImageUrls: blockAssetImageUrls.length ? blockAssetImageUrls : undefined,
           blockAssetNames: blockAssetNames.length ? blockAssetNames : undefined,
+          previousImageUrl,
           currentLayout: layout,
         },
         {

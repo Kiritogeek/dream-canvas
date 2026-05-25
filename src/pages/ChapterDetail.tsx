@@ -875,6 +875,8 @@ export default function ChapterDetail() {
     setGeneratingAllProgress({ current: 0, total: blocksToGen.length });
     let currentLayout: PanelLayout = { ...layout, blocks: [...layout.blocks] };
     let generated = 0;
+    // Continuité visuelle : URL de l'image du bloc généré juste avant dans la séquence
+    let lastGeneratedImageUrl: string | null = null;
 
     for (const block of blocksToGen) {
       if (usageInfo.count + generated >= usageInfo.limit) {
@@ -897,6 +899,7 @@ export default function ChapterDetail() {
           project,
           blockAssetImageUrls: blockAssetImageUrls.length ? blockAssetImageUrls : undefined,
           blockAssetNames: blockAssetNames.length ? blockAssetNames : undefined,
+          previousImageUrl: lastGeneratedImageUrl ?? undefined,
         });
 
         currentLayout = {
@@ -913,10 +916,11 @@ export default function ChapterDetail() {
           old?.map((p) => (p.id === panel.id ? { ...p, layout: currentLayout as unknown as Json } : p))
         );
         notifyBlockDone(project.id, chapterId ?? "");
+        lastGeneratedImageUrl = result.image_url;
         generated++;
         setGeneratingAllProgress({ current: generated, total: blocksToGen.length });
       } catch {
-        // skip block, continue avec le suivant
+        // skip block, continue avec le suivant (lastGeneratedImageUrl inchangé — pas de contexte corrompu)
       } finally {
         endBlockGeneration(panel.id);
       }

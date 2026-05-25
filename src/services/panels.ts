@@ -205,6 +205,8 @@ export interface GenerateBlockImageParams {
   blockAssetImageUrls?: string[];
   /** Noms des assets du bloc pour enrichir le prompt. */
   blockAssetNames?: string[];
+  /** URL de l'image du bloc précédent dans la séquence (contexte visuel pour la continuité). */
+  previousImageUrl?: string;
 }
 
 /**
@@ -250,6 +252,7 @@ export async function generatePanelBlockImage(
       context_chapter: params.contextChapter ?? undefined,
       block_asset_image_urls: params.blockAssetImageUrls?.length ? params.blockAssetImageUrls : undefined,
       block_asset_names: params.blockAssetNames?.length ? params.blockAssetNames : undefined,
+      previous_image_url: params.previousImageUrl ?? undefined,
     }),
   });
 

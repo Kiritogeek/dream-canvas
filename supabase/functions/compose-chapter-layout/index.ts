@@ -169,21 +169,11 @@ async function callAIOnce(
 // TRANSFORMATION : positions relatives → absolues
 // ═══════════════════════════════════════════════════════════════
 
-// Types de bulles valides côté client (SpeechBubbleType dans src/types/index.ts)
-// "text" exclu : rendu sans forme SVG → texte flottant non stylé
-const VALID_BUBBLE_TYPES = new Set([
-  "speech", "thought", "shout", "whisper", "narration",
-  "cloud", "radio", "electronic", "explosion", "wavy", "anger", "sadness",
-]);
-
 function processComposition(
   scenes: AIOutputScene[],
   panelsOutline: PanelOutlineBlock[]
 ): { blocks: object[]; speechBubbles: object[]; panelHeight: number } {
   const blocks: object[] = [];
-  const speechBubbles: object[] = [];
-  // Déduplication globale : évite qu'un même texte apparaisse deux fois dans le chapitre
-  const seenBubbleTexts = new Set<string>();
   let yOffset = 0;
 
   for (const scene of scenes) {
@@ -192,6 +182,7 @@ function processComposition(
     for (const b of scene.blocks ?? []) {
       const sourceBlock = panelsOutline[b.source_index];
       const promptText = sourceBlock?.description ?? "";
+      const dialogueText = sourceBlock?.text_excerpt?.trim() || null;
 
       blocks.push({
         id: crypto.randomUUID(),
@@ -200,58 +191,9 @@ function processComposition(
         width: Math.max(100, Math.min(800, b.width ?? 800)),
         height: Math.max(100, Math.min(5000, b.height ?? 600)),
         prompt: promptText,
+        dialogue_text: dialogueText,
         asset_refs: [],
         image_url: null,
-      });
-    }
-
-    for (const bub of scene.speech_bubbles ?? []) {
-      const rawText = bub.text?.trim();
-      if (!rawText) continue;
-
-      // Dédupliquer : même texte = même bulle → ignorer les doublons
-      const textKey = rawText.toLowerCase().replace(/\s+/g, " ");
-      if (seenBubbleTexts.has(textKey)) continue;
-      seenBubbleTexts.add(textKey);
-
-      // Valider le type : "text" exclu (rendu sans forme), inconnu → "speech"
-      const rawType = bub.type ?? "speech";
-      const bubType = VALID_BUBBLE_TYPES.has(rawType) && rawType !== "text" ? rawType : "speech";
-
-      const isNarration = bubType === "narration";
-      const defaultW = isNarration ? 680 : 360;
-      const defaultH = isNarration ? 90 : 130;
-      const bubW = Math.max(180, bub.width ?? defaultW);
-      const bubH = Math.max(70, bub.height ?? defaultH);
-
-      const bubX = Math.max(0, Math.min(800 - bubW, bub.x ?? (isNarration ? 40 : 60)));
-
-      // Clamp y dans les limites de la section : évite les bulles flottantes hors-image
-      const rawY = Math.max(0, bub.y ?? 0);
-      const clampedY = Math.min(rawY, sectionHeight - bubH - 10);
-      const bubY = yOffset + Math.max(0, clampedY);
-
-      speechBubbles.push({
-        id: crypto.randomUUID(),
-        type: bubType,
-        text: rawText,
-        position: { x: bubX, y: bubY },
-        width: bubW,
-        height: bubH,
-        bgFill: "solid",
-        bgColor: "#ffffff",
-        borderColor: "#1a1a1a",
-        borderWidth: 2,
-        // style.size et style.bold lus par BubbleLayer / PanelExportSpeechBubbles
-        style: {
-          size: 15,
-          color: "#111111",
-          textAlign: "center",
-          bold: true,
-        },
-        tailX: 50,
-        tailY: 115,
-        tailBaseWidth: 30,
       });
     }
 
@@ -260,7 +202,7 @@ function processComposition(
 
   return {
     blocks,
-    speechBubbles,
+    speechBubbles: [],
     panelHeight: Math.max(MIN_CANVAS_HEIGHT, yOffset),
   };
 }

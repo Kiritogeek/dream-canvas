@@ -171,6 +171,8 @@ export interface PanelBlock {
   image_url?: string | null;
   zIndex?: number;
   hidden?: boolean;
+  /** Texte dialogue/pensée du bloc (stocké par compose, utilisé par la génération post-image des bulles). */
+  dialogue_text?: string | null;
 }
 
 /** Layout d'un panel : liste de blocs + hauteur du panel. Stocké dans panels.layout (JSONB). */

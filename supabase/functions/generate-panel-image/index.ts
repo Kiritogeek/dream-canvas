@@ -20,7 +20,10 @@ const NO_BORDER_NEGATIVE_PROMPT =
   "border, frame, inner border, outer border, thin border, thick border, " +
   "letterbox, pillarbox, passe-partout, vignette, white vignette, " +
   "postcard, poster frame, image frame, canvas frame, image inside image, " +
-  "collage, grid, reference sheet, contact sheet, color chart";
+  "collage, grid, reference sheet, contact sheet, color chart" +
+  ", speech bubble, dialogue bubble, thought bubble, text bubble, word balloon, caption box, " +
+  "text overlay, comic text, manga text, speech cloud, onomatopoeia, sound effects text, " +
+  "dialogue text, subtitle, annotation, watermark, written words, letters, typography";
 
 // FLUX génère proprement uniquement sur des multiples de 32.
 // Si les dimensions ne sont pas des multiples de 32, le modèle snap en interne
@@ -167,7 +170,8 @@ function buildPolicySafePanelPrompt(params: {
 
   const FULLBLEED_OPEN =
     `Full-bleed cinematic scene, no borders, no margins, no frames, no gutters, no white space. ` +
-    `Scene content bleeds to every pixel of all four edges. `;
+    `Scene content bleeds to every pixel of all four edges. ` +
+    `No speech bubbles, no text overlays, no dialogue boxes, no captions, no word balloons, no written text — any dialogue is added as separate overlay by the application. `;
 
   const FULLBLEED_CLOSE =
     `\n\nSTRICT FORMAT (${params.width}x${params.height}px): absolute full-bleed — ` +
@@ -650,6 +654,7 @@ Deno.serve(async (req) => {
       prompt?: string;
       block_asset_image_urls?: string[];
       block_asset_names?: string[];
+      previous_image_url?: string;
     };
     try {
       body = await req.json();
@@ -665,6 +670,7 @@ Deno.serve(async (req) => {
       prompt,
       block_asset_names,
       block_asset_image_urls,
+      previous_image_url,
     } = body;
     if (!panel_id || !block_id || !prompt?.trim()) {
       return jsonResponse({ error: "panel_id, block_id et prompt requis" }, 400);
@@ -769,7 +775,17 @@ Deno.serve(async (req) => {
       ? block_asset_image_urls.filter((u) => typeof u === "string" && u.trim().length > 0)
       : [];
     const limitedReferenceImageUrls = referenceImageUrls.slice(0, 5);
-    const useReferences = limitedReferenceImageUrls.length > 0;
+
+    const previousImageUrl = typeof previous_image_url === "string" && previous_image_url.trim()
+      ? previous_image_url.trim()
+      : null;
+
+    // Combine asset refs + previous image pour la continuité visuelle
+    const allReferenceImageUrls = [
+      ...limitedReferenceImageUrls,
+      ...(previousImageUrl ? [previousImageUrl] : []),
+    ];
+    const useReferences = allReferenceImageUrls.length > 0;
 
     const fullPrompt = buildPolicySafePanelPrompt({
       styleSummary: effectiveStyleTemplate,
@@ -780,17 +796,29 @@ Deno.serve(async (req) => {
       withReferences: useReferences,
     });
 
+    let finalPrompt = fullPrompt;
+    if (previousImageUrl) {
+      finalPrompt = clip(
+        fullPrompt +
+        "\n\nCONTINUITÉ VISUELLE : La dernière image de référence est le panneau qui précède directement cette case dans la séquence. " +
+        "Maintenir la cohérence : même espace narratif, même éclairage ambiant, même angle de caméra (relatif au personnage), " +
+        "même position du personnage dans l'environnement. Ne PAS reproduire l'image précédente — générer la scène SUIVANTE " +
+        "qui s'enchaîne naturellement. L'environnement et l'atmosphère doivent être visuellement continus.",
+        2800
+      );
+    }
+
     const result = useReferences
       ? await generateImageWithReferences(
-          fullPrompt,
-          limitedReferenceImageUrls,
+          finalPrompt,
+          allReferenceImageUrls,
           falKey,
           width,
           height,
           dbStyleText,
           prompt.trim()
         )
-      : await generateImage(fullPrompt, falKey, width, height, dbStyleText, prompt.trim());
+      : await generateImage(finalPrompt, falKey, width, height, dbStyleText, prompt.trim());
     if ("error" in result) {
       return jsonResponse({ error: result.error, request_id: requestId }, 502);
     }

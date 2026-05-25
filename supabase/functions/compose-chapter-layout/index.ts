@@ -47,7 +47,33 @@ type AIResult =
   | { text: string; modelUsed: string }
   | { error: string; status?: number; rateLimited?: boolean };
 
-interface AIOutputBlock {
+// L'IA ne fournit QUE le groupement, la composition et l'intensité.
+// Le serveur calcule toute la géométrie (positions, tailles, shapes).
+interface AISimpleScene {
+  source_indices: number[];   // indices des blocs dans panels_outline
+  composition: string;        // A–N
+  gap_after?: number;         // espace blanc après cette scène (px)
+  height_hint?: string;       // strip | compact | standard | grand | splash
+  rationale?: string;
+}
+
+interface AIComposition {
+  scenes: AISimpleScene[];
+}
+
+// ─── Géométrie serveur ────────────────────────────────────────────
+
+type HeightHint = "strip" | "compact" | "standard" | "grand" | "splash";
+
+const HINT_PX: Record<HeightHint, number> = {
+  strip:    280,
+  compact:  550,
+  standard: 900,
+  grand:   1400,
+  splash:  2200,
+};
+
+interface PositionedBlock {
   source_index: number;
   x: number;
   y: number;
@@ -56,27 +82,195 @@ interface AIOutputBlock {
   shape?: string;
 }
 
-interface AIOutputBubble {
-  type?: string;
-  text?: string;
-  x?: number;
-  y?: number;
-  width?: number;
-  height?: number;
+function fallbackLayout(
+  indices: number[],
+  h: number
+): { positioned: PositionedBlock[]; sectionHeight: number } {
+  const bh = Math.max(600, Math.min(1000, h));
+  const gap = 120;
+  return {
+    positioned: indices.map((idx, i) => ({
+      source_index: idx,
+      x: 0, y: i * (bh + gap), width: 800, height: bh,
+    })),
+    sectionHeight: indices.length * (bh + gap) - gap,
+  };
 }
 
-interface AIOutputScene {
-  panel_number: number;
-  composition_type: string;
-  rationale?: string;
-  section_height: number;
-  gap_after?: number;  // gap en px après cette section (AI-determined)
-  blocks: AIOutputBlock[];
-  speech_bubbles?: AIOutputBubble[];
-}
+function computeSceneLayout(
+  composition: string,
+  indices: number[],
+  hint: HeightHint
+): { positioned: PositionedBlock[]; sectionHeight: number } {
+  const h = HINT_PX[hint] ?? 900;
+  const c = composition.toUpperCase();
+  const n = indices.length;
+  if (n === 0) return { positioned: [], sectionHeight: 0 };
 
-interface AIComposition {
-  scenes: AIOutputScene[];
+  switch (c) {
+    case "A": { // Splash — pleine largeur
+      const ah = Math.max(1200, h);
+      return {
+        positioned: [{ source_index: indices[0], x: 0, y: 0, width: 800, height: ah }],
+        sectionHeight: ah,
+      };
+    }
+
+    case "B": { // Isolement — centré avec blanc
+      return {
+        positioned: [{ source_index: indices[0], x: 160, y: 0, width: 480, height: 600 }],
+        sectionHeight: 600,
+      };
+    }
+
+    case "C": { // Séquence rapide — blocs serrés
+      const bh = 420;
+      const positioned: PositionedBlock[] = [];
+      let cy = 0;
+      for (const idx of indices) {
+        positioned.push({ source_index: idx, x: 0, y: cy, width: 800, height: bh });
+        cy += bh + 20;
+      }
+      return { positioned, sectionHeight: cy - 20 };
+    }
+
+    case "D": { // Face-à-face asymétrique 500+300
+      if (n < 2) return fallbackLayout(indices, h);
+      const bh = Math.max(700, Math.min(1000, h));
+      return {
+        positioned: [
+          { source_index: indices[0], x: 0,   y: 0, width: 500, height: bh },
+          { source_index: indices[1], x: 500, y: 0, width: 300, height: bh },
+        ],
+        sectionHeight: bh,
+      };
+    }
+
+    case "E": { // Dialogue — empilés, largeurs alternées 800/580, 120px espace
+      const bh = Math.max(650, Math.min(1200, h));
+      const positioned: PositionedBlock[] = [];
+      let cy = 0;
+      for (let i = 0; i < n; i++) {
+        const alt = i % 2 === 1;
+        positioned.push({
+          source_index: indices[i],
+          x: alt ? 110 : 0,
+          y: cy,
+          width: alt ? 580 : 800,
+          height: bh,
+        });
+        cy += bh + 120;
+      }
+      return { positioned, sectionHeight: cy - 120 };
+    }
+
+    case "F": { // Établissement — grand décor + réaction centrée
+      if (n < 2) return fallbackLayout(indices, h);
+      const decorH = Math.max(1100, Math.min(1800, h));
+      const reactH = 650;
+      return {
+        positioned: [
+          { source_index: indices[0], x: 0,   y: 0,              width: 800, height: decorH },
+          { source_index: indices[1], x: 110, y: decorH + 150, width: 580, height: reactH },
+        ],
+        sectionHeight: decorH + 150 + reactH,
+      };
+    }
+
+    case "G": { // Réplique isolée — 600px centré
+      return {
+        positioned: [{ source_index: indices[0], x: 100, y: 0, width: 600, height: 550 }],
+        sectionHeight: 550,
+      };
+    }
+
+    case "H": { // Transition — petit centré
+      return {
+        positioned: [{ source_index: indices[0], x: 200, y: 0, width: 400, height: 380 }],
+        sectionHeight: 380,
+      };
+    }
+
+    case "I": { // Diagonale latérale — collision horizontale
+      if (n < 2) return fallbackLayout(indices, h);
+      const bh = Math.max(800, Math.min(1200, h));
+      return {
+        positioned: [
+          { source_index: indices[0], x: 0,   y: 0, width: 380, height: bh, shape: "diagonal-r" },
+          { source_index: indices[1], x: 380, y: 0, width: 420, height: bh, shape: "diagonal-l" },
+        ],
+        sectionHeight: bh,
+      };
+    }
+
+    case "J": { // Incrustation — fond + petit chevauchant
+      if (n < 2) return fallbackLayout(indices, h);
+      const fondH = Math.max(1200, Math.min(2000, h));
+      return {
+        positioned: [
+          { source_index: indices[0], x: 0,   y: 0,   width: 800, height: fondH },
+          { source_index: indices[1], x: 430, y: 200, width: 300, height: 400 },
+        ],
+        sectionHeight: fondH,
+      };
+    }
+
+    case "K": { // Flash séquence — ultra-fins alternés
+      const bh = 260;
+      const positioned: PositionedBlock[] = [];
+      let cy = 0;
+      for (let i = 0; i < Math.min(n, 6); i++) {
+        positioned.push({
+          source_index: indices[i],
+          x: 0, y: cy, width: 800, height: bh,
+          shape: i % 2 === 0 ? "diagonal-r" : "diagonal-l",
+        });
+        cy += bh;
+      }
+      return { positioned, sectionHeight: cy };
+    }
+
+    case "L": { // Strip + Grand — signature SL (300px espace interne)
+      if (n < 2) return fallbackLayout(indices, h);
+      const stripH = 280;
+      const grandH = Math.max(1000, Math.min(1800, h));
+      return {
+        positioned: [
+          { source_index: indices[0], x: 0, y: 0,              width: 800, height: stripH },
+          { source_index: indices[1], x: 0, y: stripH + 300, width: 800, height: grandH },
+        ],
+        sectionHeight: stripH + 300 + grandH,
+      };
+    }
+
+    case "M": { // Triptyque — 3 côte à côte
+      if (n < 3) return fallbackLayout(indices, h);
+      const bh = Math.max(500, Math.min(900, h));
+      return {
+        positioned: [
+          { source_index: indices[0], x: 0,   y: 0, width: 260, height: bh },
+          { source_index: indices[1], x: 260, y: 0, width: 280, height: bh },
+          { source_index: indices[2], x: 540, y: 0, width: 260, height: bh },
+        ],
+        sectionHeight: bh,
+      };
+    }
+
+    case "N": { // Diagonale verticale — attaque/contre-attaque joints
+      if (n < 2) return fallbackLayout(indices, h);
+      const bh = Math.max(700, Math.min(1100, h));
+      return {
+        positioned: [
+          { source_index: indices[0], x: 0, y: 0,   width: 800, height: bh, shape: "taper-r" },
+          { source_index: indices[1], x: 0, y: bh,  width: 800, height: bh, shape: "taper-l" },
+        ],
+        sectionHeight: bh * 2,
+      };
+    }
+
+    default:
+      return fallbackLayout(indices, h);
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -171,71 +365,155 @@ async function callAIOnce(
 }
 
 // ═══════════════════════════════════════════════════════════════
-// TRANSFORMATION : positions relatives → absolues
+// VALIDATION & NORMALISATION — avant de placer les blocs
 // ═══════════════════════════════════════════════════════════════
 
-function processComposition(
-  scenes: AIOutputScene[],
-  panelsOutline: PanelOutlineBlock[]
-): { blocks: object[]; speechBubbles: object[]; panelHeight: number } {
-  const blocks: object[] = [];
-  let yOffset = 0;
+// Blocs max par composition. Au-delà → on coupe et redistribue.
+const MAX_BLOCKS_PER_COMP: Record<string, number> = {
+  A: 1, B: 1, G: 1, H: 1,          // 1 bloc uniquement
+  D: 2, I: 2, J: 2, L: 2, N: 2,    // exactement 2
+  M: 3,                              // exactement 3
+  C: 5, E: 5,                        // empilés libres
+  K: 4,                              // flash limité à 4
+};
 
-  // Garde serveur : max 1 scène K autorisée — les suivantes sont reclassées en E
+function normalizeScenes(
+  scenes: AISimpleScene[],
+  totalBlocks: number
+): AISimpleScene[] {
+  const result: AISimpleScene[] = [];
+  const overflow: number[] = [];
   let kSeen = 0;
+
   for (const scene of scenes) {
-    if ((scene.composition_type ?? "").toUpperCase() === "K") {
+    const comp = (scene.composition ?? "E").toUpperCase();
+
+    // K : max 1 par chapitre, max 4 blocs
+    if (comp === "K") {
       if (kSeen >= 1) {
-        scene.composition_type = "E";
-        // Recalculer les hauteurs des blocs (→ 650px chacun)
-        const perBlock = Math.round(1500 / Math.max(1, scene.blocks?.length ?? 1));
-        let cumY = 0;
-        for (const b of scene.blocks ?? []) {
-          b.y = cumY;
-          b.height = perBlock;
-          b.shape = undefined;
-          cumY += perBlock;
-        }
-        scene.section_height = cumY;
-        console.warn("[compose] Scène K excédentaire reclassée en E (panel_number=" + scene.panel_number + ")");
+        scene.composition = "E";
       } else {
         kSeen++;
+        // Plafonner K à 4 blocs
+        if ((scene.source_indices ?? []).length > 4) {
+          overflow.push(...scene.source_indices.slice(4));
+          scene.source_indices = scene.source_indices.slice(0, 4);
+          console.warn("[compose] Scène K tronquée à 4 blocs");
+        }
       }
+    }
+
+    const effectiveComp = (scene.composition ?? "E").toUpperCase();
+    const maxB = MAX_BLOCKS_PER_COMP[effectiveComp] ?? 5;
+    const indices = scene.source_indices ?? [];
+
+    if (indices.length > maxB) {
+      overflow.push(...indices.slice(maxB));
+      scene.source_indices = indices.slice(0, maxB);
+      console.warn(`[compose] Scène ${effectiveComp} tronquée de ${indices.length} → ${maxB} blocs`);
+    }
+
+    if ((scene.source_indices ?? []).length > 0) {
+      result.push(scene);
     }
   }
 
+  // Redistribuer les blocs overflow en scènes E
+  while (overflow.length > 0) {
+    const chunk = overflow.splice(0, 3);
+    console.warn(`[compose] Redistribution overflow : blocs [${chunk.join(",")}] → E`);
+    result.push({
+      source_indices: chunk,
+      composition: "E",
+      gap_after: 400,
+      height_hint: "standard",
+      rationale: "redistribution automatique",
+    });
+  }
+
+  // Si l'IA a tout groupé en < 2 scènes pour ≥ 4 blocs → log warning
+  if (result.length < 2 && totalBlocks >= 4) {
+    console.warn(`[compose] Seulement ${result.length} scène(s) pour ${totalBlocks} blocs — vérifier le prompt`);
+  }
+
+  return result;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// COMPOSITION : le serveur place tous les blocs
+// L'IA fournit uniquement groupement + type + gap + height_hint
+// ═══════════════════════════════════════════════════════════════
+
+function processComposition(
+  scenes: AISimpleScene[],
+  panelsOutline: PanelOutlineBlock[]
+): { blocks: object[]; speechBubbles: object[]; panelHeight: number } {
+  const blocks: object[] = [];
+  const usedSourceIndices = new Set<number>();
+  let yOffset = 0;
+
   for (const scene of scenes) {
-    const sectionHeight = Math.max(600, Math.min(5000, scene.section_height ?? 1500));
+    // Filtrer les source_indices invalides ou déjà utilisés
+    const indices = (scene.source_indices ?? []).filter(
+      (idx) => typeof idx === "number" && idx >= 0 && idx < panelsOutline.length && !usedSourceIndices.has(idx)
+    );
 
-    // Composition K → blocs ultra-fins autorisés ; sinon minimum 350px
-    const isFlashScene = (scene.composition_type ?? "").toUpperCase() === "K";
-    const minBlockHeight = isFlashScene ? 180 : 350;
+    if (indices.length === 0) continue;
 
-    for (const b of scene.blocks ?? []) {
-      const sourceBlock = panelsOutline[b.source_index];
-      const promptText = sourceBlock?.description ?? "";
-      const dialogueText = sourceBlock?.text_excerpt?.trim() || null;
+    const hint: HeightHint = (
+      ["strip", "compact", "standard", "grand", "splash"].includes(scene.height_hint ?? "")
+        ? (scene.height_hint as HeightHint)
+        : "standard"
+    );
 
+    const { positioned, sectionHeight } = computeSceneLayout(
+      scene.composition ?? "E",
+      indices,
+      hint
+    );
+
+    for (const pb of positioned) {
+      if (usedSourceIndices.has(pb.source_index)) continue;
+      usedSourceIndices.add(pb.source_index);
+
+      const sourceBlock = panelsOutline[pb.source_index];
       blocks.push({
         id: crypto.randomUUID(),
-        x: Math.max(0, Math.min(800, b.x ?? 0)),
-        y: yOffset + Math.max(0, b.y ?? 0),
-        width: Math.max(100, Math.min(800, b.width ?? 800)),
-        height: Math.max(minBlockHeight, Math.min(5000, b.height ?? 700)),
-        shape: b.shape && b.shape !== "rect" ? b.shape : undefined,
-        prompt: promptText,
-        dialogue_text: dialogueText,
+        x: pb.x,
+        y: yOffset + pb.y,
+        width: pb.width,
+        height: pb.height,
+        shape: pb.shape ?? undefined,
+        prompt: sourceBlock?.description ?? "",
+        dialogue_text: sourceBlock?.text_excerpt?.trim() || null,
         asset_refs: [],
         image_url: null,
       });
     }
 
-    // Gap AI-déterminé : utilise gap_after si fourni, sinon fallback contextuel
     const rawGap = scene.gap_after;
     const gapAfter = rawGap != null
       ? Math.max(GAP_MIN_PX, Math.min(GAP_MAX_PX, rawGap))
       : GAP_FALLBACK_PX;
     yOffset += sectionHeight + gapAfter;
+  }
+
+  // Réparation : source_index non couverts → ajout en fin de canvas
+  for (let i = 0; i < panelsOutline.length; i++) {
+    if (!usedSourceIndices.has(i)) {
+      const sourceBlock = panelsOutline[i];
+      console.warn(`[compose] source_index ${i} manquant — bloc par défaut ajouté`);
+      blocks.push({
+        id: crypto.randomUUID(),
+        x: 0, y: yOffset,
+        width: 800, height: 850,
+        shape: undefined,
+        prompt: sourceBlock?.description ?? "",
+        dialogue_text: sourceBlock?.text_excerpt?.trim() || null,
+        asset_refs: [], image_url: null,
+      });
+      yOffset += 850 + GAP_FALLBACK_PX;
+    }
   }
 
   return {
@@ -405,9 +683,12 @@ Deno.serve(async (req: Request) => {
     return json({ error: "Réponse IA invalide — réessaie." }, 500);
   }
 
-  // ── Transformation positions relatives → absolues ─────────────
+  // ── Validation & normalisation avant placement ────────────────
+  const normalizedScenes = normalizeScenes(aiComposition.scenes, panels_outline.length);
+
+  // ── Placement serveur ─────────────────────────────────────────
   const { blocks, speechBubbles, panelHeight } = processComposition(
-    aiComposition.scenes,
+    normalizedScenes,
     panels_outline
   );
 

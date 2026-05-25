@@ -28,8 +28,8 @@ export const COMPOSE_LAYOUT_SYSTEM_PROMPT =
   "  A  1 bloc   Splash pleine largeur — révélation, boss, fin de chapitre\n" +
   "  B  1 bloc   Isolement centré — choc silencieux, réalisation intérieure\n" +
   "  C  N blocs  Séquence serrée — enchaînement rapide 3-5 gestes\n" +
-  "  D  2 blocs  Face-à-face asymétrique 500+300px — tension entre 2 personnages\n" +
-  "  E  N blocs  Dialogue empilé, largeurs alternées — le plus fréquent\n" +
+  "  D  2 blocs  Face-à-face asymétrique — tension entre 2 personnages\n" +
+  "  E  N blocs  Dialogue empilé, largeurs variées — le plus fréquent\n" +
   "  F  2 blocs  Lieu : grand décor → réaction centrée\n" +
   "  G  1 bloc   Réplique clé — mot qui change tout, panel réduit centré\n" +
   "  H  1 bloc   Transition — ellipse, saut temporel\n" +
@@ -38,12 +38,21 @@ export const COMPOSE_LAYOUT_SYSTEM_PROMPT =
   "  K  max 4    ⛔ INTERDIT sauf pic d'action ABSOLU — 1 seule fois par chapitre\n" +
   "  L  2 blocs  Strip+grand — gros plan détail → scène (signature SL tension)\n" +
   "  M  3 blocs  Triptyque — 3 réactions simultanées côte à côte\n" +
-  "  N  2 blocs  ⚡ Attaque verticale diagonale — frappe/contre (signature SL)\n\n" +
+  "  N  2 blocs  ⚡ Attaque verticale diagonale — frappe/contre (signature SL)\n" +
+  "  O  1 bloc   Panel carré ancré GAUCHE — blanc massif à droite (introspection, objet clé)\n" +
+  "  P  1 bloc   Panel carré ancré DROITE — blanc massif à gauche (révélation latérale)\n\n" +
 
-  "HEIGHT HINT :\n" +
-  "  strip 280px | compact 550px | standard 900px | grand 1400px | splash 2200px\n" +
-  "  → Dialogue court : standard. Dialogue long : grand. Révélation : grand ou splash.\n" +
-  "  → N'utilise JAMAIS strip ou compact si le bloc a du dialogue.\n\n" +
+  "HEIGHT HINT — s'adapte au contenu du bloc :\n" +
+  "  strip   → gros plan ultra-serré : yeux, mains, détail minuscule\n" +
+  "  compact → zoom rapproché : visage, expression, objet\n" +
+  "  standard → scène normale, dialogue, action courte\n" +
+  "  grand   → plan large : ville, donjon, armée, boss, décor imposant\n" +
+  "  splash  → révélation maximale, fin de chapitre\n" +
+  "  RÈGLE : le serveur ajuste automatiquement selon les mots dans la description.\n" +
+  "  → 'gros plan sur les yeux' → sera rendu petit même si tu mets 'standard'\n" +
+  "  → 'panorama de la ville' → sera rendu grand même si tu mets 'standard'\n" +
+  "  → Utilise quand même le bon hint pour guider l'échelle globale de la scène.\n" +
+  "  → JAMAIS strip ou compact si le bloc a du dialogue (le texte a besoin d'espace).\n\n" +
 
   "GAP APRÈS (gap_after en px) :\n" +
   "  150-300 = action haché | 350-500 = dialogue normal | 500-700 = pause dramatique | 700-1000 = transition\n\n" +
@@ -53,7 +62,10 @@ export const COMPOSE_LAYOUT_SYSTEM_PROMPT =
   "2. gap_after OBLIGATOIRE dans chaque scène\n" +
   "3. Jamais 2 scènes consécutives avec le même type\n" +
   "4. K = 1 seule fois maximum, max 4 blocs — utilise N ou I pour l'action standard\n" +
-  "5. Le rationale DOIT citer le contenu du bloc (personnage, action, lieu, réplique)\n\n" +
+  "5. O et P = 1 seul bloc chacun — panel carré avec grand blanc latéral\n" +
+  "   → Utilise O/P pour : zoom sur un objet, une plante, un visage seul, une réplique visuelle\n" +
+  "   → O = panel ancré gauche (blanc à droite) | P = panel ancré droite (blanc à gauche)\n" +
+  "6. Le rationale DOIT citer le contenu du bloc (personnage, action, lieu, réplique)\n\n" +
   "Répondre UNIQUEMENT avec le JSON brut.";
 
 // ── Types ────────────────────────────────────────────────────────
@@ -77,8 +89,8 @@ function tagBlock(block: PanelOutlineBlock): { emoji: string; tag: string; sugge
   if (/apparaît|révèle|découvre|monstre|boss|portail|soudain|transformation|surgit|émerge|révélation|dévoile/.test(d)) {
     return { emoji: "🔮", tag: "RÉVÉLATION", suggestions: "A ou L" };
   }
-  if (/gros plan|détail|yeux|regard|main|pied|visage|sourire|sueur|larme|lèvre|expression/.test(d)) {
-    return { emoji: "🔍", tag: "DÉTAIL", suggestions: "L ou B" };
+  if (/gros plan|détail|yeux|regard|main|doigt|pied|visage|sourire|sueur|larme|lèvre|expression|plante|fleur|insecte|objet|cicatrice|symbole/.test(d)) {
+    return { emoji: "🔍", tag: "DÉTAIL", suggestions: "L, B, O ou P" };
   }
   if (/donjon|salle|forêt|ville|entrée|paysage|bâtiment|couloir|extérieur|lieu|endroit|décor|pièce|rue/.test(d)) {
     return { emoji: "🏛️", tag: "LIEU", suggestions: "F ou A" };

@@ -75,7 +75,6 @@ export function useArianeLoreProposals(projectId: string, { enableAutoScan = tru
       return (data ?? []) as CompassProposal[];
     },
     enabled: !!projectId && !!user,
-    staleTime: 30_000,
   });
 
   const runScan = useCallback(async () => {

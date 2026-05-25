@@ -17,27 +17,19 @@ import {
   CHAPTER_EDITOR_RAIL_BTN_IDLE,
 } from "@/components/chapter/chapterCanvasToolbar";
 
-/** Deux compositions diagonales affichées en paire avec aperçu visuel. */
-const DIAGONAL_COMPOSITION_PAIRS = [
-  {
-    id: "vertical",
-    label: "Diagonale Verticale",
-    tag: "N",
-    description: "Action empilée — panel haut attaque, bas contre",
-    topShape:    { label: "Haut",   shape: "taper-r" as PanelBlockShape, width: 800, height: 900, clipPath: "polygon(0 0, 100% 0, 100% 65%, 0 100%)" },
-    bottomShape: { label: "Bas",    shape: "taper-l" as PanelBlockShape, width: 800, height: 900, clipPath: "polygon(0 35%, 100% 0, 100% 100%, 0 100%)" },
-    orientation: "vertical" as const,
-  },
-  {
-    id: "lateral",
-    label: "Diagonale Latérale",
-    tag: "I",
-    description: "Collision côte à côte — deux forces opposées",
-    topShape:    { label: "Gauche", shape: "diagonal-r" as PanelBlockShape, width: 380, height: 900, clipPath: "polygon(0 0, 100% 0, 87% 100%, 0 100%)" },
-    bottomShape: { label: "Droite", shape: "diagonal-l" as PanelBlockShape, width: 420, height: 900, clipPath: "polygon(13% 0, 100% 0, 100% 100%, 0 100%)" },
-    orientation: "horizontal" as const,
-  },
-] as const;
+const DIAGONAL_BLOCK_PRESETS: Array<{
+  label: string;
+  description: string;
+  shape: PanelBlockShape;
+  width: number;
+  height: number;
+  clipPath: string;
+}> = [
+  { label: "Biseau haut",   description: "Panel haut — compo N",       shape: "taper-r",    width: 800, height: 900, clipPath: "polygon(0 0, 100% 0, 100% 65%, 0 100%)" },
+  { label: "Biseau bas",    description: "Panel bas — compo N",        shape: "taper-l",    width: 800, height: 900, clipPath: "polygon(0 35%, 100% 0, 100% 100%, 0 100%)" },
+  { label: "Diag. gauche",  description: "Panel gauche — compo I",     shape: "diagonal-r", width: 380, height: 900, clipPath: "polygon(0 0, 100% 0, 87% 100%, 0 100%)" },
+  { label: "Diag. droite",  description: "Panel droite — compo I",     shape: "diagonal-l", width: 420, height: 900, clipPath: "polygon(13% 0, 100% 0, 100% 100%, 0 100%)" },
+];
 
 const COLOR_PRESETS_SIDEBAR = [
   { label: "Blanc",  color: "#ffffff" },
@@ -335,107 +327,48 @@ export function EditorLeftSidebar({
                 </div>
               </div>
 
-              {/* Compositions diagonales — paires */}
+              {/* Blocs diagonaux */}
               <div className="space-y-2">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Formes diagonales</p>
-                <div className="flex flex-col gap-3">
-                  {DIAGONAL_COMPOSITION_PAIRS.map((pair) => {
-                    const isVertical = pair.orientation === "vertical";
+                <div className="flex flex-col gap-2.5">
+                  {DIAGONAL_BLOCK_PRESETS.map((preset) => {
+                    const key = `shape-${preset.shape}`;
+                    const THUMB_W = 52;
+                    const THUMB_H = 44;
                     return (
                       <div
-                        key={pair.id}
-                        className="rounded-xl border border-border/60 bg-card overflow-hidden"
+                        key={key}
+                        draggable
+                        onDragStart={(e) => {
+                          setDraggingKey(key);
+                          e.dataTransfer.setData("application/json", JSON.stringify({ type: "new-block", width: preset.width, height: preset.height, shape: preset.shape }));
+                          e.dataTransfer.effectAllowed = "copy";
+                          const ghost = newBlockDragGhostRef.current;
+                          if (ghost) {
+                            ghost.style.width = "72px";
+                            ghost.style.height = "56px";
+                            ghost.textContent = preset.label;
+                            e.dataTransfer.setDragImage(ghost, 36, 28);
+                          }
+                        }}
+                        onDragEnd={() => setDraggingKey(null)}
+                        onClick={() => onAddBlock(undefined, undefined, preset.width, preset.height, preset.shape)}
+                        className={`cursor-grab active:cursor-grabbing active:scale-[0.98] rounded-xl border bg-card px-4 py-3 transition-all duration-150 flex items-center gap-3.5 select-none hover:-translate-y-0.5 hover:shadow-md hover:border-border ${draggingKey === key ? "opacity-50 scale-[0.98] border-border" : "border-border/60"}`}
                       >
-                        {/* Header */}
-                        <div className="flex items-center justify-between px-3 pt-2.5 pb-1.5">
-                          <div className="flex flex-col gap-0.5 min-w-0">
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-sm font-semibold text-foreground leading-none">{pair.label}</span>
-                              <span className="text-[10px] font-bold text-primary/70 bg-primary/10 border border-primary/20 px-1 py-px rounded leading-none">{pair.tag}</span>
-                            </div>
-                            <span className="text-xs text-muted-foreground leading-snug">{pair.description}</span>
-                          </div>
-                        </div>
-
-                        {/* Aperçu visuel de la paire */}
-                        <div className="flex items-center justify-center px-3 py-2">
+                        <div className="shrink-0 flex items-center justify-center" style={{ width: 72, height: 56 }}>
                           <div
-                            className="relative bg-background rounded-lg overflow-hidden border border-border/40"
-                            style={{ width: 80, height: isVertical ? 64 : 48 }}
-                          >
-                            {isVertical ? (
-                              <>
-                                {/* Panel haut (taper-r) */}
-                                <div
-                                  className="absolute"
-                                  style={{
-                                    left: 2, top: 2, width: 76, height: 32,
-                                    clipPath: pair.topShape.clipPath,
-                                    background: "linear-gradient(135deg, hsl(var(--primary)/0.45), hsl(var(--primary)/0.2))",
-                                  }}
-                                />
-                                {/* Panel bas (taper-l) */}
-                                <div
-                                  className="absolute"
-                                  style={{
-                                    left: 2, top: 30, width: 76, height: 32,
-                                    clipPath: pair.bottomShape.clipPath,
-                                    background: "linear-gradient(135deg, hsl(var(--primary)/0.15), hsl(var(--primary)/0.4))",
-                                  }}
-                                />
-                              </>
-                            ) : (
-                              <>
-                                {/* Panel gauche (diagonal-r) */}
-                                <div
-                                  className="absolute"
-                                  style={{
-                                    left: 2, top: 2, width: 36, height: 44,
-                                    clipPath: pair.topShape.clipPath,
-                                    background: "linear-gradient(135deg, hsl(var(--primary)/0.45), hsl(var(--primary)/0.2))",
-                                  }}
-                                />
-                                {/* Panel droit (diagonal-l) */}
-                                <div
-                                  className="absolute"
-                                  style={{
-                                    left: 42, top: 2, width: 36, height: 44,
-                                    clipPath: pair.bottomShape.clipPath,
-                                    background: "linear-gradient(135deg, hsl(var(--primary)/0.15), hsl(var(--primary)/0.4))",
-                                  }}
-                                />
-                              </>
-                            )}
-                          </div>
+                            style={{
+                              width: THUMB_W,
+                              height: THUMB_H,
+                              clipPath: preset.clipPath,
+                              background: "linear-gradient(135deg, hsl(var(--primary)/0.3), hsl(var(--primary)/0.1))",
+                              border: "1.5px solid hsl(var(--primary)/0.35)",
+                            }}
+                          />
                         </div>
-
-                        {/* Boutons d'ajout */}
-                        <div className="flex gap-2 px-3 pb-3">
-                          {[pair.topShape, pair.bottomShape].map((s) => (
-                            <button
-                              key={s.shape}
-                              type="button"
-                              draggable
-                              onDragStart={(e) => {
-                                const key = `shape-${s.shape}`;
-                                setDraggingKey(key);
-                                e.dataTransfer.setData("application/json", JSON.stringify({ type: "new-block", width: s.width, height: s.height, shape: s.shape }));
-                                e.dataTransfer.effectAllowed = "copy";
-                                const ghost = newBlockDragGhostRef.current;
-                                if (ghost) {
-                                  ghost.style.width = "72px";
-                                  ghost.style.height = "56px";
-                                  ghost.textContent = s.label;
-                                  e.dataTransfer.setDragImage(ghost, 36, 28);
-                                }
-                              }}
-                              onDragEnd={() => setDraggingKey(null)}
-                              onClick={() => onAddBlock(undefined, undefined, s.width, s.height, s.shape)}
-                              className={`flex-1 cursor-grab active:cursor-grabbing active:scale-[0.98] text-xs font-semibold h-7 rounded-lg border transition-all duration-150 select-none hover:bg-primary/10 hover:border-primary/40 hover:text-primary ${draggingKey === `shape-${s.shape}` ? "opacity-50 border-primary/40 bg-primary/10 text-primary" : "border-border/60 bg-muted/30 text-muted-foreground"}`}
-                            >
-                              + {s.label}
-                            </button>
-                          ))}
+                        <div className="flex flex-col min-w-0 gap-1">
+                          <span className="text-sm font-semibold text-foreground leading-snug">{preset.label}</span>
+                          <span className="text-xs text-muted-foreground leading-snug">{preset.description}</span>
                         </div>
                       </div>
                     );

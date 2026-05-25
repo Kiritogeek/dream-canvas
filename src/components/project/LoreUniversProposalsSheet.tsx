@@ -261,7 +261,10 @@ export function LoreUniversProposalsSheet({
                             key={p.id}
                             proposal={p}
                             sectionBorderClass={cfg.borderClass}
-                            forcedReason={forcedInfo?.[p.id]}
+                            forcedReason={
+                              (p.prefill_data as { _ariane_reason?: ForcedReason } | null)?._ariane_reason
+                              ?? forcedInfo?.[p.id]
+                            }
                             disabled={isAccepting}
                             onAjouter={(label) => handleAccept(p, label)}
                             onIgnorer={() => onDismiss(p.id)}

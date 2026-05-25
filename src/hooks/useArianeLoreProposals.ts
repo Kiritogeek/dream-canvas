@@ -863,6 +863,14 @@ export function useArianeLoreProposals(projectId: string, { enableAutoScan = tru
       await new Promise(resolve => setTimeout(resolve, 500));
     }
 
+    // Persistance des raisons dans prefill_data (survit aux refreshes de page)
+    for (const ins of forceInserts) {
+      const reason = reasonByDedupe.get(ins.dedupe_key);
+      if (reason) {
+        ins.prefill_data = { ...(ins.prefill_data as Record<string, unknown>), _ariane_reason: reason };
+      }
+    }
+
     // Insert par type : une contrainte check violée sur un type ne bloque pas les autres
     if (forceInserts.length > 0) {
       const byType = new Map<string, typeof forceInserts>();

@@ -127,11 +127,12 @@ export const COMPOSE_LAYOUT_SYSTEM_PROMPT =
   "RÈGLES SHAPES (FORMES DE BLOCS)\n" +
   "══════════════════════════════════════════\n" +
   "SL utilise RAREMENT les formes non-rectangulaires.\n" +
-  "MAX 2–3 blocs avec shape dans TOUT le chapitre.\n" +
+  "MAX 1–2 SCÈNES diagonales par chapitre (I ou N) — soit 2 à 4 blocs avec shape au total.\n" +
+  "Une scène N = exactement 2 blocs shapés (taper-r + taper-l). Une scène I = 2 blocs (diagonal-r + diagonal-l).\n" +
   "Shapes disponibles :\n" +
-  "  diagonal-r / diagonal-l : action physique intense seulement\n" +
-  "  taper-r / taper-l : composition N (diagonale verticale) seulement\n" +
-  "  angle-tr / angle-br / angle-tl / angle-bl : focus émotionnel\n" +
+  "  diagonal-r / diagonal-l : action physique intense CÔTE À CÔTE (composition I)\n" +
+  "  taper-r / taper-l : action verticale EMPILÉE (composition N) — TOUJOURS utilisés EN PAIRE\n" +
+  "  angle-tr / angle-br / angle-tl / angle-bl : focus émotionnel (1 seul bloc, pas de paire)\n" +
   "La quasi-totalité des blocs = rectangulaires (pas de champ shape).\n\n" +
 
   "══════════════════════════════════════════\n" +
@@ -202,13 +203,25 @@ export const COMPOSE_LAYOUT_SYSTEM_PROMPT =
   '    },\n' +
   '    {\n' +
   '      "panel_number": 5,\n' +
+  '      "composition_type": "I",\n' +
+  '      "rationale": "Collision latérale : héros (gauche diagonal-r) vs monstre (droite diagonal-l)",\n' +
+  '      "section_height": 950,\n' +
+  '      "gap_after": 280,\n' +
+  '      "blocks": [\n' +
+  '        { "source_index": 7, "x": 0,   "y": 0, "width": 380, "height": 950, "shape": "diagonal-r" },\n' +
+  '        { "source_index": 8, "x": 380, "y": 0, "width": 420, "height": 950, "shape": "diagonal-l" }\n' +
+  '      ],\n' +
+  '      "speech_bubbles": []\n' +
+  '    },\n' +
+  '    {\n' +
+  '      "panel_number": 6,\n' +
   '      "composition_type": "N",\n' +
   '      "rationale": "Signature SL action : attaque (haut taper-r) / contre-attaque (bas taper-l)",\n' +
   '      "section_height": 1800,\n' +
   '      "gap_after": 250,\n' +
   '      "blocks": [\n' +
-  '        { "source_index": 7, "x": 0, "y": 0,   "width": 800, "height": 900, "shape": "taper-r" },\n' +
-  '        { "source_index": 8, "x": 0, "y": 900, "width": 800, "height": 900, "shape": "taper-l" }\n' +
+  '        { "source_index": 9, "x": 0, "y": 0,   "width": 800, "height": 900, "shape": "taper-r" },\n' +
+  '        { "source_index": 10, "x": 0, "y": 900, "width": 800, "height": 900, "shape": "taper-l" }\n' +
   '      ],\n' +
   '      "speech_bubbles": []\n' +
   '    },\n' +
@@ -324,17 +337,18 @@ export function buildComposeLayoutPrompt(opts: {
     prompt += "\n";
   }
 
-  const maxShapes = Math.max(1, Math.min(3, Math.floor(totalBlocks * 0.15)));
+  // Max 1-2 scènes diagonales → 2-4 blocs shapés. On ne compte pas par blocs mais par paires.
+  const maxDiagonalScenes = totalBlocks >= 15 ? 2 : 1;
 
   prompt +=
     `INSTRUCTIONS FINALES :\n` +
     `• ${totalBlocks} blocs, ${totalScenes} scènes — composer dans l'ordre narratif du scénario\n` +
     `• gap_after OBLIGATOIRE dans chaque scène (150–900px selon intensité dramatique)\n` +
-    `• Espaces internes : E → 120px entre blocs | L → 250-400px entre strip et grand | C → 0-30px\n` +
+    `• Espaces internes : E → 120px entre blocs | L → 250-400px entre strip et grand | C → 0-30px | N → 0px\n` +
     `• section_height = y_dernier_bloc + height_dernier_bloc (inclut les espaces internes)\n` +
     `• Blocs avec dialogue : hauteur standard + 150-250px selon longueur du texte\n` +
     `• Composition L très encouragée — signature SL (strip fin + grand panel)\n` +
-    `• Shapes : max ${maxShapes} blocs au total (action intense seulement)\n` +
+    `• Scènes diagonales (I ou N) : max ${maxDiagonalScenes} dans ce chapitre — taper-r/l et diagonal-r/l TOUJOURS en paire\n` +
     `• K = max 1 fois\n` +
     `• Retourne le JSON brut complet, aucun texte avant ou après.`;
 

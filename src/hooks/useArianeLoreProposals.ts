@@ -75,6 +75,7 @@ export function useArianeLoreProposals(projectId: string, { enableAutoScan = tru
       return (data ?? []) as CompassProposal[];
     },
     enabled: !!projectId && !!user,
+    staleTime: 30_000,
   });
 
   const runScan = useCallback(async () => {
@@ -114,6 +115,7 @@ export function useArianeLoreProposals(projectId: string, { enableAutoScan = tru
     const alreadyProposed = new Set((existingProposals ?? []).map((p) => p.dedupe_key));
 
     const seenNames = new Set<string>();
+    let didChange = false;
 
     const toInsert: Array<{
       project_id: string;
@@ -198,11 +200,13 @@ export function useArianeLoreProposals(projectId: string, { enableAutoScan = tru
           .from("compass_proposals")
           .update({ status: "dismissed" })
           .in("id", toDismiss);
+        didChange = true;
       }
     }
 
     if (toInsert.length > 0) {
       await supabase.from("compass_proposals").insert(toInsert);
+      didChange = true;
     }
 
     // Scan : liaisons chapitre sur les nœuds existants (assets + événements)
@@ -254,6 +258,7 @@ export function useArianeLoreProposals(projectId: string, { enableAutoScan = tru
     }
     if (chapterUpdateInserts.length > 0) {
       await supabase.from("compass_proposals").insert(chapterUpdateInserts);
+      didChange = true;
     }
 
     // Scan : connexions entre éléments co-présents dans les chapitres VALIDÉS
@@ -347,10 +352,13 @@ export function useArianeLoreProposals(projectId: string, { enableAutoScan = tru
           await new Promise(resolve => setTimeout(resolve, 500));
         }
         await supabase.from("compass_proposals").insert(connectionInserts);
+        didChange = true;
       }
     }
 
-    qc.invalidateQueries({ queryKey: ["lore-proposals", projectId] });
+    if (didChange) {
+      qc.invalidateQueries({ queryKey: ["lore-proposals", projectId] });
+    }
   }, [projectId, user, qc]);
 
   const { data: chaptersSignature } = useQuery({

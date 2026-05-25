@@ -247,8 +247,8 @@ export function BubbleLayer({
               height: Math.round(resizeSpeechBubbleDraft.height),
             }
           : {
-              x: Math.round(bubble.position.x),
-              y: Math.round(bubble.position.y),
+              x: Math.round(bubble.position?.x ?? 0),
+              y: Math.round(bubble.position?.y ?? 0),
               width: Math.round(bw),
               height: Math.round(bh),
             };
@@ -688,10 +688,10 @@ export function BubbleLayer({
             {isEditing ? (
               <div
                 key="bubble-editor"
-                className={`absolute flex flex-col justify-center z-30 ${textAreaLeft == null ? `inset-x-0 ${bubble.type === "narration" ? "px-11 py-10" : "px-3"}` : "px-2"}`}
+                className={`absolute flex flex-col justify-center z-30 ${textAreaLeft == null ? `inset-x-0 ${bubble.type === "narration" ? "px-11 py-2" : "px-3"}` : "px-2"}`}
                 style={{
                   top: adjustedTextAreaTop,
-                  minHeight: textAreaH,
+                  ...(noTailType ? { height: textAreaH } : { minHeight: textAreaH }),
                   ...(textAreaLeft != null ? { left: textAreaLeft, width: textAreaWidth ?? undefined } : {}),
                 }}
               >
@@ -727,10 +727,10 @@ export function BubbleLayer({
             ) : (
               <div
                 key="bubble-readonly"
-                className={`absolute flex flex-col justify-center pointer-events-none ${textAreaLeft == null ? `inset-x-0 ${bubble.type === "narration" ? "px-11 py-10" : "px-3"}` : "px-2"}`}
+                className={`absolute flex flex-col justify-center pointer-events-none ${textAreaLeft == null ? `inset-x-0 ${bubble.type === "narration" ? "px-11 py-2" : "px-3"}` : "px-2"}`}
                 style={{
                   top: adjustedTextAreaTop,
-                  minHeight: textAreaH,
+                  ...(noTailType ? { height: textAreaH } : { minHeight: textAreaH }),
                   ...(textAreaLeft != null ? { left: textAreaLeft, width: textAreaWidth ?? undefined } : {}),
                 }}
               >

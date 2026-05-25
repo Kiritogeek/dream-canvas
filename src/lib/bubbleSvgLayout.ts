@@ -55,7 +55,7 @@ export function getSpeechBubbleSvgBoxRelToBubble(bubble: SpeechBubble): {
 
 /** Bas du bloc SVG bulle dans le repère panel (pixels), pour ajuster la capture (queue comprise). */
 export function getSpeechBubbleBottomInPanelPx(bubble: SpeechBubble): number {
-  const y = Math.round(bubble.position.y);
+  const y = Math.round(bubble.position?.y ?? 0);
   const h = Math.round(bubble.height ?? DEFAULT_SPEECH_BUBBLE_HEIGHT);
   if (bubble.type === "text") return y + h;
 

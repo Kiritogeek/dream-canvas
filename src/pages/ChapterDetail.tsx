@@ -59,6 +59,7 @@ import { useChapter, useUpdateChapter } from "@/hooks/useChapters";
 import { useScenarioChapters, useScenarioChapter } from "@/hooks/useScenarioChapters";
 import { useAssets } from "@/hooks/useAssets";
 import { useProject } from "@/hooks/useProjects";
+import { useComposeChapterLayout } from "@/hooks/useComposeChapterLayout";
 import { getMaxAccessibleTab, useProgressiveMenuAccess } from "@/hooks/useProgressiveMenuGate";
 import { useUserPlan } from "@/hooks/useUserPlan";
 import {
@@ -68,13 +69,14 @@ import {
   useDeletePanel,
   useGeneratePanelImage,
 } from "@/hooks/usePanels";
-import { useGeneratingBlocks, useChapterIsViewing } from "@/lib/generationPending";
+import { useGeneratingBlocks, useChapterIsViewing, startBlockGeneration, endBlockGeneration, notifyBlockDone } from "@/lib/generationPending";
 import {
   getPanelBlocks,
   getPanelHeight,
   getPanelLayout,
   getPanelColorBlocks,
   getPanelSpeechBubbles,
+  generatePanelBlockImage,
   DEFAULT_BLOCK_WIDTH,
   DEFAULT_BLOCK_HEIGHT,
   DEFAULT_COLOR_BLOCK_FILL,
@@ -230,7 +232,14 @@ export default function ChapterDetail() {
   const [panelToDeleteId, setPanelToDeleteId] = useState<string | null>(null);
   const [showQuotaModal, setShowQuotaModal] = useState(false);
   const generatePanelImage = useGeneratePanelImage(chapterId ?? "");
+  const composeLayout = useComposeChapterLayout(chapterId);
   const generatingBlocks = useGeneratingBlocks();
+  const [generatingAllProgress, setGeneratingAllProgress] = useState<{ current: number; total: number } | null>(null);
+  const [savedCompositionBeforeRecompose, setSavedCompositionBeforeRecompose] = useState<{
+    layout: PanelLayout;
+    speechBubbles: SpeechBubble[];
+  } | null>(null);
+  const [isRefusingRecompose, setIsRefusingRecompose] = useState(false);
   useChapterIsViewing(projectId ?? "", chapterId ?? "");
   const panelsQueryKey = useMemo(() => ["panels", chapterId] as const, [chapterId]);
   const { data: chapterImageHistory = [], isPending: chapterImageHistoryPending } = useChapterCanvasImageHistory(chapterId);
@@ -818,6 +827,107 @@ export default function ChapterDetail() {
       },
     );
   };
+
+  // ── Recomposition handlers — définis avant les early returns (règles des hooks) ──
+
+  const handleAcceptRecompose = useCallback(() => {
+    setSavedCompositionBeforeRecompose(null);
+    toast({ title: "Nouvelle composition acceptée !" });
+  }, [toast]);
+
+  const handleRefuseRecompose = useCallback(async () => {
+    if (!savedCompositionBeforeRecompose || !panels.length) return;
+    const panel = panels[0];
+    setIsRefusingRecompose(true);
+    try {
+      await updatePanelMutation.mutateAsync({
+        id: panel.id,
+        updates: {
+          layout: savedCompositionBeforeRecompose.layout as unknown as Json,
+          speech_bubbles: savedCompositionBeforeRecompose.speechBubbles as unknown as Json,
+        },
+      });
+      queryClient.invalidateQueries({ queryKey: ["panels", chapterId] });
+      setSavedCompositionBeforeRecompose(null);
+      toast({ title: "Recomposition annulée", description: "L'ancienne composition a été restaurée." });
+    } catch {
+      toast({ title: "Erreur lors de la restauration", variant: "destructive" });
+    } finally {
+      setIsRefusingRecompose(false);
+    }
+  }, [savedCompositionBeforeRecompose, panels, updatePanelMutation, queryClient, chapterId, toast]);
+
+  const handleGenerateAllBlocks = useCallback(async () => {
+    if (!project || !panels.length) return;
+    const panel = panels[0];
+    const layout = getPanelLayout(panel);
+    const blocksToGen = layout.blocks.filter((b) => b.prompt?.trim() && !b.image_url);
+
+    if (!blocksToGen.length) {
+      toast({ title: "Toutes les cases ont déjà une image" });
+      return;
+    }
+    if (!project.style_template?.trim()) {
+      toast({ title: "Style requis", description: "Enregistrez un template de style texte sur le projet.", variant: "destructive" });
+      return;
+    }
+
+    setGeneratingAllProgress({ current: 0, total: blocksToGen.length });
+    let currentLayout: PanelLayout = { ...layout, blocks: [...layout.blocks] };
+    let generated = 0;
+
+    for (const block of blocksToGen) {
+      if (usageInfo.count + generated >= usageInfo.limit) {
+        setShowQuotaModal(true);
+        break;
+      }
+      startBlockGeneration(panel.id, block.id);
+      try {
+        const prompt = block.prompt?.trim() ?? "";
+        const refAssets = getDetectedAssets(prompt, assets);
+        const blockAssetImageUrls = refAssets.map(getAssetReferenceImageUrl).filter((u): u is string => !!u);
+        const blockAssetNames = refAssets.map(getAssetReferencePromptLabel);
+
+        const result = await generatePanelBlockImage({
+          panelId: panel.id,
+          blockId: block.id,
+          width: block.width,
+          height: block.height,
+          prompt,
+          project,
+          blockAssetImageUrls: blockAssetImageUrls.length ? blockAssetImageUrls : undefined,
+          blockAssetNames: blockAssetNames.length ? blockAssetNames : undefined,
+        });
+
+        currentLayout = {
+          ...currentLayout,
+          blocks: currentLayout.blocks.map((b) =>
+            b.id === block.id ? { ...b, image_url: result.image_url } : b
+          ),
+        };
+        await updatePanelMutation.mutateAsync({
+          id: panel.id,
+          updates: { layout: currentLayout as unknown as Json },
+        });
+        queryClient.setQueryData(["panels", chapterId], (old: Panel[] | undefined) =>
+          old?.map((p) => (p.id === panel.id ? { ...p, layout: currentLayout as unknown as Json } : p))
+        );
+        notifyBlockDone(project.id, chapterId ?? "");
+        generated++;
+        setGeneratingAllProgress({ current: generated, total: blocksToGen.length });
+      } catch {
+        // skip block, continue avec le suivant
+      } finally {
+        endBlockGeneration(panel.id);
+      }
+    }
+
+    setGeneratingAllProgress(null);
+    if (generated > 0) {
+      toast({ title: `${generated} case${generated > 1 ? "s" : ""} générée${generated > 1 ? "s" : ""} !` });
+    }
+    queryClient.invalidateQueries({ queryKey: ["panels", chapterId] });
+  }, [project, panels, assets, usageInfo, chapterId, queryClient, updatePanelMutation, toast]);
 
   if (loading && !chapter) {
     return (
@@ -1703,6 +1813,67 @@ export default function ChapterDetail() {
           isPro={isPro}
           newBlockDragGhostRef={newBlockDragGhostRef}
           onNavigateToPlans={() => navigate("/dashboard/plans")}
+          hasOutlineToCompose={
+            Array.isArray(linkedScenarioChapter?.panels_outline) &&
+            (linkedScenarioChapter.panels_outline as unknown[]).length > 0
+          }
+          isComposing={composeLayout.isPending}
+          hasExistingComposition={layout.blocks.length > 0}
+          showRecomposeActions={savedCompositionBeforeRecompose !== null && !composeLayout.isPending}
+          onAcceptRecompose={handleAcceptRecompose}
+          onRefuseRecompose={handleRefuseRecompose}
+          isRefusingRecompose={isRefusingRecompose}
+          onCompose={() => {
+            if (!linkedScenarioChapter?.panels_outline) return;
+            const isRecompose = layout.blocks.length > 0;
+            // Sauvegarder la composition actuelle avant d'écraser
+            if (isRecompose) {
+              setSavedCompositionBeforeRecompose({
+                layout: getPanelLayout(panel),
+                speechBubbles: getPanelSpeechBubbles(panel),
+              });
+            }
+            const outline = linkedScenarioChapter.panels_outline as Array<{
+              panel_number: number;
+              block_number?: number;
+              description: string;
+              text_excerpt?: string;
+              locked?: boolean;
+            }>;
+            composeLayout.mutate(
+              {
+                chapterId: chapterId!,
+                panelsOutline: outline,
+                projectStyle: project?.style_template ?? undefined,
+                characters: assets
+                  .filter((a) => a.asset_type === "character")
+                  .map((a) => a.name),
+                chapterTitle: chapter?.title ?? undefined,
+              },
+              {
+                onSuccess: (result) => {
+                  if (!isRecompose) {
+                    toast({
+                      title: `✨ ${result.blocksCount} blocs composés`,
+                      description: "La mise en page est prête — génère maintenant les images !",
+                    });
+                  }
+                },
+                onError: (err) => {
+                  if (isRecompose) setSavedCompositionBeforeRecompose(null);
+                  toast({
+                    title: "Erreur de composition",
+                    description: err.message,
+                    variant: "destructive",
+                  });
+                },
+              }
+            );
+          }}
+          blocksToGenerateCount={layout.blocks.filter((b) => b.prompt?.trim() && !b.image_url).length}
+          onGenerateAll={handleGenerateAllBlocks}
+          isGeneratingAll={generatingAllProgress !== null}
+          generateAllProgress={generatingAllProgress}
         />
       </div>
     );

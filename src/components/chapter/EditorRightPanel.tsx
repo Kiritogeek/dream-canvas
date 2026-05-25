@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
-import { BookOpen, Loader2, Layers, GripVertical, CheckCircle2, Package, ChevronDown } from "lucide-react";
+import { BookOpen, Loader2, Layers, GripVertical, CheckCircle2, Package, ChevronDown, Wand2, Zap, RefreshCw, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   Collapsible,
   CollapsibleContent,
@@ -71,6 +72,22 @@ interface EditorRightPanelProps {
   /** Ref partagée pour le ghost de drag (même que la sidebar gauche) */
   newBlockDragGhostRef?: React.RefObject<HTMLDivElement | null>;
   onNavigateToPlans: () => void;
+  /** Composition IA du canvas depuis le découpage scénario */
+  onCompose?: () => void;
+  isComposing?: boolean;
+  hasOutlineToCompose?: boolean;
+  /** Recompose : canvas déjà composé — le bouton devient "Recomposer" */
+  hasExistingComposition?: boolean;
+  /** Accepter / Refuser après une recomposition */
+  showRecomposeActions?: boolean;
+  onAcceptRecompose?: () => void;
+  onRefuseRecompose?: () => void;
+  isRefusingRecompose?: boolean;
+  /** Génération en batch de toutes les cases du canvas */
+  onGenerateAll?: () => void;
+  isGeneratingAll?: boolean;
+  generateAllProgress?: { current: number; total: number } | null;
+  blocksToGenerateCount?: number;
 }
 
 export function EditorRightPanel({
@@ -85,6 +102,18 @@ export function EditorRightPanel({
   isPro,
   newBlockDragGhostRef,
   onNavigateToPlans,
+  onCompose,
+  isComposing = false,
+  hasOutlineToCompose = false,
+  hasExistingComposition = false,
+  showRecomposeActions = false,
+  onAcceptRecompose,
+  onRefuseRecompose,
+  isRefusingRecompose = false,
+  onGenerateAll,
+  isGeneratingAll = false,
+  generateAllProgress = null,
+  blocksToGenerateCount = 0,
 }: EditorRightPanelProps) {
   const [draggingCaseNumber, setDraggingCaseNumber] = useState<number | null>(null);
   const [openAssetGroups, setOpenAssetGroups] = useState<Record<string, boolean>>({
@@ -218,6 +247,107 @@ export function EditorRightPanel({
                 </div>
               )}
             </div>
+
+            {/* Accepter / Refuser après une recomposition */}
+            {showRecomposeActions && (
+              <div className="flex flex-col gap-2">
+                <p className="text-[11px] text-muted-foreground text-center">
+                  Nouvelle composition — la garder ?
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    className="flex-1 gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
+                    onClick={onAcceptRecompose}
+                    disabled={isRefusingRecompose}
+                  >
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    Accepter
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="flex-1 gap-1.5 border-red-400/40 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30"
+                    onClick={onRefuseRecompose}
+                    disabled={isRefusingRecompose}
+                  >
+                    {isRefusingRecompose ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <X className="h-3.5 w-3.5" />
+                    )}
+                    Refuser
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Bouton Composer / Recomposer */}
+            {!showRecomposeActions && hasOutlineToCompose && onCompose && (
+              <Button
+                size="sm"
+                className={cn(
+                  "w-full gap-2 shrink-0",
+                  hasExistingComposition
+                    ? "border border-primary/30 bg-transparent text-primary hover:bg-primary/5"
+                    : "gradient-primary text-white"
+                )}
+                onClick={onCompose}
+                disabled={isComposing || isGeneratingAll}
+              >
+                {isComposing ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    {hasExistingComposition ? "Recomposition en cours…" : "Composition en cours…"}
+                  </>
+                ) : hasExistingComposition ? (
+                  <>
+                    <RefreshCw className="h-3.5 w-3.5" />
+                    Recomposer
+                  </>
+                ) : (
+                  <>
+                    <Wand2 className="h-3.5 w-3.5" />
+                    Composer le chapitre
+                  </>
+                )}
+              </Button>
+            )}
+
+            {/* Bouton Générer toutes les cases */}
+            {blocksToGenerateCount > 0 && onGenerateAll && (
+              <div className="flex flex-col gap-1.5">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="w-full gap-2 shrink-0 border-amber-400/40 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30"
+                  onClick={onGenerateAll}
+                  disabled={isGeneratingAll || isComposing}
+                >
+                  {isGeneratingAll ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      {generateAllProgress
+                        ? `Génération ${generateAllProgress.current}/${generateAllProgress.total}…`
+                        : "Génération en cours…"}
+                    </>
+                  ) : (
+                    <>
+                      <Zap className="h-3.5 w-3.5" />
+                      Générer toutes les cases ({blocksToGenerateCount})
+                    </>
+                  )}
+                </Button>
+                {isGeneratingAll && generateAllProgress && (
+                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                    <div
+                      className="h-full rounded-full bg-amber-400 transition-all duration-500"
+                      style={{ width: `${(generateAllProgress.current / generateAllProgress.total) * 100}%` }}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
 
             {validatedCases.length > 0 && (
               <p className="text-[11px] text-muted-foreground -mt-1">

@@ -12,6 +12,8 @@ export interface ComposeChapterLayoutParams {
   projectStyle?: string | null;
   characters?: string[];
   chapterTitle?: string;
+  chapterSynopsis?: string;
+  chapterScenarioContent?: string;
 }
 
 export interface ComposeChapterLayoutResult {
@@ -45,6 +47,8 @@ export async function composeChapterLayout(
       project_style: params.projectStyle ?? undefined,
       characters: params.characters?.length ? params.characters : undefined,
       chapter_title: params.chapterTitle,
+      chapter_synopsis: params.chapterSynopsis ?? undefined,
+      chapter_scenario_content: params.chapterScenarioContent ?? undefined,
     }),
   });
 

@@ -33,7 +33,10 @@ const AI_FALLBACK_MODEL = "gemini-2.5-flash-lite";
 const AI_TIMEOUT_MS = 90_000;
 const AI_MAX_OUTPUT_TOKENS = 16_384;
 
-const GAP_BETWEEN_SCENES_PX = 80;
+// Gap FALLBACK si l'IA ne fournit pas gap_after — normalement l'IA le calcule
+const GAP_FALLBACK_PX = 400;
+const GAP_MIN_PX = 150;
+const GAP_MAX_PX = 1000;
 const MIN_CANVAS_HEIGHT = 5_000;
 
 // ═══════════════════════════════════════════════════════════════
@@ -67,6 +70,7 @@ interface AIOutputScene {
   composition_type: string;
   rationale?: string;
   section_height: number;
+  gap_after?: number;  // gap en px après cette section (AI-determined)
   blocks: AIOutputBlock[];
   speech_bubbles?: AIOutputBubble[];
 }
@@ -177,8 +181,35 @@ function processComposition(
   const blocks: object[] = [];
   let yOffset = 0;
 
+  // Garde serveur : max 1 scène K autorisée — les suivantes sont reclassées en E
+  let kSeen = 0;
+  for (const scene of scenes) {
+    if ((scene.composition_type ?? "").toUpperCase() === "K") {
+      if (kSeen >= 1) {
+        scene.composition_type = "E";
+        // Recalculer les hauteurs des blocs (→ 650px chacun)
+        const perBlock = Math.round(1500 / Math.max(1, scene.blocks?.length ?? 1));
+        let cumY = 0;
+        for (const b of scene.blocks ?? []) {
+          b.y = cumY;
+          b.height = perBlock;
+          b.shape = undefined;
+          cumY += perBlock;
+        }
+        scene.section_height = cumY;
+        console.warn("[compose] Scène K excédentaire reclassée en E (panel_number=" + scene.panel_number + ")");
+      } else {
+        kSeen++;
+      }
+    }
+  }
+
   for (const scene of scenes) {
     const sectionHeight = Math.max(600, Math.min(5000, scene.section_height ?? 1500));
+
+    // Composition K → blocs ultra-fins autorisés ; sinon minimum 350px
+    const isFlashScene = (scene.composition_type ?? "").toUpperCase() === "K";
+    const minBlockHeight = isFlashScene ? 180 : 350;
 
     for (const b of scene.blocks ?? []) {
       const sourceBlock = panelsOutline[b.source_index];
@@ -190,7 +221,7 @@ function processComposition(
         x: Math.max(0, Math.min(800, b.x ?? 0)),
         y: yOffset + Math.max(0, b.y ?? 0),
         width: Math.max(100, Math.min(800, b.width ?? 800)),
-        height: Math.max(100, Math.min(5000, b.height ?? 600)),
+        height: Math.max(minBlockHeight, Math.min(5000, b.height ?? 700)),
         shape: b.shape && b.shape !== "rect" ? b.shape : undefined,
         prompt: promptText,
         dialogue_text: dialogueText,
@@ -199,7 +230,12 @@ function processComposition(
       });
     }
 
-    yOffset += sectionHeight + GAP_BETWEEN_SCENES_PX;
+    // Gap AI-déterminé : utilise gap_after si fourni, sinon fallback contextuel
+    const rawGap = scene.gap_after;
+    const gapAfter = rawGap != null
+      ? Math.max(GAP_MIN_PX, Math.min(GAP_MAX_PX, rawGap))
+      : GAP_FALLBACK_PX;
+    yOffset += sectionHeight + gapAfter;
   }
 
   return {
@@ -316,6 +352,8 @@ Deno.serve(async (req: Request) => {
     project_style?: string;
     characters?: string[];
     chapter_title?: string;
+    chapter_synopsis?: string;
+    chapter_scenario_content?: string;
   };
 
   try {
@@ -324,7 +362,7 @@ Deno.serve(async (req: Request) => {
     return json({ error: "Corps de requête invalide" }, 400);
   }
 
-  const { chapter_id, panels_outline, project_style, characters, chapter_title } = body;
+  const { chapter_id, panels_outline, project_style, characters, chapter_title, chapter_synopsis, chapter_scenario_content } = body;
 
   if (!chapter_id) return json({ error: "chapter_id requis" }, 400);
   if (!Array.isArray(panels_outline) || panels_outline.length === 0) {
@@ -337,6 +375,8 @@ Deno.serve(async (req: Request) => {
     projectStyle: project_style,
     characters,
     chapterTitle: chapter_title,
+    chapterSynopsis: chapter_synopsis,
+    chapterScenarioContent: chapter_scenario_content,
   });
 
   let aiResult = await callAIOnce(AI_MODEL, COMPOSE_LAYOUT_SYSTEM_PROMPT, userPrompt, geminiKey);

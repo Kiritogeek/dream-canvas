@@ -1853,6 +1853,8 @@ export default function ChapterDetail() {
                   .filter((a) => a.asset_type === "character")
                   .map((a) => a.name),
                 chapterTitle: chapter?.title ?? undefined,
+                chapterSynopsis: linkedScenarioChapter?.synopsis ?? undefined,
+                chapterScenarioContent: linkedScenarioChapter?.content ?? undefined,
               },
               {
                 onSuccess: (result) => {

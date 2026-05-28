@@ -156,6 +156,7 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
   const saveDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pickerRef = useRef<HTMLDivElement>(null);
   const typePickerRef = useRef<HTMLDivElement>(null);
+  const prevNodeIdRef = useRef<string | undefined>(undefined);
 
   useEffect(() => {
     if (!showPicker) return;
@@ -181,12 +182,18 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
   }, [showTypePicker]);
 
   useEffect(() => {
-    if (node) {
-      const predefined = LORE_CHIPS[node.type];
-      const parsed = parseToSections(node.description ?? "", predefined);
-      const customKeys = Object.keys(parsed).filter(
-        (k) => !predefined.includes(k) && !!parsed[k]?.trim()
-      );
+    if (!node) return;
+    const isNewNode = node.id !== prevNodeIdRef.current;
+    prevNodeIdRef.current = node.id;
+
+    const predefined = LORE_CHIPS[node.type];
+    const parsed = parseToSections(node.description ?? "", predefined);
+    const customKeys = Object.keys(parsed).filter(
+      (k) => !predefined.includes(k) && !!parsed[k]?.trim()
+    );
+
+    if (isNewNode) {
+      // Ouverture d'un nœud différent — reset complet de l'UI
       setName(node.name);
       setType(node.type);
       setSections(parsed);
@@ -199,6 +206,10 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
       setNewCustomName("");
       setShowTypePicker(false);
       resetAriane();
+    } else {
+      // Mise à jour du même nœud (ex: retour après sauvegarde auto) — ne pas toucher à l'UI
+      setName(node.name);
+      setChapterId(node.chapter_id ?? null);
     }
   }, [node, resetAriane]);
 

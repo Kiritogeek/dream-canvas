@@ -557,34 +557,37 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
                   )}
 
                   {/* Pills + bouton "+" */}
-                  <div className="flex flex-wrap items-center gap-1.5" ref={pickerRef}>
-                    {activePills.map((sectionName) => {
-                      const filled = !!(sections[sectionName]?.trim());
-                      const active = activeSection === sectionName;
-                      const isCustom = !LORE_CHIPS[type].includes(sectionName);
-                      return (
-                        <button
-                          key={sectionName}
-                          type="button"
-                          onClick={() => setActiveSection(sectionName)}
-                          className={[
-                            "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-medium border transition-all duration-150",
-                            active
-                              ? "bg-violet-500/20 border-violet-500/40 text-violet-200"
-                              : filled
-                                ? "bg-white/8 border-white/20 text-foreground hover:bg-white/12"
-                                : "bg-transparent border-white/10 text-muted-foreground hover:border-white/20 hover:text-foreground",
-                          ].join(" ")}
-                        >
-                          {filled && <span className="w-1.5 h-1.5 rounded-full bg-violet-400 shrink-0" />}
-                          {isCustom && !filled && <span className="w-1.5 h-1.5 rounded-full bg-white/20 shrink-0" />}
-                          {sectionName}
-                        </button>
-                      );
-                    })}
+                  <div className="flex items-start gap-1.5" ref={pickerRef}>
+                    {/* Pills wrappables */}
+                    <div className="flex flex-wrap items-center gap-1.5 flex-1">
+                      {activePills.map((sectionName) => {
+                        const filled = !!(sections[sectionName]?.trim());
+                        const active = activeSection === sectionName;
+                        const isCustom = !LORE_CHIPS[type].includes(sectionName);
+                        return (
+                          <button
+                            key={sectionName}
+                            type="button"
+                            onClick={() => setActiveSection(sectionName)}
+                            className={[
+                              "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-medium border transition-all duration-150",
+                              active
+                                ? "bg-violet-500/20 border-violet-500/40 text-violet-200"
+                                : filled
+                                  ? "bg-white/8 border-white/20 text-foreground hover:bg-white/12"
+                                  : "bg-transparent border-white/10 text-muted-foreground hover:border-white/20 hover:text-foreground",
+                            ].join(" ")}
+                          >
+                            {filled && <span className="w-1.5 h-1.5 rounded-full bg-violet-400 shrink-0" />}
+                            {isCustom && !filled && <span className="w-1.5 h-1.5 rounded-full bg-white/20 shrink-0" />}
+                            {sectionName}
+                          </button>
+                        );
+                      })}
+                    </div>
 
-                    {/* Bouton "+" picker */}
-                    <div className="relative">
+                    {/* Bouton "+" — toujours ancré à droite, hors du wrap */}
+                    <div className="relative shrink-0 mt-0.5">
                       <button
                         type="button"
                         onClick={() => setShowPicker((v) => !v)}

@@ -374,7 +374,7 @@ function LoreProposalCard({
         )}
         <div className={cn(
           "absolute inset-0",
-          imageUrl ? "bg-black/72" : fallbackBgClass
+          imageUrl ? "bg-gradient-to-t from-black/90 via-black/60 to-black/15" : fallbackBgClass
         )} />
         {isAsset && assetTypeColors && (
           <div className={cn("absolute inset-0 opacity-25", assetTypeColors.tint)} />

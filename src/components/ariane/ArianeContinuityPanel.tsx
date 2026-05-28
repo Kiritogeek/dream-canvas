@@ -373,7 +373,7 @@ function ContinuityAlertCard({
         )}
         <div className={cn(
           "absolute inset-0",
-          imageUrl ? "bg-black/72" : "bg-amber-500/5 dark:bg-amber-500/8"
+          imageUrl ? "bg-gradient-to-t from-black/90 via-black/60 to-black/15" : "bg-amber-500/5 dark:bg-amber-500/8"
         )} />
         {assetTypeColors && (
           <div className={cn("absolute inset-0 opacity-25", assetTypeColors.tint)} />
@@ -483,7 +483,7 @@ function MissingAssetCard({
         )}
         <div className={cn(
           "absolute inset-0",
-          imageUrl ? "bg-black/72" : (assetTypeColors ? assetTypeColors.fallback : "bg-muted/40")
+          imageUrl ? "bg-gradient-to-t from-black/90 via-black/60 to-black/15" : (assetTypeColors ? assetTypeColors.fallback : "bg-muted/40")
         )} />
         {assetTypeColors && (
           <div className={cn("absolute inset-0 opacity-25", assetTypeColors.tint)} />

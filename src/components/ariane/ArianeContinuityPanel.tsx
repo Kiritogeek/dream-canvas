@@ -351,9 +351,6 @@ function ContinuityAlertCard({
     (alert.explanation ?? "").toLowerCase().includes(a.name.toLowerCase())
   );
   const imageUrl = matchedAsset?.image_url;
-  const assetTypeColors = matchedAsset?.asset_type
-    ? ASSET_TYPE_COLORS[matchedAsset.asset_type]
-    : undefined;
 
   return (
     <li>
@@ -369,17 +366,14 @@ function ContinuityAlertCard({
               aria-hidden
               draggable={false}
               className="pointer-events-none select-none absolute inset-0 h-full w-full object-cover scale-105"
-              style={{ filter: "blur(6px)" }}
+              style={{ filter: "blur(2px)" }}
             />
-            <div className="absolute inset-0 bg-black/25" />
+            <div className="absolute inset-0 bg-black/45" />
           </>
         ) : (
           <div className="absolute inset-0 bg-amber-500/5 dark:bg-amber-500/8" />
         )}
-        <div className={cn(
-          "relative z-10 m-2 rounded-lg p-2.5 space-y-2",
-          imageUrl ? (assetTypeColors?.contentBg ?? "bg-black/70") : ""
-        )}>
+        <div className="relative z-10 p-3 space-y-2">
           <div className="flex flex-wrap items-center gap-2">
             <span
               className={cn(
@@ -480,17 +474,14 @@ function MissingAssetCard({
               aria-hidden
               draggable={false}
               className="pointer-events-none select-none absolute inset-0 h-full w-full object-cover scale-105"
-              style={{ filter: "blur(6px)" }}
+              style={{ filter: "blur(2px)" }}
             />
-            <div className="absolute inset-0 bg-black/25" />
+            <div className="absolute inset-0 bg-black/45" />
           </>
         ) : (
           <div className={cn("absolute inset-0", assetTypeColors ? assetTypeColors.fallback : "bg-muted/40")} />
         )}
-        <div className={cn(
-          "relative z-10 m-2 rounded-lg p-2.5 space-y-2",
-          imageUrl ? (assetTypeColors?.contentBg ?? "bg-black/70") : ""
-        )}>
+        <div className="relative z-10 p-3 space-y-2">
           <div className="flex flex-wrap items-center gap-2">
             <span className="font-medium text-sm">{asset.name}</span>
             {asset.suggestedType && (

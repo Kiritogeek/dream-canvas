@@ -370,17 +370,14 @@ function LoreProposalCard({
               aria-hidden
               draggable={false}
               className="pointer-events-none select-none absolute inset-0 h-full w-full object-cover scale-105"
-              style={{ filter: "blur(6px)" }}
+              style={{ filter: "blur(2px)" }}
             />
-            <div className="absolute inset-0 bg-black/25" />
+            <div className="absolute inset-0 bg-black/45" />
           </>
         ) : (
           <div className={cn("absolute inset-0", fallbackBgClass)} />
         )}
-        <div className={cn(
-          "relative z-10 m-2 rounded-lg p-2.5 space-y-2",
-          imageUrl ? (assetTypeColors?.contentBg ?? "bg-black/70") : ""
-        )}>
+        <div className="relative z-10 p-3 space-y-2">
         {/* Méta-infos */}
         <div className="flex flex-wrap items-center gap-1.5">
           {forcedReason === "already_exists" && (

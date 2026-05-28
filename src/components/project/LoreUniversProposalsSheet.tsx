@@ -15,14 +15,14 @@ import type { Asset, CompassProposal, LoreNode } from "@/types";
 
 const ASSET_TYPE_BADGE: Record<string, string> = {
   character: "bg-violet-500/15 text-violet-700 dark:text-violet-300 border-violet-500/30",
-  background: "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30",
-  object:    "bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 border-cyan-500/30",
+  background: "bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30",
+  object:    "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30",
 };
 
 const ASSET_TYPE_COLORS: Record<string, { border: string; tint: string; fallback: string; contentBg: string }> = {
   character: { border: "border-l-violet-500/60", tint: "bg-violet-900", fallback: "bg-gradient-to-br from-violet-900/30 to-transparent", contentBg: "bg-violet-950/85 border border-violet-500/25" },
-  background: { border: "border-l-amber-500/60", tint: "bg-amber-900", fallback: "bg-gradient-to-br from-amber-900/30 to-transparent", contentBg: "bg-amber-950/85 border border-amber-500/25" },
-  object:     { border: "border-l-cyan-500/60",  tint: "bg-cyan-900",  fallback: "bg-gradient-to-br from-cyan-900/30 to-transparent", contentBg: "bg-cyan-950/85 border border-cyan-500/25" },
+  background: { border: "border-l-blue-500/60",  tint: "bg-blue-900",  fallback: "bg-gradient-to-br from-blue-900/30 to-transparent",  contentBg: "bg-blue-950/85 border border-blue-500/25"  },
+  object:     { border: "border-l-amber-500/60", tint: "bg-amber-900", fallback: "bg-gradient-to-br from-amber-900/30 to-transparent", contentBg: "bg-amber-950/85 border border-amber-500/25" },
 };
 
 const ASSET_TYPE_LABEL: Record<string, string> = {

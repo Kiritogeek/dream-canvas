@@ -48,9 +48,9 @@ const assetFilters = [
 ] as const;
 
 const TYPE_BADGE: Record<AssetType, { bg: string; label: string }> = {
-  character: { bg: "bg-primary/70", label: "Perso" },
-  background: { bg: "bg-mint/70", label: "Décor" },
-  object: { bg: "bg-peach/70", label: "Objet" },
+  character: { bg: "bg-violet-500/70", label: "Perso" },
+  background: { bg: "bg-blue-500/70",  label: "Décor" },
+  object:     { bg: "bg-amber-500/70", label: "Objet" },
 };
 
 const ADD_BUTTON_LABEL: Record<(typeof assetFilters)[number]["value"], string> = {

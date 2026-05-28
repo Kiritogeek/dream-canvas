@@ -36,20 +36,20 @@ const ASSET_TYPE_LABELS: Record<string, string> = {
 
 const ASSET_TYPE_COLORS: Record<string, string> = {
   character: "hsl(var(--lavender) / 0.25)",
-  background: "hsl(var(--mint) / 0.2)",
-  object: "hsl(230 55% 88% / 0.25)",
+  background: "hsl(220 80% 60% / 0.15)",
+  object: "hsl(38 90% 55% / 0.15)",
 };
 
 const ASSET_TYPE_BORDER: Record<string, string> = {
   character: "hsl(var(--lavender) / 0.5)",
-  background: "hsl(var(--mint) / 0.5)",
-  object: "hsl(230 50% 55% / 0.4)",
+  background: "hsl(220 80% 60% / 0.4)",
+  object: "hsl(38 90% 55% / 0.4)",
 };
 
 const ASSET_TYPE_TRIGGER_CLASS: Record<string, string> = {
   character: "text-violet-500 dark:text-violet-400",
-  background: "text-emerald-500 dark:text-emerald-400",
-  object: "text-indigo-500 dark:text-indigo-400",
+  background: "text-blue-500 dark:text-blue-400",
+  object: "text-amber-500 dark:text-amber-400",
 };
 
 function getAssetThumbnail(asset: Asset): string | null {

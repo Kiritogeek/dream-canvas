@@ -599,7 +599,7 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
                       </button>
 
                       {showPicker && (
-                        <div className="absolute top-8 left-0 z-50 w-52 bg-popover border border-white/15 rounded-xl shadow-2xl overflow-hidden py-1">
+                        <div className="absolute top-8 right-0 z-50 w-52 bg-popover border border-white/15 rounded-xl shadow-2xl overflow-hidden py-1">
                           {availablePredefined.map((s) => (
                             <button key={s} type="button" onClick={() => addPill(s)}
                               className="w-full text-left px-3 py-1.5 text-xs text-foreground hover:bg-white/10 transition-colors">

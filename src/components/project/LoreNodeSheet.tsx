@@ -112,10 +112,10 @@ interface Props {
 }
 
 const TYPE_COLORS: Record<LoreNodeType, string> = {
-  character: "border-violet-500 bg-violet-500/20 text-violet-300",
-  location:  "border-blue-500 bg-blue-500/20 text-blue-300",
-  object:    "border-amber-500 bg-amber-500/20 text-amber-300",
-  event:     "border-green-500 bg-green-500/20 text-green-300",
+  character: "border-violet-500 bg-violet-500/80 text-white",
+  location:  "border-blue-500   bg-blue-500/80   text-white",
+  object:    "border-amber-500  bg-amber-500/80  text-white",
+  event:     "border-green-500  bg-green-500/80  text-white",
 };
 
 

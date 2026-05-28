@@ -49,7 +49,7 @@ export function AssetCard({
       className="glass rounded-lg sm:rounded-xl p-3 sm:p-4 group relative flex flex-col h-full"
     >
       <div
-        className={`w-full aspect-[2/3] mb-2 sm:mb-3 relative overflow-hidden rounded-lg${onImageClick && asset.image_url && !isGenerating ? " cursor-pointer" : ""}`}
+        className={`w-full h-52 sm:h-56 mb-2 sm:mb-3 relative overflow-hidden rounded-lg bg-black/20${onImageClick && asset.image_url && !isGenerating ? " cursor-pointer" : ""}`}
         onClick={onImageClick && asset.image_url && !isGenerating ? onImageClick : undefined}
       >
         <ImageWithFallback

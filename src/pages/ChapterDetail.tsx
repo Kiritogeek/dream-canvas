@@ -1944,7 +1944,7 @@ export default function ChapterDetail() {
   };
 
   return (
-    <div className="h-screen flex flex-col bg-background overflow-hidden">
+    <div className="min-h-[100dvh] flex flex-col bg-background overflow-hidden">
       {/* Header fin 48px */}
       <header className="h-12 border-b border-border bg-background/95 backdrop-blur-xl sticky top-0 z-30 flex items-center gap-3 px-4 sm:px-6 shrink-0">
         <Link

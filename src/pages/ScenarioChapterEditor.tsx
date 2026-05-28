@@ -1028,7 +1028,7 @@ export default function ScenarioChapterEditor() {
   const isValidated = chapter.validated ?? false;
 
   return (
-    <div className="h-screen flex flex-col bg-background overflow-hidden">
+    <div className="min-h-[100dvh] flex flex-col bg-background overflow-hidden">
       {/* HEADER */}
       <header className="h-12 border-b border-border bg-background/95 backdrop-blur-xl sticky top-0 z-30 grid grid-cols-[1fr_auto_1fr] items-center px-4 sm:px-6 shrink-0">
         {/* Colonne gauche : retour */}

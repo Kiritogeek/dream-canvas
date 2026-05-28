@@ -359,6 +359,15 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
     setNewCustomName("");
   }, []);
 
+  const removePill = useCallback((sectionName: string) => {
+    setActivePills((prev) => {
+      const next = prev.filter((s) => s !== sectionName);
+      setActiveSection((cur) => cur === sectionName ? (next[0] ?? "") : cur);
+      return next;
+    });
+    triggerAutoSave();
+  }, [triggerAutoSave]);
+
   const createCustomSection = useCallback(() => {
     const trimmed = newCustomName.trim();
     if (!trimmed || activePills.includes(trimmed)) return;
@@ -565,23 +574,32 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
                         const active = activeSection === sectionName;
                         const isCustom = !LORE_CHIPS[type].includes(sectionName);
                         return (
-                          <button
-                            key={sectionName}
-                            type="button"
-                            onClick={() => setActiveSection(sectionName)}
-                            className={[
-                              "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-medium border transition-all duration-150",
-                              active
-                                ? "bg-violet-500/20 border-violet-500/40 text-violet-200"
-                                : filled
-                                  ? "bg-white/8 border-white/20 text-foreground hover:bg-white/12"
-                                  : "bg-transparent border-white/10 text-muted-foreground hover:border-white/20 hover:text-foreground",
-                            ].join(" ")}
-                          >
-                            {filled && <span className="w-1.5 h-1.5 rounded-full bg-violet-400 shrink-0" />}
-                            {isCustom && !filled && <span className="w-1.5 h-1.5 rounded-full bg-white/20 shrink-0" />}
-                            {sectionName}
-                          </button>
+                          <div key={sectionName} className="group relative">
+                            <button
+                              type="button"
+                              onClick={() => setActiveSection(sectionName)}
+                              className={[
+                                "inline-flex items-center gap-1.5 pl-3 pr-5 py-1 rounded-full text-[11px] font-medium border transition-all duration-150",
+                                active
+                                  ? "bg-violet-500/20 border-violet-500/40 text-violet-200"
+                                  : filled
+                                    ? "bg-white/8 border-white/20 text-foreground hover:bg-white/12"
+                                    : "bg-transparent border-white/10 text-muted-foreground hover:border-white/20 hover:text-foreground",
+                              ].join(" ")}
+                            >
+                              {filled && <span className="w-1.5 h-1.5 rounded-full bg-violet-400 shrink-0" />}
+                              {isCustom && !filled && <span className="w-1.5 h-1.5 rounded-full bg-white/20 shrink-0" />}
+                              {sectionName}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); removePill(sectionName); }}
+                              className="absolute right-1.5 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 flex items-center justify-center w-3 h-3 rounded-full hover:bg-white/25 transition-all duration-100"
+                              aria-label={`Supprimer la section ${sectionName}`}
+                            >
+                              <X className="h-2 w-2 text-white/70" />
+                            </button>
+                          </div>
                         );
                       })}
                     </div>

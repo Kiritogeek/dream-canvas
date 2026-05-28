@@ -1,5 +1,5 @@
 # Grammaire Visuelle Webtoon — DreamWeave
-# Extraite de : Solo Leveling (c01-c82) + "Your Talent is Mine" LN ch.1-4
+# Extraite de : Solo Leveling (c01-c82) + "Your Talent is Mine" LN ch.1-4 + YTIM Webtoon ch.1 (152p)
 # Usage : injectée dans DETECT_BLOCKS_SYSTEM_PROMPT pour guider le découpage et les prompts image
 
 ---
@@ -13,7 +13,7 @@ Le storyboarder CHOISIT le cadrage qui crée l'émotion — jamais le cadrage é
 
 ---
 
-## TAXONOMIE DES SCÈNES (8 types)
+## TAXONOMIE DES SCÈNES (12 types)
 
 ### 1. `establishing` — Établissement de lieu ou d'époque
 
@@ -232,6 +232,74 @@ glowing eyes, manga power-up scene, atmospheric energy effects
 
 ---
 
+### 11. `isolation_vulnerability` — Personnage seul, écrasé par le vide
+
+**Déclencheurs texte :**
+- Sentiment d'impuissance, de solitude, de rejet ("il était seul", "personne ne pouvait comprendre")
+- Après un échec, une humiliation publique
+- Moment de doute ou de résolution silencieuse avant un tournant
+
+**Cadrage :** LS ou ELS avec personnage occupant 10-20% du cadre maximum. Négatif très dominant.
+
+**Composition :** 80%+ d'espace vide (blanc, sol, ciel, noir). Personnage centré ou légèrement décentré, ombre projetée visible. Aucun autre élément narratif — l'espace est le message.
+
+**FLUX keywords :**
+```
+single figure tiny in vast empty space, extreme negative space composition,
+lone character isolated, minimalist background, figure dwarfed by environment,
+long shadow cast, vulnerability and solitude, white or dark void,
+manga webtoon isolation panel, emotional silence composition
+```
+
+**Note YTIM (p40) :** Souvent couplé en séquence avec un CU réaction — isolation → zoom-in sur le visage.
+
+---
+
+### 12. `text_echo_psychological` — Concept textuel répété, poids psychologique
+
+**Déclencheurs texte :**
+- Information dévastatrice répétée mentalement ("talent de seconde classe... seconde classe... seconde classe")
+- Mot ou phrase obsessionnel qui hante le personnage
+- Sentence prononcée par autrui qui résonne
+
+**Cadrage :** Panel full-width (toute la largeur). Pas de personnage ou personnage en silhouette minuscule en bas.
+
+**Composition :** Background noir ou très sombre. Même texte répété 5-8 fois à tailles et opacités variées — le texte le plus grand au centre, les répétitions plus petites et plus floues autour. Crée une typographie cinétique visuelle.
+
+**FLUX keywords :**
+```
+dark near-black background, single concept dominates frame,
+abstract typographic composition, text echo effect,
+varying sizes fading text, psychological weight visualization,
+manhwa text emphasis panel, obsessive thought pattern,
+dramatic black panel with repeating element
+```
+
+**Note :** Ce type n'a PAS de bulle de dialogue — le texte est traité graphiquement. Dans DreamWeave, mettre le texte dans `text_excerpt` et laisser le prompt FLUX décrire l'effet visuel pur.
+
+---
+
+### 13. `memory_flashback` — Souvenir, ancrage émotionnel, passé
+
+**Déclencheurs texte :**
+- Souvenir d'un proche disparu, d'un moment fondateur
+- Objet déclencheur (photo, objet personnel)
+- Référence au passé émotionnel du personnage ("Il se souvint de...")
+
+**Cadrage :** Souvent split en 2 panels : 1 establishing de l'objet/lieu, 1 CU sur l'objet symbolique.
+
+**Composition :** Lumière douce, légèrement surexposée ou désaturée (effet mémoire). Couleur chaude ou sépia léger. L'objet ou la photo occupe 60%+ du cadre final.
+
+**FLUX keywords :**
+```
+soft warm lighting, memory atmosphere, slightly overexposed gentle light,
+emotional anchor object in focus, nostalgic soft color grade,
+tender intimate framing, past tense visual atmosphere,
+manga flashback panel, warm desaturated palette, meaningful object close-up
+```
+
+---
+
 ## RÈGLES DE SÉQUENÇAGE (ordre des panels dans une scène)
 
 ### Règle du Zoom-In progressif (action)
@@ -279,6 +347,10 @@ Saut de temps → 1 panel establishing seul (lieu ou ciel ou objet symbolique)
 | Ellipse temporelle ("Un mois plus tard") | 1 panel establishing + caption box |
 | Combat avec plusieurs ennemis | 1-2 panels action_melee |
 | Activation d'un talent/pouvoir | 1 panel power_display |
+| Sentiment d'impuissance/solitude | 1 panel isolation_vulnerability |
+| Mot/sentence qui obsède le personnage | 1 panel text_echo_psychological |
+| Souvenir d'un proche / objet chargé | 1-2 panels memory_flashback |
+| Humiliation répétée / verdict social | text_echo_psychological (panel sombre, texte répété) |
 
 ---
 
@@ -316,6 +388,10 @@ Saut de temps → 1 panel establishing seul (lieu ou ciel ou objet symbolique)
 | Screen tone | internal_monologue | `halftone background, screen tone pattern, manga texture` |
 | Sweat drops | reaction_revelation | `sweat drop, tension indicator, manga sweat` |
 | Onomatopée visuelle | action_melee, action_impact | NE PAS générer de texte — décrire l'effet visuel équivalent |
+| Letterbox crop | reaction_revelation, memory_flashback | `cinematic letterbox crop, ultra-wide aspect ratio panel, horizontal band composition` |
+| Split simultané | action_impact + réaction | `split panel two simultaneous views, diptych action reaction composition` |
+| Palette monochrome + accent | power_display, revelation_system | `near-monochrome palette, single accent color pop, high color contrast focal element` |
+| Aura/weapons stylisée | power_display | `stylized glowing weapons, crystalline energy spikes, supernatural entity reveal` |
 
 **RÈGLE ABSOLUE :** Ne jamais demander à FLUX de générer du texte dans l'image.
 Remplacer onomatopées par leur équivalent visuel (ex: "BOOM" → "explosion burst shockwave effect").
@@ -333,8 +409,29 @@ Remplacer onomatopées par leur équivalent visuel (ex: "BOOM" → "explosion bu
 | Révélation sans ECU visage | La révélation nécessite un ECU réaction |
 | Monologue intérieur en plan large | CU visage + abstract background |
 | Establishing avec personnage visible en gros plan | ELS/LS uniquement, personnages minuscules si présents |
+| Isolement sans espace vide (personnage trop grand) | isolation_vulnerability exige figure ≤ 20% du cadre |
+| Texte obsessionnel en simple bulle | text_echo_psychological = pas de bulle, typographie visuelle |
+| Mémoire en plan sombre | memory_flashback = lumière chaude douce, pas de contraste dramatique |
 
 ---
 
-*Source : analyse de Solo Leveling c01-c82 + "Your Talent is Mine" LN ch.1-4*
-*Créé le 2026-05-28. Injecter dans DETECT_BLOCKS_SYSTEM_PROMPT.*
+## TECHNIQUES COMPOSITIONNELLES (observées YTIM Webtoon)
+
+### Letterbox cinématique (yeux en bande horizontale)
+Quand le texte exprime une révélation silencieuse ou un regard intense → panel ultra-large et peu haut
+(ex: 800×200px) centré sur les yeux uniquement. Bandes noires implicites. Crée l'effet cinéma sans caméra.
+
+### Palette monochrome + couleur accent unique
+- YTIM (p05) : fond noir + entité cyan/turquoise sur rouge → chaque couleur a une signification narrative
+- Ne jamais utiliser plus de 2 couleurs dominantes dans un panel à fort impact émotionnel
+- Background neutre (noir, blanc, gris) + UN accent chromatique saturé
+
+### Gradient vertical d'intensité (progression dans le scroll)
+- Chapitre = arc émotionnel vertical : calme → tension → climax → résolution
+- Panels calmes en haut (clairs, espacés) → panels d'action en bas (sombres, denses, effets)
+- La progression de scroll = progression dramatique
+
+---
+
+*Source : Solo Leveling c01-c82 + "Your Talent is Mine" LN ch.1-4 + YTIM Webtoon ch.1 (152 pages analysées)*
+*Créé le 2026-05-28. Mis à jour le 2026-05-28. Injecter dans DETECT_BLOCKS_SYSTEM_PROMPT.*

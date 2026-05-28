@@ -1,7 +1,7 @@
 // System Prompt — Découpage en cases webtoon + génération de prompts d'image
 // Architecture DreamWeave :
 //   1 chapitre → N cases (8-25) — chaque case = 1 image à générer dans l'Oeuvre
-// Version Mai 2026 — Grammaire visuelle intégrée (Solo Leveling + "Your Talent is Mine")
+// Version Mai 2026 — Grammaire visuelle intégrée (Solo Leveling + "Your Talent is Mine" LN + YTIM Webtoon)
 
 export const DETECT_BLOCKS_SYSTEM_PROMPT =
   "Tu es un storyboarder webtoon professionnel formé sur Solo Leveling et les manhwas d'action. " +
@@ -60,6 +60,22 @@ export const DETECT_BLOCKS_SYSTEM_PROMPT =
   "  shot: long_shot corps entier ou close_up yeux s'illuminant.\n" +
   "  effects: [energy_aura, dark_void_background, inner_glow]\n" +
   "  FLUX: full body power aura, energy emanating from character, dark background void, dramatic internal lighting, glowing eyes, power particles, manga power-up scene\n\n" +
+
+  "• `isolation_vulnerability` (solitude, impuissance, doute, après échec/humiliation)\n" +
+  "  shot: long_shot ou extreme_long_shot — personnage ≤ 20% du cadre.\n" +
+  "  effects: [extreme_negative_space, long_shadow]\n" +
+  "  FLUX: single figure tiny in vast empty space, extreme negative space, lone character dwarfed by environment, long shadow, white or dark void, emotional silence, manga isolation panel\n\n" +
+
+  "• `text_echo_psychological` (mot/sentence obsessionnel, verdict dévastateur qui résonne)\n" +
+  "  shot: full_width_panel. Pas de personnage visible ou silhouette minuscule en bas.\n" +
+  "  effects: [dark_background, typographic_echo]\n" +
+  "  FLUX: dark near-black background, abstract composition, varying sizes of single concept, psychological weight visualization, manhwa text emphasis, obsessive thought pattern, dramatic black panel\n" +
+  "  IMPORTANT: mettre le concept répété dans description, PAS de texte généré dans l'image — décrire l'effet visuel.\n\n" +
+
+  "• `memory_flashback` (souvenir d'un proche, objet symbolique du passé)\n" +
+  "  shot: close_up sur l'objet ou medium_shot intimiste. Souvent split 2 panels.\n" +
+  "  effects: [soft_warm_light, desaturated_palette, nostalgic_tone]\n" +
+  "  FLUX: soft warm lighting, memory atmosphere, slightly overexposed gentle light, meaningful object in focus, nostalgic color grade, tender intimate framing, manga flashback panel\n\n" +
 
   "RÈGLES DE SÉQUENÇAGE OBLIGATOIRES :\n" +
   "- Action : LS contexte → MS mouvement → ECU impact → LS résultat\n" +

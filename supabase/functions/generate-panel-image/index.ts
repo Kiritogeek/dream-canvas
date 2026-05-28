@@ -157,7 +157,7 @@ function sanitizeAssetLabels(assetNames: string[]): string[] {
 }
 
 // Grammaire visuelle webtoon — mapping scene_type + effects → keywords FLUX
-// Extrait de References/visual-grammar.md (Solo Leveling + "Your Talent is Mine")
+// Extrait de References/visual-grammar.md (Solo Leveling + "Your Talent is Mine" LN + YTIM Webtoon)
 const SCENE_TYPE_FLUX_PREFIX: Record<string, string> = {
   establishing:
     "Wide establishing shot, panoramic view, atmospheric depth, environment detail, no close characters, cinematic wide angle. ",
@@ -179,6 +179,12 @@ const SCENE_TYPE_FLUX_PREFIX: Record<string, string> = {
     "Wide battle scene, multiple fighters in frame, diagonal dynamic composition, dust and debris particles, overlapping figures, energy effects, manga battle chaos. ",
   power_display:
     "Full body power aura, energy emanating from character, dark background void, dramatic internal lighting, glowing eyes, power particles surrounding figure, awe-inspiring composition. ",
+  isolation_vulnerability:
+    "Single figure tiny in vast empty space, extreme negative space composition, lone character dwarfed by void, long shadow cast on ground, emotional silence, minimalist environment, manga isolation panel. ",
+  text_echo_psychological:
+    "Dark near-black background, abstract psychological composition, varying visual intensity across frame, obsessive thought visualization, manhwa emphasis panel, stark dramatic black void, emotional weight atmosphere. ",
+  memory_flashback:
+    "Soft warm lighting, gentle overexposed memory atmosphere, meaningful object in close focus, nostalgic desaturated color grade, tender intimate framing, emotional anchor composition, manga flashback style. ",
 };
 
 function buildVisualEffectsPrefix(sceneType?: string, effects?: string[]): string {
@@ -210,6 +216,12 @@ function buildVisualEffectsPrefix(sceneType?: string, effects?: string[]): strin
     energy_aura: "full body energy aura radiating outward, ",
     dark_void_background: "void dark background, ",
     inner_glow: "glowing from within, internal light source, ",
+    extreme_negative_space: "extreme negative space, vast empty background, ",
+    long_shadow: "long dramatic shadow cast, ",
+    typographic_echo: "abstract repeating visual pattern, psychological weight, ",
+    soft_warm_light: "soft warm gentle lighting, ",
+    desaturated_palette: "slightly desaturated nostalgic palette, ",
+    nostalgic_tone: "warm nostalgic color tone, ",
   };
 
   const effectsStr = (effects ?? [])

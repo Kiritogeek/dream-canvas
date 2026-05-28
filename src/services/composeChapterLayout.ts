@@ -8,6 +8,9 @@ export interface ComposeChapterLayoutParams {
     description: string;
     text_excerpt?: string;
     locked?: boolean;
+    scene_type?: string;
+    shot_type?: string;
+    effects?: string[];
   }>;
   projectStyle?: string | null;
   characters?: string[];

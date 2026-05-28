@@ -156,6 +156,70 @@ function sanitizeAssetLabels(assetNames: string[]): string[] {
     .slice(0, 8);
 }
 
+// Grammaire visuelle webtoon — mapping scene_type + effects → keywords FLUX
+// Extrait de References/visual-grammar.md (Solo Leveling + "Your Talent is Mine")
+const SCENE_TYPE_FLUX_PREFIX: Record<string, string> = {
+  establishing:
+    "Wide establishing shot, panoramic view, atmospheric depth, environment detail, no close characters, cinematic wide angle. ",
+  dialogue:
+    "Medium close-up shot, expressive faces, clean simplified background, warm ambient lighting, speech composition space. ",
+  internal_monologue:
+    "Close-up face, contemplative expression, single character, abstract blurred background, cool desaturated tones, introspective mood. ",
+  reaction_revelation:
+    "Extreme close-up face, wide eyes shock expression, dark dramatic background, single light source on face, deep shadow, intense emotional reaction. ",
+  revelation_system:
+    "Dark background near black, glowing UI notification panel, system interface box, centered layout, glowing border effect, cool blue glow. ",
+  action_movement:
+    "Medium shot, dutch angle tilt, horizontal speed lines across background, motion blur on moving figure, diagonal dynamic composition, kinetic energy. ",
+  action_impact:
+    "Extreme close-up impact point, low angle shot, radial speed lines, impact burst explosion effect, energy glow at contact point, motion blur, debris particles, high contrast flash. ",
+  tension_confrontation:
+    "Low angle shot looking up, menacing dominant character, glowing eyes, dark atmospheric background, high contrast shadows, power imbalance composition, confrontation tension. ",
+  action_melee:
+    "Wide battle scene, multiple fighters in frame, diagonal dynamic composition, dust and debris particles, overlapping figures, energy effects, manga battle chaos. ",
+  power_display:
+    "Full body power aura, energy emanating from character, dark background void, dramatic internal lighting, glowing eyes, power particles surrounding figure, awe-inspiring composition. ",
+};
+
+function buildVisualEffectsPrefix(sceneType?: string, effects?: string[]): string {
+  const typePrefix = sceneType ? (SCENE_TYPE_FLUX_PREFIX[sceneType] ?? "") : "";
+
+  const effectsMap: Record<string, string> = {
+    radial_speed_lines: "radial speed lines burst from center, ",
+    horizontal_speed_lines: "horizontal directional speed lines, ",
+    impact_burst: "shockwave impact burst, explosive flash, ",
+    energy_glow: "energy glow effect, power aura light, ",
+    motion_blur: "motion blur on figure, velocity streak, ",
+    debris: "debris fragments, dust cloud particles, ",
+    deep_shadow: "80% dark background, deep dramatic shadow, ",
+    high_contrast: "high contrast lighting, strong light-dark split, ",
+    single_light_source: "single dramatic light source, ",
+    dutch_angle: "dutch angle camera tilt, ",
+    cool_tones: "cool blue-grey color palette, ",
+    soft_blur_background: "soft bokeh background blur, ",
+    atmospheric_depth: "atmospheric perspective depth, ",
+    environmental_detail: "rich environmental detail, ",
+    clean_background: "clean simplified background, ",
+    glowing_border: "glowing border frame, ",
+    ui_aesthetic: "game HUD interface aesthetic, ",
+    dark_background: "dark near-black background, ",
+    menacing_aura: "menacing dark energy aura, ",
+    diagonal_composition: "diagonal dynamic composition, ",
+    dust_debris: "dust and debris cloud, ",
+    multiple_energy_effects: "multiple energy effects throughout scene, ",
+    energy_aura: "full body energy aura radiating outward, ",
+    dark_void_background: "void dark background, ",
+    inner_glow: "glowing from within, internal light source, ",
+  };
+
+  const effectsStr = (effects ?? [])
+    .map((e) => effectsMap[e] ?? "")
+    .filter(Boolean)
+    .join("");
+
+  return typePrefix + effectsStr;
+}
+
 function buildPolicySafePanelPrompt(params: {
   styleSummary: string;
   scenePrompt: string;
@@ -163,9 +227,15 @@ function buildPolicySafePanelPrompt(params: {
   width: number;
   height: number;
   withReferences: boolean;
+  sceneType?: string;
+  effects?: string[];
 }): string {
   const safeStyle = clip(params.styleSummary.trim(), 520);
-  const safeScene = sanitizePolicySensitiveText(params.scenePrompt, 1200);
+  const visualPrefix = buildVisualEffectsPrefix(params.sceneType, params.effects);
+  const enrichedScene = visualPrefix
+    ? sanitizePolicySensitiveText(visualPrefix + params.scenePrompt, 1400)
+    : sanitizePolicySensitiveText(params.scenePrompt, 1200);
+  const safeScene = enrichedScene;
   const safeAssets = params.assetNames ? sanitizeAssetLabels(params.assetNames) : [];
 
   const FULLBLEED_OPEN =
@@ -655,6 +725,9 @@ Deno.serve(async (req) => {
       block_asset_image_urls?: string[];
       block_asset_names?: string[];
       previous_image_url?: string;
+      scene_type?: string;
+      effects?: string[];
+      shot_type?: string;
     };
     try {
       body = await req.json();
@@ -671,6 +744,8 @@ Deno.serve(async (req) => {
       block_asset_names,
       block_asset_image_urls,
       previous_image_url,
+      scene_type,
+      effects,
     } = body;
     if (!panel_id || !block_id || !prompt?.trim()) {
       return jsonResponse({ error: "panel_id, block_id et prompt requis" }, 400);
@@ -794,6 +869,8 @@ Deno.serve(async (req) => {
       width,
       height,
       withReferences: useReferences,
+      sceneType: typeof scene_type === "string" ? scene_type : undefined,
+      effects: Array.isArray(effects) ? effects : undefined,
     });
 
     let finalPrompt = fullPrompt;

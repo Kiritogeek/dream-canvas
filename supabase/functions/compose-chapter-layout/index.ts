@@ -567,6 +567,9 @@ function processComposition(
         dialogue_text: sourceBlock?.text_excerpt?.trim() || null,
         asset_refs: [],
         image_url: restoredImage,
+        scene_type: (sourceBlock as { scene_type?: string })?.scene_type ?? null,
+        effects: (sourceBlock as { effects?: string[] })?.effects ?? null,
+        shot_type: (sourceBlock as { shot_type?: string })?.shot_type ?? null,
       });
     }
 
@@ -598,6 +601,9 @@ function processComposition(
         prompt: promptText,
         dialogue_text: sourceBlock?.text_excerpt?.trim() || null,
         asset_refs: [], image_url: restoredImage,
+        scene_type: (sourceBlock as { scene_type?: string })?.scene_type ?? null,
+        effects: (sourceBlock as { effects?: string[] })?.effects ?? null,
+        shot_type: (sourceBlock as { shot_type?: string })?.shot_type ?? null,
       });
       yOffset += 850 + GAP_FALLBACK_PX;
     }

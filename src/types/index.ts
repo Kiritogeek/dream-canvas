@@ -197,6 +197,12 @@ export interface PanelBlock {
    * diagonal-r : X% du coin bas-droit (défaut 87). diagonal-l : X% du coin haut-gauche (défaut 13).
    */
   shapeOffset?: number;
+  /** Type de scène issu du découpage IA (ex: action_impact, dialogue, establishing). */
+  scene_type?: string | null;
+  /** Effets visuels à injecter dans le prompt FLUX (ex: radial_speed_lines, impact_burst). */
+  effects?: string[] | null;
+  /** Type de cadrage (ex: extreme_close_up, wide_shot, over_the_shoulder). */
+  shot_type?: string | null;
 }
 
 /** Layout d'un panel : liste de blocs + hauteur du panel. Stocké dans panels.layout (JSONB). */
@@ -380,6 +386,9 @@ export interface DetectedBlock {
   block_number: number;
   description: string;
   text_excerpt: string;
+  scene_type?: string;
+  shot_type?: string;
+  effects?: string[];
 }
 
 // ── Assets manquants détectés par NarraMind ──────────────────────

@@ -207,6 +207,10 @@ export interface GenerateBlockImageParams {
   blockAssetNames?: string[];
   /** URL de l'image du bloc précédent dans la séquence (contexte visuel pour la continuité). */
   previousImageUrl?: string;
+  /** Type de scène issu du découpage IA (ex: action_impact, dialogue, establishing). */
+  sceneType?: string;
+  /** Effets visuels à injecter dans le prompt FLUX (ex: radial_speed_lines, impact_burst). */
+  effects?: string[];
 }
 
 /**
@@ -253,6 +257,8 @@ export async function generatePanelBlockImage(
       block_asset_image_urls: params.blockAssetImageUrls?.length ? params.blockAssetImageUrls : undefined,
       block_asset_names: params.blockAssetNames?.length ? params.blockAssetNames : undefined,
       previous_image_url: params.previousImageUrl ?? undefined,
+      scene_type: params.sceneType ?? undefined,
+      effects: params.effects?.length ? params.effects : undefined,
     }),
   });
 

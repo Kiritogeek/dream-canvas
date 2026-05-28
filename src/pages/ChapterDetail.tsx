@@ -923,6 +923,8 @@ export default function ChapterDetail() {
           blockAssetImageUrls: blockAssetImageUrls.length ? blockAssetImageUrls : undefined,
           blockAssetNames: blockAssetNames.length ? blockAssetNames : undefined,
           previousImageUrl: visuallyLinked ? (lastGeneratedImageUrl ?? undefined) : undefined,
+          sceneType: block.scene_type ?? undefined,
+          effects: block.effects ?? undefined,
         });
 
         currentLayout = {

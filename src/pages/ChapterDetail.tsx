@@ -114,6 +114,8 @@ import {
   type PanelCanvasUndoEntry,
 } from "@/lib/panelCanvasUndo";
 import { getSpeechBubbleBottomInPanelPx } from "@/lib/bubbleSvgLayout";
+import { useEditorSettings } from "@/hooks/useEditorSettings";
+import { EditorSettingsPopover } from "@/components/chapter/EditorSettingsPopover";
 
 const PANEL_WIDTH = 800;
 
@@ -232,6 +234,7 @@ export default function ChapterDetail() {
   const { isResolved, appliesProgressiveFlow, accessible } = useProgressiveMenuAccess(projectId);
   const progressiveRedirectRef = useRef(false);
   const { plan, usageInfo, nextResetDate } = useUserPlan();
+  const { settings, updateSettings } = useEditorSettings();
   const navigate = useNavigate();
   const isPro = plan === "createur" || plan === "studio";
   const { data: scenarioChapters = [] } = useScenarioChapters(projectId);
@@ -1363,7 +1366,7 @@ export default function ChapterDetail() {
         tailOn: false,
         zIndex: maxZ + 10,
         style: {
-          font: "inherit",
+          font: settings.defaultBubbleFont,
           size: 30,
           color: "#000000",
           fill: defaultStyle.fill,
@@ -2486,6 +2489,8 @@ export default function ChapterDetail() {
         usageInfo={usageInfo}
         nextResetDate={nextResetDate}
       />
+
+      <EditorSettingsPopover settings={settings} onUpdateSettings={updateSettings} />
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, Fragment } from "react";
 import { Bold, Italic, Underline, Strikethrough, AlignLeft, AlignCenter, AlignRight, Copy, Trash2, Plus, Minus, Square, Blend, ChevronDown, ChevronLeft, Settings } from "lucide-react";
 import type { SpeechBubble } from "@/types";
 import { getSpeechBubbleFillStroke, SPEECH_BUBBLE_NO_TAIL_TYPES } from "@/types";
@@ -10,17 +10,7 @@ import {
   chapterCanvasToolbarIconButtonClass,
 } from "@/components/chapter/chapterCanvasToolbar";
 import { BubbleTailIcon } from "@/components/chapter/BubbleTailIcon";
-
-const FONTS = [
-  { value: "inherit",                     label: "Défaut" },
-  { value: "'Bangers', cursive",          label: "Bangers" },
-  { value: "'Gochi Hand', cursive",       label: "Gochi Hand" },
-  { value: "'Comic Neue', cursive",       label: "Comic Neue" },
-  { value: "'Patrick Hand', cursive",     label: "Patrick Hand" },
-  { value: "'Permanent Marker', cursive", label: "Marker" },
-  { value: "'Special Elite', cursive",    label: "Special Elite" },
-  { value: "'Roboto Mono', monospace",    label: "Mono" },
-] as const;
+import { FONTS, FONT_CATEGORIES } from "./bubbleFonts";
 
 const ALIGN_CYCLE = ["center", "left", "right"] as const;
 
@@ -216,23 +206,37 @@ export function BubbleToolbar({ bubble, speechBubbles, onUpdate, onDuplicate, on
       {showFontDropdown && fontDropdownPos && (
         <div
           ref={fontDropdownRef}
-          className="fixed bg-background border border-border rounded-lg shadow-lg z-[200] w-[160px] py-1 overflow-hidden"
+          className="fixed bg-background border border-border rounded-lg shadow-lg z-[200] w-[180px] py-1 overflow-y-auto max-h-72"
           style={{ top: fontDropdownPos.top, left: fontDropdownPos.left }}
         >
-          {FONTS.map((f) => (
-            <button
-              key={f.value}
-              type="button"
-              onMouseDown={(e) => {
-                e.preventDefault();
-                patchStyle({ font: f.value });
-                setShowFontDropdown(false);
-              }}
-              className={`w-full text-left px-3 py-1.5 text-sm transition-colors ${currentFont === f.value ? "bg-primary/15 text-primary" : "text-foreground hover:bg-muted/50"}`}
-              style={{ fontFamily: f.value === "inherit" ? undefined : f.value }}
-            >
-              {f.label}
-            </button>
+          <button
+            type="button"
+            onMouseDown={(e) => { e.preventDefault(); patchStyle({ font: "inherit" }); setShowFontDropdown(false); }}
+            className={`w-full text-left px-3 py-1.5 text-sm transition-colors ${currentFont === "inherit" ? "bg-primary/15 text-primary" : "text-foreground hover:bg-muted/50"}`}
+          >
+            Défaut
+          </button>
+          {FONT_CATEGORIES.map(({ category, fonts }) => (
+            <Fragment key={category}>
+              <div className="px-3 pt-2 pb-0.5 text-[9px] font-semibold uppercase tracking-widest text-muted-foreground/60 border-t border-border/50 mt-1">
+                {category}
+              </div>
+              {fonts.map((f) => (
+                <button
+                  key={f.value}
+                  type="button"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    patchStyle({ font: f.value });
+                    setShowFontDropdown(false);
+                  }}
+                  className={`w-full text-left px-3 py-1.5 text-sm transition-colors ${currentFont === f.value ? "bg-primary/15 text-primary" : "text-foreground hover:bg-muted/50"}`}
+                  style={{ fontFamily: f.value }}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </Fragment>
           ))}
         </div>
       )}

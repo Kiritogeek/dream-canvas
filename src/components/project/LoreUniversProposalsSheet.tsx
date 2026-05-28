@@ -462,7 +462,7 @@ function LoreProposalCard({
             type="button"
             size="sm"
             variant="ghost"
-            className="h-7 text-xs gap-1 text-destructive/70 hover:text-destructive hover:bg-destructive/10"
+            className="h-7 text-xs gap-1 text-foreground hover:text-white hover:bg-destructive"
             onClick={onIgnorer}
             disabled={disabled}
             aria-label={`Ignorer ${proposal.title}`}

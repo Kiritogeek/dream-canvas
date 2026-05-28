@@ -40,8 +40,26 @@
 ## Design System
 
 > Détail complet : `wiki/DesignSystem.md` — classes custom, tokens HSL, typographie.
+> **Contexte design complet** : `.impeccable.md` — lire avant toute tâche UI (tokens, anti-patterns, pre-flight check).
+> **Règles anti-slop** : `.claude/skills/taste-skill/SKILL.md` — typography, color, motion, AI tells interdits.
 
 Règle : ne jamais hardcoder des couleurs — utiliser les tokens HSL ou les classes custom (`.glass`, `.gradient-primary`, `.text-gradient`, etc.).
+
+### Règle Design Quality — OBLIGATOIRE pour l'Interface Architect
+
+**Avant toute livraison UI, l'Interface Architect doit :**
+1. Lire `.impeccable.md` pour les tokens et anti-patterns DreamWeave
+2. Déclarer un **Design Read** en une ligne avant de coder
+3. Passer la **Pre-Flight Check** (Section 14 de `.claude/skills/taste-skill/SKILL.md`)
+
+**Interdits absolus (AI tells) :**
+- `—` em-dash dans les textes UI (zéro tolérance)
+- shadcn/ui dans son état par défaut (toujours restyled)
+- 3 cartes identiques en colonnes égales
+- Inter comme font principale (Quicksand + Nunito)
+- Carte plate blanche (toujours `.glass`)
+- Copy AI-slop : "Seamless", "Unleash", "Next-Gen", "Revolutionize"
+- Animations sur `top/left/width/height` (uniquement `transform` + `opacity`)
 
 ---
 

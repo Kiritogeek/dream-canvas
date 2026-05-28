@@ -259,7 +259,7 @@ export function BubbleLayer({
         const fontStyle = bubble.style?.italic ? "italic" : "normal";
         const textDecoration = [bubble.style?.underline ? "underline" : null, bubble.style?.strikethrough ? "line-through" : null].filter(Boolean).join(" ") || undefined;
         const textAlign = bubble.style?.textAlign ?? "center";
-        const textTransform = bubble.style?.textTransform ?? "none";
+        const textTransform = bubble.style?.textTransform ?? "uppercase";
         const { fill: fillColor, stroke: strokeColor } = getSpeechBubbleFillStroke(bubble);
         const noTailType = SPEECH_BUBBLE_NO_TAIL_TYPES.has(bubble.type);
         // svgH et effectiveViewBox sont constants — jamais affectés par tailOn.

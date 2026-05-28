@@ -1368,6 +1368,7 @@ export default function ChapterDetail() {
           color: "#000000",
           fill: defaultStyle.fill,
           stroke: defaultStyle.stroke,
+          textTransform: "uppercase",
         },
       };
       const next = [...speechBubbles, newBubble];

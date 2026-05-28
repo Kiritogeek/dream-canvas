@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
-import { Settings, Check } from "lucide-react";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { createPortal } from "react-dom";
+import { Settings, Check, X } from "lucide-react";
 import { FONT_CATEGORIES, FONTS } from "./bubbleFonts";
 import type { EditorSettings } from "@/hooks/useEditorSettings";
 
@@ -39,7 +39,10 @@ function FontPickerInline({
         style={{ fontFamily: value === "inherit" ? undefined : value }}
       >
         <span className="truncate">{currentLabel}</span>
-        <svg className={`h-3.5 w-3.5 text-muted-foreground shrink-0 transition-transform ${open ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <svg
+          className={`h-3.5 w-3.5 text-muted-foreground shrink-0 transition-transform ${open ? "rotate-180" : ""}`}
+          fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+        >
           <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
         </svg>
       </button>
@@ -81,45 +84,85 @@ function FontPickerInline({
 }
 
 export function EditorSettingsPopover({ settings, onUpdateSettings }: EditorSettingsPopoverProps) {
-  return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <button
-          type="button"
-          className="fixed bottom-6 right-6 z-40 p-2.5 rounded-full glass border border-border shadow-dream hover:shadow-glow group transition-all duration-200"
-          title="Préférences de l'éditeur"
-        >
-          <Settings className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors group-hover:rotate-45 duration-300" />
-        </button>
-      </PopoverTrigger>
+  const [open, setOpen] = useState(false);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
 
-      <PopoverContent
-        side="top"
-        align="end"
-        sideOffset={14}
-        className="w-64 p-0 glass border border-border shadow-dream"
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (
+        !panelRef.current?.contains(e.target as Node) &&
+        !btnRef.current?.contains(e.target as Node)
+      ) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  const portal = createPortal(
+    <>
+      {/* Bouton engrenage */}
+      <button
+        ref={btnRef}
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        title="Préférences de l'éditeur"
+        style={{ position: "fixed", bottom: 24, right: 24, zIndex: 9000 }}
+        className={`p-2.5 rounded-full border shadow-lg transition-all duration-200 group ${
+          open
+            ? "bg-primary border-primary/60 text-primary-foreground"
+            : "bg-background border-border hover:border-[hsl(var(--lavender)/0.5)] hover:bg-muted"
+        }`}
       >
-        <div className="p-4 space-y-4">
-          <div>
-            <h3 className="font-display font-semibold text-sm text-foreground">Préférences éditeur</h3>
-            <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
-              Ces réglages s'appliquent à tous les chapitres de l'édition.
-            </p>
+        <Settings
+          className={`h-4 w-4 transition-transform duration-300 ${open ? "rotate-90" : "group-hover:rotate-45"}`}
+        />
+      </button>
+
+      {/* Panneau paramètres */}
+      {open && (
+        <div
+          ref={panelRef}
+          style={{ position: "fixed", bottom: 76, right: 24, zIndex: 9001 }}
+          className="w-64 rounded-xl border border-border bg-background shadow-xl overflow-hidden"
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+            <div>
+              <h3 className="font-display font-semibold text-sm text-foreground">Préférences éditeur</h3>
+              <p className="text-[10px] text-muted-foreground mt-0.5">
+                Appliqué à tous les chapitres
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              className="p-1 rounded-md hover:bg-muted/60 text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
           </div>
 
-          <div className="h-px bg-border/60" />
-
-          <div className="space-y-2">
-            <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-              Typo par défaut (bulles)
-            </span>
-            <FontPickerInline
-              value={settings.defaultBubbleFont}
-              onChange={(v) => onUpdateSettings({ defaultBubbleFont: v })}
-            />
+          {/* Contenu */}
+          <div className="p-4 space-y-3">
+            <div className="space-y-2">
+              <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                Typo par défaut (bulles)
+              </span>
+              <FontPickerInline
+                value={settings.defaultBubbleFont}
+                onChange={(v) => onUpdateSettings({ defaultBubbleFont: v })}
+              />
+            </div>
           </div>
         </div>
-      </PopoverContent>
-    </Popover>
+      )}
+    </>,
+    document.body
   );
+
+  return portal;
 }

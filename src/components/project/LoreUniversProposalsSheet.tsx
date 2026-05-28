@@ -19,10 +19,10 @@ const ASSET_TYPE_BADGE: Record<string, string> = {
   object:    "bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 border-cyan-500/30",
 };
 
-const ASSET_TYPE_COLORS: Record<string, { border: string; tint: string; fallback: string }> = {
-  character: { border: "border-l-violet-500/60", tint: "bg-violet-900", fallback: "bg-gradient-to-br from-violet-900/30 to-transparent" },
-  background: { border: "border-l-amber-500/60", tint: "bg-amber-900", fallback: "bg-gradient-to-br from-amber-900/30 to-transparent" },
-  object:     { border: "border-l-cyan-500/60",  tint: "bg-cyan-900",  fallback: "bg-gradient-to-br from-cyan-900/30 to-transparent" },
+const ASSET_TYPE_COLORS: Record<string, { border: string; tint: string; fallback: string; contentBg: string }> = {
+  character: { border: "border-l-violet-500/60", tint: "bg-violet-900", fallback: "bg-gradient-to-br from-violet-900/30 to-transparent", contentBg: "bg-violet-950/85 border border-violet-500/25" },
+  background: { border: "border-l-amber-500/60", tint: "bg-amber-900", fallback: "bg-gradient-to-br from-amber-900/30 to-transparent", contentBg: "bg-amber-950/85 border border-amber-500/25" },
+  object:     { border: "border-l-cyan-500/60",  tint: "bg-cyan-900",  fallback: "bg-gradient-to-br from-cyan-900/30 to-transparent", contentBg: "bg-cyan-950/85 border border-cyan-500/25" },
 };
 
 const ASSET_TYPE_LABEL: Record<string, string> = {
@@ -362,24 +362,25 @@ function LoreProposalCard({
         effectiveBorderClass,
         forcedReason && "opacity-75",
       )}>
-        {imageUrl && (
-          <img
-            src={imageUrl}
-            alt=""
-            aria-hidden
-            draggable={false}
-            className="pointer-events-none select-none absolute inset-0 h-full w-full object-cover scale-110"
-            style={{ filter: "blur(18px)" }}
-          />
+        {imageUrl ? (
+          <>
+            <img
+              src={imageUrl}
+              alt=""
+              aria-hidden
+              draggable={false}
+              className="pointer-events-none select-none absolute inset-0 h-full w-full object-cover scale-105"
+              style={{ filter: "blur(6px)" }}
+            />
+            <div className="absolute inset-0 bg-black/25" />
+          </>
+        ) : (
+          <div className={cn("absolute inset-0", fallbackBgClass)} />
         )}
         <div className={cn(
-          "absolute inset-0",
-          imageUrl ? "bg-gradient-to-t from-black/90 via-black/60 to-black/15" : fallbackBgClass
-        )} />
-        {isAsset && assetTypeColors && (
-          <div className={cn("absolute inset-0 opacity-25", assetTypeColors.tint)} />
-        )}
-        <div className="relative z-10 pl-3 pr-3 pt-2.5 pb-2.5 space-y-2">
+          "relative z-10 m-2 rounded-lg p-2.5 space-y-2",
+          imageUrl ? (assetTypeColors?.contentBg ?? "bg-black/70") : ""
+        )}>
         {/* Méta-infos */}
         <div className="flex flex-wrap items-center gap-1.5">
           {forcedReason === "already_exists" && (

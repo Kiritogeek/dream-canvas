@@ -639,6 +639,7 @@ export default function ProjectDetail() {
               onNavigateToChapter={handleNavigateToChapter}
               onCreateMissingAsset={handleCreateMissingAsset}
               filArianeLimit={TIER_CONFIG[userPlan].filArianeLimit}
+              assets={assets}
             />
           )}
         </SheetContent>

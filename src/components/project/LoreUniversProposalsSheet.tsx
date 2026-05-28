@@ -11,12 +11,18 @@ import {
 } from "@/components/ui/sheet";
 import { ArianeOrbitIcon } from "@/components/ariane/ArianeOrbitIcon";
 import { cn } from "@/lib/utils";
-import type { CompassProposal, LoreNode } from "@/types";
+import type { Asset, CompassProposal, LoreNode } from "@/types";
 
 const ASSET_TYPE_BADGE: Record<string, string> = {
   character: "bg-violet-500/15 text-violet-700 dark:text-violet-300 border-violet-500/30",
   background: "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30",
   object:    "bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 border-cyan-500/30",
+};
+
+const ASSET_TYPE_COLORS: Record<string, { border: string; tint: string; fallback: string }> = {
+  character: { border: "border-l-violet-500/60", tint: "bg-violet-900", fallback: "bg-gradient-to-br from-violet-900/30 to-transparent" },
+  background: { border: "border-l-amber-500/60", tint: "bg-amber-900", fallback: "bg-gradient-to-br from-amber-900/30 to-transparent" },
+  object:     { border: "border-l-cyan-500/60",  tint: "bg-cyan-900",  fallback: "bg-gradient-to-br from-cyan-900/30 to-transparent" },
 };
 
 const ASSET_TYPE_LABEL: Record<string, string> = {
@@ -64,6 +70,7 @@ interface Props {
   onDismiss: (id: string) => void;
   isAccepting: boolean;
   onNodeCreated: (node: LoreNode) => void;
+  assets?: Asset[];
 }
 
 interface SectionConfig {
@@ -114,6 +121,7 @@ export function LoreUniversProposalsSheet({
   onDismiss,
   isAccepting,
   onNodeCreated,
+  assets,
 }: Props) {
   const [open, setOpen] = useState(false);
 
@@ -214,9 +222,12 @@ export function LoreUniversProposalsSheet({
         >
           <SheetHeader className="space-y-2 pb-3 border-b border-border/60">
             <div className="flex items-start gap-3">
-              <ArianeOrbitIcon size={36} className="mt-0.5 shrink-0" />
+              <div className="relative shrink-0 mt-0.5">
+                <div className="absolute inset-0 rounded-full bg-amber-500/25 blur-lg scale-[2]" />
+                <ArianeOrbitIcon size={52} />
+              </div>
               <div className="min-w-0 space-y-0.5">
-                <p className="text-left text-xs font-semibold uppercase tracking-widest bg-gradient-to-r from-amber-400 to-yellow-300 bg-clip-text text-transparent">
+                <p className="text-left text-[11px] font-semibold uppercase tracking-[0.2em] bg-gradient-to-r from-amber-400 to-yellow-300 bg-clip-text text-transparent">
                   Fil d'Ariane
                 </p>
                 <SheetTitle className="text-left font-display text-lg">
@@ -268,6 +279,7 @@ export function LoreUniversProposalsSheet({
                             disabled={isAccepting}
                             onAjouter={(label) => handleAccept(p, label)}
                             onIgnorer={() => onDismiss(p.id)}
+                            assets={assets}
                           />
                         ))}
                       </ul>
@@ -290,6 +302,7 @@ function LoreProposalCard({
   disabled,
   onAjouter,
   onIgnorer,
+  assets,
 }: {
   proposal: CompassProposal;
   sectionBorderClass: string;
@@ -297,6 +310,7 @@ function LoreProposalCard({
   disabled: boolean;
   onAjouter: (connectionLabel?: string) => void;
   onIgnorer: () => void;
+  assets?: Asset[];
 }) {
   const isAsset = proposal.proposal_type === "lore_asset";
   const isChapterUpdate = proposal.proposal_type === "lore_chapter_update";
@@ -318,6 +332,17 @@ function LoreProposalCard({
   const badgeCls = ASSET_TYPE_BADGE[assetType] ?? "bg-muted text-muted-foreground border-border";
   const typeLabel = ASSET_TYPE_LABEL[assetType] ?? assetType;
 
+  const assetTypeColors = ASSET_TYPE_COLORS[assetType];
+  const imageUrl = isAsset
+    ? assets?.find((a) => a.id === assetPrefill?.asset_id)?.image_url
+    : undefined;
+  const effectiveBorderClass = isAsset && assetTypeColors
+    ? assetTypeColors.border
+    : sectionBorderClass;
+  const fallbackBgClass = isAsset && assetTypeColors
+    ? assetTypeColors.fallback
+    : "bg-card/60";
+
   const actionLabel = isConnection
     ? "Connecter"
     : isChapterUpdate
@@ -333,10 +358,28 @@ function LoreProposalCard({
   return (
     <li>
       <div className={cn(
-        "rounded-xl border border-border/50 bg-card/60 pl-3 pr-3 pt-2.5 pb-2.5 space-y-2 shadow-sm border-l-2",
-        sectionBorderClass,
+        "relative overflow-hidden rounded-xl border border-border/50 shadow-sm border-l-2",
+        effectiveBorderClass,
         forcedReason && "opacity-75",
       )}>
+        {imageUrl && (
+          <img
+            src={imageUrl}
+            alt=""
+            aria-hidden
+            draggable={false}
+            className="pointer-events-none select-none absolute inset-0 h-full w-full object-cover scale-110"
+            style={{ filter: "blur(18px)" }}
+          />
+        )}
+        <div className={cn(
+          "absolute inset-0",
+          imageUrl ? "bg-black/72" : fallbackBgClass
+        )} />
+        {isAsset && assetTypeColors && (
+          <div className={cn("absolute inset-0 opacity-25", assetTypeColors.tint)} />
+        )}
+        <div className="relative z-10 pl-3 pr-3 pt-2.5 pb-2.5 space-y-2">
         {/* Méta-infos */}
         <div className="flex flex-wrap items-center gap-1.5">
           {forcedReason === "already_exists" && (
@@ -429,6 +472,7 @@ function LoreProposalCard({
             <X className="h-3.5 w-3.5" aria-hidden />
             Ignorer
           </Button>
+        </div>
         </div>
       </div>
     </li>

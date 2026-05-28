@@ -1931,6 +1931,7 @@ export function LoreGraphView({ project, assets }: Props) {
         onDismiss={dismissProposal}
         isAccepting={isAccepting}
         onNodeCreated={handleNodeCreated}
+        assets={assets}
       />
 
       {/* Bouton Monde — au-dessus du FAB Ariane */}

@@ -115,7 +115,6 @@ import {
 } from "@/lib/panelCanvasUndo";
 import { getSpeechBubbleBottomInPanelPx } from "@/lib/bubbleSvgLayout";
 import { useEditorSettings } from "@/hooks/useEditorSettings";
-import { EditorSettingsPopover } from "@/components/chapter/EditorSettingsPopover";
 
 const PANEL_WIDTH = 800;
 
@@ -1953,6 +1952,8 @@ export default function ChapterDetail() {
           onGenerateAll={handleGenerateAllBlocks}
           isGeneratingAll={generatingAllProgress !== null}
           generateAllProgress={generatingAllProgress}
+          settings={settings}
+          onUpdateSettings={updateSettings}
         />
       </div>
     );
@@ -2490,7 +2491,6 @@ export default function ChapterDetail() {
         nextResetDate={nextResetDate}
       />
 
-      <EditorSettingsPopover settings={settings} onUpdateSettings={updateSettings} />
     </div>
   );
 }

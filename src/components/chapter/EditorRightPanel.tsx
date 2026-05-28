@@ -1,5 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { BookOpen, Loader2, Layers, GripVertical, CheckCircle2, Package, ChevronDown, Wand2, Zap, RefreshCw, X } from "lucide-react";
+import { EditorSettingsPopover } from "@/components/chapter/EditorSettingsPopover";
+import type { EditorSettings } from "@/hooks/useEditorSettings";
 import { Button } from "@/components/ui/button";
 import {
   Collapsible,
@@ -88,6 +90,9 @@ interface EditorRightPanelProps {
   isGeneratingAll?: boolean;
   generateAllProgress?: { current: number; total: number } | null;
   blocksToGenerateCount?: number;
+  /** Préférences éditeur (typo, etc.) */
+  settings: EditorSettings;
+  onUpdateSettings: (updates: Partial<EditorSettings>) => void;
 }
 
 export function EditorRightPanel({
@@ -114,6 +119,8 @@ export function EditorRightPanel({
   isGeneratingAll = false,
   generateAllProgress = null,
   blocksToGenerateCount = 0,
+  settings,
+  onUpdateSettings,
 }: EditorRightPanelProps) {
   const [draggingCaseNumber, setDraggingCaseNumber] = useState<number | null>(null);
   const [openAssetGroups, setOpenAssetGroups] = useState<Record<string, boolean>>({
@@ -464,7 +471,7 @@ export function EditorRightPanel({
       {/* Barre d'icônes droite */}
       <aside
         className={cn(
-          "relative border-l border-border bg-muted/20 px-1.5 py-2 sm:py-2.5 flex flex-col items-stretch gap-1.5 z-30",
+          "relative border-l border-border bg-muted/20 px-1.5 py-2 sm:py-2.5 flex flex-col items-stretch gap-1.5 z-30 overflow-visible",
           CHAPTER_EDITOR_RAIL_ASIDE_CLASS,
         )}
       >
@@ -539,6 +546,11 @@ export function EditorRightPanel({
             </span>
           )}
         </button>
+
+        {/* Paramètres éditeur — en bas du rail */}
+        <div className="mt-auto">
+          <EditorSettingsPopover settings={settings} onUpdateSettings={onUpdateSettings} />
+        </div>
 
       </aside>
     </>

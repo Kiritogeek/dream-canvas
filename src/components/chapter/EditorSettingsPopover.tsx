@@ -1,7 +1,12 @@
 import { useState, useRef, useEffect } from "react";
-import { createPortal } from "react-dom";
 import { Settings, Check, X } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { FONT_CATEGORIES, FONTS } from "./bubbleFonts";
+import {
+  CHAPTER_EDITOR_RAIL_BTN_BASE,
+  CHAPTER_EDITOR_RAIL_BTN_IDLE,
+  CHAPTER_EDITOR_RAIL_BTN_ACTIVE,
+} from "@/components/chapter/chapterCanvasToolbar";
 import type { EditorSettings } from "@/hooks/useEditorSettings";
 
 interface EditorSettingsPopoverProps {
@@ -102,40 +107,18 @@ export function EditorSettingsPopover({ settings, onUpdateSettings }: EditorSett
     return () => document.removeEventListener("mousedown", handler);
   }, [open]);
 
-  const portal = createPortal(
-    <>
-      {/* Bouton engrenage */}
-      <button
-        ref={btnRef}
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        title="Préférences de l'éditeur"
-        style={{ position: "fixed", bottom: 24, right: 24, zIndex: 9000 }}
-        className={`p-2.5 rounded-full border shadow-lg transition-all duration-200 group ${
-          open
-            ? "bg-primary border-primary/60 text-primary-foreground"
-            : "bg-background border-border hover:border-[hsl(var(--lavender)/0.5)] hover:bg-muted"
-        }`}
-      >
-        <Settings
-          className={`h-4 w-4 transition-transform duration-300 ${open ? "rotate-90" : "group-hover:rotate-45"}`}
-        />
-      </button>
-
-      {/* Panneau paramètres */}
+  return (
+    <div className="relative w-full">
+      {/* Panneau paramètres — à gauche du rail */}
       {open && (
         <div
           ref={panelRef}
-          style={{ position: "fixed", bottom: 76, right: 24, zIndex: 9001 }}
-          className="w-64 rounded-xl border border-border bg-background shadow-xl overflow-hidden"
+          className="absolute right-full bottom-0 mr-3 w-64 rounded-xl border border-border bg-background shadow-xl overflow-hidden z-50"
         >
-          {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-border">
             <div>
               <h3 className="font-display font-semibold text-sm text-foreground">Préférences éditeur</h3>
-              <p className="text-[10px] text-muted-foreground mt-0.5">
-                Appliqué à tous les chapitres
-              </p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Appliqué à tous les chapitres</p>
             </div>
             <button
               type="button"
@@ -145,8 +128,6 @@ export function EditorSettingsPopover({ settings, onUpdateSettings }: EditorSett
               <X className="h-3.5 w-3.5" />
             </button>
           </div>
-
-          {/* Contenu */}
           <div className="p-4 space-y-3">
             <div className="space-y-2">
               <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
@@ -160,9 +141,23 @@ export function EditorSettingsPopover({ settings, onUpdateSettings }: EditorSett
           </div>
         </div>
       )}
-    </>,
-    document.body
-  );
 
-  return portal;
+      {/* Bouton engrenage — stylé comme les autres boutons du rail */}
+      <button
+        ref={btnRef}
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        title="Préférences de l'éditeur"
+        className={cn(
+          CHAPTER_EDITOR_RAIL_BTN_BASE,
+          open ? CHAPTER_EDITOR_RAIL_BTN_ACTIVE : CHAPTER_EDITOR_RAIL_BTN_IDLE,
+        )}
+      >
+        <Settings
+          className={`h-4 w-4 sm:h-5 sm:w-5 shrink-0 transition-transform duration-300 ${open ? "rotate-90" : ""}`}
+          strokeWidth={1.75}
+        />
+      </button>
+    </div>
+  );
 }

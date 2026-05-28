@@ -9,7 +9,7 @@ import { useNarraMindAlerts } from "@/hooks/useNarramindAlerts";
 import { useScenarioChapters, useValidateChapter, useUnvalidateChapter } from "@/hooks/useScenarioChapters";
 import { useChapters } from "@/hooks/useChapters";
 import { useLoreNodes } from "@/hooks/useLoreNodes";
-import { useLoreEdges, useCreateLoreEdge } from "@/hooks/useLoreEdges";
+import { useLoreEdges } from "@/hooks/useLoreEdges";
 import { useAssets } from "@/hooks/useAssets";
 import { useArianeLoreProposals } from "@/hooks/useArianeLoreProposals";
 import { supabase } from "@/integrations/supabase/client";
@@ -66,7 +66,6 @@ export function TestSection({ projectId }: { projectId: string }) {
   const { data: loreNodes = [] } = useLoreNodes(projectId);
   const { data: loreEdges = [] } = useLoreEdges(projectId);
   const { data: assets = [] } = useAssets(projectId);
-  const createEdge = useCreateLoreEdge();
   const validateChapter = useValidateChapter();
   const unvalidateChapter = useUnvalidateChapter();
   const { triggerScan, triggerForceScan } = useArianeLoreProposals(projectId, { enableAutoScan: false });
@@ -176,15 +175,32 @@ export function TestSection({ projectId }: { projectId: string }) {
     setLoreInjecting("edge");
     try {
       const [a, b] = loreNodes.slice(0, 2);
-      await createEdge.mutateAsync({
+      const sorted = [a.id, b.id].sort();
+      const fromNode = sorted[0] === a.id ? a : b;
+      const toNode = sorted[0] === a.id ? b : a;
+      const dedupeKey = `lore-test-edge-${Date.now()}`;
+      const { error } = await supabase.from("compass_proposals").insert({
         project_id: projectId,
         user_id: user.id,
-        from_node_id: a.id,
-        to_node_id: b.id,
-        label: "Test — connexion",
+        proposal_type: "lore_connection",
+        origin: "extracted",
+        title: `${fromNode.name} ↔ ${toNode.name}`,
+        content: "Test — co-présents dans le chapitre",
+        prefill_data: {
+          from_node_id: fromNode.id,
+          to_node_id: toNode.id,
+          from_name: fromNode.name,
+          to_name: toNode.name,
+          chapter_number: firstChapter?.chapter_number ?? 1,
+          proposed_label: "Test",
+        },
+        status: "active",
+        dedupe_key: dedupeKey,
       });
+      if (error) throw error;
+      await qc.invalidateQueries({ queryKey: ["lore-proposals", projectId] });
       setHasInjectedLore(true);
-      toast({ title: "Connexion de test créée dans l'Univers" });
+      toast({ title: "Proposition de connexion injectée", description: "Visible dans Ariane → onglet Univers." });
     } catch {
       toast({ title: "Erreur", variant: "destructive" });
     } finally {
@@ -356,7 +372,7 @@ export function TestSection({ projectId }: { projectId: string }) {
         <div className="grid gap-3">
           {[
             { key: "node", icon: Globe, label: "Proposition d'élément", desc: "Injecte une lore_asset proposal → à accepter dans l'onglet Univers (nécessite un asset)." },
-            { key: "edge", icon: Link2, label: "Ajout de connexion", desc: "Connexion directe entre les 2 premiers nœuds — nécessite d'avoir accepté 2 propositions d'éléments." },
+            { key: "edge", icon: Link2, label: "Proposition de connexion", desc: "Injecte une lore_connection proposal → à accepter dans Ariane (nécessite 2 éléments dans l'Univers)." },
             { key: "chapter", icon: BookMarked, label: "Proposition lien chapitre", desc: "Injecte une lore_chapter_update proposal pour le 1er élément Univers → nécessite un chapitre Scénario." },
           ].map(({ key, icon: Icon, label, desc }) => (
             <div key={key} className="flex items-start gap-4 rounded-xl border border-border/60 bg-background/40 p-4">

@@ -347,7 +347,7 @@ function LoreProposalCard({
     ? "Connecter"
     : isChapterUpdate
       ? `Lier Chap. ${chapterUpdatePrefill?.chapter_number}`
-      : "Ajouter à l'Univers";
+      : "Ajouter";
 
   const ariaLabel = isConnection
     ? `Connecter ${connectionPrefill?.from_name} et ${connectionPrefill?.to_name}`
@@ -462,7 +462,7 @@ function LoreProposalCard({
             type="button"
             size="sm"
             variant="ghost"
-            className="h-7 text-xs gap-1 text-muted-foreground"
+            className="h-7 text-xs gap-1 text-destructive/70 hover:text-destructive hover:bg-destructive/10"
             onClick={onIgnorer}
             disabled={disabled}
             aria-label={`Ignorer ${proposal.title}`}

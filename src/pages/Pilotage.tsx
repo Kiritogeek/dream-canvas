@@ -243,7 +243,7 @@ export default function Pilotage() {
         <div>
           <h1 className="font-display text-2xl font-bold text-foreground">Pilotage</h1>
           <p className="text-muted-foreground text-sm mt-1">
-            Tableau de bord administrateur — métriques et gestion utilisateurs
+            Tableau de bord administrateur : métriques et gestion utilisateurs
           </p>
         </div>
 

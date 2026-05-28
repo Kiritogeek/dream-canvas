@@ -96,7 +96,7 @@ export function ChapterStatusBar({
               Chapitre validé
             </span>
           ) : (
-            <span>Tous les assets générés — chapitre validable</span>
+            <span>Tous les assets générés, chapitre validable</span>
           )}
         </button>
       )}

@@ -370,7 +370,7 @@ export default function Dashboard() {
             <div className="space-y-2">
               <Label>
                 Synopsis <span className="text-red-400 text-xs">*</span>
-                <span className="text-muted-foreground font-normal text-xs ml-1">— Ariane s'en sert pour peupler ton Univers</span>
+                <span className="text-muted-foreground font-normal text-xs ml-1">(Ariane s'en sert pour peupler ton Univers)</span>
               </Label>
               <Textarea
                 value={newSynopsis}

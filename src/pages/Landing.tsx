@@ -39,7 +39,7 @@ const steps = [
     icon: ImageIcon,
     label: "Assets",
     title: "Générez vos assets",
-    desc: "Personnages, décors, objets — tous cohérents avec votre style, en quelques secondes.",
+    desc: "Personnages, décors, objets, tous cohérents avec votre style, en quelques secondes.",
   },
   {
     icon: Layers,
@@ -58,7 +58,7 @@ const features = [
   {
     icon: Palette,
     title: "Style cohérent par projet",
-    desc: "Définissez un template une fois — chaque nouvel asset respecte automatiquement votre univers visuel.",
+    desc: "Définissez un template une fois, chaque nouvel asset respecte automatiquement votre univers visuel.",
   },
   {
     icon: ImageIcon,
@@ -77,7 +77,7 @@ const features = [
   },
   {
     icon: Sparkles,
-    title: `${ARIANE_DISPLAY_NAME} — Mémoire narrative`,
+    title: `${ARIANE_DISPLAY_NAME} : Mémoire narrative`,
     desc: "Votre IA de continuité surveille les incohérences de votre récit en arrière-plan après chaque sauvegarde.",
   },
 ];
@@ -224,7 +224,7 @@ export default function Landing() {
             <p className="text-muted-foreground text-sm sm:text-base max-w-xl mx-auto">
               De l'idée à la planche publiée en{" "}
               <span className="text-amber-400 font-medium">cinq étapes</span>
-              {" "}— guidées par Ariane
+              , guidées par Ariane
             </p>
           </motion.div>
 
@@ -425,9 +425,9 @@ export default function Landing() {
                   votre création.
                 </p>
 
-                <ArianeBubble variant="continuity" caption="Fil d'Ariane — alerte continuité">
+                <ArianeBubble variant="continuity" caption="Fil d'Ariane : alerte continuité">
                   <p className="font-semibold text-sm mb-1.5">
-                    Incohérence détectée — Chapitre 5
+                    Incohérence détectée, Chapitre 5
                   </p>
                   <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
                     Elena est décrite avec les{" "}
@@ -585,7 +585,7 @@ export default function Landing() {
           >
             <Button variant="outline" asChild className="gap-2">
               <Link to="/auth?tab=signup">
-                Commencer — c'est gratuit
+                Commencer, c'est gratuit
                 <ArrowRight className="h-4 w-4" />
               </Link>
             </Button>

@@ -156,7 +156,7 @@ export function AIChapterPreviewModal({
         <DialogHeader className="shrink-0 px-6 pt-6 pb-4 border-b border-[hsl(var(--lavender)/0.15)]">
           <DialogTitle className="flex items-center gap-3 flex-wrap">
             <span className="font-display text-xl font-semibold leading-tight">
-              Chapitre {chapterNumber} — Proposition IA
+              Chapitre {chapterNumber} : Proposition IA
             </span>
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-[hsl(var(--lavender)/0.15)] text-[hsl(275_40%_45%)] dark:text-[hsl(var(--lavender))] border border-[hsl(var(--lavender)/0.3)]">
               <Sparkles className="h-3 w-3" />

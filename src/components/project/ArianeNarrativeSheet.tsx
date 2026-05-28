@@ -50,7 +50,7 @@ export function ArianeNarrativeSheet({
         <DialogHeader className="pb-4 border-b border-white/10">
           <DialogTitle className="text-gradient flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-amber-400" />
-            Propositions Ariane — Chapitre {nextChapterNumber}
+            Propositions Ariane, Chapitre {nextChapterNumber}
           </DialogTitle>
         </DialogHeader>
 
@@ -66,7 +66,7 @@ export function ArianeNarrativeSheet({
                   </p>
                   <p className="text-xs text-muted-foreground mt-0.5">
                     {loreStats.withDescription} avec description ·{" "}
-                    {loreStats.total - loreStats.withDescription} sans —{" "}
+                    {loreStats.total - loreStats.withDescription} sans description -{" "}
                     plus le Lore est détaillé, plus les propositions sont précises
                   </p>
                 </div>

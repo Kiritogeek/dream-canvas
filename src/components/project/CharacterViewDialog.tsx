@@ -26,7 +26,7 @@ export function CharacterViewDialog({
       <DialogContent className="glass max-w-[95vw] sm:max-w-4xl mx-auto">
         <DialogHeader>
           <DialogTitle className="font-display text-sm sm:text-base">
-            Vues — {character?.name ?? ""}
+            Vues - {character?.name ?? ""}
           </DialogTitle>
         </DialogHeader>
 
@@ -67,7 +67,7 @@ export function CharacterViewDialog({
               <div className="rounded-lg border border-dashed p-3 text-xs text-muted-foreground flex items-center gap-2">
                 <Sparkles className="h-4 w-4 text-primary shrink-0" />
                 Aucune sheet enregistrée pour ce personnage. Relance une
-                génération pour produire la sheet 4 angles — elle sera utilisée
+                génération pour produire la sheet 4 angles, elle sera utilisée
                 automatiquement en référence sur tous les panels du chapitre.
               </div>
             )}

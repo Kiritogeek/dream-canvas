@@ -1919,7 +1919,7 @@ export default function ChapterDetail() {
                   if (!isRecompose) {
                     toast({
                       title: `✨ ${result.blocksCount} blocs composés`,
-                      description: "La mise en page est prête — génère maintenant les images !",
+                      description: "La mise en page est prête. Génère maintenant les images !",
                     });
                   }
                 },

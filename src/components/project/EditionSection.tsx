@@ -222,7 +222,7 @@ const ChapterEditionCard = memo(function ChapterEditionCard({
           ) : (
             <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-400/10 text-amber-600 border border-amber-400/20 cursor-default" title={`Réservé au plan ${planDisplayName("createur")}`}>
               <Crown className="h-3 w-3 text-amber-500" />
-              Cases — {planDisplayName("createur")}
+              Cases - {planDisplayName("createur")}
             </span>
           )}
 

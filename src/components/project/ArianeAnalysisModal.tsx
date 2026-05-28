@@ -85,7 +85,7 @@ export function ArianeAnalysisModal({
                   Ariane lit votre chapitre…
                 </h3>
                 <p className="text-sm text-muted-foreground max-w-[220px]">
-                  Elle identifie les éléments à ajouter dans votre Univers — personnages,
+                  Elle identifie les éléments à ajouter dans votre Univers : personnages,
                   lieux, connexions narratives.
                 </p>
               </div>

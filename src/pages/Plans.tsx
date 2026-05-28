@@ -263,7 +263,7 @@ export default function Plans() {
             Choisissez votre plan
           </h1>
           <p className="text-sm sm:text-base text-muted-foreground max-w-lg mx-auto px-2">
-            Même modèle FLUX.2 Pro pour tous — seule la quantité et les
+            Même modèle FLUX.2 Pro pour tous, seule la quantité et les
             fonctionnalités avancées changent.
           </p>
         </motion.div>
@@ -278,7 +278,7 @@ export default function Plans() {
             <div className="flex items-center gap-2 text-sm text-violet-300">
               <FlaskConical className="h-4 w-4 shrink-0" />
               <span>
-                Mode admin — plan actuel :{" "}
+                Mode admin, plan actuel :{" "}
                 <strong>{planDisplayName(plan)}</strong>
               </span>
             </div>

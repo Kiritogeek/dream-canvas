@@ -405,7 +405,7 @@ export function AssetLibrary({
                 <Label>
                   Type{" "}
                   {newAssetType === null && (
-                    <span className="text-destructive text-xs font-normal">— choisissez un type</span>
+                    <span className="text-destructive text-xs font-normal">(choisissez un type)</span>
                   )}
                 </Label>
                 <div className="flex flex-wrap gap-2">
@@ -787,7 +787,7 @@ export function AssetLibrary({
                   />
                   {promptChanged && (
                     <p className="text-xs text-amber-600 dark:text-amber-400">
-                      Le prompt a été modifié — choisissez comment sauvegarder ci-dessous.
+                      Le prompt a été modifié, choisissez comment sauvegarder ci-dessous.
                     </p>
                   )}
                 </div>
@@ -863,7 +863,7 @@ export function AssetLibrary({
             <div className="rounded-xl border border-[hsl(var(--lavender)/0.2)] bg-[hsl(var(--lavender)/0.06)] p-4 space-y-2">
               <p className="font-semibold text-[hsl(var(--lavender))]">Un asset = une référence visuelle</p>
               <p className="text-muted-foreground leading-relaxed">
-                Un asset est un élément visuel de votre histoire — personnage, décor ou objet.
+                Un asset est un élément visuel de votre histoire : personnage, décor ou objet.
                 Il sert de <strong className="text-foreground">référence exacte</strong> à l'IA lors de la génération
                 de vos panels : sans asset, l'IA invente librement. Avec un asset, elle reproduit
                 fidèlement l'élément d'une image à l'autre.
@@ -883,7 +883,7 @@ export function AssetLibrary({
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="shrink-0 mt-0.5 h-4 w-4 rounded-full bg-[hsl(var(--lavender)/0.2)] flex items-center justify-center text-[10px] font-bold text-[hsl(var(--lavender))]">3</span>
-                  <span>Un asset mentionné dans le scénario est <strong className="text-foreground">surligné</strong> dans l'éditeur — c'est votre indicateur que l'IA le prendra en compte.</span>
+                  <span>Un asset mentionné dans le scénario est <strong className="text-foreground">surligné</strong> dans l'éditeur, votre indicateur que l'IA le prendra en compte.</span>
                 </li>
               </ul>
             </div>

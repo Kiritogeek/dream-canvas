@@ -1047,6 +1047,9 @@ export default function ChapterDetail() {
       recordCanvasUndoBeforeChange(panel.id);
       const previousPanels = queryClient.getQueryData<Panel[]>(panelsQueryKey);
       queryClient.setQueryData<Panel[]>(panelsQueryKey, (old) => (!old ? old : old.map((p) => (p.id === panel.id ? { ...p, layout: newLayout as unknown as Json } : p))));
+      setSelectedColorBlockIdInModal(null);
+      setSelectedSpeechBubbleIdInModal(null);
+      setSelectedBlockIdInModal({ panelId: panel.id, blockId: newBlock.id });
       updatePanelMutation.mutate(
         { id: panel.id, updates: { layout: newLayout as unknown as Json } },
         {
@@ -1320,6 +1323,9 @@ export default function ChapterDetail() {
       recordCanvasUndoBeforeChange(panel.id);
       const previousPanels = queryClient.getQueryData<Panel[]>(panelsQueryKey);
       queryClient.setQueryData<Panel[]>(panelsQueryKey, (old) => (!old ? old : old.map((p) => (p.id === panel.id ? { ...p, color_blocks: next as unknown as Json } : p))));
+      setSelectedBlockIdInModal(null);
+      setSelectedSpeechBubbleIdInModal(null);
+      setSelectedColorBlockIdInModal({ panelId: panel.id, colorBlockId: newBlock.id });
       updatePanelMutation.mutate(
         { id: panel.id, updates: { color_blocks: next as unknown as Json } },
         {
@@ -1368,6 +1374,9 @@ export default function ChapterDetail() {
       recordCanvasUndoBeforeChange(panel.id);
       const previousPanels = queryClient.getQueryData<Panel[]>(panelsQueryKey);
       queryClient.setQueryData<Panel[]>(panelsQueryKey, (old) => (!old ? old : old.map((p) => (p.id === panel.id ? { ...p, speech_bubbles: next as unknown as Json } : p))));
+      setSelectedBlockIdInModal(null);
+      setSelectedColorBlockIdInModal(null);
+      setSelectedSpeechBubbleIdInModal({ panelId: panel.id, bubbleId: newBubble.id });
       updatePanelMutation.mutate(
         { id: panel.id, updates: { speech_bubbles: next as unknown as Json } },
         {

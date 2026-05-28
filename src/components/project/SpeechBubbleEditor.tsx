@@ -1376,7 +1376,7 @@ export default function SpeechBubbleEditor({
                 <hr style={sep} />
                 <div style={lbl}>Queue</div>
                 <div style={{ padding: "5px 7px", background: "#191928", borderRadius: 5,
-                  fontSize: 10, color: "#5a5a88", lineHeight: 1.6 }}>
+                  fontSize: 10, color: "#9090b8", lineHeight: 1.6 }}>
                   Glissez le <span style={{ color: "#818cf8", fontWeight: 600 }}>✛ violet</span> sur le canvas
                 </div>
                 <div style={lbl}>Pointe X · {Math.round(selected.tailX)}</div>
@@ -1423,7 +1423,7 @@ export default function SpeechBubbleEditor({
         )}
 
         {!selected && (
-          <div style={{ padding: "14px 12px", fontSize: 11, color: "#333355", lineHeight: 1.7, marginTop: 8 }}>
+          <div style={{ padding: "14px 12px", fontSize: 11, color: "#9090b8", lineHeight: 1.7, marginTop: 8 }}>
             Ajoutez une bulle puis cliquez dessus.
           </div>
         )}
@@ -1520,15 +1520,15 @@ export default function SpeechBubbleEditor({
             style={{ padding: "6px 9px", borderRadius: 6, cursor: "pointer", fontSize: 11,
               background: b.id === selectedId ? "#23234a" : "#181828",
               border: `1px solid ${b.id === selectedId ? "#6366f1" : "#222234"}`,
-              color: b.id === selectedId ? "#b0b0ff" : "#555",
+              color: b.id === selectedId ? "#b0b0ff" : "#8888b8",
               transition: "all 0.1s", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
             {LABELS[b.type]}{b.connected ? " 🔗" : ""} · <span style={{ opacity: 0.6 }}>{b.text.slice(0, 10)}…</span>
           </div>
         ))}
-        {bubbles.length === 0 && <div style={{ fontSize: 11, color: "#2a2a44" }}>Aucune bulle</div>}
+        {bubbles.length === 0 && <div style={{ fontSize: 11, color: "#9090b8" }}>Aucune bulle</div>}
         <div style={{ marginTop: "auto", paddingTop: 10, borderTop: "1px solid #222234",
-          fontSize: 10, color: "#2e2e50", lineHeight: 1.9 }}>
-          <div style={{ color: "#44446a", fontWeight: 600, marginBottom: 1 }}>Raccourcis</div>
+          fontSize: 10, color: "#8888b8", lineHeight: 1.9 }}>
+          <div style={{ color: "#a0a0cc", fontWeight: 600, marginBottom: 1 }}>Raccourcis</div>
           Clic → sélect.<br />
           2× clic → éditer<br />
           Glisser → déplacer<br />

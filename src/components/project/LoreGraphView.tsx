@@ -21,13 +21,14 @@ import {
   type ConnectionLineComponentProps,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { Globe, Plus, Search, Save, Loader2, Trash2, GitCommitHorizontal, Zap } from "lucide-react";
+import { Globe, Plus, Search, Save, Loader2, Trash2, GitCommitHorizontal, Zap, X } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useChapters } from "@/hooks/useChapters";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useLoreNodes, useCreateLoreNode, useUpdateLoreNode, useBatchUpdateLoreNodePositions } from "@/hooks/useLoreNodes";
@@ -171,6 +172,42 @@ const NODE_TYPES: NodeTypes = { loreNode: LoreNodeCard };
 
 // ── WorldRulesDialog ──────────────────────────────────────────────
 
+const WORLD_DEFAULT_SECTIONS: Array<{ key: string; symbol: string; placeholder: string }> = [
+  { key: "Géographie", symbol: "◈", placeholder: "Continents, pays, mers, régions, relief, climat dominant…" },
+  { key: "Sociétés",   symbol: "◉", placeholder: "Factions, gouvernements, castes, cultures, tensions actuelles…" },
+  { key: "Histoire",   symbol: "◎", placeholder: "Chronologie, ères, événements fondateurs, guerres passées…" },
+];
+
+const WORLD_EXTRA_SECTIONS: Array<{ key: string; symbol: string; placeholder: string }> = [
+  { key: "Magie",       symbol: "✦", placeholder: "Système magique, sources, règles, limitations, coût de l'usage…" },
+  { key: "Cosmologie",  symbol: "✧", placeholder: "Dieux, panthéons, forces primordiales, dimensions, afterlife…" },
+  { key: "Technologie", symbol: "⬡", placeholder: "Niveau technologique, inventions clés, énergie, transports…" },
+  { key: "Économie",    symbol: "◆", placeholder: "Monnaies, ressources rares, commerce, pouvoir économique…" },
+];
+
+const ALL_WORLD_SECTIONS = [...WORLD_DEFAULT_SECTIONS, ...WORLD_EXTRA_SECTIONS];
+
+function parseWorldSections(text: string): Record<string, string> {
+  const result: Record<string, string> = {};
+  const lines = text.split("\n");
+  let current: string | null = null;
+  const buf: string[] = [];
+  for (const line of lines) {
+    const m = line.match(/^## (.+)$/);
+    if (m) {
+      if (current !== null) result[current] = buf.join("\n").trim();
+      current = m[1];
+      buf.length = 0;
+    } else if (current !== null) {
+      buf.push(line);
+    }
+  }
+  if (current !== null) result[current] = buf.join("\n").trim();
+  return result;
+}
+
+const WORLD_DEFAULT_PILL_KEYS = WORLD_DEFAULT_SECTIONS.map(s => s.key);
+
 function WorldRulesDialog({
   open,
   onOpenChange,
@@ -182,53 +219,237 @@ function WorldRulesDialog({
 }) {
   const { toast } = useToast();
   const updateProject = useUpdateProject();
-  const [value, setValue] = useState(project.world_rules ?? "");
-  const [saving, setSaving] = useState(false);
 
-  const isDirty = value !== (project.world_rules ?? "");
+  const initState = useCallback(() => {
+    const parsed = parseWorldSections(project.world_rules ?? "");
+    const sections: Record<string, string> = {};
+    for (const { key } of ALL_WORLD_SECTIONS) {
+      if (key in parsed) sections[key] = parsed[key];
+    }
+    for (const key of WORLD_DEFAULT_PILL_KEYS) {
+      if (!(key in sections)) sections[key] = "";
+    }
+    const extraPills = Object.keys(parsed).filter(k => !WORLD_DEFAULT_PILL_KEYS.includes(k));
+    return { sections, pills: [...WORLD_DEFAULT_PILL_KEYS, ...extraPills] };
+  }, [project.world_rules]);
 
-  const handleSave = useCallback(async () => {
-    setSaving(true);
+  const [sections, setSections] = useState<Record<string, string>>(() => initState().sections);
+  const [activePills, setActivePills] = useState<string[]>(() => initState().pills);
+  const [activeSection, setActiveSection] = useState<string>(WORLD_DEFAULT_PILL_KEYS[0]);
+  const [showPicker, setShowPicker] = useState(false);
+  const [newCustomName, setNewCustomName] = useState("");
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
+  const saveDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pickerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (open) {
+      const { sections: s, pills: p } = initState();
+      setSections(s);
+      setActivePills(p);
+      setActiveSection(WORLD_DEFAULT_PILL_KEYS[0]);
+      setShowPicker(false);
+      setSaveStatus("idle");
+    }
+  }, [open, initState]);
+
+  useEffect(() => {
+    if (!showPicker) return;
+    const handler = (e: MouseEvent) => {
+      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
+        setShowPicker(false);
+        setNewCustomName("");
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showPicker]);
+
+  const buildString = useCallback((secs: Record<string, string>, pills: string[]) =>
+    pills.filter(k => secs[k]?.trim()).map(k => `## ${k}\n${secs[k].trim()}`).join("\n\n"),
+  []);
+
+  const handleSave = useCallback(async (secs: Record<string, string>, pills: string[]) => {
     try {
-      await updateProject.mutateAsync({ id: project.id, updates: { world_rules: value } });
-      toast({ title: "Règles du monde sauvegardées" });
+      await updateProject.mutateAsync({ id: project.id, updates: { world_rules: buildString(secs, pills) } });
+      setSaveStatus("saved");
+      setTimeout(() => setSaveStatus("idle"), 2000);
     } catch {
       toast({ title: "Erreur", description: "Impossible de sauvegarder.", variant: "destructive" });
-    } finally {
-      setSaving(false);
+      setSaveStatus("idle");
     }
-  }, [value, project.id, updateProject, toast]);
+  }, [project.id, updateProject, buildString, toast]);
+
+  const triggerAutoSave = useCallback((secs: Record<string, string>, pills: string[]) => {
+    if (saveDebounceRef.current) clearTimeout(saveDebounceRef.current);
+    setSaveStatus("saving");
+    saveDebounceRef.current = setTimeout(() => handleSave(secs, pills), 1000);
+  }, [handleSave]);
+
+  const handleChange = (key: string, value: string) => {
+    const next = { ...sections, [key]: value };
+    setSections(next);
+    triggerAutoSave(next, activePills);
+  };
+
+  const addPill = (name: string) => {
+    if (activePills.includes(name)) { setActiveSection(name); return; }
+    const nextPills = [...activePills, name];
+    const nextSections = { ...sections, [name]: sections[name] ?? "" };
+    setActivePills(nextPills);
+    setSections(nextSections);
+    setActiveSection(name);
+    setShowPicker(false);
+    setNewCustomName("");
+  };
+
+  const removePill = (name: string) => {
+    const nextPills = activePills.filter(p => p !== name);
+    const nextSections = { ...sections };
+    delete nextSections[name];
+    setActivePills(nextPills);
+    setSections(nextSections);
+    if (activeSection === name) setActiveSection(nextPills[0] ?? WORLD_DEFAULT_PILL_KEYS[0]);
+    triggerAutoSave(nextSections, nextPills);
+  };
+
+  const createCustomSection = () => {
+    const trimmed = newCustomName.trim();
+    if (!trimmed || activePills.includes(trimmed)) return;
+    addPill(trimmed);
+  };
+
+  const availableExtra = WORLD_EXTRA_SECTIONS.filter(({ key }) => !activePills.includes(key));
+  const activeCfg = ALL_WORLD_SECTIONS.find(s => s.key === activeSection);
+  const activeValue = sections[activeSection] ?? "";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="glass border-white/10 sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle className="text-gradient flex items-center gap-2">
-            🌐 Règles du Monde
-          </DialogTitle>
-        </DialogHeader>
-        <div className="space-y-3 pt-1">
-          <p className="text-xs text-muted-foreground">
-            Décris les lois physiques, magiques, sociales de ton univers — ce cadre guide la cohérence de toutes tes histoires.
-          </p>
+      <DialogContent className="glass border-white/10 sm:max-w-2xl flex flex-col gap-0 p-0 overflow-hidden max-h-[88vh]">
+
+        {/* Header */}
+        <div className="px-5 pt-5 pb-4 border-b border-border/50 shrink-0 space-y-3">
+          <div className="flex items-center gap-3">
+            <div className="relative shrink-0">
+              <div className="absolute inset-0 rounded-full bg-amber-500/20 blur-md scale-[1.8]" />
+              <div className="relative flex items-center justify-center w-9 h-9 rounded-full border border-amber-500/30 bg-amber-950/60">
+                <Globe className="h-4 w-4 text-amber-400" />
+              </div>
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] bg-gradient-to-r from-amber-400 to-yellow-300 bg-clip-text text-transparent">
+                Univers
+              </p>
+              <DialogTitle className="font-display text-base leading-tight">Règles du Monde</DialogTitle>
+              <DialogDescription className="text-xs text-muted-foreground mt-0.5">
+                Ces règles guident la cohérence narrative d'Ariane dans tout ton projet.
+              </DialogDescription>
+            </div>
+            {/* Status auto-save */}
+            <span className={cn("text-[11px] shrink-0 transition-opacity", saveStatus === "idle" ? "opacity-0" : "opacity-100",
+              saveStatus === "saving" ? "text-muted-foreground" : "text-amber-400")}>
+              {saveStatus === "saving" ? "Sauvegarde…" : "Sauvegardé ✓"}
+            </span>
+          </div>
+
+          {/* Pills + "+" */}
+          <div className="flex items-start gap-1.5" ref={pickerRef}>
+            <div className="flex flex-wrap items-center gap-1.5 flex-1">
+              {activePills.map((name) => {
+                const filled = !!(sections[name]?.trim());
+                const isActive = activeSection === name;
+                const isDefault = WORLD_DEFAULT_PILL_KEYS.includes(name);
+                return (
+                  <div key={name} className="group relative">
+                    <button
+                      type="button"
+                      onClick={() => setActiveSection(name)}
+                      className={cn(
+                        "inline-flex items-center gap-1.5 pl-3.5 py-1.5 rounded-full text-xs font-medium border transition-all duration-150",
+                        isDefault ? "pr-3.5" : "pr-8",
+                        isActive
+                          ? "bg-amber-500/20 border-amber-500/40 text-amber-200"
+                          : filled
+                            ? "bg-white/8 border-white/20 text-foreground hover:bg-white/12"
+                            : "bg-transparent border-white/10 text-muted-foreground hover:border-white/20 hover:text-foreground"
+                      )}
+                    >
+                      {filled && <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />}
+                      {name}
+                    </button>
+                    {!isDefault && (
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); removePill(name); }}
+                        className="absolute right-1.5 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 flex items-center justify-center w-5 h-5 rounded-full hover:bg-red-500/70 transition-all duration-150"
+                        aria-label={`Supprimer ${name}`}
+                      >
+                        <X className="h-3 w-3 text-white/70 hover:text-white" />
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Bouton "+" */}
+            <div className="relative shrink-0 mt-0.5">
+              <button
+                type="button"
+                onClick={() => setShowPicker(v => !v)}
+                className={cn(
+                  "w-6 h-6 rounded-full border text-xs flex items-center justify-center transition-all duration-150",
+                  showPicker
+                    ? "bg-amber-500/20 border-amber-500/40 text-amber-300"
+                    : "bg-white/5 border-white/15 text-muted-foreground hover:bg-white/10 hover:border-white/25 hover:text-foreground"
+                )}
+              >
+                <Plus className="h-3 w-3" />
+              </button>
+
+              {showPicker && (
+                <div className="absolute top-8 right-0 z-50 w-52 bg-popover border border-white/15 rounded-xl shadow-2xl overflow-hidden py-1">
+                  {availableExtra.map(({ key, symbol }) => (
+                    <button key={key} type="button" onClick={() => addPill(key)}
+                      className="w-full text-left px-3 py-1.5 text-xs text-foreground hover:bg-white/10 transition-colors flex items-center gap-2">
+                      <span className="text-amber-400/60">{symbol}</span>
+                      {key}
+                    </button>
+                  ))}
+                  {availableExtra.length > 0 && <div className="border-t border-white/10 my-1" />}
+                  <div className="px-3 py-2 flex items-center gap-2">
+                    <Input
+                      value={newCustomName}
+                      onChange={e => setNewCustomName(e.target.value)}
+                      onKeyDown={e => { if (e.key === "Enter") createCustomSection(); }}
+                      placeholder="Nouvelle section…"
+                      className="h-6 text-xs bg-white/5 border-white/10 flex-1 px-2 py-0"
+                      autoFocus
+                    />
+                    <button type="button" onClick={createCustomSection}
+                      className="h-6 w-6 rounded-md bg-amber-500/20 border border-amber-500/30 text-amber-300 hover:bg-amber-500/30 flex items-center justify-center shrink-0">
+                      <Plus className="h-3 w-3" />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Textarea section active */}
+        <div className="flex flex-col flex-1 min-h-0">
           <Textarea
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
-            placeholder="Magie, règles du monde, sociétés, géographie globale…"
-            className="min-h-[160px] resize-none text-sm bg-white/5 border-white/10"
-            maxLength={2000}
+            key={activeSection}
+            autoFocus
+            value={activeValue}
+            onChange={e => handleChange(activeSection, e.target.value)}
+            placeholder={activeCfg?.placeholder ?? "Décris cette section…"}
+            className="flex-1 min-h-[280px] border-0 rounded-none bg-transparent text-sm resize-none focus-visible:ring-0 focus-visible:ring-offset-0 px-5 py-4 placeholder:text-muted-foreground/30"
+            maxLength={1000}
           />
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground">{value.length}/2000</span>
-            <Button
-              size="sm"
-              onClick={handleSave}
-              disabled={!isDirty || saving}
-              className="gradient-primary text-primary-foreground gap-1.5"
-            >
-              {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-              Sauvegarder
-            </Button>
+          <div className="flex items-center justify-between px-5 py-2.5 border-t border-border/40 shrink-0">
+            <span className="text-[11px] text-muted-foreground/40 tabular-nums">{activeValue.length} / 1000</span>
           </div>
         </div>
       </DialogContent>
@@ -1934,8 +2155,8 @@ export function LoreGraphView({ project, assets }: Props) {
         assets={assets}
       />
 
-      {/* Bouton Monde — au-dessus du FAB Ariane */}
-      <div className="absolute bottom-24 right-6 z-10">
+      {/* Bouton Monde — fixed, remonte au-dessus du FAB Ariane si actif */}
+      <div className={`fixed right-6 z-40 transition-all duration-300 ${proposals.length > 0 ? "bottom-28" : "bottom-6"}`}>
         <button
           type="button"
           onClick={() => setWorldRulesOpen(true)}

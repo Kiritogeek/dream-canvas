@@ -131,10 +131,16 @@ function ProjectStepsSection({ projectId, onLinkClick }: { projectId: string; on
             const to = "path" in step
               ? `/dashboard/projects/${projectId}/${step.path}`
               : `/dashboard/projects/${projectId}?tab=${step.key}`;
-            const className = `flex items-center gap-3 pl-4 pr-3 py-2.5 text-sm font-medium transition-colors duration-150 border-l-2 -ml-px ${
+            const showArianeNotif = !isActive && (
+              (step.key === "universe" && hasUniverseNotif) ||
+              (step.key === "scenario" && hasScenarioNotif)
+            );
+            const className = `flex items-center gap-3 pl-4 pr-3 py-2.5 text-sm font-medium transition-all duration-200 border-l-2 -ml-px ${
               isActive
                 ? "border-primary text-foreground bg-primary/8"
-                : "border-transparent text-muted-foreground hover:text-foreground hover:border-border hover:bg-muted/50"
+                : showArianeNotif
+                  ? "border-amber-500/40 text-muted-foreground hover:text-foreground hover:border-amber-500/60 hover:bg-muted/50"
+                  : "border-transparent text-muted-foreground hover:text-foreground hover:border-border hover:bg-muted/50"
             }`;
             const newBadge =
               showNew[step.key as keyof typeof showNew] &&
@@ -155,12 +161,11 @@ function ProjectStepsSection({ projectId, onLinkClick }: { projectId: string; on
                 </span>
               </span>
             ) : null;
-            const showArianeNotif = !isActive && (
-              (step.key === "universe" && hasUniverseNotif) ||
-              (step.key === "scenario" && hasScenarioNotif)
-            );
             const arianeNotifBadge = showArianeNotif ? (
-              <ArianeOrbitIcon size={16} className="shrink-0" />
+              <span className="relative shrink-0 inline-flex items-center justify-center">
+                <span className="absolute inset-0 rounded-full bg-amber-400/20 animate-ping" style={{ animationDuration: "2.5s" }} />
+                <ArianeOrbitIcon size={18} className="relative" />
+              </span>
             ) : null;
             return (
               <motion.div

@@ -187,14 +187,14 @@ export default function UserListTable({
                     >
                       <TableCell>
                         <div className="min-w-0">
-                          <p className="font-medium text-foreground truncate flex items-center gap-1">
+                          <div className="font-medium text-foreground truncate flex items-center gap-1">
                             {u.display_name || "—"}
                             {u.excluded_from_stats && (
                               <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 ml-1 text-muted-foreground">
                                 Test
                               </Badge>
                             )}
-                          </p>
+                          </div>
                           <p className="text-xs text-muted-foreground truncate max-w-[200px]">{u.email}</p>
                         </div>
                       </TableCell>

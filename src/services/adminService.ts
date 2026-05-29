@@ -78,9 +78,7 @@ export interface AdminUserDetail {
 }
 
 async function getAdminToken(): Promise<string> {
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+  const { data: { session } } = await supabase.auth.refreshSession();
   if (!session) throw new Error("Non connecté");
   return session.access_token;
 }

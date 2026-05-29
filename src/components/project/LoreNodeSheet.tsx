@@ -546,15 +546,15 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
               ))}
             </div>
 
-            {/* Contenu scrollable */}
-            <div className="flex-1 overflow-y-auto px-5 py-4">
+            {/* Contenu scrollable — min-h aligné sur la colonne image pour éviter le resize au switch d'onglet */}
+            <div className="flex-1 overflow-y-auto px-5 py-4 min-h-[360px]">
 
               {/* ── Onglet Lore ── */}
               {activeTab === "lore" && (
                 <div className="space-y-3">
 
-                  {/* Avertissement : pas d'asset lié */}
-                  {!node.asset_id && (
+                  {/* Avertissement : pas d'asset lié — masqué pour les événements */}
+                  {!node.asset_id && node.type !== "event" && (
                     <div className="flex items-start gap-2 px-3 py-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300">
                       <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-px" />
                       <span>
@@ -579,7 +579,7 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
                               type="button"
                               onClick={() => setActiveSection(sectionName)}
                               className={[
-                                "inline-flex items-center gap-1.5 pl-3 pr-5 py-1 rounded-full text-[11px] font-medium border transition-all duration-150",
+                                "inline-flex items-center gap-1.5 pl-3.5 pr-8 py-1.5 rounded-full text-xs font-medium border transition-all duration-150",
                                 active
                                   ? "bg-violet-500/20 border-violet-500/40 text-violet-200"
                                   : filled
@@ -594,10 +594,10 @@ export function LoreNodeSheet({ node, nodes, edges, assets, projectId, userId, o
                             <button
                               type="button"
                               onClick={(e) => { e.stopPropagation(); removePill(sectionName); }}
-                              className="absolute right-1.5 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 flex items-center justify-center w-3 h-3 rounded-full hover:bg-white/25 transition-all duration-100"
+                              className="absolute right-1.5 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 flex items-center justify-center w-5 h-5 rounded-full hover:bg-red-500/70 transition-all duration-150"
                               aria-label={`Supprimer la section ${sectionName}`}
                             >
-                              <X className="h-2 w-2 text-white/70" />
+                              <X className="h-3 w-3 text-white/70 hover:text-white" />
                             </button>
                           </div>
                         );

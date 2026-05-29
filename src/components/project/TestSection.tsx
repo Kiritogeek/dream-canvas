@@ -62,6 +62,8 @@ export function TestSection({ projectId }: { projectId: string }) {
   const { data: allAlerts = [] } = useNarraMindAlerts(projectId, { statuses: ["active"] });
   const [injecting, setInjecting] = useState<NarrativeAlertSeverity | null>(null);
   const [cleaning, setCleaning] = useState(false);
+  const [injectingMissing, setInjectingMissing] = useState(false);
+  const [cleaningMissing, setCleaningMissing] = useState(false);
 
   const { data: loreNodes = [] } = useLoreNodes(projectId);
   const { data: loreEdges = [] } = useLoreEdges(projectId);
@@ -103,6 +105,50 @@ export function TestSection({ projectId }: { projectId: string }) {
       toast({ title: "Erreur", description: "Impossible d'injecter l'alerte.", variant: "destructive" });
     } finally {
       setInjecting(null);
+    }
+  };
+
+  const injectMissingAsset = async () => {
+    if (!user || !firstChapter) return;
+    setInjectingMissing(true);
+    try {
+      const dedupeKey = `test-missing-${Date.now()}`;
+      const { error } = await supabase.from("narramind_missing_assets").insert({
+        user_id: user.id,
+        project_id: projectId,
+        chapter_id: firstChapter.id,
+        chapter_number: firstChapter.chapter_number,
+        name: "Kaine",
+        suggested_type: "character",
+        mention_count: 4,
+        status: "pending",
+        dedupe_key: dedupeKey,
+      });
+      if (error) throw error;
+      await qc.invalidateQueries({ queryKey: ["narramind-missing-assets"] });
+      toast({ title: "Asset manquant injecté", description: "Visible dans Fil d'Ariane → Assets manquants" });
+    } catch {
+      toast({ title: "Erreur", description: "Impossible d'injecter.", variant: "destructive" });
+    } finally {
+      setInjectingMissing(false);
+    }
+  };
+
+  const cleanTestMissingAssets = async () => {
+    setCleaningMissing(true);
+    try {
+      const { error } = await supabase
+        .from("narramind_missing_assets")
+        .delete()
+        .eq("project_id", projectId)
+        .like("dedupe_key", "test-missing-%");
+      if (error) throw error;
+      await qc.invalidateQueries({ queryKey: ["narramind-missing-assets"] });
+      toast({ title: "Assets manquants de test supprimés" });
+    } catch {
+      toast({ title: "Erreur", description: "Impossible de nettoyer.", variant: "destructive" });
+    } finally {
+      setCleaningMissing(false);
     }
   };
 
@@ -320,6 +366,32 @@ export function TestSection({ projectId }: { projectId: string }) {
         )}
 
         <div className="grid gap-3">
+          <div className="flex items-start gap-4 rounded-xl border border-border/60 bg-background/40 p-4">
+            <span className="mt-0.5 shrink-0 text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-md border bg-violet-500/15 text-violet-700 dark:text-violet-300 border-violet-500/30">
+              Asset
+            </span>
+            <div className="flex-1 min-w-0 space-y-0.5">
+              <p className="text-sm font-medium leading-snug">Kaine — personnage non créé</p>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Mentionné 4 fois dans le chapitre 1 — visible dans Assets manquants.
+              </p>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              className="shrink-0 gap-1.5 h-8 text-xs"
+              disabled={!firstChapter || injectingMissing}
+              onClick={injectMissingAsset}
+            >
+              {injectingMissing ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <FlaskConical className="h-3 w-3" />
+              )}
+              Injecter
+            </Button>
+          </div>
+
           {TEST_ALERTS.map((alert) => (
             <div
               key={alert.severity}
@@ -564,6 +636,20 @@ export function TestSection({ projectId }: { projectId: string }) {
         <p className="text-xs text-muted-foreground">
           Supprime définitivement toutes les alertes injectées via ce panneau ({testAlerts.length} active{testAlerts.length > 1 ? "s" : ""}).
         </p>
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-1.5 border-destructive/40 text-destructive hover:bg-destructive/10"
+          disabled={cleaningMissing}
+          onClick={cleanTestMissingAssets}
+        >
+          {cleaningMissing ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Trash2 className="h-3.5 w-3.5" />
+          )}
+          Supprimer les assets manquants de test
+        </Button>
         <Button
           variant="outline"
           size="sm"

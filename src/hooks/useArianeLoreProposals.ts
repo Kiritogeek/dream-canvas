@@ -374,7 +374,9 @@ export function useArianeLoreProposals(projectId: string, { enableAutoScan = tru
     },
     enabled: !!projectId && !!user && enableAutoScan,
     refetchInterval: 30_000,
-    staleTime: 0,
+    staleTime: 25_000,
+    retry: false,
+    refetchOnWindowFocus: false,
   });
 
   useEffect(() => {

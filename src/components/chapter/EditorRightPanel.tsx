@@ -322,7 +322,7 @@ export function EditorRightPanel({
             )}
 
             {/* Bouton Générer toutes les cases */}
-            {blocksToGenerateCount > 0 && onGenerateAll && (
+            {blocksToGenerateCount > 0 && onGenerateAll && !hasExistingComposition && (
               <div className="flex flex-col gap-1.5">
                 <Button
                   size="sm"

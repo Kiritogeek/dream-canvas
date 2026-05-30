@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>DreamWeave — Bulles webtoon (corrigé d'après les références)</title>
+<link href="https://fonts.googleapis.com/css2?family=Bangers&family=Nunito:wght@700;800&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background:#0d0d14; color:#e0e0f0; font-family:'Nunito',system-ui,sans-serif; padding:28px 24px 60px; }
+h1 { font-size:20px; font-weight:800; margin-bottom:4px; }
+.sub { font-size:13px; color:#6a6a90; margin-bottom:6px; max-width:760px; }
+.note { font-size:12px; color:#8878cc; margin-bottom:22px; }
+.note b { color:#c0b0ff; }
+.controls { display:flex; gap:18px; align-items:center; margin-bottom:22px; flex-wrap:wrap; }
+.controls label { font-size:12px; color:#7070a0; display:flex; align-items:center; gap:7px; }
+.controls input[type=range] { accent-color:#7c6ff7; width:120px; }
+.seg { display:flex; gap:2px; background:#13131e; border-radius:8px; padding:3px; }
+.seg button { border:none; background:none; color:#6a6a90; font-size:12px; font-weight:700; padding:5px 12px; border-radius:6px; cursor:pointer; }
+.seg button.active { background:#2a2350; color:#c0b0ff; }
+.grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:20px; }
+.card { background:var(--card-bg,#efe9e0); border-radius:14px; padding:16px 14px 12px; display:flex; flex-direction:column; align-items:center; gap:8px; border:1px solid #1e1e2e; }
+.card svg { display:block; overflow:visible; }
+.card .label { font-size:13px; font-weight:800; color:#2a2a3a; }
+.card .desc { font-size:11px; color:#6a6a80; text-align:center; line-height:1.4; }
+.card .freq { font-size:10px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; }
+.freq.core { color:#16a34a; } .freq.occ { color:#d97706; }
+</style>
+</head>
+<body>
+<h1>Bulles webtoon — corrigé d'après Solo Leveling + YTIM</h1>
+<div class="sub">Constat de la comparaison : le dialogue webtoon est un <b>ovale lisse</b> (pas un rectangle), et la narration est souvent un <b>bandeau sombre</b> (pas une boîte blanche). Set réduit à ce qu'on voit réellement.</div>
+<div class="note">Validation visuelle — <b>aucun impact app</b>. Pour chaque carte : OK / à retoucher / à jeter.</div>
+
+<div class="controls">
+  <label>Épaisseur contour <input id="sw" type="range" min="1" max="4" step="0.5" value="2"></label>
+  <label>Longueur queue <input id="tl" type="range" min="0" max="34" step="2" value="20"></label>
+  <div class="seg" id="bg">
+    <button data-bg="#efe9e0" class="active">Clair</button>
+    <button data-bg="#cdd3da">Gris</button>
+    <button data-bg="#15151f">Sombre</button>
+  </div>
+</div>
+<div class="grid" id="grid"></div>
+
+<script>
+// Queue intégrée au contour de l'ovale (un seul path lisse) — repris du moteur validé
+function ovalTail(cx, cy, rx, ry, tx, ty, hw) {
+  const angle = Math.atan2(ty-cy, tx-cx);
+  const r = (rx*ry)/Math.sqrt(Math.pow(ry*Math.cos(angle),2)+Math.pow(rx*Math.sin(angle),2));
+  const px = cx+r*Math.cos(angle), py = cy+r*Math.sin(angle);
+  if (Math.hypot(tx-px, ty-py) < hw*1.5)
+    return `M ${cx-rx} ${cy} A ${rx} ${ry} 0 1 0 ${cx+rx} ${cy} A ${rx} ${ry} 0 1 0 ${cx-rx} ${cy} Z`;
+  const perp = angle+Math.PI/2;
+  const a1 = Math.atan2((py+hw*Math.sin(perp)-cy)/ry,(px+hw*Math.cos(perp)-cx)/rx);
+  const a2 = Math.atan2((py-hw*Math.sin(perp)-cy)/ry,(px-hw*Math.cos(perp)-cx)/rx);
+  const e1x=cx+rx*Math.cos(a1), e1y=cy+ry*Math.sin(a1);
+  const e2x=cx+rx*Math.cos(a2), e2y=cy+ry*Math.sin(a2);
+  const t=0.5, f=n=>n.toFixed(1);
+  return `M ${f(e1x)} ${f(e1y)} Q ${f(e1x+(tx-e1x)*t)} ${f(e1y+(ty-e1y)*t)} ${f(tx)} ${f(ty)} `
+    + `Q ${f(e2x+(tx-e2x)*t)} ${f(e2y+(ty-e2y)*t)} ${f(e2x)} ${f(e2y)} `
+    + `A ${rx} ${ry} 0 1 0 ${f(e1x)} ${f(e1y)} Z`;
+}
+function concaveSpikePath(cx, cy, rInner, outer, noises, conc) {
+  const n=outer.length, pts=[];
+  for (let i=0;i<n;i++){ const b=(i/n)*2*Math.PI-Math.PI/2; const oa=b+noises[i]*Math.PI/180; const ia=b+Math.PI/n;
+    pts.push({x:cx+outer[i]*Math.cos(oa),y:cy+outer[i]*Math.sin(oa)}); pts.push({x:cx+rInner*Math.cos(ia),y:cy+rInner*Math.sin(ia)}); }
+  let d=`M ${pts[0].x.toFixed(1)} ${pts[0].y.toFixed(1)} `;
+  for (let i=0;i<pts.length;i++){ const a=pts[i], z=pts[(i+1)%pts.length];
+    const mx=(a.x+z.x)/2, my=(a.y+z.y)/2, cx2=mx+(cx-mx)*conc, cy2=my+(cy-my)*conc;
+    d+=`Q ${cx2.toFixed(1)} ${cy2.toFixed(1)} ${z.x.toFixed(1)} ${z.y.toFixed(1)} `; }
+  return d+'Z';
+}
+const SHOUT_OUTER=[54,46,57,45,55,48,58,47,54,44,56,46], SHOUT_NOISE=[0,2,-1.5,2.5,-2,1.5,-2.5,2,-1.5,2,-2,1.5];
+
+const VB_H = 124, CY = 48;
+const BUBBLES = [
+  { id:'speech', label:'Dialogue (ovale)', sample:'Tu es venu.', font:"'Nunito'", freq:'core', fc:'Forme de base',
+    desc:"LA bulle webtoon : ovale lisse, contour fin, petite queue douce intégrée.",
+    body:(s)=>{ const ty=CY+36+s.tl; return `<path d="${ovalTail(50,CY,44,36,20,ty,5)}" fill="#fff" stroke="#1a1a1a" stroke-width="${s.sw}" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>`; } },
+
+  { id:'shout', label:'Cri / emphase', sample:'AAAH !', font:"'Bangers'", freq:'occ', fc:'Occasionnel',
+    desc:"Éclat irrégulier pour cri ou choc. Texte gras.",
+    body:(s)=>{ const ty=CY+38+s.tl; const tail=ovalTail(50,CY,24,24,20,ty,5);
+      return `<path d="${tail}" fill="#fff" stroke="#1a1a1a" stroke-width="${s.sw}" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>`
+        + `<path d="${concaveSpikePath(50,CY,38,SHOUT_OUTER,SHOUT_NOISE,0.38)}" fill="#fff" stroke="#1a1a1a" stroke-width="${s.sw}" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>`; } },
+
+  { id:'whisper', label:'Aparté (ovale pointillé)', sample:'…psst', font:"'Nunito'", freq:'occ', fc:'Occasionnel',
+    desc:"Ovale à contour pointillé. Voix basse, aparté, pensée murmurée.",
+    body:(s)=>{ const ty=CY+36+s.tl;
+      return `<path d="${ovalTail(50,CY,44,35,20,ty,5)}" fill="#fff" stroke="#1a1a1a" stroke-width="${s.sw}" stroke-dasharray="5 4" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>`; } },
+
+  { id:'thought', label:'Pensée (nuage + ronds)', sample:'Hmm…', font:"'Nunito'", freq:'occ', fc:'Occasionnel',
+    desc:"Nuage à bosses + traînée de ronds. Plus fréquent en slice-of-life qu'en action.",
+    body:(s)=>{ const cx=50,cy=42,rx=27,ry=18,N=8; let b=`<g filter="url(#tho)">`;
+      for(let k=0;k<N;k++){const a=(k/N)*2*Math.PI; b+=`<circle cx="${(cx+rx*Math.cos(a)).toFixed(1)}" cy="${(cy+ry*Math.sin(a)).toFixed(1)}" r="9.5" fill="#fff"/>`;}
+      b+=`<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="#fff"/></g>`;
+      let dots=''; if(s.tl>2){const rad=[5,3.4,2.2]; let py=68; for(const r of rad){ if(py>VB_H-6)break; dots+=`<circle cx="${(24-(py-68)*0.12).toFixed(1)}" cy="${py}" r="${r}" fill="#fff" stroke="#1a1a1a" stroke-width="${s.sw}" vector-effect="non-scaling-stroke"/>`; py+=r+6; }}
+      return dots+b; } },
+
+  { id:'narration_band', label:'Narration (bandeau sombre)', sample:'Plus tard…', font:"'Nunito'", freq:'core', fc:'Forme de base', dark:true,
+    desc:"Bandeau noir pleine largeur, texte blanc. La narration webtoon (vu YTIM).",
+    body:(s)=> `<rect x="0" y="${CY-20}" width="100" height="40" fill="#141414"/>` },
+
+  { id:'text', label:'Texte nu (sans forme)', sample:'BOOM', font:"'Bangers'", freq:'core', fc:'Forme de base',
+    desc:"Texte posé directement sur l'image (SFX léger, narration sobre).",
+    body:()=> '' },
+];
+
+const grid=document.getElementById('grid');
+let state={sw:2,tl:20};
+function draw(){
+  grid.innerHTML='';
+  BUBBLES.forEach(b=>{
+    const big = b.id==='shout'||b.id==='text';
+    const fs = big?18:12;
+    const tcolor = (b.dark||b.id==='text') ? '#fff' : '#1a1a1a';
+    const tstroke = b.id==='text' ? ' stroke="#1a1a1a" stroke-width="3" paint-order="stroke"' : '';
+    const ty = b.id==='thought'?42 : CY;
+    const card=document.createElement('div');
+    card.className='card';
+    card.innerHTML=`
+      <svg viewBox="0 0 100 ${VB_H}" width="230" height="${Math.round(230*VB_H/100)}">
+        <defs><filter id="tho" x="-30%" y="-30%" width="160%" height="160%">
+          <feMorphology in="SourceAlpha" operator="dilate" radius="${state.sw}" result="e"/>
+          <feFlood flood-color="#1a1a1a" result="f"/><feComposite in="f" in2="e" operator="in" result="o"/>
+          <feComposite in="SourceGraphic" in2="o" operator="over"/></filter></defs>
+        ${b.body(state)}
+        <text x="50" y="${ty}" text-anchor="middle" dominant-baseline="middle" font-family="${b.font}" font-size="${fs}" fill="${tcolor}"${tstroke} letter-spacing="${big?1:0.3}">${b.sample}</text>
+      </svg>
+      <div class="freq ${b.freq}">${b.fc}</div>
+      <div class="label">${b.label}</div>
+      <div class="desc">${b.desc}</div>`;
+    grid.appendChild(card);
+  });
+}
+document.getElementById('sw').oninput=e=>{state.sw=parseFloat(e.target.value);draw();};
+document.getElementById('tl').oninput=e=>{state.tl=parseFloat(e.target.value);draw();};
+document.querySelectorAll('#bg button').forEach(btn=>btn.onclick=()=>{
+  document.querySelectorAll('#bg button').forEach(x=>x.classList.remove('active')); btn.classList.add('active');
+  document.querySelectorAll('.card').forEach(c=>c.style.setProperty('--card-bg',btn.dataset.bg));
+  const dark = btn.dataset.bg==='#15151f';
+  document.querySelectorAll('.card .label').forEach(l=>l.style.color=dark?'#e8e8f4':'#2a2a3a');
+});
+draw();
+</script>
+</body>
+</html>

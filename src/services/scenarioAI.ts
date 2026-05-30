@@ -23,14 +23,6 @@ export interface ChapterAIRequest {
   project_id?: string;
 }
 
-export interface PanelsAIRequest {
-  mode: "panels";
-  chapter_title: string;
-  chapter_content: string;
-  chapter_number?: number;
-  target_panel_count?: number;
-}
-
 export interface DetectBlocksRequest {
   mode: "detect_blocks";
   chapter_content: string;
@@ -77,7 +69,6 @@ export interface NarrativeDirectionsResponse {
 export type AIRequest =
   | ScenarioAIRequest
   | ChapterAIRequest
-  | PanelsAIRequest
   | DetectBlocksRequest
   | AiSummaryRequest
   | SuggestBlockPromptRequest
@@ -86,12 +77,6 @@ export type AIRequest =
 export interface AIResponse {
   text: string;
   mode: "scenario" | "chapter";
-  model: string;
-}
-
-export interface PanelsAIResponse {
-  panels: Array<{ description: string; context?: { lieu?: string; scene?: string; personnages?: string } }>;
-  mode: "panels";
   model: string;
 }
 
@@ -195,13 +180,6 @@ export async function callScenarioAI(
   return callEdgeFunction<AIResponse>(payload);
 }
 
-
-/** Découpage chapitre textuel en panels (IA). Retourne la liste des panels avec description et contexte. */
-export async function callSplitChapterIntoPanels(
-  payload: PanelsAIRequest
-): Promise<PanelsAIResponse> {
-  return callEdgeFunction<PanelsAIResponse>(payload);
-}
 
 /** Détecte les blocs (panels suggérés) dans un chapitre en prose. */
 export async function callDetectBlocks(

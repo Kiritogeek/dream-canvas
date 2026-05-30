@@ -1909,6 +1909,9 @@ export default function ChapterDetail() {
               description: string;
               text_excerpt?: string;
               locked?: boolean;
+              scene_type?: string;
+              shot_type?: string;
+              effects?: string[];
             }>;
             // Blocs existants avec images — pour les préserver lors d'une recomposition
             const existingBlocksForRecompose = isRecompose

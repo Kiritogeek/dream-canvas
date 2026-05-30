@@ -7,13 +7,20 @@ export const COMPOSE_LAYOUT_SYSTEM_PROMPT =
   "Ta mission : grouper ces blocs en scènes et choisir la composition la plus adaptée AU RÉCIT.\n\n" +
 
   "PRINCIPE FONDAMENTAL : chaque choix de composition doit être justifiable par le contenu du bloc.\n" +
-  "  ⚡ ACTION   → N (attaque verticale) ou I (collision latérale)\n" +
-  "  💬 DIALOGUE → E (blocs empilés) ou D (face-à-face)\n" +
-  "  🔮 RÉVÉLATION → A (splash) ou L (strip→grand)\n" +
-  "  🔍 DÉTAIL   → L (gros plan→scène) ou B (isolement)\n" +
-  "  🏛️ LIEU     → F (décor→réaction) ou A (splash)\n" +
-  "  ⏳ TRANSITION → H (ellipse) ou G (réplique)\n" +
-  "  📖 NARRATION → E ou L\n\n" +
+  "La catégorie de chaque bloc est dérivée de son type de scène (découpage) — respecte la compo suggérée :\n" +
+  "  🏛️ LIEU (establishing)            → F (décor→réaction) ou A (splash)\n" +
+  "  💬 DIALOGUE (dialogue)            → E (blocs empilés) ou D (face-à-face)\n" +
+  "  🧠 INTROSPECTION (monologue)      → O / P (blanc latéral) ou B (isolement)\n" +
+  "  😲 RÉACTION (reaction_revelation) → B (isolement) ou L (strip→grand)\n" +
+  "  🖥️ SYSTÈME (revelation_system)    → A (splash) ou G (panneau réduit)\n" +
+  "  💨 MOUVEMENT (action_movement)    → I (collision latérale) ou C (séquence)\n" +
+  "  ⚡ IMPACT (action_impact)         → N (attaque verticale) ou I (jamais K)\n" +
+  "  🔥 CONFRONTATION (tension)        → D (face-à-face) ou L\n" +
+  "  ⚔️ MÊLÉE (action_melee)           → A (splash) ou M (triptyque)\n" +
+  "  🌟 POUVOIR (power_display)        → A (splash) ou B\n" +
+  "  🕳️ ISOLEMENT (isolation)          → B ou O (grand vide)\n" +
+  "  🌀 ÉCHO (text_echo_psychological) → A (splash pleine largeur, fond noir)\n" +
+  "  🕯️ SOUVENIR (memory_flashback)    → F ou O\n\n" +
 
   "FORMAT DE SORTIE (JSON brut uniquement) :\n" +
   '{\n' +
@@ -76,10 +83,36 @@ export interface PanelOutlineBlock {
   description: string;
   text_excerpt?: string;
   locked?: boolean;
+  /** Type de scène issu du découpage IA (detect_blocks). Source prioritaire pour le choix de composition. */
+  scene_type?: string;
+  shot_type?: string;
+  effects?: string[];
 }
 
-// Analyse narrative d'un bloc pour guider l'IA
+// Mapping direct scene_type (13 types du découpage) → catégorie + compositions suggérées.
+// Évite de re-deviner par regex : on réutilise la classification déjà faite par detect_blocks.
+const SCENE_TYPE_TAG: Record<string, { emoji: string; tag: string; suggestions: string }> = {
+  establishing:            { emoji: "🏛️", tag: "LIEU",          suggestions: "F ou A" },
+  dialogue:                { emoji: "💬", tag: "DIALOGUE",      suggestions: "E ou D" },
+  internal_monologue:      { emoji: "🧠", tag: "INTROSPECTION", suggestions: "O, P ou B" },
+  reaction_revelation:     { emoji: "😲", tag: "RÉACTION",      suggestions: "B ou L" },
+  revelation_system:       { emoji: "🖥️", tag: "SYSTÈME",       suggestions: "A ou G" },
+  action_movement:         { emoji: "💨", tag: "MOUVEMENT",     suggestions: "I ou C" },
+  action_impact:           { emoji: "⚡", tag: "IMPACT",        suggestions: "N ou I (jamais K)" },
+  tension_confrontation:   { emoji: "🔥", tag: "CONFRONTATION", suggestions: "D ou L" },
+  action_melee:            { emoji: "⚔️", tag: "MÊLÉE",         suggestions: "A ou M" },
+  power_display:           { emoji: "🌟", tag: "POUVOIR",       suggestions: "A ou B" },
+  isolation_vulnerability: { emoji: "🕳️", tag: "ISOLEMENT",     suggestions: "B ou O" },
+  text_echo_psychological: { emoji: "🌀", tag: "ÉCHO",          suggestions: "A (splash pleine largeur)" },
+  memory_flashback:        { emoji: "🕯️", tag: "SOUVENIR",      suggestions: "F ou O" },
+};
+
+// Analyse narrative d'un bloc pour guider l'IA.
+// Priorité au scene_type du découpage ; regex en fallback pour les blocs sans scene_type (créés à la main).
 function tagBlock(block: PanelOutlineBlock): { emoji: string; tag: string; suggestions: string } {
+  const st = block.scene_type?.trim();
+  if (st && SCENE_TYPE_TAG[st]) return SCENE_TYPE_TAG[st];
+
   const d = (block.description ?? "").toLowerCase();
   const t = (block.text_excerpt ?? "").trim();
 

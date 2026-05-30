@@ -8,7 +8,6 @@
 // Modes supportés :
 //   "scenario"                  → IA Scénario (scénariste, au service de l'UTILISATEUR)
 //   "chapter"                   → IA Chapitre (éditeur, au service du LECTEUR)
-//   "panels"                    → Découpage panels (JSON)
 //   "detect_blocks"             → Détection de blocs visuels (JSON)
 //   "ai_summary"                → Résumé de chapitre
 //   "suggest_block_prompt"      → Suggestion de prompt pour un bloc
@@ -32,10 +31,6 @@ import {
   CHAPTER_SYSTEM_PROMPT,
   buildChapterPrompt,
 } from "./system-prompts/chapter.ts";
-import {
-  PANELS_SYSTEM_PROMPT,
-  buildPanelsPrompt,
-} from "./system-prompts/panels.ts";
 import {
   DETECT_BLOCKS_SYSTEM_PROMPT,
   buildDetectBlocksPrompt,
@@ -224,7 +219,7 @@ async function callAIOnce(
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
       ],
-      // WHY : pour les modes structurés (detect_blocks, panels), une
+      // WHY : pour les modes structurés (detect_blocks), une
       // température basse + top_p resserré réduit drastiquement le risque
       // de réponse hors-format. Pour les modes créatifs on garde 0.8.
       temperature: jsonMode ? 0.2 : 0.8,
@@ -462,7 +457,7 @@ Deno.serve(async (req) => {
 
     // 4. Parse body
     let body: {
-      mode?: "scenario" | "chapter" | "panels" | "detect_blocks" | "ai_summary" | "suggest_block_prompt" | "baseline" | "narramind" | "narrative_directions" | "suggest_connection_label" | "extract_events";
+      mode?: "scenario" | "chapter" | "detect_blocks" | "ai_summary" | "suggest_block_prompt" | "baseline" | "narramind" | "narrative_directions" | "suggest_connection_label" | "extract_events";
       prompt?: string;
       num_chapters?: number;
       existing_content?: string;
@@ -492,12 +487,12 @@ Deno.serve(async (req) => {
     const { mode, prompt } = body;
     if (
       !mode ||
-      !["scenario", "chapter", "panels", "detect_blocks", "ai_summary", "suggest_block_prompt", "baseline", "narramind", "narrative_directions", "suggest_connection_label", "extract_events"].includes(mode)
+      !["scenario", "chapter", "detect_blocks", "ai_summary", "suggest_block_prompt", "baseline", "narramind", "narrative_directions", "suggest_connection_label", "extract_events"].includes(mode)
     ) {
       return jsonResponse({ error: 'Le champ "mode" est requis.' }, 400);
     }
     if (
-      !["panels", "detect_blocks", "ai_summary", "suggest_block_prompt", "baseline", "narramind", "narrative_directions", "suggest_connection_label", "extract_events"].includes(mode) &&
+      !["detect_blocks", "ai_summary", "suggest_block_prompt", "baseline", "narramind", "narrative_directions", "suggest_connection_label", "extract_events"].includes(mode) &&
       !prompt?.trim()
     ) {
       return jsonResponse(
@@ -550,26 +545,6 @@ Deno.serve(async (req) => {
         const loreCtx = await fetchLoreContext(supabaseUrl!, serviceKey!, body.project_id);
         if (loreCtx) userPrompt = `UNIVERS (éléments établis à respecter) :\n${loreCtx}\n\n${userPrompt}`;
       }
-    } else if (mode === "panels") {
-      if (!body.chapter_content?.trim()) {
-        return jsonResponse(
-          {
-            error:
-              "Le champ \"chapter_content\" est requis pour le mode panels (contenu du chapitre à découper).",
-          },
-          400
-        );
-      }
-      systemPrompt = PANELS_SYSTEM_PROMPT;
-      const chapterContent = body.chapter_content.trim();
-      const safeChapterContent = shrinkTextByTokens(chapterContent, 6_000);
-      inputWasTrimmed = safeChapterContent !== chapterContent;
-      userPrompt = buildPanelsPrompt({
-        chapterTitle: body.chapter_title ?? "Sans titre",
-        chapterContent: safeChapterContent,
-        chapterNumber: body.chapter_number,
-        targetPanelCount: body.target_panel_count,
-      });
     } else if (mode === "detect_blocks") {
       if (!body.chapter_content?.trim()) {
         return jsonResponse({ error: '"chapter_content" requis pour detect_blocks.' }, 400);
@@ -810,7 +785,7 @@ Maintenant, écris le chapitre suivant en respectant les personnages, décors et
     });
 
     // Activer le mode JSON strict pour les modes structurés
-    const jsonMode = mode === "panels" || mode === "detect_blocks" || mode === "narrative_directions";
+    const jsonMode = mode === "detect_blocks" || mode === "narrative_directions";
     const result = await callAI(systemPrompt, userPrompt, geminiKey, jsonMode, requestId);
 
     if ("error" in result) {
@@ -886,36 +861,6 @@ Maintenant, écris le chapitre suivant en respectant les personnages, décors et
           duration_ms: durationMs,
         }),
       }).catch(() => {}); // fire-and-forget — ne doit pas bloquer la réponse
-    }
-
-    // Mode panels : parser le JSON et retourner { panels }
-    if (mode === "panels") {
-      const cleaned = extractJsonObject(result.text);
-      let parsed: { panels?: Array<{ description: string; context?: { lieu?: string; scene?: string; personnages?: string } }> };
-
-      try {
-        const closed = tryClosePanelsJson(cleaned);
-        parsed = JSON.parse(closed) as typeof parsed;
-      } catch (parseErr) {
-        console.error(
-          "[generate-scenario-ai] panels parse failed:",
-          (parseErr as Error).message,
-          "raw:",
-          result.text.slice(0, 500)
-        );
-        return jsonResponse(
-          {
-            error:
-              "La réponse de l'IA est tronquée ou invalide. Réessayez avec un chapitre plus court ou une cible de panels plus faible.",
-          },
-          502
-        );
-      }
-      const panels = Array.isArray(parsed.panels) ? parsed.panels : [];
-      return jsonResponse(
-        { panels, mode, model: result.modelUsed, request_id: requestId },
-        200
-      );
     }
 
     // Mode detect_blocks : parser le JSON et retourner { blocks }

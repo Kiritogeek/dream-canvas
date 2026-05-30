@@ -2,10 +2,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import * as panelsService from "@/services/panels";
-import { callSplitChapterIntoPanels } from "@/services/scenarioAI";
 import { startBlockGeneration, endBlockGeneration, notifyBlockDone } from "@/lib/generationPending";
 import type { PanelOutlineItem, Project, PanelLayout } from "@/types";
-import type { PanelsAIRequest } from "@/services/scenarioAI";
 import type { Json } from "@/integrations/supabase/types";
 
 const keys = {
@@ -34,13 +32,6 @@ export function useCreatePanel(chapterId: string) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: keys.list(chapterId) });
     },
-  });
-}
-
-/** Suggestion IA : liste de panels à partir du chapitre textuel (optionnel). */
-export function useSplitChapterIntoPanels() {
-  return useMutation({
-    mutationFn: (payload: PanelsAIRequest) => callSplitChapterIntoPanels(payload),
   });
 }
 

@@ -6,10 +6,12 @@
 
 **Valeur principale** : générer des visuels cohérents en secondes, sans compétences en illustration.
 
-**Tiers** :
-- **Libre** (`plan` BDD : `libre`) : 0 €/mois — 20 crédits, 1 projet, FLUX.2 Pro pour tous, fil d’Ariane 3 alertes max
-- **Créateur** (`plan` BDD : `createur`) : 7,99 €/mois — 150 crédits, projets illimités, Découpage → Cases, export chapitre complet, fil d’Ariane complet
-- **Studio** (`plan` BDD : `studio`) : 19,99 €/mois — 500 crédits, mémoire narrative longue, priorité traitement FAL.ai
+**Tiers** (stratégie « tout gratuit » actée le 2026-05-30 — la différenciation se fait sur le **volume de crédits**, pas sur les features) :
+- **Libre** (`plan` BDD : `libre`) : 0 €/mois — 20 crédits
+- **Créateur** (`plan` BDD : `createur`) : 12,99 €/mois — 100 crédits
+- **Studio** (`plan` BDD : `studio`) : 29,99 €/mois — 250 crédits + mémoire narrative longue + priorité traitement FAL.ai
+- **Toutes les features sont disponibles sur tous les plans, y compris Libre** : Scénario IA, découpage → cases, composition, export chapitre complet, fil d'Ariane complet, projets illimités, Sheet System. Source de vérité : `TIER_CONFIG` dans `src/types/index.ts`.
+- Seules exceptions Studio : `allowLongMemory` (mémoire narrative longue) + priorité FAL.ai.
 - 1 crédit = 1 génération (asset, sheet, bloc case — unifié). **FLUX.2 Pro pour tous les tiers** (logique Spotify)
 - Multi-vues remplacés par **Sheet System** : fiche composite 4 angles, disponible sur tous les plans
 
@@ -67,7 +69,7 @@ Règle : ne jamais hardcoder des couleurs — utiliser les tokens HSL ou les cla
 
 | Table | Colonnes clés |
 |-------|--------------|
-| `profiles` | user_id, display_name, plan ('free'/'pro'), email |
+| `profiles` | user_id, display_name, plan ('libre'/'createur'/'studio'), email, stripe_customer_id, billing_period_start, excluded_from_stats |
 | `projects` | user_id, title, description, style_template, style_image_urls (JSONB), cover_url, panels_target_per_chapter |
 | `assets` | project_id, name, asset_type, prompt, image_url, image_url_profile_left/right/back, image_url_sheet |
 | `chapters` | project_id, chapter_number, title, synopsis, linked_scenario_chapter_id |

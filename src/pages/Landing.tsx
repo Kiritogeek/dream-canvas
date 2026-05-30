@@ -86,12 +86,12 @@ const plans: Array<{ id: UserPlan; recommended: boolean; highlights: string[] }>
   {
     id: "libre",
     recommended: false,
-    highlights: ["20 crédits / mois", "1 projet actif", "FLUX.2 Pro inclus"],
+    highlights: ["20 crédits / mois", "Toutes les fonctionnalités incluses", "Sans carte bancaire"],
   },
   {
     id: "createur",
     recommended: true,
-    highlights: ["100 crédits / mois", "Projets illimités", "Découpage IA + Export PNG"],
+    highlights: ["100 crédits / mois", "5× plus de générations", "Toutes les fonctionnalités"],
   },
   {
     id: "studio",

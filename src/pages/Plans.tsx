@@ -51,7 +51,7 @@ const features: FeatureRow[] = [
   {
     label: "Projets actifs",
     icon: FolderOpen,
-    libre: "1 projet",
+    libre: "Illimités",
     createur: "Illimités",
     studio: "Illimités",
   },
@@ -86,21 +86,21 @@ const features: FeatureRow[] = [
   {
     label: "Découpage Chapitre → Cases",
     icon: Scissors,
-    libre: false,
+    libre: true,
     createur: true,
     studio: true,
   },
   {
     label: "Export chapitre complet PNG",
     icon: Download,
-    libre: false,
+    libre: true,
     createur: true,
     studio: true,
   },
   {
     label: "Fil d'Ariane",
     icon: Star,
-    libre: "3 alertes max",
+    libre: "Complet",
     createur: "Complet",
     studio: "Complet",
   },
@@ -263,8 +263,8 @@ export default function Plans() {
             Choisissez votre plan
           </h1>
           <p className="text-sm sm:text-base text-muted-foreground max-w-lg mx-auto px-2">
-            Même modèle FLUX.2 Pro pour tous, seule la quantité et les
-            fonctionnalités avancées changent.
+            Même modèle FLUX.2 Pro et toutes les fonctionnalités pour tous :
+            seule la quantité de générations mensuelles change.
           </p>
         </motion.div>
 
@@ -347,12 +347,12 @@ export default function Plans() {
             <ul className="space-y-2.5">
               {[
                 "20 crédits / mois",
-                "1 projet actif",
+                "Projets illimités",
                 "FLUX.2 Pro pour tous",
                 "Sheet System 4 angles",
                 "Éditeur de cases + export PNG",
                 "Scénario libre + résumés IA",
-                "Fil d'Ariane (3 alertes)",
+                "Fil d'Ariane complet",
               ].map((item) => (
                 <li key={item} className="flex items-center gap-2.5 text-sm">
                   <Check className="h-4 w-4 text-emerald-500 shrink-0" />
@@ -407,11 +407,9 @@ export default function Plans() {
             <ul className="space-y-2.5">
               {[
                 "100 crédits / mois",
+                "5× plus de générations qu'en Libre",
+                "Toutes les fonctionnalités incluses",
                 "Projets illimités",
-                "Tout le plan Libre",
-                "Découpage Chapitre → Cases (IA)",
-                "Export chapitre complet PNG",
-                "Fil d'Ariane complet",
               ].map((item) => (
                 <li key={item} className="flex items-center gap-2.5 text-sm">
                   <Check className="h-4 w-4 text-emerald-500 shrink-0" />

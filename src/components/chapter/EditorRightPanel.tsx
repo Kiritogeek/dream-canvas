@@ -70,7 +70,7 @@ interface EditorRightPanelProps {
   validatedCases: ValidatedCase[];
   existingBlockPrompts: string[];
   isUpdating: boolean;
-  isPro: boolean;
+  canUseCases: boolean;
   /** Ref partagée pour le ghost de drag (même que la sidebar gauche) */
   newBlockDragGhostRef?: React.RefObject<HTMLDivElement | null>;
   onNavigateToPlans: () => void;
@@ -104,7 +104,7 @@ export function EditorRightPanel({
   validatedCases,
   existingBlockPrompts,
   isUpdating: _isUpdating,
-  isPro,
+  canUseCases,
   newBlockDragGhostRef,
   onNavigateToPlans,
   onCompose,
@@ -507,18 +507,18 @@ export function EditorRightPanel({
 
         <button
           type="button"
-          onClick={isPro ? () => onToolChange(activeTool === "cases" ? null : "cases") : onNavigateToPlans}
+          onClick={canUseCases ? () => onToolChange(activeTool === "cases" ? null : "cases") : onNavigateToPlans}
           className={cn(
             "relative",
             CHAPTER_EDITOR_RAIL_BTN_BASE,
-            isPro
+            canUseCases
               ? activeTool === "cases"
                 ? CHAPTER_EDITOR_RAIL_BTN_ACTIVE
                 : CHAPTER_EDITOR_RAIL_BTN_IDLE
               : CHAPTER_EDITOR_RAIL_BTN_DISABLED,
           )}
           title={
-            isPro
+            canUseCases
               ? unaddedCount > 0
                 ? `${unaddedCount} case${unaddedCount > 1 ? "s" : ""} à ajouter au canvas · ${validatedCases.length} validée${validatedCases.length > 1 ? "s" : ""} au total`
                 : `Cases · ${validatedCases.length} validée${validatedCases.length > 1 ? "s" : ""}`
@@ -528,7 +528,7 @@ export function EditorRightPanel({
           <Layers className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" strokeWidth={1.75} />
 
           {/* Badge : nombre de cases pas encore sur le canvas */}
-          {isPro && unaddedCount > 0 && (
+          {canUseCases && unaddedCount > 0 && (
             <span
               className={cn(
                 CHAPTER_EDITOR_RAIL_COUNT_BADGE_CLASS,
@@ -539,8 +539,8 @@ export function EditorRightPanel({
             </span>
           )}
 
-          {/* Badge PRO pour les non-pro */}
-          {!isPro && (
+          {/* Badge PRO si la feature n'est pas accessible sur le plan courant */}
+          {!canUseCases && (
             <span className="absolute -top-0.5 -right-0.5 bg-amber-400/30 text-amber-600 dark:text-amber-400 border border-amber-400/40 text-[7px] font-bold rounded px-0.5 tracking-wide leading-tight">
               PRO
             </span>

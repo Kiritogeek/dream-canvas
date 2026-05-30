@@ -98,6 +98,7 @@ import {
   DEFAULT_SPEECH_BUBBLE_HEIGHT,
   SPEECH_BUBBLE_DEFAULT_STYLE,
   planDisplayName,
+  TIER_CONFIG,
 } from "@/types";
 import type { ChapterCanvasImageHistoryRow } from "@/services/chapterCanvasImageHistory";
 import {
@@ -236,6 +237,7 @@ export default function ChapterDetail() {
   const { settings, updateSettings } = useEditorSettings();
   const navigate = useNavigate();
   const isPro = plan === "createur" || plan === "studio";
+  const canUseCases = TIER_CONFIG[plan].allowScenarioAI;
   const { data: scenarioChapters = [] } = useScenarioChapters(projectId);
   const updateChapter = useUpdateChapter(projectId ?? "");
   const { data: assets = [] } = useAssets(projectId);
@@ -1878,7 +1880,7 @@ export default function ChapterDetail() {
           validatedCases={validatedCases}
           existingBlockPrompts={layout.blocks.map((b) => b.prompt ?? "")}
           isUpdating={updatePanelMutation.isPending}
-          isPro={isPro}
+          canUseCases={canUseCases}
           newBlockDragGhostRef={newBlockDragGhostRef}
           onNavigateToPlans={() => navigate("/dashboard/plans")}
           hasOutlineToCompose={

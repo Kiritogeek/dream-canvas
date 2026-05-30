@@ -39,7 +39,7 @@ import {
 } from "@/lib/styleTemplateMeta";
 import { getReferencePromptsForStyle } from "@fn-shared/style-template-image-prompts.ts";
 import { cn } from "@/lib/utils";
-import { type Project, type UserPlan, planDisplayName } from "@/types";
+import { type Project, type UserPlan, planDisplayName, TIER_CONFIG } from "@/types";
 
 interface StyleManagerProps {
   project: Project;
@@ -56,6 +56,7 @@ export function StyleManager({
   onStyleSaveSuccess,
   userPlan = "libre",
 }: StyleManagerProps) {
+  const canUseReferenceImages = TIER_CONFIG[userPlan].allowReferenceImages;
   const STYLE_OPTIONS = [
     {
       key: "manga",
@@ -475,26 +476,19 @@ export function StyleManager({
               <h2 className="text-base sm:text-lg font-display font-semibold">
                 Images de référence
               </h2>
-              {userPlan !== "libre" && (
+              {canUseReferenceImages && (
                 <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-medium">
                   {styleImageUrls.length}/{MAX_STYLE_IMAGES}
                 </span>
               )}
-              {userPlan === "libre" && (
-                <span className="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 text-xs font-medium">
-                  {planDisplayName("createur")}
-                </span>
-              )}
             </div>
             <p className="text-sm text-muted-foreground">
-              {userPlan !== "libre"
-                ? "2 images de référence pour renforcer la cohérence visuelle du style sélectionné"
-                : `Les images de référence sont disponibles dès le plan ${planDisplayName("createur")}. Le style texte sera utilisé pour vos générations.`}
+              2 images de référence pour renforcer la cohérence visuelle du style sélectionné
             </p>
           </div>
         </div>
 
-        {userPlan !== "libre" ? (
+        {canUseReferenceImages ? (
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {styleImageUrls.map((url) => (
@@ -583,7 +577,7 @@ export function StyleManager({
           </div>
         )}
 
-        {userPlan !== "libre" && styleImageUrls.length > 0 && savedKey === "manga" && (
+        {canUseReferenceImages && styleImageUrls.length > 0 && savedKey === "manga" && (
           <p className="text-xs text-amber-700 dark:text-amber-300">
             Preset Manga : les images de référence colorées peuvent tirer le rendu vers du webtoon. Pour du noir et blanc pur, retirez-les ou utilisez des refs monochrome.
           </p>

@@ -224,7 +224,7 @@ export default function Dashboard() {
           </div>
           {plan === "libre" && (
             <p className="text-xs text-muted-foreground mt-2">
-              Passez au plan {planDisplayName("createur")} pour le découpage IA, l'export PNG et {TIER_CONFIG.createur.maxGenerationsPerMonth} générations/mois.
+              Besoin de créer davantage ? Passez au plan {planDisplayName("createur")} pour {TIER_CONFIG.createur.maxGenerationsPerMonth} générations par mois au lieu de {TIER_CONFIG.libre.maxGenerationsPerMonth}.
             </p>
           )}
         </div>

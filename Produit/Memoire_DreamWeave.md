@@ -407,17 +407,17 @@ Sheet System
 ✅
 ✅
 Scénario IA
-❌
+✅
 ✅
 ✅
 ✅
 Découpage Chapitre → Panels
-❌ (CTA upgrade)
+✅
 ✅
 ✅
 ✅
 Export chapitre PNG
-❌
+✅
 ✅
 ✅
 ✅
@@ -427,7 +427,7 @@ Mémoire narrative longue
 ✅
 ✅
 Fil d'Ariane
-3 alertes max
+Complet
 Complet
 Complet
 Complet
@@ -443,6 +443,8 @@ Marge brute estimée (100 % utilisation)
 Sur devis
 
 Note : 1 crédit = 1 génération (asset, sheet ou bloc de panel). Grille tarifaire révisée le 10/05/2026 sur base des coûts FAL réels testés (~0,065 $/crédit en usage mixte). Break-even : 10–15 Créateurs couvrent l'ensemble des coûts fixes mensuels. Le code Stripe est implémenté — déploiement conditionné à la création de l'auto-entreprise (étape préalable obligatoire).
+
+Modèle de différenciation (acté le 30/05/2026) : DreamWeave applique une logique Spotify pure. **Toutes les fonctionnalités sont accessibles dès le plan Libre** (Scénario IA, découpage, export, fil d'Ariane complet, projets illimités) ; seuls le **volume de générations mensuelles** (20 / 100 / 250) et la mémoire narrative longue (Studio) distinguent les plans. Le levier de conversion est donc la quantité de création, pas l'accès aux features — l'utilisateur éprouve la pleine valeur gratuitement puis paie pour produire davantage.
 
 3.3 — Projections Financières — Année 1
 Métrique

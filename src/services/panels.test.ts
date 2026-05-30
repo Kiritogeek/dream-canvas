@@ -4,8 +4,6 @@ import {
   PANEL_HEIGHT_DEFAULT,
   PANEL_HEIGHT_MIN,
   PANEL_HEIGHT_MAX,
-  PANELS_REFERENCE_MIN,
-  PANELS_REFERENCE_MAX,
   getPanelBlocks,
   getPanelLayout,
   getPanelColorBlocks,
@@ -102,13 +100,10 @@ describe("estimatePanelCount", () => {
   it("retourne 0 pour undefined", () => expect(estimatePanelCount(undefined)).toBe(0));
   it("retourne 0 pour chaîne vide", () => expect(estimatePanelCount("")).toBe(0));
   it("retourne 0 pour espaces seuls", () => expect(estimatePanelCount("   ")).toBe(0));
-  it("retourne PANELS_REFERENCE_MIN pour < 100 mots", () => expect(estimatePanelCount(words(50))).toBe(PANELS_REFERENCE_MIN));
-  it("retourne PANELS_REFERENCE_MIN pour exactement 100 mots", () => expect(estimatePanelCount(words(100))).toBe(PANELS_REFERENCE_MIN));
-  it("retourne une valeur intermédiaire pour ~550 mots", () => {
-    const result = estimatePanelCount(words(550));
-    expect(result).toBeGreaterThan(PANELS_REFERENCE_MIN);
-    expect(result).toBeLessThan(PANELS_REFERENCE_MAX);
-  });
-  it("retourne PANELS_REFERENCE_MAX pour exactement 1000 mots", () => expect(estimatePanelCount(words(1000))).toBe(PANELS_REFERENCE_MAX));
-  it("retourne PANELS_REFERENCE_MAX pour > 1000 mots", () => expect(estimatePanelCount(words(2000))).toBe(PANELS_REFERENCE_MAX));
+  it("retourne 0 sous le seuil de 30 mots", () => expect(estimatePanelCount(words(29))).toBe(0));
+  it("retourne au moins 1 dès 30 mots", () => expect(estimatePanelCount(words(30))).toBe(1));
+  it("estime ~1 case par 45 mots", () => expect(estimatePanelCount(words(450))).toBe(10));
+  it("ne plafonne pas pour les longs textes", () => expect(estimatePanelCount(words(2000))).toBe(44));
+  it("priorise targetPerChapter quand fourni", () => expect(estimatePanelCount(words(2000), 12)).toBe(12));
+  it("ignore targetPerChapter <= 0 et retombe sur l'estimation par mots", () => expect(estimatePanelCount(words(450), 0)).toBe(10));
 });

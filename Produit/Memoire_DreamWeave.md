@@ -136,7 +136,7 @@ Faiblesses
 Menace
 DreamWeave ★
 IA + Spécialisé webtoon
-0–40 €/mois
+0–30 €/mois
 Workflow complet, Sheet System, NarraMind, cohérence automatique
 Produit en développement, pas encore d'export ni de publication
 —
@@ -283,7 +283,7 @@ Nouveau projet
 Titre + description → Onglet Style → 4 templates → validation → Ariane onboarding
 5
 Onglets progressifs
-Style → Scénario → Assets → Univers → Édition (déblocage progressif, badges New)
+Style → Assets → Univers → Scénario → Édition (déblocage progressif, badges New)
 6
 Assets
 Création personnages/décors/objets → génération IA → Sheet System 4 angles
@@ -473,15 +473,15 @@ Abonnés payants
 200
 600
 ARPU
-14,99 €
+12,99 €
+15 €
 17 €
 19 €
-21 €
 MRR
-60 €
-816 €
-3 800 €
-12 600 €
+52 €
+720 €
+3 400 €
+11 400 €
 ARR projeté
 —
 —
@@ -510,7 +510,7 @@ Organisation
 Objectif : présenter l'équipe opérationnelle et la structure juridique recommandée.
 
 4.1 — Équipe Opérationnelle (Build / Run)
-Le projet DreamWeave a été développé avec 237 commits sur la branche main depuis janvier 2026. La répartition des contributions est la suivante :
+Le projet DreamWeave a été développé avec 435 commits sur la branche main depuis janvier 2026 (au 07/06/2026). La répartition des contributions est la suivante :
 
 Rôle
 Personne
@@ -519,7 +519,7 @@ Contributions réelles
 Fondateur & Lead Dev
 Louis Basnier
 Senior
-Product Owner, architecture full-stack (React + Supabase + Edge Functions), vision produit — ~204 commits équivalents
+Product Owner, architecture full-stack (React + Supabase + Edge Functions), vision produit — ~407 commits équivalents
 Prompt Engineering
 Schiffear
 Contributeur
@@ -752,7 +752,7 @@ Fonctionnalités clés
 Métriques cibles
 Beta / MVP
 Q1 2026 (Jan–Mars)
-✅ LIVRÉ (237 commits)
+✅ LIVRÉ (435 commits cumulés au 07/06/2026)
 Connexion (email + Google) | Gestion des projets | Génération d'assets IA | Style (4 templates) | Plans Libre/Créateur + paiement Stripe | Tableau de bord avec graphiques | Page d'accueil | NarraMind v1 | Onboarding Ariane
 MVP fonctionnel en 2 semaines | Paiement Stripe branché mi-avril
 V1 — Panels
@@ -764,7 +764,7 @@ V2 — Export
 Q3 2026 (Jul–Sep)
 📅 PLANIFIÉ
 Export PDF / PNG / ZIP | Lecteur webtoon vertical (navigation entre chapitres) | Plan Studio (29,99 €) — mémoire narrative longue + priorité de traitement | Publication directe sur Webtoon Canvas et Tapas
-MRR > 3 800 € | Conversion > 5 %
+MRR > 3 400 € | Conversion > 5 %
 V3 — Scale
 Q4 2026 (Oct–Déc)
 🔮 FUTUR
@@ -994,7 +994,7 @@ DreamWeave supprime les 5 barrières qui empêchent 89 % des créateurs de publi
 Dimension
 Résultat
 MVP livré
-En 4 mois — ~237 commits — stack React + Supabase + FLUX.2 Pro — plans Libre/Créateur + Stripe
+En 5 mois — ~435 commits — stack React + Supabase + FLUX.2 Pro — plans Libre/Créateur/Studio + Stripe
 Différenciateur #1
 Sheet System — cohérence visuelle automatique inter-panels — unique sur le marché
 Différenciateur #2

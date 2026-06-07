@@ -251,6 +251,7 @@ src/
 │   │   ├── CharacterViewDialog.tsx   # Dialog fiche personnage (4 angles, Sheet System)
 │   │   ├── AIChapterPreviewModal.tsx # Aperçu chapitre généré par l'IA avant insertion
 │   │   ├── ScenarioFormattedPreview.tsx # Rendu mis en forme du scénario
+│   │   ├── UniverseSection.tsx       # Univers : cartographie + Ariane (amélioration continue)
 │   │   ├── LoreGraphView.tsx         # Univers : graphe de connexions (cartographie du monde)
 │   │   └── LoreFriseView.tsx         # Univers : vue lore secondaire
 │   └── ui/                           # 50+ composants shadcn/ui

@@ -5,7 +5,7 @@
 // ═══════════════════════════════════════════════════════════════
 
 import { useMemo, useState, useCallback, useRef, useEffect, Fragment } from "react";
-import { Plus, UserRound, Image, Package, Ban, Link2, X } from "lucide-react";
+import { Plus, UserRound, Image, Package, Ban, Link2, X, Sparkles, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   HoverCard,
@@ -39,6 +39,15 @@ interface ScenarioTextHighlighterProps {
   wordMappings?: Record<string, string>;
   /** Appelé pour créer/modifier/supprimer une liaison. assetId=null = supprimer */
   onAssignWord?: (word: string, assetId: string | null) => void;
+  /**
+   * Noms supplémentaires à traiter comme « à créer » (surlignés ambre + hover Créer),
+   * même si le seuil de répétition ne les attrape pas (en-têtes de scène, propositions Ariane).
+   */
+  extraCreatableNames?: string[];
+  /** Appelé quand l'utilisateur clique « Générer » sur un asset existant sans visuel. */
+  onGenerateAsset?: (asset: Asset) => void;
+  /** Id de l'asset en cours de génération (spinner sur le bouton « Générer »). */
+  generatingAssetId?: string | null;
 }
 
 // ── Couleurs par type d'asset (charte DreamWeave) ─────────────
@@ -249,13 +258,29 @@ function buildAllFragments(
   text: string,
   assets: Asset[],
   dismissedMissingNames?: Set<string>,
-  wordMappings?: Record<string, string>
+  wordMappings?: Record<string, string>,
+  extraCreatableNames?: string[]
 ): BuildResult {
   if (!text) {
     return { fragments: [{ type: "plain", text: "" }], detectedAssetCount: 0, missingNames: [] };
   }
 
   let missingNames = detectMissingNames(text, assets);
+
+  // Fusionner les noms « à créer » externes (en-têtes de scène, propositions Ariane),
+  // dédup insensible casse — sauf s'ils correspondent à un asset existant.
+  if (extraCreatableNames?.length) {
+    const assetNamesLower = new Set(assets.map((a) => a.name.trim().toLowerCase()));
+    const seen = new Set(missingNames.map((n) => n.toLowerCase()));
+    for (const raw of extraCreatableNames) {
+      const name = raw.trim();
+      const lower = name.toLowerCase();
+      if (name.length < 2 || assetNamesLower.has(lower) || seen.has(lower)) continue;
+      seen.add(lower);
+      missingNames.push(name);
+    }
+  }
+
   if (dismissedMissingNames?.size) {
     missingNames = missingNames.filter((n) => !dismissedMissingNames!.has(n.toLowerCase()));
   }
@@ -745,10 +770,13 @@ export function ScenarioTextHighlighter({
   onDismissMissing,
   wordMappings,
   onAssignWord,
+  extraCreatableNames,
+  onGenerateAsset,
+  generatingAssetId,
 }: ScenarioTextHighlighterProps) {
   const { fragments, detectedAssetCount, missingNames } = useMemo(
-    () => buildAllFragments(text, assets, dismissedMissingNames, wordMappings),
-    [text, assets, dismissedMissingNames, wordMappings]
+    () => buildAllFragments(text, assets, dismissedMissingNames, wordMappings, extraCreatableNames),
+    [text, assets, dismissedMissingNames, wordMappings, extraCreatableNames]
   );
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -862,6 +890,7 @@ export function ScenarioTextHighlighter({
 
           if (frag.type === "mapped") {
             const colors = ASSET_COLORS[frag.asset.asset_type] ?? DEFAULT_COLOR;
+            const isUngeneratedMapped = !frag.asset.image_url;
             return (
               <HoverCard key={i} openDelay={150} closeDelay={150}>
                 <HoverCardTrigger asChild>
@@ -870,8 +899,8 @@ export function ScenarioTextHighlighter({
                     tabIndex={0}
                     className="cursor-pointer rounded-[4px] font-medium"
                     style={{
-                      backgroundColor: colors.bg,
-                      boxShadow: `inset 0 -2.5px 0 ${colors.border}`,
+                      backgroundColor: isUngeneratedMapped ? MISSING_COLOR.bg : colors.bg,
+                      boxShadow: `inset 0 -2.5px 0 ${isUngeneratedMapped ? MISSING_COLOR.border : colors.border}`,
                     }}
                     onClick={(e) => {
                       e.preventDefault();
@@ -939,6 +968,8 @@ export function ScenarioTextHighlighter({
 
           // type === "asset"
           const colors = ASSET_COLORS[frag.asset.asset_type] ?? DEFAULT_COLOR;
+          const isUngenerated = !frag.asset.image_url;
+          const isGeneratingThis = !!generatingAssetId && generatingAssetId === frag.asset.id;
 
           return (
             <HoverCard key={i} openDelay={150} closeDelay={150}>
@@ -948,8 +979,8 @@ export function ScenarioTextHighlighter({
                   tabIndex={0}
                   className="cursor-pointer rounded-[4px] font-medium"
                   style={{
-                    backgroundColor: colors.bg,
-                    boxShadow: `inset 0 -2.5px 0 ${colors.border}`,
+                    backgroundColor: isUngenerated ? MISSING_COLOR.bg : colors.bg,
+                    boxShadow: `inset 0 -2.5px 0 ${isUngenerated ? MISSING_COLOR.border : colors.border}`,
                   }}
                   onClick={(e) => {
                     e.preventDefault();
@@ -972,6 +1003,32 @@ export function ScenarioTextHighlighter({
                 sideOffset={10}
               >
                 <div className="space-y-2.5">
+                  {isUngenerated && (
+                    <div className="space-y-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-2.5">
+                      <p className="text-xs text-amber-600 dark:text-amber-400">
+                        Cet asset n'a pas encore de visuel.
+                      </p>
+                      {onGenerateAsset && (
+                        <Button
+                          size="sm"
+                          className="w-full gap-1.5 h-8 text-xs gradient-primary text-primary-foreground shadow-sm hover:scale-[1.02] active:scale-[0.98] transition-transform"
+                          disabled={isGeneratingThis}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            onGenerateAsset(frag.asset);
+                          }}
+                        >
+                          {isGeneratingThis ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <Sparkles className="h-3.5 w-3.5" />
+                          )}
+                          Générer
+                        </Button>
+                      )}
+                    </div>
+                  )}
                   {frag.asset.image_url && (
                     <div className="w-full max-w-full min-h-[160px] flex items-center justify-center rounded-lg border border-border/50 bg-muted/20 overflow-hidden">
                       <img

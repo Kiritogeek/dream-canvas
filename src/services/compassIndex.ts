@@ -107,3 +107,22 @@ export async function fetchCompassProposals(
   const body = await res.json();
   return (body.proposals ?? []) as CompassProposal[];
 }
+
+/**
+ * Lit directement les propositions lore_asset actives d'un projet (lecture BDD, RLS appliquée).
+ * Sert la section « À créer » du panneau de curation — pas d'appel Edge Function, pas de génération.
+ */
+export async function fetchActiveLoreAssetProposals(
+  projectId: string
+): Promise<CompassProposal[]> {
+  const { data, error } = await supabase
+    .from("compass_proposals")
+    .select("*")
+    .eq("project_id", projectId)
+    .eq("proposal_type", "lore_asset")
+    .eq("status", "active")
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+  return (data ?? []) as CompassProposal[];
+}

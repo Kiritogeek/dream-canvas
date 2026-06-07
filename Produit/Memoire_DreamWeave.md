@@ -19,23 +19,23 @@ Date cible
 13 mars 2026
 2
 Product / Service Design
-🔄 En cours
+✅ Rédigé
 22 mai 2026
 3
 Business Model
-📅 Planifié
+✅ Rédigé
 22 mai 2026
 4
 Organisation
-📅 Planifié
+✅ Rédigé
 22 mai 2026
 5
 Go To Market
-📅 Planifié
+✅ Rédigé
 17 juillet 2026
 6
 Opérationnalisation [TECH]
-📅 Planifié
+🔄 En cours
 17 juillet 2026
 
 1
@@ -99,8 +99,8 @@ Persona 4 — Prescripteur Institutionnel : L'Éditeur Indépendant
 Directrice d'un studio d'édition numérique
 • Motivation : réduire les délais de production de 6 mois à 6 semaines
 • Douleur : 2 000–5 000 € par arc narratif en sous-traitance illustrateur
-• WTP : 49–150 €/mois Plan Studio — ROI immédiat si coûts divisés par 3
-• 1 contrat Studio = 588 €/an avec churn très faible une fois intégré
+• WTP : 49–150 €/mois — offre B2B / Enterprise (sur devis) — ROI immédiat si coûts divisés par 3
+• 1 contrat B2B ≈ 588 €/an et plus, avec churn très faible une fois intégré
 • Canaux : LinkedIn B2B, salons édition (Paris Book Festival), réseau KWIA
 • Ce segment sera adressé prioritairement à partir de la V1 (T3 2026)
 
@@ -193,7 +193,7 @@ Sources
 
 2
 Product / Service Design
-🔄 En cours
+✅ Rédigé
 
 Objectif : expliquer concrètement ce qu'est DreamWeave, comment il a été conçu, et pourquoi il répond aux problèmes identifiés dans l'étude de marché.
 
@@ -277,7 +277,7 @@ Authentification
 Email + mot de passe ou Google OAuth — profil créé automatiquement
 3
 Dashboard
-Liste projets, statistiques, quota mensuel (barre recharts), badge tier Libre/Créateur
+Liste projets, statistiques, quota mensuel (barre de progression), badge plan Libre/Créateur
 4
 Nouveau projet
 Titre + description → Onglet Style → 4 templates → validation → Ariane onboarding
@@ -318,12 +318,12 @@ IA Scénario : Gemini Flash → découpage chapitres. Détection assets dans le 
 Edge Function generate-scenario-ai — narramind-update
 ✅ Livré
 ④ ÉDITION
-Panels par blocs — layout JSONB dans chapter_canvases. Génération indépendante par bloc avec dimensions exactes. FLUX.2 Pro Edit : sheet injectée → cohérence garantie.
+Panels composés de blocs (image, couleur, bulles). Chaque bloc est généré indépendamment, aux bonnes dimensions. La fiche Sheet de l'asset sert de référence → cohérence garantie.
 Edge Function generate-panel-image
 🔄 En cours
 ⑤ EXPORT
-Export PDF / PNG / ZIP (html2canvas + jszip). Publication directe Webtoon Canvas, Tapas.
-html2canvas + jszip — API Webtoon
+Export PDF / PNG / ZIP depuis le navigateur. Publication directe sur Webtoon Canvas et Tapas.
+Export côté navigateur — API Webtoon
 📅 Q3 2026
 
 Architecture technique
@@ -331,12 +331,12 @@ Architecture technique
 Couche
 Technologie
 Rôle
-Frontend
-React 18.3.1 + TypeScript 5.8.3 + Vite 7.3.1 + Tailwind CSS + shadcn/ui + Framer Motion 12.34.0 + TanStack React Query 5.83.0 — hébergé Vercel
-SPA, UI, cache serveur intelligent
+Frontend (ce que voit l'utilisateur)
+React + TypeScript (application web), habillage Tailwind CSS + shadcn/ui, animations Framer Motion, cache de données TanStack React Query — hébergé sur Vercel
+Interface utilisateur et affichage rapide des données
 Backend
-Supabase Cloud — PostgreSQL (10 tables, RLS native) — Auth (email + Google OAuth) — Storage bucket dreamweave — Edge Functions Deno
-BDD, authentification, stockage images, logique métier serverless
+Supabase Cloud — base PostgreSQL (isolation par utilisateur via RLS) — authentification (email + Google) — stockage des images — fonctions serveur (Edge Functions)
+Base de données, authentification, stockage des images, logique métier côté serveur
 IA Images
 FAL.ai : FLUX.2 Pro tous plans — coûts réels testés (10/05/2026) : personnage $0,06 | décor $0,09 | objet $0,05 | bloc 3 refs ~$0,025 (après resize 512px) | moyenne pondérée ~$0,065/crédit avec marge sécurité 50 %
 Génération d'images IA — cohérence via Sheet System
@@ -344,15 +344,15 @@ IA Texte
 Google Gemini Flash (primaire) — Groq Llama 3.3 70B (fallback si erreur 429)
 Génération scénarios, découpage chapitres, NarraMind
 Sécurité
-RLS PostgreSQL sur 10 tables — JWT RS256 — Supabase Secrets — profiles.plan protégé (seul Stripe webhook peut modifier)
-Multi-tenant, isolation données, protection upgrade frauduleux
-CI/CD
-GitHub Actions : lint + TypeCheck + deploy Vercel automatique — Vitest + ESLint + husky lint-staged
-Qualité code, déploiement continu
+Chaque utilisateur ne voit que ses propres données (règles RLS PostgreSQL sur toutes les tables) — connexion par jeton signé (JWT) — secrets stockés côté serveur — le plan d'abonnement ne peut être changé que par le serveur de paiement
+Isolation des données, protection contre l'upgrade frauduleux
+Déploiement & qualité
+À chaque mise à jour du code, vérification automatique (tests + qualité) puis mise en ligne automatique sur Vercel
+Code fiable, déploiement continu sans manipulation manuelle
 
 3
 Business Model
-📅 Planifié
+✅ Rédigé
 
 Objectif : présenter le modèle économique complet de DreamWeave — BMC, pricing argumenté et projections financières.
 
@@ -505,7 +505,7 @@ ARPU (utilisateurs payants)
 
 4
 Organisation
-📅 Planifié
+✅ Rédigé
 
 Objectif : présenter l'équipe opérationnelle et la structure juridique recommandée.
 
@@ -528,10 +528,10 @@ NarraMind / IA texte
 Marine Tardy Miquel
 Contributeur
 NarraMind v2, chargement images, export ZIP — 3 commits
-Outillage IA
-Claude Code + Cursor Agent + Lovable
-Assistants IA
-Accélération développement — ~40 % des 237 commits
+Assistance IA
+Claude Code + Cursor + Lovable
+Outils (pas des membres d'équipe)
+Accélération du développement : une large part du code a été écrite avec l'aide de ces assistants, toujours sous la supervision de Louis
 
 Besoins de recrutement — Phase de croissance
     • Growth Marketer — acquisition, SEO, content marketing, communautés
@@ -578,7 +578,7 @@ Accès aux aides Bpifrance, French Tech
 
 5
 Go To Market
-📅 Planifié
+✅ Rédigé
 
 Objectif : définir le cycle de vie des utilisateurs et la stratégie de lancement pour atteindre 25 000 inscrits et 600 payants à M12.
 
@@ -610,7 +610,7 @@ Viral coefficient
 ⑥ B2B
 LinkedIn outreach studios/éditeurs — Salons édition numérique — Korea Webtoon Industry Association
 LinkedIn, Événements, KWIA
-ARPU > 49 €/mois
+ARPU B2B > 49 €/mois (offres Studio + Enterprise sur devis)
 
 5.2 — Stratégie de Lancement — 4 Phases
 Phase
@@ -634,9 +634,9 @@ Partenariats TikTok creators webtoon/manga — Unboxing workflow vidéo — Mont
 Viralité TikTok / Instagram
 Taux de conversion lead > 3 %
 Phase 4 — B2B
-Démo personnalisée studios et éditeurs — Plan Studio offert 3 mois pilote — ROI immédiat si coûts de production divisés par 3.
-10 clients Studio signés
-ARPU Studio > 50 €/mois
+Démo personnalisée studios et éditeurs — offre B2B/Enterprise pilote 3 mois — ROI immédiat si coûts de production divisés par 3.
+10 clients B2B signés
+ARPU B2B > 50 €/mois (offres Studio + Enterprise sur devis)
 
 5.3 — KPIs Marketing
 KPI
@@ -666,12 +666,12 @@ Nombre d'inscriptions générées par un utilisateur actif
 
 6
 Opérationnalisation [TECH]
-📅 Planifié
+🔄 En cours
 
 Objectif [TECH] : benchmark des choix technologiques, architecture technique, plan de release détaillé, POC/itérations, besoins techniques et budget Build/Run.
 
 6.1 — Benchmark Technologique
-Chaque choix technologique a été évalué selon des critères de qualité, coût, maintenabilité et adéquation avec les besoins spécifiques de DreamWeave.
+Chaque choix technologique a été évalué selon 5 critères pondérés : coût d'usage, performance (vitesse / latence), qualité du résultat, quotas et accès gratuits pour le développement, et intégration dans la stack existante. Pour chaque brique, des alternatives ont été testées avant de retenir la solution la mieux notée. Les versions précises des outils sont volontairement omises ici (sans intérêt pour la compréhension du choix).
 
 Composant
 Choix retenu
@@ -681,10 +681,10 @@ Framework Frontend
 React 18 + TypeScript
 Vue 3, SvelteKit
 Écosystème riche, TypeScript natif, compatibilité shadcn/ui, communauté large
-Build Tool
-Vite 7.3.1
+Outil de build
+Vite
 Create React App, Next.js
-Build ultra-rapide, HMR instant, pas de SSR nécessaire (SPA pure)
+Compilation et rechargement quasi instantanés ; pas besoin de rendu serveur (application monopage)
 Backend as a Service
 Supabase
 Firebase, PlanetScale + custom auth
@@ -697,42 +697,50 @@ IA Génération Texte
 Google Gemini Flash (+ Groq fallback)
 GPT-4o, Claude, Groq seul
 Quotas généreux, vitesse, qualité narrative — Groq Llama 3.3 70B en fallback si 429
+Embedding sémantique (NarraMind Compass)
+Google Gemini text-embedding-004 (768 dimensions)
+OpenAI text-embedding-3-small (1536D), Cohere embed-v3 (1024D)
+Même clé API que Gemini Flash (zéro intégration supplémentaire), free tier 1 500 req/min, coût ~0 $, 768D suffisants pour des corpus de 50–200 vecteurs par projet — score pondéré 4,7/5
+Recherche vectorielle (NarraMind Compass)
+pgvector (extension PostgreSQL native Supabase)
+Pinecone (~70 $/mois), Chroma (self-hosted)
+Native PostgreSQL/Supabase, RLS multi-tenant gratuite, requêtes hybrides SQL + vecteur, index ivfflat, latence ~4 ms sur 50 vecteurs — zéro infrastructure externe, score pondéré 4,8/5
 Runtime Edge Functions
 Deno (natif Supabase)
 Node.js Lambda, Cloudflare Workers
 Natif Supabase, cold start rapide, isolation sécurisée, gestion secrets native
-Cache & State serveur
-TanStack React Query 5.83.0
+Cache de données
+TanStack React Query
 SWR, Redux Toolkit Query
-Cache + mutations + invalidation automatique — élimine la gestion manuelle du state serveur
+Met les données en cache et les rafraîchit automatiquement — évite de gérer ça à la main, l'app reste rapide
 Animations
-Framer Motion 12.34.0
-CSS animations, React Spring
-Transitions fluides, expérience premium, micro-interactions DreamWeave
-Tests
-Vitest 3.2.4 + TypeCheck + ESLint 9.32.0
+Framer Motion
+Animations CSS, React Spring
+Transitions fluides et finitions soignées de l'interface
+Tests & qualité
+Vitest + vérification des types + ESLint
 Jest, Cypress
-Vitesse de cycle acceptée au stade MVP — pas de tests E2E pour l'instant
+Suffisant au stade MVP — pas de tests de bout en bout pour l'instant (assumé)
 
 6.2 — Architecture Technique Détaillée
 Stack technique complète
 
 Couche
-Technologies (versions réelles)
-Frontend SPA
-React 18.3.1 + TypeScript 5.8.3 + Vite 7.3.1 + Tailwind CSS 3.4.17 + shadcn/ui (50+ composants Radix) + Framer Motion 12.34.0 + TanStack React Query 5.83.0 + React Router DOM 6.30.1 + React Hook Form 7.61.1 + Zod 3.25.76 + Lucide React 0.462.0 + recharts 2.15.4 + jszip 3.10.1 + html2canvas 1.4.1
-Supabase Platform
-PostgreSQL (10 tables, RLS native) + Auth (email/password + Google OAuth) + Storage (bucket 'dreamweave' — user_id/projects/project_id/assets/) + Edge Functions (Deno runtime) + Realtime (disponible, non encore utilisé)
-Edge Functions
-generate-asset-image (Sheet System — FLUX.2 Pro Edit) | generate-panel-image (blocs JSONB — dimensions exactes) | generate-scenario-ai (Gemini Flash — découpage chapitres) | narramind-update (mémoire narrative — compression batch) | stripe-webhook (upgrade plan — service_role uniquement)
-FAL.ai API
-FLUX.1 Schnell (fal-ai/flux/schnell) : ~0,003 $/img — Plan Libre | FLUX.2 Pro (fal-ai/flux-2-pro) : ~0,03 $/img — Créateur sans refs | FLUX.2 Pro Edit (fal-ai/flux-2-pro/edit) : ~0,09 $/img — Créateur avec 2 refs Sheet
+Technologies et rôle
+Frontend (application web)
+React + TypeScript pour la logique, Tailwind CSS + shadcn/ui pour l'habillage, Framer Motion pour les animations, TanStack React Query pour le cache de données, React Router pour la navigation, React Hook Form + Zod pour les formulaires, plus quelques librairies dédiées (graphiques du tableau de bord, export ZIP, capture d'image)
+Plateforme Supabase
+Base de données PostgreSQL (isolation par utilisateur) + authentification (email/mot de passe + Google) + stockage des images + fonctions serveur (Edge Functions) — tout dans un seul service
+Fonctions serveur (Edge Functions)
+generate-asset-image (assets + Sheet System) | generate-panel-image (chaque bloc d'un panel) | generate-scenario-ai (scénario + découpage en chapitres) | narramind-update (mémoire narrative + détection d'incohérences) | narramind-compass (vectorisation + suggestions Ariane) | stripe-webhook (changement de plan, côté serveur uniquement)
+IA Images (FAL.ai)
+FLUX.2 Pro pour tous les plans (logique « même qualité pour tous ») : ~0,03 $/image sans référence, ~0,09 $/image avec les références du Sheet System — coût moyen pondéré ~0,065 $ par génération
 IA Texte
-Google Gemini Flash : scénario, NarraMind narramind-update (primaire) | Groq Llama 3.3 70B : fallback si quota Gemini épuisé (erreur 429)
+Google Gemini Flash (principal) pour le scénario et NarraMind ; vectorisation via Gemini text-embedding-004 ; Groq Llama 3.3 70B en secours si Gemini est saturé
 Sécurité
-RLS PostgreSQL sur 10 tables (pattern universel auth.uid() = user_id) | profiles.plan protégé — seul service_role (Stripe webhook) peut modifier | FAL_API_KEY + SUPABASE_SERVICE_ROLE_KEY côté serveur uniquement | JWT RS256
-CI/CD & Qualité
-GitHub Actions : lint + TypeCheck + deploy Vercel automatique | husky + lint-staged : validation avant commit | Vitest + ESLint 9.32.0
+Règles RLS sur toutes les tables (chaque utilisateur ne voit que ses données) | le plan d'abonnement n'est modifiable que par le serveur de paiement | les clés d'API sensibles restent côté serveur | connexion par jeton signé (JWT)
+Déploiement & qualité
+Mise en ligne automatique sur Vercel après vérification automatique du code (tests, types, qualité), y compris un contrôle avant chaque enregistrement de code
 Hébergement
 Frontend : Vercel (CDN mondial, deploy auto) | Backend : Supabase Cloud (AWS) | Storage : CDN intégré Supabase
 
@@ -745,17 +753,17 @@ Métriques cibles
 Beta / MVP
 Q1 2026 (Jan–Mars)
 ✅ LIVRÉ (237 commits)
-Auth email + Google OAuth | Projets CRUD | Assets génération IA | Style 4 templates | Plans Libre/Créateur + Stripe | Dashboard + recharts | Landing page | NarraMind v1 | Onboarding Ariane
-MVP fonctionnel en 2 semaines | Stripe implémenté 18/04
+Connexion (email + Google) | Gestion des projets | Génération d'assets IA | Style (4 templates) | Plans Libre/Créateur + paiement Stripe | Tableau de bord avec graphiques | Page d'accueil | NarraMind v1 | Onboarding Ariane
+MVP fonctionnel en 2 semaines | Paiement Stripe branché mi-avril
 V1 — Panels
 Q2 2026 (Avr–Juin)
 🔄 EN COURS
-Sheet System (migration 20260416) | Génération par bloc (layout JSONB) | Édition panels — blocs, couleurs, bulles | NarraMind v2 (memory_entities, memory_summaries, narramind_alerts) | Parcours progressif Ariane — sidebar déblocage, badges New
+Sheet System | Génération image par bloc | Éditeur de panels (blocs image, couleur, bulles) | NarraMind v2 (mémoire narrative + alertes de cohérence) | Vectorisation NarraMind Compass (suggestions Ariane) | Parcours progressif Ariane (déblocage des onglets)
 Time to Value < 10 min | Activation > 60 %
 V2 — Export
 Q3 2026 (Jul–Sep)
 📅 PLANIFIÉ
-Export PDF / PNG / ZIP (html2canvas + jszip) | Lecteur webtoon vertical — navigation chapitres | Plan Studio (39,99 €) — collaboration 5 membres | Publication directe Webtoon Canvas et Tapas
+Export PDF / PNG / ZIP | Lecteur webtoon vertical (navigation entre chapitres) | Plan Studio (29,99 €) — mémoire narrative longue + priorité de traitement | Publication directe sur Webtoon Canvas et Tapas
 MRR > 3 800 € | Conversion > 5 %
 V3 — Scale
 Q4 2026 (Oct–Déc)
@@ -764,7 +772,7 @@ Marketplace de styles — commission 30 % | App mobile PWA (iOS/Android) | Analy
 ARR > 150 000 € | 600 payants
 
 6.4 — POC & Défis Techniques Résolus
-DreamWeave s'attaque à 4 problèmes techniques fondamentaux. Voici les défis résolus et leurs solutions implémentées dans le code :
+DreamWeave s'attaque à 5 problèmes techniques fondamentaux. Voici les défis résolus et leurs solutions implémentées dans le code :
 
 Défi 1 — Sheet System : cohérence visuelle inter-panels
 
@@ -798,7 +806,7 @@ Description
 Problème
 Un LLM a une fenêtre de contexte limitée. Après 5 à 10 chapitres, le modèle 'oublie' les personnages, les lieux et les événements passés → incohérences narratives (personnage mort qui réapparaît, lieu qui change de description).
 Solution
-Résumés compacts (< 100 mots/chapitre). Compression batch : fusion des 8 plus vieux memory_summaries si seuil 4 000 tokens. Budget tokens contrôlé (ENTITIES_CONTEXT_TOKEN_BUDGET : 5k tokens). Détection anomalies remontées dans le fil Ariane (UI + table narramind_alerts).
+Résumés compacts (moins de 100 mots par chapitre). Quand la mémoire grossit trop, les plus vieux résumés sont automatiquement fusionnés en un méga-résumé (compression). Le contexte envoyé à l'IA reste ainsi borné (~1 400 mots) quel que soit le nombre de chapitres. Les incohérences détectées remontent dans le fil Ariane.
 Tables
 memory_entities, memory_summaries, narramind_alerts, narra_summary (projets)
 Fichier
@@ -812,11 +820,25 @@ Description
 Problème
 Dans une architecture Supabase partagée, un utilisateur ne doit jamais voir les données d'un autre, même en cas de fuite de la clé anon. Bug B3 découvert : un utilisateur pouvait s'upgrader gratuitement côté client en modifiant directement la colonne profiles.plan.
 Solution
-RLS activé sur 10 tables — pattern universel auth.uid() = user_id. La colonne profiles.plan est protégée par une politique WITH CHECK qui empêche tout changement par un JWT utilisateur. Seul le service_role (webhook Stripe, côté serveur) peut modifier le plan.
+RLS activé sur toutes les tables — règle universelle : chaque utilisateur ne voit que ses propres lignes (auth.uid() = user_id). Le plan d'abonnement est verrouillé : un utilisateur ne peut pas le changer lui-même, seul le serveur de paiement (webhook Stripe) en a le droit.
 Migration
 20260418120000_stripe_rls_profiles.sql
 Résultat
 Isolation complète des données par utilisateur. Upgrade frauduleux impossible côté client.
+
+Défi 5 — Vectorisation sémantique : suggestions cohérentes sans tout relire (NarraMind Compass)
+
+Description
+Problème
+Pour qu'Ariane propose une suite de scénario ou un enrichissement de l'univers vraiment cohérents, il faudrait lui donner tout le projet en contexte — impossible (trop long, trop cher) au-delà de quelques chapitres. Comment retrouver, parmi 50 à 200 éléments (chapitres, lore, fiches), les 5 plus pertinents pour ce que l'auteur travaille à l'instant ?
+Solution
+Chaque élément du projet est transformé en « empreinte de sens » numérique (un vecteur, via Gemini text-embedding-004) rangée dans la base grâce à l'extension pgvector. Au moment d'une suggestion, on calcule l'empreinte du contexte courant et la base renvoie en ~4 ms les 5 éléments les plus proches. Seuls ces 5 fragments (~1 050 tokens, soit quelques paragraphes) sont envoyés à l'IA — pas tout le projet.
+Tables
+project_embeddings (les empreintes) et compass_proposals (les suggestions générées)
+Fichier
+supabase/functions/narramind-compass/index.ts
+Résultat
+Suggestions ancrées dans l'univers réel du projet, à coût et latence constants quel que soit le nombre de chapitres. Une seule brique technique (la vectorisation) sert deux usages : prolonger le scénario (Piste Scénario) et enrichir l'univers (Piste Univers). C'est le défi technique central du Projet Innovant.
 
 6.5 — Besoins Techniques
 Catégorie
@@ -848,8 +870,8 @@ Suivi erreurs production
 Sentry (free tier)
 0 €/mois
 Qualité code
-Lint, TypeCheck, hooks pre-commit
-ESLint 9.32.0 + husky + lint-staged
+Vérification automatique du code (qualité + types) avant chaque enregistrement
+ESLint + contrôles automatisés
 0 €/mois
 Versionning
 Gestion du code source, CI/CD
@@ -880,35 +902,31 @@ Fixe
 Outils dev (GitHub, Sentry, etc.)
 ~50 €/mois
 Fixe
-GitHub, Sentry, ESLint, husky
+Gestion du code, suivi des erreurs, outils de qualité
 Total fixe mensuel
 ~100 €/mois
 Fixe
 Hors salaires
-FLUX.1 Schnell (Libre)
-~0,003 $/image
+Génération d'image — FLUX.2 Pro (tous les plans)
+~0,065 $/génération (moyenne)
 Variable
-20 générations Libre = 0,04 $/utilisateur/mois
-FLUX.2 Pro (Créateur, sans refs)
-~0,03 $/image
+~0,03 $ sans référence, ~0,09 $ avec les références du Sheet System (facturé au mégapixel)
+Plan Libre — 20 générations
+~1,30 $/mois max
 Variable
-
-FLUX.2 Pro Edit (Créateur, 2 refs)
-~0,09 $/image
+Coût d'acquisition assumé : même qualité FLUX.2 Pro pour tous (logique Spotify)
+IA Texte — Gemini Flash + vectorisation Compass
+Quelques centimes/projet
 Variable
-FAL.ai facture au mégapixel (output + input refs)
-Google Gemini Flash
-Variable (tokens)
+Coût faible par appel NarraMind / Compass (offre gratuite Gemini généreuse)
+Coût Créateur worst case (usage 100 %, tout avec références)
+~9 $/mois
 Variable
-Faible coût par run NarraMind
-Coût Créateur worst case
-~27 $/mois
+100 générations × 0,09 $ = 9 $ — marge brute ~36 %
+Coût Créateur réaliste (usage mixte)
+~6,5 $/mois
 Variable
-300 × 0,09 $ = 27 $ — marge brute 50–60 %
-Coût Créateur réaliste
-~15 $/mois
-Variable
-Mix 50/50 simple/référence — marge brute 50–60 %
+100 générations × 0,065 $ ≈ 6,5 $ — marge brute ~54 %
 Supabase scale (>10K MAU)
 100–500 €/mois
 Croissance
@@ -929,7 +947,7 @@ Itérations clés
 Correctifs apportés
 Phase 0 — Scaffold
 Janvier 2026
-Lovable scaffold initial (1 commit) → architecture React + Supabase. Migration fondatrice 20260209 : tables profiles, projects, assets, chapters, RLS de base. Premier test génération image FAL.ai FLUX.1 Schnell.
+Squelette initial généré avec Lovable → architecture React + Supabase. Première migration : tables de base (profils, projets, assets, chapitres) avec RLS. Premier test de génération d'image (modèle rapide FLUX.1 Schnell).
 MVP fonctionnel en 2 semaines.
 Phase 1 — Monétisation
 Février 2026
@@ -939,13 +957,31 @@ Phase 2 — Sheet System
 Avril 2026
 Schiffear × 20 commits : expérimentation prompts sheet, ratio 2560×768, fond blanc. Migration 20260416 : assets.image_url_sheet. Passage FLUX.2 Pro Edit (multi-référence).
 Coût FAL.ai ×3 avec 2 refs → décision 1 crédit = 1 génération (coût absorbé).
-Phase 3 — NarraMind
-Avr–Mai 2026
-Marine Tardy Miquel × 3 commits : NarraMind v2, fallback Groq si Gemini 429. Migrations 20260423 : memory_entities, memory_summaries. Migrations 20260430 : narramind_alerts. Migration 20260503 : renommage libre/créateur/studio.
+Phase 3 — NarraMind (POC Projet Innovant)
+Avr–Juin 2026
+Tronc commun + 2 pistes de vectorisation (détail ci-dessous). Marine Tardy Miquel × 3 commits sur NarraMind v2 + fallback Groq. Migrations 20260423 (memory_entities, memory_summaries), 20260430 (narramind_alerts), 20260522 (project_embeddings, compass_proposals).
 Bug B3 (upgrade gratuit) corrigé : migration 20260418, durcissement RLS profiles.plan.
 
+POC NarraMind — un tronc commun, deux pistes de vectorisation
+
+Le défi technique central du Projet Innovant (cf. docs/ecole/ProjetInnovant.md) est de maintenir une mémoire narrative riche mais bornée, puis de la rendre proactive par vectorisation sémantique. Le prototypage suit un tronc commun puis deux pistes parallèles qui convergent vers le même verrou : la vectorisation des informations (RAG pgvector + Gemini text-embedding-004 768D).
+
+Tronc commun — mesure du problème et mémoire compressée
+    • Itération 1 (baseline) : l'injection brute du scénario croît de ~850 tokens/chapitre et double la latence dès le 6e chapitre (7,4 s → 14 s). Approche intenable à 20+ chapitres.
+    • Itération 2 (mémoire compressée) : fiches entités upsertées + résumés glissants + méga-résumé projet. Contexte stabilisé à 557 tokens au chapitre 6, soit 7× plus compact, croissance ramenée à ~50 tokens/chapitre. Ce socle (memory_entities, memory_summaries, narra_summary) alimente les deux pistes.
+
+Piste A — NarraMind Scénario (cohérence + directions narratives)
+    • Itération A1 : persistance idempotente des anomalies (narramind_alerts, dedupe_key, statuts active/dismissed/resolved) + panneau Continuité Ariane en langage auteur + compression batch pour les projets > 10 chapitres.
+    • Itération A2 (vectorisation) : indexation des chapitres et résumés (source_type chapter/summary) dans project_embeddings, recherche cosinus pgvector top-5, génération de 3 directions narratives (proposal_type narrative_direction) en ~1 050 tokens injectés, latence recherche ~4 ms.
+
+Piste B — NarraMind Univers (cartographie + enrichissement du lore)
+    • Itération B1 (cartographie) : structuration du lore en 5 sections thématiques vectorisées indépendamment (v1 livrée), wiki graphique relationnel lore_categories/lore_entries/lore_links spécifié (v2, bascule planifiée V3). Défi : modéliser un graphe de connaissances multi-tenant injectable dans le prompt.
+    • Itération B2 (vectorisation) : indexation des sections lore et du LORE des assets (source_type lore_world_section/asset_lore), suggestions Ariane distinguant 🔍 extracted (tiré de l'histoire) et ✨ generated (inventé, cohérent) — proposal_type lore_world / lore_asset / lore_connection / asset_prefill.
+
+Démonstration clé du POC : une infrastructure de vectorisation unique (project_embeddings + compass_proposals + Edge Function narramind-compass), deux usages produits distincts. Le source_type discrimine l'origine (Scénario vs Univers), le proposal_type discrimine l'usage. La vectorisation est le point de convergence technique des deux pistes — le défi le plus complexe, mutualisé. La distinction extracted/generated répond à l'enjeu de propriété intellectuelle : l'œuvre et le lore appartiennent à l'utilisateur, Ariane ne fait que suggérer en montrant la provenance.
+
 Méthodologie générale
-    • Développement solo accéléré par IA : Claude Code, Cursor Agent (~40 % des 237 commits sont des commits d'agent)
+    • Développement solo fortement accéléré par l'IA (Claude Code, Cursor) : une large part des commits sont assistés par IA, toujours relus et validés par un humain
     • Convention de commits atomiques en français (impératif présent) — facilite le suivi de l'historique
     • Migrations SQL comme source de vérité de l'évolution du schéma — chaque évolution = migration versionnée
     • Pas de tests E2E — uniquement Vitest + TypeCheck — rapidité de cycle acceptée au stade MVP
@@ -958,11 +994,11 @@ DreamWeave supprime les 5 barrières qui empêchent 89 % des créateurs de publi
 Dimension
 Résultat
 MVP livré
-En 4 mois — 237 commits — stack React 18 + Supabase + FLUX.2 Pro — plans Libre/Créateur + Stripe
+En 4 mois — ~237 commits — stack React + Supabase + FLUX.2 Pro — plans Libre/Créateur + Stripe
 Différenciateur #1
 Sheet System — cohérence visuelle automatique inter-panels — unique sur le marché
 Différenciateur #2
-NarraMind / Ariane — mémoire narrative sur 50+ chapitres sans dépasser la fenêtre contexte LLM
+NarraMind / Ariane — mémoire narrative sur 50+ chapitres sans saturer le contexte de l'IA, + suggestions proactives par vectorisation (Compass) : une même brique sert le scénario et l'univers
 Marché
 5 milliards USD — CAGR 35–40 % — aucun leader dominant sur le segment IA + workflow webtoon
 Objectif 2026

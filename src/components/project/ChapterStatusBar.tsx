@@ -10,6 +10,8 @@ type ChapterStatusBarProps = {
   assetsUngenerated: number;
   saveState: "clean" | "dirty" | "saving";
   isValidated?: boolean;
+  /** Libellé de l'état verrouillé (ex. « Texte validé » à l'étape Assets, « Chapitre validé » au Découpage). */
+  validatedLabel?: string;
   onShowUngenerated: () => void;
 };
 
@@ -22,6 +24,7 @@ export function ChapterStatusBar({
   assetsUngenerated,
   saveState,
   isValidated = false,
+  validatedLabel = "Chapitre validé",
   onShowUngenerated,
 }: ChapterStatusBarProps) {
   const allValidated = casesCount > 0 && validatedCount >= casesCount;
@@ -93,7 +96,7 @@ export function ChapterStatusBar({
           ) : isValidated ? (
             <span className="flex items-center gap-1 text-emerald-500">
               <Lock className="h-3 w-3" />
-              Chapitre validé
+              {validatedLabel}
             </span>
           ) : (
             <span>Tous les assets générés, chapitre validable</span>

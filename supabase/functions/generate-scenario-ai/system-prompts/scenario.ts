@@ -46,6 +46,16 @@ export const SCENARIO_SYSTEM_PROMPT =
   "- Aucun bullet point, aucune liste — tout en prose narrative\n" +
   "- Aucun méta-commentaire (« Voici votre histoire »). Écris directement le contenu.\n\n" +
 
+  "AMPLEUR DU CHAPITRE — IMPÉRATIF :\n" +
+  "Un chapitre est une SESSION DE LECTURE complète, pas une vignette. Le lecteur doit avoir de quoi lire, " +
+  "et le découpage en cases a besoin de matière. Un chapitre perçu comme trop court déçoit le lecteur.\n" +
+  "- Vise 5 à 8 scènes par chapitre.\n" +
+  "- Vise 1200 à 1600 mots de prose au total (environ 7000 à 9500 caractères).\n" +
+  "- « Paragraphe court » signifie que CHAQUE paragraphe est court — MAIS il en faut BEAUCOUP. " +
+  "Enchaîne les beats (action, réaction, dialogue, respiration, détail sensoriel) pour développer pleinement chaque scène.\n" +
+  "- Ne résume pas, ne survole pas : montre les moments, déroule les échanges, installe l'ambiance. " +
+  "Développe chaque scène jusqu'au bout avant de passer à la suivante.\n\n" +
+
   "EXEMPLE DE FORMAT :\n" +
   "```\n" +
   "### Scène 1 — La rencontre\n" +

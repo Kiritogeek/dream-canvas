@@ -30,6 +30,10 @@ import {
   useCreateScenarioChapter,
   useValidateChapter,
   useUnvalidateChapter,
+  useChapterAssets,
+  useValidateChapterAssets,
+  useUnvalidateChapterAssets,
+  useUpdateChapterAssets,
 } from "@/hooks/useScenarioChapters";
 import {
   Dialog,
@@ -42,7 +46,11 @@ import { useProject, useUpdateProject } from "@/hooks/useProjects";
 import { useChapters } from "@/hooks/useChapters";
 import { ArianeAnalysisModal } from "@/components/project/ArianeAnalysisModal";
 import { getMaxAccessibleTab, useProgressiveMenuAccess } from "@/hooks/useProgressiveMenuGate";
-import { useAssets } from "@/hooks/useAssets";
+import { useAssets, useCreateAsset } from "@/hooks/useAssets";
+import { useAssetGeneration } from "@/hooks/useAssetGeneration";
+import { useActiveLoreAssetProposals } from "@/hooks/useCompassProposals";
+import { useGeneratingAssetId } from "@/lib/generationPending";
+import { extractSceneHeaderEntities, normalizeEntityName } from "@/services/scenarioChapters";
 import { useScenarioAI } from "@/hooks/useScenarioAI";
 import { useUserPlan } from "@/hooks/useUserPlan";
 import { useAuth } from "@/hooks/useAuth";
@@ -55,7 +63,8 @@ import { ChapterStatusBar } from "@/components/project/ChapterStatusBar";
 import { useToast } from "@/hooks/use-toast";
 import { scrollChapterEditorToExcerpt } from "@/lib/arianeScroll";
 import { cn } from "@/lib/utils";
-import type { LockedBlock, DetectedBlock, AssetType } from "@/types";
+import type { LockedBlock, DetectedBlock, AssetType, Asset } from "@/types";
+import { EMPTY_CHAPTER_ASSETS } from "@/types";
 
 /** NarraMind : auto-save uniquement, pas d’appel manuel — garde-fous tokens. */
 const NARRAMIND_AUTOSAVE_MIN_WORDS = 80;
@@ -291,6 +300,9 @@ export default function ScenarioChapterEditor() {
   const createChapter = useCreateScenarioChapter();
   const validateChapter = useValidateChapter();
   const unvalidateChapter = useUnvalidateChapter();
+  const { data: chapterAssets } = useChapterAssets(chapterId);
+  const validateChapterAssets = useValidateChapterAssets();
+  const unvalidateChapterAssets = useUnvalidateChapterAssets();
   const updateProject = useUpdateProject();
   useAuth();
   const { data: editionChapters = [] } = useChapters(projectId);
@@ -302,11 +314,22 @@ export default function ScenarioChapterEditor() {
     return n;
   }, [allChapters]);
   const chapterAI = useScenarioAI();
-  const { plan } = useUserPlan();
+  const { plan, usageInfo } = useUserPlan();
   const targetPanels = project?.panels_target_per_chapter ?? null;
   const _isPro = plan === "createur" || plan === "studio";
   const { schedule: scheduleNarraMind } = useNarraMindDebounce();
   const { indexContent } = useCompassIndex();
+
+  // Curation des assets au survol du texte (étape 2) — créer + générer en place.
+  const updateChapterAssets = useUpdateChapterAssets();
+  const createAsset = useCreateAsset();
+  const generatingAssetId = useGeneratingAssetId();
+  const { data: loreProposals = [] } = useActiveLoreAssetProposals(projectId);
+  const { canGenerate: canGenerateAsset, generate: generateAsset } = useAssetGeneration({
+    project,
+    userPlan: plan,
+    usageInfo,
+  });
 
   // Highlight via ?highlight= param (navigation depuis Fil d'Ariane)
   const [searchParams] = useSearchParams();
@@ -321,7 +344,6 @@ export default function ScenarioChapterEditor() {
 
   // Local state — UI
   const [viewMode, setViewMode] = useState<"edit" | "visuels">("edit");
-  const [showAssets, setShowAssets] = useState(true);
   const [saveState, setSaveState] = useState<"clean" | "dirty" | "saving">(
     "clean"
   );
@@ -384,53 +406,6 @@ export default function ScenarioChapterEditor() {
   const initialSyncDoneRef = useRef(false);
   // Throttle ai_summary : max 1 appel Groq toutes les 2 min pour économiser le budget TPM
   const lastAiSummaryCallRef = useRef<number>(0);
-
-  // Ariane — détection transition validé : non-validé → validé
-  const prevValidatedRef = useRef<boolean | null>(null);
-  const lastAnalyzedContentRef = useRef<string>("");
-  const contentRef = useRef(content);
-
-  useEffect(() => { contentRef.current = content; }, [content]);
-
-  // Lance Ariane dès que le chapitre passe de non-validé → validé.
-  // Si l'utilisateur déverrouille puis re-valide SANS modifier le texte, Ariane ne re-tourne pas.
-  useEffect(() => {
-    if (!chapter) { console.log("[Ariane] useEffect — chapter undefined, skip"); return; }
-    const isNowValidated = chapter.validated ?? false;
-    console.log("[Ariane] useEffect fired — validated:", isNowValidated, "| prev:", prevValidatedRef.current);
-
-    if (prevValidatedRef.current === null) {
-      prevValidatedRef.current = isNowValidated;
-      if (isNowValidated) {
-        lastAnalyzedContentRef.current = chapter.content ?? "";
-        console.log("[Ariane] Init — chapitre déjà validé, lastAnalyzed initialisé");
-      } else {
-        console.log("[Ariane] Init — chapitre non validé");
-      }
-      return;
-    }
-
-    const prev = prevValidatedRef.current;
-    prevValidatedRef.current = isNowValidated;
-    console.log("[Ariane] Transition prev:", prev, "→ now:", isNowValidated);
-
-    if (!prev && isNowValidated) {
-      const same = contentRef.current.trim() === lastAnalyzedContentRef.current.trim();
-      console.log("[Ariane] Validation détectée — contenu changé:", !same);
-      if (!same) {
-        lastAnalyzedContentRef.current = contentRef.current;
-        console.log("[Ariane] Timer 10s lancé — modal Ariane dans 10s");
-        const timer = setTimeout(() => {
-          console.log("[Ariane] Timer expiré — ouverture modal");
-          setShowArianeAfterValidation(true);
-        }, 10_000);
-        return () => { console.log("[Ariane] Timer annulé (cleanup)"); clearTimeout(timer); };
-      } else {
-        console.log("[Ariane] Contenu inchangé depuis dernière analyse — skip");
-      }
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chapter?.id, chapter?.validated]);
 
   useEffect(() => {
     progressiveRedirectRef.current = false;
@@ -542,21 +517,6 @@ export default function ScenarioChapterEditor() {
     // WHY: dépend de content pour attendre le chargement initial, ref stable ensuite
   }, [highlightAnchor, content]);
 
-  // ── Préserver la position de scroll lors du toggle Assets ────
-  // setTimeout(0) garantit que l'auto-resize a déjà tourné avant de restaurer.
-
-  useEffect(() => {
-    const container = scrollContainerRef.current;
-    if (!container) return;
-    const saved = lastScrollTopRef.current;
-    isTransitioningRef.current = true;
-    const t = setTimeout(() => {
-      container.scrollTop = saved;
-      isTransitioningRef.current = false;
-    }, 50);
-    return () => clearTimeout(t);
-  }, [showAssets]);
-
   // ── Calcul lecture (debounce 800ms) ──────────────────────────
 
   useEffect(() => {
@@ -592,10 +552,7 @@ export default function ScenarioChapterEditor() {
     });
   }, [assets, content]);
 
-  const canValidate = useMemo(
-    () => !!content.trim() && assetsInChapter.every((a) => !!a.image_url),
-    [content, assetsInChapter]
-  );
+  const canValidateText = useMemo(() => !!content.trim(), [content]);
 
   const linkedEditionChapter = useMemo(
     () => editionChapters.find((c) => c.linked_scenario_chapter_id === chapter?.id) ?? null,
@@ -923,9 +880,48 @@ export default function ScenarioChapterEditor() {
     });
   }, [projectId]);
 
+  // « Créer l'asset » au survol : crée la fiche + génère immédiatement, sans quitter le scénario.
   const handleCreateAssetFromText = useCallback((name: string, type: AssetType) => {
-    navigate(`/dashboard/projects/${projectId}?tab=assets&pendingName=${encodeURIComponent(name)}&pendingType=${type}`);
-  }, [navigate, projectId]);
+    if (!canGenerateAsset()) return;
+    createAsset.mutate(
+      { project_id: projectId!, name, asset_type: type, prompt: name },
+      {
+        onSuccess: (asset) => {
+          const items = (chapterAssets?.items ?? []).filter((it) => it.asset_id !== asset.id);
+          items.push({ asset_id: asset.id, status: "added" });
+          updateChapterAssets.mutate({
+            chapterId,
+            projectId: projectId!,
+            state: { ...(chapterAssets ?? EMPTY_CHAPTER_ASSETS), items },
+          });
+          void generateAsset(asset);
+        },
+      }
+    );
+  }, [canGenerateAsset, createAsset, projectId, chapterId, chapterAssets, updateChapterAssets, generateAsset]);
+
+  const handleGenerateAsset = useCallback((asset: Asset) => {
+    if (!canGenerateAsset()) return;
+    void generateAsset(asset);
+  }, [canGenerateAsset, generateAsset]);
+
+  // Noms « à créer » surlignés ambre : en-têtes de scène ∪ propositions Ariane, sans asset existant.
+  const extraCreatableNames = useMemo(() => {
+    const existing = new Set(assets.map((a) => normalizeEntityName(a.name ?? "")));
+    const seen = new Set<string>();
+    const out: string[] = [];
+    const add = (raw: string) => {
+      const nm = raw.trim();
+      if (nm.length < 2) return;
+      const norm = normalizeEntityName(nm);
+      if (!norm || existing.has(norm) || seen.has(norm)) return;
+      seen.add(norm);
+      out.push(nm);
+    };
+    for (const e of extractSceneHeaderEntities(content)) add(e.name);
+    for (const p of loreProposals) add(p.title);
+    return out;
+  }, [assets, content, loreProposals]);
 
   const handleAssignWord = useCallback(
     (word: string, assetId: string | null) => {
@@ -1025,10 +1021,19 @@ export default function ScenarioChapterEditor() {
 
   // ── Rendu ────────────────────────────────────────────────────
 
-  const isValidated = chapter.validated ?? false;
+  // Machine à 3 états dérivée de 2 marqueurs : chapter.validated + chapter_assets.validated
+  const textValidated = chapter.validated ?? false;
+  const assetsValidated = chapterAssets?.validated ?? false;
+  const editorStep: "edit" | "assets" | "cut" = !textValidated
+    ? "edit"
+    : !assetsValidated
+      ? "assets"
+      : "cut";
+  // Le texte est verrouillé dès l'étape ASSETS (lecture seule).
+  const isTextLocked = editorStep !== "edit";
 
   return (
-    <div className="min-h-[100dvh] flex flex-col bg-background overflow-hidden">
+    <div className="h-[100dvh] flex flex-col bg-background overflow-hidden">
       {/* HEADER */}
       <header className="h-12 border-b border-border bg-background/95 backdrop-blur-xl sticky top-0 z-30 grid grid-cols-[1fr_auto_1fr] items-center px-4 sm:px-6 shrink-0">
         {/* Colonne gauche : retour */}
@@ -1042,13 +1047,13 @@ export default function ScenarioChapterEditor() {
 
         {/* Colonne centre : titre + badge validé */}
         <div className="flex items-center justify-center gap-2">
-          <span className={`text-sm font-medium whitespace-nowrap transition-colors ${isValidated ? "text-emerald-500 dark:text-emerald-400" : "text-foreground"}`}>
+          <span className={`text-sm font-medium whitespace-nowrap transition-colors ${isTextLocked ? "text-emerald-500 dark:text-emerald-400" : "text-foreground"}`}>
             Chapitre {chapter.chapter_number}
           </span>
-          {isValidated && (
+          {isTextLocked && (
             <span className="flex items-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 rounded-full px-2 py-0.5 shrink-0">
               <Lock className="h-2.5 w-2.5" />
-              Validé
+              {editorStep === "assets" ? "Texte" : "Validé"}
             </span>
           )}
         </div>
@@ -1076,7 +1081,7 @@ export default function ScenarioChapterEditor() {
             </>
           )}
 
-          {!isValidated && (
+          {!isTextLocked && (
             <>
               <div className="text-xs text-muted-foreground flex items-center gap-1 shrink-0">
                 {saveState === "saving" && <><Loader2 className="h-3 w-3 animate-spin" /><span className="hidden sm:inline">Sauvegarde...</span></>}
@@ -1119,12 +1124,9 @@ export default function ScenarioChapterEditor() {
       </header>
 
       {/* MAIN ZONE */}
-      <div
-        className="flex flex-1 overflow-hidden"
-        style={{ height: "calc(100vh - 48px)" }}
-      >
+      <div className="flex flex-1 min-h-0 overflow-hidden">
         <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
-          {/* Toolbar fine — toggle Écriture/Cases + toggle Assets */}
+          {/* Toolbar fine — toggle Écriture/Cases */}
           <div className="flex items-center gap-2 px-4 sm:px-8 py-1.5 border-b border-border/50 shrink-0 bg-background/95 backdrop-blur-xl">
             {!chapterAIResult && (
               <div className="flex items-center gap-1 bg-muted/50 rounded-lg p-1">
@@ -1158,36 +1160,20 @@ export default function ScenarioChapterEditor() {
               </div>
             )}
 
-            {/* Toggle Assets — ON/OFF, uniquement en mode Écriture */}
-            {!chapterAIResult && viewMode === "edit" && (
-              <div className="ml-auto flex items-center gap-2">
-                <button
-                  onClick={() => {
-                    lastScrollTopRef.current = scrollContainerRef.current?.scrollTop ?? lastScrollTopRef.current;
-                    setShowAssets((v) => !v);
-                  }}
-                  className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border transition-colors ${
-                    showAssets
-                      ? "bg-primary/10 border-primary/40 text-primary"
-                      : "bg-transparent border-border text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  <Package className="h-3 w-3" />
-                  Assets
-                  <span
-                    className={`h-2 w-2 rounded-full transition-colors ${
-                      showAssets ? "bg-primary" : "bg-muted-foreground/30"
-                    }`}
-                  />
-                </button>
+            {editorStep === "assets" && (
+              <div className="ml-auto flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Package className="h-3 w-3" />
+                Curation des assets
               </div>
             )}
           </div>
 
+          {/* Zone principale — texte (curation des assets au survol en étape assets) */}
+          <div className="flex flex-1 min-h-0 overflow-hidden">
           {/* Zone texte scrollable — UNE scrollbar */}
           <div
             ref={scrollContainerRef}
-            className={`flex-1 ${chapterAIResult ? "overflow-hidden flex flex-col min-h-0" : "overflow-y-auto"}`}
+            className={`flex-1 min-w-0 ${chapterAIResult ? "overflow-hidden flex flex-col min-h-0" : "overflow-y-auto"}`}
             onScroll={(e) => { if (!isTransitioningRef.current) lastScrollTopRef.current = e.currentTarget.scrollTop; }}
           >
             {/* Bandeau de surbrillance doré — navigation depuis Fil d'Ariane */}
@@ -1430,16 +1416,19 @@ export default function ScenarioChapterEditor() {
                     </div>
                   </div>
                 )
-              ) : showAssets ? (
+              ) : isTextLocked ? (
                 <>
                   <ScenarioTextHighlighter
                     text={content}
                     assets={assets}
                     wordMappings={wordMappings}
-                    onAssignWord={handleAssignWord}
-                    onCreateAsset={handleCreateAssetFromText}
-                    onDismissMissing={handleDismissMissing}
+                    onAssignWord={editorStep === "assets" ? handleAssignWord : undefined}
+                    onCreateAsset={editorStep === "assets" ? handleCreateAssetFromText : undefined}
+                    onDismissMissing={editorStep === "assets" ? handleDismissMissing : undefined}
                     dismissedMissingNames={dismissedMissingNames}
+                    extraCreatableNames={extraCreatableNames}
+                    onGenerateAsset={editorStep === "assets" ? handleGenerateAsset : undefined}
+                    generatingAssetId={generatingAssetId}
                     className=""
                     hideIndicator
                   />
@@ -1460,6 +1449,8 @@ export default function ScenarioChapterEditor() {
             )}
           </div>
 
+          </div>
+
           <ChapterStatusBar
             tab={viewMode === "visuels" ? "cases" : "ecriture"}
             wordCount={readingInfo?.words ?? 0}
@@ -1468,8 +1459,9 @@ export default function ScenarioChapterEditor() {
             assetsGenerated={assetsInChapter.filter((a) => !!a.image_url).length}
             assetsUngenerated={assetsInChapter.filter((a) => !a.image_url).length}
             saveState={saveState}
-            isValidated={isValidated}
-            onShowUngenerated={() => setShowAssets(true)}
+            isValidated={isTextLocked}
+            validatedLabel={editorStep === "assets" ? "Texte validé" : "Chapitre validé"}
+            onShowUngenerated={() => {}}
           />
         </main>
       </div>
@@ -1554,102 +1546,142 @@ export default function ScenarioChapterEditor() {
         </div>
       )}
 
-      {/* FABs — pills flottantes bas-droite */}
-      {!chapterAIResult && !showIABar && (
+      {/* FAB EDIT — pills flottantes bas-droite (pas de panneau en étape EDIT). */}
+      {editorStep === "edit" && !chapterAIResult && !showIABar && (
         <div className="fixed bottom-12 right-6 flex flex-col items-end gap-2.5 z-40">
-          {isValidated ? (
-            /* Chapitre validé */
-            <>
-              <button
-                onClick={() => unvalidateChapter.mutate({ id: chapter.id, projectId: projectId! })}
-                disabled={unvalidateChapter.isPending}
-                className="flex items-center gap-2 pl-3.5 pr-4 h-9 rounded-full bg-background/95 backdrop-blur-xl border border-border/60 hover:border-border shadow-md text-xs font-medium text-muted-foreground hover:text-foreground transition-[box-shadow,border-color,transform,color] duration-200 hover:scale-[1.03] disabled:opacity-50"
-              >
-                {unvalidateChapter.isPending ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
-                ) : (
-                  <Unlock className="h-3.5 w-3.5 shrink-0" />
-                )}
-                <span>Déverrouiller</span>
-              </button>
+          <button
+            onClick={() => setShowIABar(true)}
+            className="flex items-center gap-2 pl-3.5 pr-4 h-10 rounded-full bg-background/95 backdrop-blur-xl border border-border hover:border-primary/50 shadow-md text-sm font-medium text-primary transition-[box-shadow,border-color,transform] duration-200 hover:shadow-glow hover:scale-[1.03]"
+          >
+            <Sparkles className="h-4 w-4 shrink-0" />
+            <span>IA Chapitre</span>
+          </button>
 
-              {allBlocksLocked ? (
-                <button
-                  onClick={handleEditChapter}
-                  disabled={isCreatingEditionChapter}
-                  className="flex items-center gap-2 pl-4 pr-5 h-12 rounded-full text-sm font-semibold gradient-primary text-primary-foreground shadow-dream hover:scale-[1.03] transition-[box-shadow,transform,opacity] duration-200 disabled:opacity-50 disabled:pointer-events-none"
-                >
-                  {isCreatingEditionChapter ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin shrink-0" />
-                      <span>Création…</span>
-                    </>
-                  ) : (
-                    <>
-                      <PenLine className="h-4 w-4 shrink-0" />
-                      <span>{linkedEditionChapter ? "Éditer le chapitre" : "Créer & éditer"}</span>
-                    </>
-                  )}
-                </button>
+          <button
+            onClick={() => canValidateText && setShowValidateConfirm(true)}
+            disabled={!canValidateText}
+            title={!content.trim() ? "Le chapitre est vide" : undefined}
+            className="flex items-center gap-2 pl-4 pr-5 h-12 rounded-full text-sm font-semibold bg-background/95 backdrop-blur-xl border border-emerald-500/40 text-emerald-600 dark:text-emerald-400 shadow-md hover:bg-emerald-500/8 hover:scale-[1.03] transition-[box-shadow,transform,opacity] duration-200 disabled:opacity-40 disabled:pointer-events-none"
+          >
+            <Lock className="h-4 w-4 shrink-0" />
+            <span>Valider le texte</span>
+          </button>
+        </div>
+      )}
+
+      {/* FAB ASSETS — flottants bas-droite, en toutes vues (plus de panneau, donc plus de collision). */}
+      {editorStep === "assets" && !chapterAIResult && (
+        <div className="fixed bottom-12 right-6 flex flex-col items-end gap-2.5 z-40">
+          <button
+            onClick={() => {
+          unvalidateChapter.mutate({ id: chapter.id, projectId: projectId! });
+          if (chapterAssets?.validated) {
+            unvalidateChapterAssets.mutate({ chapterId: chapter.id, projectId: projectId!, state: chapterAssets });
+          }
+        }}
+            disabled={unvalidateChapter.isPending}
+            className="flex items-center gap-2 pl-3.5 pr-4 h-9 rounded-full bg-background/95 backdrop-blur-xl border border-border/60 hover:border-border shadow-md text-xs font-medium text-muted-foreground hover:text-foreground transition-[box-shadow,border-color,transform,color] duration-200 hover:scale-[1.03] disabled:opacity-50"
+          >
+            {unvalidateChapter.isPending ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
+            ) : (
+              <Unlock className="h-3.5 w-3.5 shrink-0" />
+            )}
+            <span>Déverrouiller le texte</span>
+          </button>
+
+          <button
+            onClick={() =>
+              validateChapterAssets.mutate({
+                chapterId: chapter.id,
+                projectId: projectId!,
+                state: chapterAssets ?? EMPTY_CHAPTER_ASSETS,
+              })
+            }
+            disabled={validateChapterAssets.isPending}
+            className="flex items-center gap-2 pl-4 pr-5 h-12 rounded-full text-sm font-semibold gradient-primary text-primary-foreground shadow-dream hover:scale-[1.03] transition-[box-shadow,transform,opacity] duration-200 disabled:opacity-50 disabled:pointer-events-none"
+          >
+            {validateChapterAssets.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+            ) : (
+              <Lock className="h-4 w-4 shrink-0" />
+            )}
+            <span>Valider les assets</span>
+          </button>
+        </div>
+      )}
+
+      {/* FAB CUT — flottants bas-droite, en toutes vues (plus de panneau, donc plus de collision). */}
+      {editorStep === "cut" && !chapterAIResult && (
+        <div className="fixed bottom-12 right-6 flex flex-col items-end gap-2.5 z-40">
+          <button
+            onClick={() =>
+              unvalidateChapterAssets.mutate({
+                chapterId: chapter.id,
+                projectId: projectId!,
+                state: chapterAssets ?? EMPTY_CHAPTER_ASSETS,
+              })
+            }
+            disabled={unvalidateChapterAssets.isPending}
+            className="flex items-center gap-2 pl-3.5 pr-4 h-9 rounded-full bg-background/95 backdrop-blur-xl border border-border/60 hover:border-border shadow-md text-xs font-medium text-muted-foreground hover:text-foreground transition-[box-shadow,border-color,transform,color] duration-200 hover:scale-[1.03] disabled:opacity-50"
+          >
+            {unvalidateChapterAssets.isPending ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
+            ) : (
+              <Package className="h-3.5 w-3.5 shrink-0" />
+            )}
+            <span>Modifier les assets</span>
+          </button>
+
+          {allBlocksLocked ? (
+            <button
+              onClick={handleEditChapter}
+              disabled={isCreatingEditionChapter}
+              className="flex items-center gap-2 pl-4 pr-5 h-12 rounded-full text-sm font-semibold gradient-primary text-primary-foreground shadow-dream hover:scale-[1.03] transition-[box-shadow,transform,opacity] duration-200 disabled:opacity-50 disabled:pointer-events-none"
+            >
+              {isCreatingEditionChapter ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                  <span>Création…</span>
+                </>
               ) : (
-                <button
-                  onClick={handleDetectBlocks}
-                  disabled={isDetecting || !content.trim() || (cases.length > 0 && detectedAtContent !== "" && content === detectedAtContent)}
-                  className="flex items-center gap-2 pl-4 pr-5 h-12 rounded-full text-sm font-semibold gradient-primary text-primary-foreground shadow-dream hover:scale-[1.03] transition-[box-shadow,transform,opacity] duration-200 disabled:opacity-50 disabled:pointer-events-none"
-                >
-                  {isDetecting ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin shrink-0" />
-                      <span>Découpage en cours…</span>
-                    </>
-                  ) : (
-                    <>
-                      <Scissors className="h-4 w-4 shrink-0" />
-                      <span>Diviser en cases</span>
-                    </>
-                  )}
-                </button>
+                <>
+                  <PenLine className="h-4 w-4 shrink-0" />
+                  <span>{linkedEditionChapter ? "Éditer le chapitre" : "Créer & éditer"}</span>
+                </>
               )}
-            </>
+            </button>
           ) : (
-            /* Chapitre non validé → IA Chapitre + Valider */
-            <>
-              <button
-                onClick={() => setShowIABar(true)}
-                className="flex items-center gap-2 pl-3.5 pr-4 h-10 rounded-full bg-background/95 backdrop-blur-xl border border-border hover:border-primary/50 shadow-md text-sm font-medium text-primary transition-[box-shadow,border-color,transform] duration-200 hover:shadow-glow hover:scale-[1.03]"
-              >
-                <Sparkles className="h-4 w-4 shrink-0" />
-                <span>IA Chapitre</span>
-              </button>
-
-              <button
-                onClick={() => canValidate && setShowValidateConfirm(true)}
-                disabled={!canValidate}
-                title={
-                  !content.trim()
-                    ? "Le chapitre est vide"
-                    : assetsInChapter.some((a) => !a.image_url)
-                    ? `${assetsInChapter.filter((a) => !a.image_url).length} asset(s) détecté(s) non générés`
-                    : undefined
-                }
-                className="flex items-center gap-2 pl-4 pr-5 h-12 rounded-full text-sm font-semibold bg-background/95 backdrop-blur-xl border border-emerald-500/40 text-emerald-600 dark:text-emerald-400 shadow-md hover:bg-emerald-500/8 hover:scale-[1.03] transition-[box-shadow,transform,opacity] duration-200 disabled:opacity-40 disabled:pointer-events-none"
-              >
-                <Lock className="h-4 w-4 shrink-0" />
-                <span>Valider le chapitre</span>
-              </button>
-            </>
+            <button
+              onClick={handleDetectBlocks}
+              disabled={isDetecting || !content.trim() || (cases.length > 0 && detectedAtContent !== "" && content === detectedAtContent)}
+              className="flex items-center gap-2 pl-4 pr-5 h-12 rounded-full text-sm font-semibold gradient-primary text-primary-foreground shadow-dream hover:scale-[1.03] transition-[box-shadow,transform,opacity] duration-200 disabled:opacity-50 disabled:pointer-events-none"
+            >
+              {isDetecting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                  <span>Découpage en cours…</span>
+                </>
+              ) : (
+                <>
+                  <Scissors className="h-4 w-4 shrink-0" />
+                  <span>Découper en cases</span>
+                </>
+              )}
+            </button>
           )}
         </div>
       )}
 
-      {/* Popup confirmation validation */}
+      {/* Popup confirmation validation — ouvre l'analyse Ariane bloquante avant de valider */}
       <Dialog open={showValidateConfirm} onOpenChange={setShowValidateConfirm}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Valider le Chapitre {chapter?.chapter_number} ?</DialogTitle>
+            <DialogTitle>Valider le texte du Chapitre {chapter?.chapter_number} ?</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground leading-relaxed">
-            Ce chapitre passera en lecture seule. Ariane analysera votre scénario et vous proposera d'enrichir votre Univers avec les personnages, lieux et événements détectés — accessibles dans le menu <strong className="text-foreground">Univers</strong>.
+            Le texte passera en lecture seule. Ariane relira d'abord votre chapitre, puis vous
+            passerez à la curation des assets.
           </p>
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setShowValidateConfirm(false)}>
@@ -1657,23 +1689,13 @@ export default function ScenarioChapterEditor() {
             </Button>
             <Button
               onClick={() => {
-                validateChapter.mutate(
-                  { id: chapter!.id, projectId: projectId! },
-                  {
-                    onSuccess: () => setShowValidateConfirm(false),
-                    onError: () => toast({ title: "Erreur", description: "Impossible de valider le chapitre.", variant: "destructive" }),
-                  }
-                );
+                setShowValidateConfirm(false);
+                setShowArianeAfterValidation(true);
               }}
-              disabled={validateChapter.isPending}
               className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"
             >
-              {validateChapter.isPending ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Lock className="h-3.5 w-3.5" />
-              )}
-              Valider
+              <Lock className="h-3.5 w-3.5" />
+              Analyser et valider
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1712,11 +1734,27 @@ export default function ScenarioChapterEditor() {
         </div>
       )}
 
-      {/* Ariane — analyse auto après validation */}
+      {/* Ariane — analyse bloquante avant de valider le texte (puis passage à l'étape assets) */}
       {chapter && (
         <ArianeAnalysisModal
           isOpen={showArianeAfterValidation}
           onClose={() => setShowArianeAfterValidation(false)}
+          onComplete={() => {
+            validateChapter.mutate(
+              { id: chapter.id, projectId: projectId! },
+              {
+                onSuccess: () => setShowArianeAfterValidation(false),
+                onError: () => {
+                  setShowArianeAfterValidation(false);
+                  toast({
+                    title: "Erreur",
+                    description: "Impossible de valider le chapitre.",
+                    variant: "destructive",
+                  });
+                },
+              }
+            );
+          }}
           projectId={projectId!}
           chapterId={chapter.id}
           chapterContent={content}

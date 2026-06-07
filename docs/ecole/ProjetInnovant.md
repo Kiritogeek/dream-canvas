@@ -183,7 +183,7 @@ Cinq critères ont été définis pour évaluer chaque brique technologique, pon
 **Décision :** PostgreSQL déjà utilisé pour le reste de DreamWeave — pas de nouvelle infrastructure, RLS multi-tenant gratuite, transactions pour l'upsert idempotent des alertes.
 
 **Pourquoi ne pas utiliser d'embeddings vectoriels en NarraMind V1 ?**
-Pour la détection d'anomalies (V1), la compression par résumé LLM + fiches entités est plus précise, plus rapide et moins coûteuse qu'un pipeline RAG : pas d'index à maintenir, pas de reranking, pas de latence d'embedding supplémentaire. À 10–50 chapitres, un contexte compressé de ~1 400 tokens suffit pour détecter les incohérences avec un LLM. L'introduction des embeddings est délibérément reportée à NarraMind Compass (Itération 4), où l'usage — des **propositions créatives proactives** sur des fragments ciblés — justifie le pipeline RAG : on ne cherche pas à tout injecter dans le LLM, mais à retrouver les 5 éléments les plus pertinents dans un corpus de 50–200 embeddings.
+Pour la détection d'anomalies (V1), la compression par résumé LLM + fiches entités est plus précise, plus rapide et moins coûteuse qu'un pipeline RAG : pas d'index à maintenir, pas de reranking, pas de latence d'embedding supplémentaire. À 10–50 chapitres, un contexte compressé de ~1 400 tokens suffit pour détecter les incohérences avec un LLM. L'introduction des embeddings est délibérément reportée aux itérations de vectorisation (A2 Scénario + B2 Univers, sous la bannière NarraMind Compass), où l'usage — des **propositions créatives proactives** sur des fragments ciblés — justifie le pipeline RAG : on ne cherche pas à tout injecter dans le LLM, mais à retrouver les 5 éléments les plus pertinents dans un corpus de 50–200 embeddings.
 
 #### 3.4 Benchmark vectoriel (NarraMind Compass)
 
@@ -234,7 +234,7 @@ Pour que les suggestions d'Ariane soient pertinentes (pas de bruit, propositions
 1. **Chapitres de scénario** — source principale du lore implicite (règles, événements, personnages non encore formalisés)
 2. **Sections lore monde** (5 thèmes : magie, géographie, factions, culture, chronologie) — lore explicite de l'auteur
 3. **LORE des assets** — fiches personnages / objets / décors déjà renseignées
-4. **Résumés NarraMind** (`narra_summary`, `memory_summaries`) — mémoire déjà construite par les Itérations 1–3, réutilisée sans recalcul
+4. **Résumés NarraMind** (`narra_summary`, `memory_summaries`) — mémoire déjà construite par le tronc commun (Itér. 1–2) et la Piste A (A1), réutilisée sans recalcul
 
 **Volume estimé pour un projet moyen (5 chapitres) :**
 - 5 embeddings chapitres (~1 100 tokens chacun, chunk si > 2 000 chars)
@@ -249,7 +249,34 @@ En dessous des seuils, Ariane ne propose rien — le formulaire s'ouvre vide, av
 
 ## 4. Méthodologie de prototypage du POC
 
-> Les 4 itérations portent chacune sur un **défi technique distinct** : mesure du problème, résolution algorithmique, persistance et UX, puis passage du mode réactif au mode proactif.
+> Le prototypage s'organise en **un tronc commun** (mesure du problème + moteur de mémoire compressée) puis **deux pistes parallèles** qui réutilisent ce tronc et convergent chacune vers le **même verrou technique final : la vectorisation sémantique des informations** (RAG pgvector).
+>
+> - **Tronc commun** — Itérations 1 et 2 : prouver que l'injection brute du scénario est intenable, puis construire la mémoire narrative compressée qui sert de socle aux deux pistes.
+> - **Piste A — NarraMind Scénario** : exploiter cette mémoire pour la cohérence (détection d'anomalies) puis la vectorisation des chapitres afin de proposer des **directions narratives** ancrées dans l'histoire.
+> - **Piste B — NarraMind Univers** : structurer le monde (cartographie du lore) puis la vectorisation du lore afin de proposer l'**enrichissement des fiches** (suggestions Ariane extraites / inventées).
+>
+> Les deux pistes partagent l'infrastructure d'embedding (Gemini `text-embedding-004`) et de recherche (`pgvector`) benchmarkée en 3.4 : la vectorisation est le défi technique commun, ses usages diffèrent selon la piste (retrieval pour proposer du scénario vs retrouver du lore proche).
+
+```
+                 ┌─────────────────────────────────────────────┐
+   TRONC COMMUN  │  Itér. 1 Baseline  →  Itér. 2 Mémoire        │
+                 │  (mesure problème)    compressée (entités +  │
+                 │                        résumé glissant)      │
+                 └───────────────┬───────────────┬─────────────┘
+                                 │               │
+        PISTE A — SCÉNARIO       │               │   PISTE B — UNIVERS
+   ┌─────────────────────────────▼──┐         ┌──▼──────────────────────────────┐
+   │ A1  Anomalies + UI Ariane +    │         │ B1  Cartographie du monde        │
+   │     mémoire longue             │         │     (sections lore / wiki graphe)│
+   │ A2  ✦ VECTORISATION chapitres  │         │ B2  ✦ VECTORISATION lore +       │
+   │     → directions narratives    │         │     LORE assets → suggestions    │
+   └────────────────────────────────┘         └──────────────────────────────────┘
+                    └──────── pgvector + Gemini embedding 768D ────────┘
+```
+
+---
+
+## TRONC COMMUN
 
 ### Itération 1 — Baseline : LLM sans mémoire (23 avril 2026)
 
@@ -282,7 +309,9 @@ La croissance est **linéaire à ~850 tokens/chapitre** (hypothèse initiale : 7
 
 ---
 
-### Itération 2 — NarraMind V1 : Fiches entités + résumé glissant (23 avril 2026)
+### Itération 2 — Mémoire compressée : fiches entités + résumé glissant (23 avril 2026)
+
+> **Socle partagé par les deux pistes.** La mémoire construite ici (`memory_entities`, `memory_summaries`, `narra_summary`) alimente la détection d'anomalies de la Piste A *et* sert de source vectorisable (`source_type: "summary"`) pour les deux pistes Compass.
 
 **Défi technique :** Remplacer le scénario brut par une mémoire structurée. Valider que la cohérence est au moins équivalente à 10x moins de tokens.
 
@@ -297,7 +326,7 @@ La croissance est **linéaire à ~850 tokens/chapitre** (hypothèse initiale : 7
 
 **Mesures relevées :**
 
-| Métrique | Itération 1 (baseline) | Itération 2 (NarraMind V1) |
+| Métrique | Itération 1 (baseline) | Itération 2 (mémoire compressée) |
 |----------|------------------------|---------------------------|
 | Tokens contexte chap. 1 | ~140 | **247** |
 | Tokens contexte chap. 3 | ~2 520 | **441** |
@@ -311,11 +340,15 @@ La croissance est **linéaire à ~850 tokens/chapitre** (hypothèse initiale : 7
 
 La cible était 1 000–1 400 tokens stables. NarraMind V1 atteint **557 tokens au chapitre 6**, soit **7× plus compact**. La croissance est quasi-plate (~50 tokens/chapitre vs ~850) grâce à l'upsert des entités : les personnages/décors sont **mis à jour, pas dupliqués** à chaque chapitre.
 
-**Correctif identifié :** La détection d'anomalies nécessite que le LORE soit renseigné sur les assets. Sans LORE, le LLM n'a pas de règles à vérifier. L'Itération 3 adresse la persistance des alertes et l'UI de présentation.
+**Correctif identifié :** La détection d'anomalies nécessite que le LORE soit renseigné sur les assets. Sans LORE, le LLM n'a pas de règles à vérifier. L'Itération A1 (Piste Scénario) adresse la persistance des alertes et l'UI de présentation ; l'Itération B1 (Piste Univers) adresse la saisie structurée de ce lore.
 
 ---
 
-### Itération 3 — NarraMind V2 : Persistance des alertes + UI Ariane + Mémoire longue (mai 2026)
+## PISTE A — NarraMind Scénario
+
+> **Objectif de la piste :** transformer la mémoire compressée (tronc commun) en un assistant de **cohérence et de proposition narrative** dans l'éditeur de chapitre. Deux itérations : d'abord la détection réactive d'anomalies (A1), puis le passage proactif par **vectorisation des chapitres** pour suggérer des directions narratives (A2).
+
+### Itération A1 — Persistance des alertes + UI Ariane + Mémoire longue (mai 2026)
 
 **Défi technique :** Persister les alertes de façon idempotente (pas de doublons, statuts gérés), les présenter via un personnage-guide en langage auteur, et assurer la mémoire longue sur les projets > 10 chapitres.
 
@@ -342,7 +375,7 @@ La cible était 1 000–1 400 tokens stables. NarraMind V1 atteint **557 tokens 
 
 **Mesures relevées :**
 
-| Métrique | Itération 2 | Itération 3 |
+| Métrique | Itération 2 | Itération A1 |
 |----------|-------------|-------------|
 | Alertes persistées | ❌ (corps HTTP uniquement) | ✅ (`narramind_alerts`, dédoublonnage) |
 | Mémoire longue | Résumés glissants seulement | ✅ `narra_summary` + compression batch |
@@ -356,40 +389,32 @@ Les 3 briques techniques complexes ont été validées : la persistance idempote
 
 **Correctif apporté :** Le prompt LLM pour les alertes a été durci — interdiction d'utiliser les mots "asset", "entité", "fiche", noms de champs JSON dans les champs `title` et `explanation`. Les alertes doivent être rédigées comme si elles venaient d'un lecteur attentif, pas d'une base de données.
 
+**Correctif identifié :** A1 répond à "qu'est-ce qui s'est passé / qu'est-ce qui cloche ?" — pas à "qu'est-ce qui est narrativement proche de ce que l'auteur travaille maintenant ?". Ce passage du réactif au proactif est le verrou de l'Itération A2 : la vectorisation des chapitres.
+
 ---
 
-### Itération 4 — NarraMind Compass : du mode réactif au mode proactif via RAG sémantique (mai–juin 2026)
+### Itération A2 — Vectorisation du scénario : directions narratives via RAG (mai–juin 2026)
 
-**Défi technique :** Les 3 premières itérations ont résolu la **mémoire et la détection** — NarraMind sait ce qui s'est passé et signale les incohérences. Le défi de l'Itération 4 est différent : peut-on utiliser cette même mémoire pour générer des **propositions créatives cohérentes** avec l'univers existant, sans injecter tout le projet dans le LLM ?
+**Défi technique :** Les itérations précédentes ont résolu la **mémoire et la détection**. Le défi d'A2 est la **proposition créative cohérente** : générer des *directions narratives* alignées avec l'histoire existante, sans injecter tout le projet dans le LLM.
 
-Le problème central est la **sélection contextuelle** : comment savoir quels 5 fragments parmi les 50–200 éléments du projet (chapitres, lore, assets) sont les plus pertinents pour une demande donnée ? La compression par résumé (Itérations 1–3) répond à "qu'est-ce qui s'est passé ?" — elle ne répond pas à "qu'est-ce qui est narrativement proche de ce que l'auteur est en train de travailler ?".
+Le problème central est la **sélection contextuelle** : quels 5 fragments parmi les 50–200 éléments du projet sont les plus pertinents pour le chapitre en cours d'écriture ? La compression par résumé (tronc commun) répond à "qu'est-ce qui s'est passé ?" — pas à "qu'est-ce qui est narrativement proche ?".
 
-La solution retenue : **vectorisation sémantique + retrieval pgvector** — chaque élément du projet est converti en vecteur 768D, et la recherche de similarité cosinus retourne les fragments les plus proches du contexte courant en < 5 ms.
+La solution : **vectorisation sémantique + retrieval pgvector** — chaque chapitre (et résumé) est converti en vecteur 768D, et la similarité cosinus retourne les fragments les plus proches du contexte courant en < 5 ms.
 
 **Implémentation :**
 
-*Infrastructure BDD*
+*Infrastructure BDD (partagée avec la Piste B)*
 - Extension `pgvector` activée dans Supabase (disponible nativement)
-- Table `project_embeddings` : index vectoriel du projet (source_type, source_id, section_key, embedding vector(768))
-- Table `compass_proposals` : suggestions générées (proposal_type, origin 'extracted'/'generated', title, content, prefill_data, status, dedupe_key)
+- Table `project_embeddings` : index vectoriel du projet (`source_type`, `source_id`, `section_key`, `embedding vector(768)`)
+- Table `compass_proposals` : suggestions générées (`proposal_type`, `origin 'extracted'/'generated'`, `title`, `content`, `prefill_data`, `status`, `dedupe_key`)
 - Index `ivfflat` sur `embedding` pour les projets > 500 vecteurs
-- Migrations : `20260522100000_project_embeddings.sql`, `20260522110000_compass_proposals.sql`
+- Migrations : `20260522100000_project_embeddings.sql`, `20260522120000_compass_proposals.sql`
 
-*Edge Function `narramind-compass`*
-- Mode `"index"` : reçoit un texte source → appel Gemini `text-embedding-004` → upsert `project_embeddings` (idempotent par source_id)
-- Mode `"propose"` : reçoit le contexte courant → vectorise → `SELECT ... ORDER BY embedding <=> $v LIMIT 5` → top-5 fragments → prompt Gemini Flash → JSON `{ extracted: [...], generated: [...] }` → upsert `compass_proposals`
-- Déclenchement `"index"` : silencieux, sur chaque save chapitre / section lore / LORE asset (même pattern que `narramind-update`)
-- Déclenchement `"propose"` : sur demande explicite (clic "✦ Suggestions Ariane")
-
-*Restructuration UI — onglet Univers*
-- `UniverseSection.tsx` restructuré : 5 sections thématiques (Magie, Géographie, Factions, Culture, Chronologie) — chacune avec son propre champ texte et bouton "✦ Suggestions Ariane"
-- Chaque section sauvegardée et vectorisée indépendamment
-
-*Composants Ariane — suggestions 🔍 / ✨*
-- Panneau suggestions : deux groupes visuellement distincts — 🔍 "Tiré de ton histoire" (extraction) et ✨ "Proposé par Ariane" (invention cohérente)
-- Actions : `[ Ajouter au lore ]` insère le texte dans la section, `[ Ignorer ]` passe le statut en `dismissed`
-- Bandeau discret sur fiches assets (≥ 2 mentions dans les chapitres) → accordion suggestions
-- Composant "Proposition Ariane" dans l'éditeur scénario → 3 directions narratives avant génération
+*Edge Function `narramind-compass` — usage Scénario*
+- Mode `"index"` sur `source_type: "chapter"` et `"summary"` : texte → Gemini `text-embedding-004` → upsert `project_embeddings` (idempotent par `source_id`)
+- Mode `"propose"` avec `proposal_type: "narrative_direction"` : contexte du chapitre courant → vectorise → `SELECT ... ORDER BY embedding <=> $v LIMIT 5` → top-5 fragments → prompt Gemini Flash → JSON `{ extracted, generated }` → upsert `compass_proposals`
+- Déclenchement `"index"` : silencieux, à chaque save chapitre (même pattern que `narramind-update`)
+- Déclenchement `"propose"` : sur demande explicite, composant "Proposition Ariane" dans l'éditeur scénario → 3 directions narratives avant génération
 
 **Mesures relevées :**
 
@@ -398,16 +423,76 @@ La solution retenue : **vectorisation sémantique + retrieval pgvector** — cha
 | Tokens injectés pour 1 proposition | ≤ 1 200 | ~1 050 (top-5 fragments) |
 | Latence totale (embed + search + LLM) | < 3 s | ~1,8 s en moyenne |
 | Latence recherche pgvector (50 vecteurs) | < 10 ms | ~4 ms |
-| Suggestions pertinentes (test sur 3 projets) | > 70 % "utiles" | En cours de mesure |
-| Embeddings par projet moyen (5 chap.) | — | ~20–30 vecteurs |
+| Embeddings chapitres par projet moyen (5 chap.) | — | ~6 vecteurs (5 chap. + 1 `summary`) |
 
 **Résultat et analyse ✅**
 
-La recherche sémantique via pgvector résout élégamment le problème de sélection contextuelle : au lieu d'injecter un contexte fixe de 1 400 tokens (Itération 2), on injecte un contexte **dynamique et ciblé** de ~1 050 tokens, adapté à la section en cours de travail. Le pipeline reste entièrement dans l'infrastructure Supabase existante — pas de service vectoriel externe, pas de clé API supplémentaire.
+La recherche sémantique résout le problème de sélection : au lieu d'un contexte fixe de 1 400 tokens (Itération 2), on injecte un contexte **dynamique et ciblé** de ~1 050 tokens adapté au chapitre travaillé. Le pipeline reste entièrement dans Supabase — pas de service vectoriel externe, pas de clé API supplémentaire.
 
-Le point technique le plus délicat est le **chunking** : un chapitre de 2 000 mots produit ~2 800 tokens, trop grand pour un embedding efficace. La règle retenue : truncation à 2 000 caractères (~350 mots) pour les chapitres longs, en conservant les premiers paragraphes (exposition des enjeux + personnages > fin de chapitre pour la vectorisation).
+Le point délicat est le **chunking** : un chapitre de 2 000 mots produit ~2 800 tokens, trop grand pour un embedding efficace. Règle retenue : truncation à 2 000 caractères (~350 mots), en conservant les premiers paragraphes (exposition des enjeux + personnages > fin de chapitre).
 
-**Distinction clé avec l'Itération 2 :** Les Itérations 1–3 traitent la mémoire comme un problème de **compression** (réduire N chapitres en M tokens fixes). L'Itération 4 traite la proposition créative comme un problème de **retrieval** (trouver les K fragments les plus pertinents parmi N). Les deux approches coexistent : NarraMind V1–3 continue de tourner en arrière-plan pour la détection d'anomalies, Compass ajoute une couche proactive en s'appuyant sur les mêmes données.
+**Distinction clé avec le tronc commun :** les Itérations 1–2 + A1 traitent la mémoire comme un problème de **compression** (réduire N chapitres en M tokens fixes). A2 traite la proposition créative comme un problème de **retrieval** (trouver les K fragments les plus pertinents parmi N). Les deux coexistent : NarraMind continue de tourner en arrière-plan pour les anomalies, Compass ajoute la couche proactive sur les mêmes données.
+
+---
+
+## PISTE B — NarraMind Univers
+
+> **Objectif de la piste :** appliquer la même logique mémoire + vectorisation au **menu Univers**, dont l'ADN est : *« bâtir et améliorer les éléments de votre Univers grâce au scénario de votre histoire »*. Deux itérations : structurer le monde (B1, cartographie du lore) puis la **vectorisation du lore** pour proposer l'enrichissement des fiches (B2). La Piste B réutilise l'infrastructure `pgvector` / embedding mise en place en A2.
+
+### Itération B1 — Cartographie de l'Univers : structuration du lore (mai–juin 2026)
+
+**Défi technique :** Offrir une saisie structurée et relationnelle du lore (le « cahier des charges » que la détection d'anomalies de la Piste A vérifie), tout en restant vectorisable élément par élément. Deux modèles ont été prototypés :
+
+- **v1 livrée — sections thématiques :** 5 axes (Règles du monde, Géographie, Factions/Peuples, Culture, Chronologie), chacun éditable et **vectorisé indépendamment** (`source_type: "lore_world_section"`), plus le LORE des assets (`source_type: "asset_lore"`).
+- **v2 spécifiée — wiki graphique :** modèle relationnel `lore_categories` / `lore_entries` / `lore_links` (chaque lieu, règle, peuple = une entrée liée aux autres et aux assets), avec vue liste et vue graphe (React Flow). Chaque `lore_entry` deviendra l'unité vectorisée (`source_type: "lore_entry"` remplaçant `"lore_world_section"`), et les liens seront injectés dans le contexte des propositions (« La Tour de Verre est possédée par Roi Aldric et protégée par les Gardiens »).
+
+**Implémentation (v1 livrée) :**
+- `UniverseSection.tsx` : 5 sections thématiques, chacune avec champ texte + bouton "✦ Suggestions Ariane"
+- Sauvegarde + déclenchement `triggerCompassIndex("lore_world_section", …)` à chaque save de section
+- LORE des assets indexé en `asset_lore`
+- Migration suggestions : `20260524200000_compass_proposals_extend_types.sql` (ajout `lore_world`, `lore_connection`, `asset_prefill`)
+
+**Spécification (v2 wiki graphique) :** `lore_categories` / `lore_entries` / `lore_links` + RLS `auth.uid() = user_id` + vues liste/graphe. Migration de bascule planifiée (drop `lore_*` colonnes → 3 tables). Cf. `Produit/NarraMind-Compass-Univers.md`.
+
+**Résultat et analyse ✅ (v1) / 🔵 (v2)**
+
+La v1 (sections thématiques) valide que le lore est **saisissable et vectorisable** sans modèle de graphe complet — suffisant pour amorcer les suggestions. Le défi technique réel de la v2 est la **modélisation d'un graphe de connaissances multi-tenant** (entrées + relations typées), dont la difficulté n'est pas la vectorisation (déjà résolue en A2) mais l'injection des **relations** dans le prompt de proposition. La cartographie reste donc un prérequis de qualité, pas un verrou de faisabilité.
+
+**Correctif identifié :** sans contenu minimal (seuils 3.5), les suggestions sont bruitées. B2 conditionne donc le déclenchement à un seuil de données indexées.
+
+---
+
+### Itération B2 — Vectorisation du lore : enrichissement des fiches via RAG (mai–juin 2026)
+
+**Défi technique :** Utiliser la vectorisation (infrastructure A2) pour **proposer l'enrichissement de l'Univers** : compléter une fiche lore, suggérer un nouvel élément cohérent, pré-remplir une fiche asset détectée dans le scénario — toujours en distinguant ce qui est **extrait** de l'histoire de ce qui est **inventé** par Ariane.
+
+**Implémentation :**
+
+*Edge Function `narramind-compass` — usage Univers*
+- Mode `"index"` sur `source_type: "lore_world_section"` et `"asset_lore"` : sections lore + LORE assets vectorisés (`text-embedding-004`)
+- Mode `"propose"` avec `proposal_type` ∈ { `lore_world`, `lore_asset`, `lore_connection`, `asset_prefill` } : contexte courant → top-5 fragments (chapitres + lore proches) → Gemini Flash → JSON `{ extracted, generated }` → upsert `compass_proposals` (dédoublonnage `dedupe_key`)
+- Service `compassIndex.ts` (`triggerCompassIndex`, `triggerCompassPropose`, `fetchCompassProposals`, `fetchActiveLoreAssetProposals`) + hooks `useCompassIndex`, `useCompassProposals`
+
+*Composants Ariane — suggestions 🔍 / ✨*
+- Deux groupes visuellement distincts — 🔍 "Tiré de ton histoire" (extraction) et ✨ "Proposé par Ariane" (invention cohérente)
+- Actions : `[ Ajouter au lore ]` insère le texte dans la fiche, `[ Ignorer ]` passe le statut en `dismissed`
+- Bandeau discret sur fiches assets (≥ 2 mentions dans les chapitres) → accordion suggestions
+- Panneau de curation des assets « à créer » (`fetchActiveLoreAssetProposals`)
+
+**Mesures relevées :**
+
+| Métrique | Cible | Résultat |
+|----------|-------|---------|
+| Tokens injectés pour 1 proposition lore | ≤ 1 200 | ~1 050 (top-5 fragments) |
+| Latence recherche pgvector (50 vecteurs) | < 10 ms | ~4 ms |
+| Embeddings lore par projet moyen (5 chap.) | — | ~5 sections + N assets |
+| Suggestions pertinentes (test sur 3 projets) | > 70 % "utiles" | En cours de mesure |
+
+**Résultat et analyse ✅**
+
+La même brique vectorielle qu'en A2 sert ici un usage différent : **retrouver le lore proche** pour l'enrichir, plutôt que retrouver le scénario proche pour le prolonger. C'est la démonstration clé du Projet Innovant : **une infrastructure de vectorisation unique, deux usages produits distincts** (Scénario et Univers). La distinction `extracted` / `generated` répond à l'enjeu de propriété intellectuelle — Ariane montre toujours d'où vient une suggestion.
+
+**Convergence des deux pistes :** A2 et B2 partagent `project_embeddings`, `compass_proposals` et l'Edge Function `narramind-compass`. Le `source_type` discrimine l'origine (`chapter`/`summary` côté Scénario, `lore_world_section`/`asset_lore` côté Univers) et le `proposal_type` l'usage. La vectorisation est donc le **point de convergence technique** des deux pistes — le défi le plus complexe, mutualisé.
 
 ---
 
@@ -550,13 +635,13 @@ Le point technique le plus délicat est le **chunking** : un chapitre de 2 000 m
 
 ## 6. Plan de release
 
-| Phase | Période | Statut | NarraMind — fonctionnalités |
-|-------|---------|--------|----------------------------|
-| **Beta / MVP** | Jan–Mar 2026 | ✅ Livré | `narramind-update` v1 — entités + résumés + métriques. Déclenchement auto. |
-| **V1 — Panels** | Avr–Mai 2026 | ✅ Livré | `narramind_alerts` persistées + UI Ariane Panneau Continuité + mémoire longue `narra_summary` + compression batch + budgets tokens |
-| **V2 — Compass** | Mai–Jun 2026 | 🔵 En cours | NarraMind Compass — indexation `project_embeddings` (pgvector) + EF `narramind-compass` + restructuration UI Univers + suggestions 🔍/✨ Ariane (Lore Monde + Lore Asset + Directions narratives + Pré-remplissage formulaire) |
-| **V3 — Scale** | Jul–Sep 2026 | 📅 Planifié | Quotas Compass par plan (Libre : 3 suggestions/mois / Créateur : illimité / Studio : priorité traitement) + tests sur corpus long (20–50 chapitres) + regroupement alertes par personnage/lieu |
-| **V4 — Fine-tuning** | Oct–Déc 2026 | 🔮 Futur | Fine-tuning prompt sur corpus webtoon + récupération ciblée par entité (second appel léger sur chapitres anciens) + regroupement alertes |
+| Phase | Période | Statut | Itérations couvertes | NarraMind — fonctionnalités |
+|-------|---------|--------|----------------------|----------------------------|
+| **Beta / MVP** | Jan–Mar 2026 | ✅ Livré | Itér. 1–2 (tronc commun) | `narramind-update` v1 — entités + résumés + métriques. Déclenchement auto. |
+| **V1 — Panels** | Avr–Mai 2026 | ✅ Livré | A1 (Scénario) | `narramind_alerts` persistées + UI Ariane Panneau Continuité + mémoire longue `narra_summary` + compression batch + budgets tokens |
+| **V2 — Compass** | Mai–Jun 2026 | 🔵 En cours | **A2 (Scénario) + B1/B2 (Univers)** | Vectorisation `project_embeddings` (pgvector) + EF `narramind-compass` + UI Univers (sections lore v1, wiki graphique v2 spécifié) + suggestions 🔍/✨ Ariane (Lore Monde + Lore Asset + Directions narratives + Pré-remplissage) |
+| **V3 — Scale** | Jul–Sep 2026 | 📅 Planifié | B1 v2 (wiki graphique) + scale | Bascule wiki graphique (`lore_entries`/`lore_links` + vue graphe React Flow) + quotas Compass par plan (Libre : 3 suggestions/mois / Créateur : illimité / Studio : priorité) + tests corpus long (20–50 chap.) |
+| **V4 — Fine-tuning** | Oct–Déc 2026 | 🔮 Futur | — | Fine-tuning prompt sur corpus webtoon + récupération ciblée par entité (RAG léger) + regroupement alertes par personnage/lieu |
 
 ### Ce qui reste à faire (backlog NarraMind)
 
@@ -580,4 +665,4 @@ Le LORE est écrit par l'utilisateur. NarraMind ne génère que des *suggestions
 
 ---
 
-*Dernière mise à jour : 22 mai 2026 — Itération 4 (NarraMind Compass) documentée, benchmarks vectoriels ajoutés (3.4), seuil de données minimal formalisé (3.5), stack + plan de release mis à jour.*
+*Dernière mise à jour : 7 juin 2026 — Section 4 restructurée en deux pistes parallèles (Tronc commun → Piste A NarraMind Scénario → Piste B NarraMind Univers), chacune poussée jusqu'à la vectorisation des informations (A2 chapitres / B2 lore). Benchmarks vectoriels (3.4), seuil de données minimal (3.5), plan de release mappé aux itérations.*

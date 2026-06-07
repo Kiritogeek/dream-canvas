@@ -1,6 +1,26 @@
 import { useState, useCallback } from "react";
-import { fetchCompassProposals, type CompassProposal } from "@/services/compassIndex";
+import { useQuery } from "@tanstack/react-query";
+import {
+  fetchCompassProposals,
+  fetchActiveLoreAssetProposals,
+  type CompassProposal,
+} from "@/services/compassIndex";
+import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+
+/**
+ * Propositions lore_asset actives du projet (lecture BDD, React Query).
+ * Alimente la section « À créer » du panneau de curation d'assets.
+ */
+export function useActiveLoreAssetProposals(projectId: string | undefined) {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ["compass-proposals", "lore_asset", projectId],
+    queryFn: () => fetchActiveLoreAssetProposals(projectId!),
+    enabled: !!user && !!projectId,
+    staleTime: 30_000,
+  });
+}
 
 export function useCompassProposals(projectId: string) {
   const [proposals, setProposals] = useState<CompassProposal[]>([]);

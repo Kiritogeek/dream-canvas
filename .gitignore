@@ -17,6 +17,10 @@ dist
 dist-ssr
 *.local
 
+# Références de recherche — scans copyrightés, non publiables (gardés en local uniquement)
+References/Webtoon/
+References/LightNovel/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

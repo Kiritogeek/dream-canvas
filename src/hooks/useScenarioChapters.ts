@@ -6,6 +6,7 @@ import type {
   ScenarioChapterInsert,
   ScenarioChapterUpdate,
   ScenarioVersionInsert,
+  ChapterAssetsState,
 } from "@/types";
 
 // ── Query keys ───────────────────────────────────────────────
@@ -13,6 +14,7 @@ import type {
 const keys = {
   chapters: (projectId: string) => ["scenario-chapters", projectId] as const,
   chapter: (id: string) => ["scenario-chapter", id] as const,
+  chapterAssets: (chapterId: string) => ["chapter-assets", chapterId] as const,
   versions: (projectId: string) => ["scenario-versions", projectId] as const,
   chapterVersions: (chapterId: string) =>
     ["scenario-versions", "chapter", chapterId] as const,
@@ -121,6 +123,84 @@ export function useUnvalidateChapter() {
     onSuccess: (data, variables) => {
       qc.setQueryData(keys.chapter(variables.id), data);
       qc.invalidateQueries({ queryKey: keys.chapters(variables.projectId) });
+    },
+  });
+}
+
+// ── Curation des assets de chapitre (étape 2) ────────────────
+
+/** Lit la colonne `chapter_assets` (décisions de curation). */
+export function useChapterAssets(chapterId: string | undefined) {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: keys.chapterAssets(chapterId!),
+    queryFn: () => scenarioService.fetchChapterAssets(chapterId!),
+    enabled: !!user && !!chapterId,
+    staleTime: 30_000,
+  });
+}
+
+/** Écrit l'état complet de curation des assets d'un chapitre. */
+export function useUpdateChapterAssets() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      chapterId,
+      state,
+    }: {
+      chapterId: string;
+      projectId: string;
+      state: ChapterAssetsState;
+    }) => scenarioService.updateChapterAssets(chapterId, state),
+    onSuccess: (data, variables) => {
+      qc.setQueryData(keys.chapterAssets(variables.chapterId), data);
+      qc.invalidateQueries({ queryKey: keys.chapter(variables.chapterId) });
+    },
+  });
+}
+
+/** Verrouille l'étape assets (`chapter_assets.validated = true`). */
+export function useValidateChapterAssets() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      chapterId,
+      state,
+    }: {
+      chapterId: string;
+      projectId: string;
+      state: ChapterAssetsState;
+    }) =>
+      scenarioService.updateChapterAssets(chapterId, {
+        ...state,
+        validated: true,
+      }),
+    onSuccess: (data, variables) => {
+      qc.setQueryData(keys.chapterAssets(variables.chapterId), data);
+      qc.invalidateQueries({ queryKey: keys.chapter(variables.chapterId) });
+    },
+  });
+}
+
+/** Déverrouille l'étape assets (`chapter_assets.validated = false`). */
+export function useUnvalidateChapterAssets() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      chapterId,
+      state,
+    }: {
+      chapterId: string;
+      projectId: string;
+      state: ChapterAssetsState;
+    }) =>
+      scenarioService.updateChapterAssets(chapterId, {
+        ...state,
+        validated: false,
+      }),
+    onSuccess: (data, variables) => {
+      qc.setQueryData(keys.chapterAssets(variables.chapterId), data);
+      qc.invalidateQueries({ queryKey: keys.chapter(variables.chapterId) });
     },
   });
 }

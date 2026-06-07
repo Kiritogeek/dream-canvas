@@ -11,7 +11,11 @@ import type {
   NarrativeCoherenceAlert,
   NarrativeAlertSeverity,
   NarrativeAlertAnchor,
+  ChapterAssetsState,
+  ChapterAssetItem,
+  ChapterAssetStatus,
 } from "@/types";
+import { EMPTY_CHAPTER_ASSETS } from "@/types";
 
 function normalizeSeverityFrontend(v: unknown): NarrativeAlertSeverity | undefined {
   if (v === "info" || v === "warning" || v === "critical") return v;
@@ -133,6 +137,53 @@ export function contentContainsAssetName(content: string, name: string): boolean
   return regex.test(content);
 }
 
+export type SceneHeaderEntity = { name: string; type: "character" | "background" };
+
+/** Normalise un nom pour la déduplication (insensible casse + accents). */
+export function normalizeEntityName(name: string): string {
+  return name
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+/**
+ * Extrait les noms mentionnés dans les en-têtes de scène :
+ * `> Personnages : Nom1, Nom2 (...)` → type character,
+ * `> Lieu : Lieu, heure, ambiance` → type background (1er segment seulement).
+ * Dédup par nom (insensible casse/accents). Filtre les segments trop courts/descriptifs.
+ */
+export function extractSceneHeaderEntities(content: string): SceneHeaderEntity[] {
+  if (!content?.trim()) return [];
+  const out: SceneHeaderEntity[] = [];
+  const seen = new Set<string>();
+
+  const push = (raw: string, type: SceneHeaderEntity["type"]) => {
+    const name = raw.replace(/\([^)]*\)/g, "").trim();
+    if (name.length < 2 || name.length > 60) return;
+    const key = `${type}:${normalizeEntityName(name)}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push({ name, type });
+  };
+
+  for (const line of content.split("\n")) {
+    const persoMatch = line.match(/^>\s*Personnages\s*:\s*(.+)$/i);
+    if (persoMatch) {
+      for (const part of persoMatch[1].split(",")) push(part, "character");
+      continue;
+    }
+    const lieuMatch = line.match(/^>\s*Lieu\s*:\s*(.+)$/i);
+    if (lieuMatch) {
+      const first = lieuMatch[1].split(",")[0] ?? "";
+      push(first, "background");
+    }
+  }
+
+  return out;
+}
+
 /** Remplace toutes les occurrences du nom (mot entier) par le nouveau nom dans le contenu. */
 export function replaceAssetNameInContent(
   content: string,
@@ -146,6 +197,66 @@ export function replaceAssetNameInContent(
     "gi"
   );
   return content.replace(regex, newName);
+}
+
+// ── Curation des assets de chapitre (chapter_assets JSONB) ───────
+
+const ASSET_STATUSES: ChapterAssetStatus[] = ["auto", "added", "removed", "skipped"];
+
+/** Parse défensivement le JSONB `chapter_assets` vers un état typé. */
+export function parseChapterAssets(value: Json | null | undefined): ChapterAssetsState {
+  if (value == null || typeof value !== "object" || Array.isArray(value)) {
+    return { ...EMPTY_CHAPTER_ASSETS };
+  }
+  const obj = value as Record<string, unknown>;
+  const validated = obj.validated === true;
+  const rawItems = Array.isArray(obj.items) ? obj.items : [];
+  const items: ChapterAssetItem[] = [];
+  for (const raw of rawItems) {
+    if (raw == null || typeof raw !== "object" || Array.isArray(raw)) continue;
+    const r = raw as Record<string, unknown>;
+    const assetId = typeof r.asset_id === "string" ? r.asset_id : "";
+    const status = ASSET_STATUSES.includes(r.status as ChapterAssetStatus)
+      ? (r.status as ChapterAssetStatus)
+      : "auto";
+    if (!assetId) continue;
+    const item: ChapterAssetItem = { asset_id: assetId, status };
+    if (typeof r.linked_alias === "string" && r.linked_alias.trim()) {
+      item.linked_alias = r.linked_alias.trim();
+    }
+    items.push(item);
+  }
+  return { validated, items };
+}
+
+/** Lit la colonne `chapter_assets` d'un chapitre. */
+export async function fetchChapterAssets(
+  chapterId: string
+): Promise<ChapterAssetsState> {
+  const { data, error } = await supabase
+    .from("scenario_chapters")
+    .select("chapter_assets")
+    .eq("id", chapterId)
+    .single();
+
+  if (error) throw error;
+  return parseChapterAssets(data?.chapter_assets ?? null);
+}
+
+/** Écrit la colonne `chapter_assets` d'un chapitre. */
+export async function updateChapterAssets(
+  chapterId: string,
+  state: ChapterAssetsState
+): Promise<ChapterAssetsState> {
+  const { data, error } = await supabase
+    .from("scenario_chapters")
+    .update({ chapter_assets: state as unknown as Json })
+    .eq("id", chapterId)
+    .select("chapter_assets")
+    .single();
+
+  if (error) throw error;
+  return parseChapterAssets(data?.chapter_assets ?? null);
 }
 
 // ── Scenario chapters ────────────────────────────────────────

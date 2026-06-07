@@ -90,6 +90,36 @@ export type PanelUpdate = TablesUpdate<"chapter_canvases">;
 export type ScenarioChapterUpdate = TablesUpdate<"scenario_chapters">;
 export type ScenarioVersionUpdate = TablesUpdate<"scenario_versions">;
 
+// ── Curation des assets de chapitre (validation en 3 étapes) ──────
+
+/**
+ * Décision utilisateur sur un asset du chapitre.
+ * - auto : détecté par matching nom, inclus par défaut
+ * - added : ajouté manuellement depuis la bibliothèque (pas détecté dans le texte)
+ * - removed : faux positif retiré → exclu de la liste effective
+ * - skipped : détecté mais l'utilisateur choisit de ne pas le générer
+ */
+export type ChapterAssetStatus = "auto" | "added" | "removed" | "skipped";
+
+export interface ChapterAssetItem {
+  asset_id: string;
+  status: ChapterAssetStatus;
+  /** Mention textuelle liée manuellement à cet asset. */
+  linked_alias?: string;
+}
+
+/** Forme du JSONB `scenario_chapters.chapter_assets`. */
+export interface ChapterAssetsState {
+  validated: boolean;
+  items: ChapterAssetItem[];
+}
+
+/** État par défaut quand la colonne est absente/vide. */
+export const EMPTY_CHAPTER_ASSETS: ChapterAssetsState = {
+  validated: false,
+  items: [],
+};
+
 // ── Types métier — cohérence narrative (alertes chapitre) ─────────
 
 export type NarrativeAlertSeverity = "info" | "warning" | "critical";

@@ -525,6 +525,7 @@ export type Database = {
           narramind_checked_at: string | null
           validated: boolean
           validated_at: string | null
+          chapter_assets: Json
           created_at: string
           updated_at: string
         }
@@ -543,6 +544,7 @@ export type Database = {
           narramind_checked_at?: string | null
           validated?: boolean
           validated_at?: string | null
+          chapter_assets?: Json
           created_at?: string
           updated_at?: string
         }
@@ -561,6 +563,7 @@ export type Database = {
           narramind_checked_at?: string | null
           validated?: boolean
           validated_at?: string | null
+          chapter_assets?: Json
           created_at?: string
           updated_at?: string
         }

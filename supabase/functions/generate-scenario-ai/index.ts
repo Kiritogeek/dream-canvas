@@ -641,7 +641,7 @@ RÈGLES ABSOLUES :
         fetch(`${base}/lore_nodes?project_id=eq.${body.project_id}&select=id,name,type,description&order=type.asc`, { headers }),
         fetch(`${base}/lore_edges?project_id=eq.${body.project_id}&select=from_node_id,to_node_id,label`, { headers }),
         fetch(`${base}/compass_proposals?project_id=eq.${body.project_id}&proposal_type=eq.lore_asset&status=eq.active&select=title`, { headers }),
-        fetch(`${base}/scenario_chapters?project_id=eq.${body.project_id}&select=chapter_number,title,content,ai_summary&order=chapter_number.desc&limit=5`, { headers }),
+        fetch(`${base}/scenario_chapters?project_id=eq.${body.project_id}&select=chapter_number,title,content,ai_summary&order=chapter_number.desc&limit=40`, { headers }),
       ]);
 
       type LoreNodeRow = { id: string; name: string; type: string; description: string | null };
@@ -692,17 +692,36 @@ RÈGLES ABSOLUES :
         ? proposals.map((p) => `  - ${p.title}`).join("\n")
         : "  (aucun)";
 
-      const chaptersSection = chapters.length > 0
-        ? chapters.map((c) => {
-            const summary = c.ai_summary?.trim();
-            const content = c.content?.trim();
-            const body = summary
-              ? `Résumé : ${clip(summary, 300)}`
-              : content
-                ? clip(content, 400)
-                : "(vide)";
-            return `Chapitre ${c.chapter_number} — ${c.title}\n${body}`;
-          }).join("\n\n---\n\n")
+      // Efficacité / légèreté : le DERNIER chapitre est envoyé en intégral (état présent =
+      // point de reprise), les antérieurs via leur ai_summary. On remplit un budget global de
+      // tokens en partant des plus récents et on coupe les plus anciens si ça déborde.
+      const CHAPTERS_TOKEN_BUDGET = 6000;
+      const chapterBlocks: string[] = [];
+      let usedChapterTokens = 0;
+      let olderChaptersTruncated = false;
+      for (let i = chapters.length - 1; i >= 0; i--) {
+        const c = chapters[i];
+        const isLast = i === chapters.length - 1;
+        const summary = c.ai_summary?.trim();
+        const content = c.content?.trim();
+        const bodyText = isLast
+          ? (content ? clip(content, 16000) : summary ? `Résumé : ${summary}` : "(vide)")
+          : (summary ? `Résumé : ${clip(summary, 600)}` : content ? clip(content, 800) : "(vide)");
+        const marker = isLast ? " ← DERNIER CHAPITRE ÉCRIT (reprends juste après sa fin)" : "";
+        const block = `Chapitre ${c.chapter_number} — ${c.title}${marker}\n${bodyText}`;
+        const cost = estimateTokens(block);
+        if (!isLast && usedChapterTokens + cost > CHAPTERS_TOKEN_BUDGET) {
+          olderChaptersTruncated = true;
+          break;
+        }
+        usedChapterTokens += cost;
+        chapterBlocks.unshift(block);
+      }
+      if (olderChaptersTruncated) {
+        chapterBlocks.unshift("(… chapitres les plus anciens omis pour rester concis …)");
+      }
+      const chaptersSection = chapterBlocks.length > 0
+        ? chapterBlocks.join("\n\n---\n\n")
         : "(aucun chapitre écrit)";
 
       const isFirstChapter = chapters.length === 0;
@@ -719,12 +738,12 @@ ${connectionsSection}
 ÉLÉMENTS DÉTECTÉS DANS LE SCÉNARIO MAIS PAS ENCORE DANS L'UNIVERS :
 ${pendingSection}
 
-SCÉNARIO (derniers chapitres) :
+SCÉNARIO DÉJÀ ÉCRIT (le PASSÉ — ne pas le réécrire, c'est ton contexte) :
 ${chaptersSection}
 
 ${isFirstChapter
   ? "Propose 3 directions pour démarrer le Chapitre 1 — le tout début de cette histoire."
-  : `Génère 3 directions narratives pour le Chapitre ${nextChapterNumber}.`
+  : `Génère 3 directions narratives pour le Chapitre ${nextChapterNumber}. Pars de l'état final du dernier chapitre écrit ci-dessus et fais AVANCER l'histoire — ne re-raconte aucun événement déjà écrit.`
 }`;
 
     } else if (mode === "suggest_connection_label") {

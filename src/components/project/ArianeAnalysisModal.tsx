@@ -13,6 +13,8 @@ import { triggerCompassIndex, triggerCompassPropose } from "@/services/compassIn
 interface ArianeAnalysisModalProps {
   isOpen: boolean;
   onClose: () => void;
+  /** Appelé quand l'analyse réussit (état "done") ou via « Continuer quand même » en cas d'erreur. */
+  onComplete?: () => void;
   projectId: string;
   chapterId: string;
   chapterContent: string;
@@ -28,6 +30,7 @@ type AnalysisState = "loading" | "done" | "error";
 export function ArianeAnalysisModal({
   isOpen,
   onClose,
+  onComplete,
   projectId,
   chapterId,
   chapterContent,
@@ -100,19 +103,18 @@ export function ArianeAnalysisModal({
             <>
               <div className="space-y-1.5">
                 <h3 className="font-display font-semibold text-lg leading-tight">
-                  Analyse terminée
+                  Analyse terminée, passons aux assets
                 </h3>
                 <p className="text-sm text-muted-foreground max-w-[220px]">
-                  Les propositions d'Ariane sont disponibles dans l'onglet{" "}
-                  <strong className="text-foreground">Univers</strong>.
+                  Ariane a relu votre chapitre. Place à la curation des assets à générer.
                 </p>
               </div>
               <Button
-                onClick={onClose}
+                onClick={() => onComplete?.()}
                 className="gap-2 gradient-primary text-primary-foreground rounded-xl px-6 shadow-dream"
               >
                 <Check className="h-4 w-4" />
-                Voir les propositions
+                Continuer
               </Button>
             </>
           )}
@@ -124,12 +126,15 @@ export function ArianeAnalysisModal({
                   Analyse indisponible
                 </h3>
                 <p className="text-sm text-muted-foreground max-w-[220px]">
-                  Une erreur est survenue. Les propositions existantes restent accessibles
-                  dans l'onglet Univers.
+                  Une erreur est survenue. Vous pouvez continuer : les propositions existantes
+                  restent exploitables.
                 </p>
               </div>
-              <Button variant="outline" onClick={onClose} className="rounded-xl px-6">
-                Fermer
+              <Button
+                onClick={() => onComplete?.()}
+                className="gap-2 gradient-primary text-primary-foreground rounded-xl px-6 shadow-dream"
+              >
+                Continuer quand même
               </Button>
             </>
           )}

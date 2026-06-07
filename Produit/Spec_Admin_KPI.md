@@ -252,3 +252,5 @@ ALTER TABLE admin_logs ENABLE ROW LEVEL SECURITY;
 ---
 
 *Lié à : [[Roadmap-2026]] Chantier 6 · [[Architecture-Technique]] · [[Modele-Donnees]]*
+
+*Audit 7 juin 2026 : noms de plans (Libre/Créateur/Studio), guards admin et modes Edge Functions vérifiés conformes — aucun fait obsolète.*

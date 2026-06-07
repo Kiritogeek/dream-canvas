@@ -62,7 +62,7 @@
 | US-4.3 | En tant qu'utilisateur, je veux créer un objet | - Sélection type "Objet"<br>- Nom + prompt<br>- Génération automatique | ✅ Fait |
 | US-4.4 | En tant qu'utilisateur, je veux voir mes assets en grille | - Grille responsive<br>- Image ou placeholder<br>- Nom et type visibles | ✅ Fait |
 | US-4.5 | En tant qu'utilisateur, je veux régénérer l'image d'un asset | - Bouton régénérer<br>- Nouvelle image avec le style actuel<br>- Remplacement de l'ancienne image | ✅ Fait |
-| US-4.6 | En tant qu'utilisateur, je veux générer les vues multiples d'un personnage | - Vue de face (auto)<br>- Profil gauche (à la demande)<br>- Profil droit (à la demande)<br>- Vue de dos (à la demande) | ✅ Fait |
+| US-4.6 | En tant qu'utilisateur, je veux générer la fiche Sheet System d'un personnage (4 angles) | - Fiche composite : face + profil gauche + profil droit + dos, générée en une passe<br>- Cohérence visuelle du personnage entre les angles<br>- Disponible sur tous les plans (remplace les multi-vues) | ✅ Fait |
 | US-4.7 | En tant qu'utilisateur, je veux supprimer un asset | - Confirmation<br>- Suppression en base + storage<br>- Mise à jour de la grille | ✅ Fait |
 
 ### E5 — Génération IA
@@ -214,7 +214,7 @@
         ┌───────────┐ ┌───────────┐ ┌───────────┐
         │ Personnage│ │  Décor    │ │  Objet    │
         │ Principal │ │ Principal │ │ Important │
-        │ (+ vues)  │ │           │ │           │
+        │ (+ Sheet) │ │           │ │           │
         └─────┬─────┘ └─────┬─────┘ └─────┬─────┘
               │              │              │
               └──────────────┼──────────────┘
@@ -266,8 +266,8 @@ Asset existant ──► Résultat insatisfaisant
   │   └── Affecter les futures     │
   │       générations              │
   │                                │
-  └── Générer une vue différente   │
-      └── Profil, dos, etc.        │
+  └── Régénérer la fiche Sheet     │
+      └── 4 angles (face/profils/dos)│
   └────────────────────────────────┘
 ```
 
@@ -305,4 +305,4 @@ Asset existant ──► Résultat insatisfaisant
 
 ---
 
-*Dernière mise à jour : 14 février 2026*
+*Dernière mise à jour : 7 juin 2026 (audit vérité) — US-4.6 multi-vues → Sheet System (fiche 4 angles), diagrammes parcours mis à jour. 14 février 2026 — version initiale.*

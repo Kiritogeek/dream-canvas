@@ -41,16 +41,16 @@ Des **millions de créateurs potentiels** (auteurs, scénaristes, conteurs, fans
 
 | Barrière | Solution DreamWeave |
 |----------|-------------------|
-| Compétences artistiques | Génération automatique via IA (FLUX.1 Schnell pour Free, FLUX.2 Pro / Pro Edit pour Pro, via FAL.ai) |
+| Compétences artistiques | Génération automatique via IA (FLUX.2 Pro / Pro Edit pour tous les plans, via FAL.ai) |
 | Coût de production | Coût marginal par image (quelques centimes via API) |
 | Temps de production | Minutes par asset, heures par chapitre |
-| Cohérence visuelle | Système de templates de style + images de référence (Pro) |
+| Cohérence visuelle | Système de templates de style + images de référence (tous les plans) |
 | Outils fragmentés | Plateforme tout-en-un : assets → chapitres → panels → lecture |
 
 ### 2.3 Avantage compétitif durable
 
 1. **Système de cohérence stylistique** : Template texte + images de référence appliqués à toutes les générations
-2. **Vues multiples des personnages** : Face, profil gauche, profil droit, dos — unique sur le marché (Pro)
+2. **Sheet System** : fiche composite 4 angles (face, profil gauche, profil droit, dos) générée en 1 action, injectée comme référence — unique sur le marché (tous les plans)
 3. **Workflow natif webtoon** : Format vertical, optimisé lecture mobile
 4. **Bibliothèque d'assets réutilisables** : Un personnage créé une fois, utilisé dans tous les panels
 
@@ -202,12 +202,12 @@ Des **millions de créateurs potentiels** (auteurs, scénaristes, conteurs, fans
 
 ### 8.2 Système de style visuel
 - **Template de style texte** : description du style (ambiance, couleurs, traits).
-- **Images de référence** (Pro) : jusqu'à 2 images pour guider l'IA (FLUX.2 Pro Edit).
+- **Images de référence** (tous les plans) : jusqu'à 2 images pour guider l'IA (FLUX.2 Pro Edit).
 - Application automatique du style à toutes les générations.
 
 ### 8.3 Bibliothèque d'assets
 - **Types** : Personnages, Décors, Objets.
-- **Personnages** : vues multiples (face, profil G/D, dos) en Pro.
+- **Personnages** : Sheet System — fiche composite 4 angles (face, profil G/D, dos) générée en 1 action (tous les plans).
 - Création, modification, régénération, suppression ; stockage Supabase.
 
 ### 8.4 Section « Scénario » (texte narratif)
@@ -234,11 +234,11 @@ Des **millions de créateurs potentiels** (auteurs, scénaristes, conteurs, fans
   - Règle : la génération s'appuie toujours sur les **assets sélectionnés** (chapitre ou bloc), jamais sur le texte du scénario dans le prompt d'image.
 
 ### 8.6 Génération IA
-- **Free** : FLUX.1 Schnell (~0,003 €/image). **Pro** : FLUX.2 Pro / Pro Edit (refs).
-- Edge Function Supabase, FAL.ai, format 1024×1024, quotas mensuels (20 Free / 300 Pro).
+- **Tous les plans** : FLUX.2 Pro / Pro Edit (refs), coût FAL.ai réel ~0,065 $/génération en moyenne (~0,03 $ sans référence, ~0,09 $ avec références Sheet System).
+- Edge Function Supabase, FAL.ai, format 1024×1024, crédits mensuels (20 Libre / 100 Créateur / 250 Studio). 1 crédit = 1 génération (asset, sheet, bloc de case — unifié).
 
 ### 8.7 Lecture, auth, UI, dashboard, profil, plans
-- Lecture verticale type webtoon ; auth Supabase (email + Google) ; interface glassmorphism, thème clair/sombre ; dashboard (stats, usage, projets récents) ; plans Free / Pro (14,99 €/mois).
+- Lecture verticale type webtoon ; auth Supabase (email + Google) ; interface glassmorphism, thème clair/sombre ; dashboard (stats, usage, projets récents) ; plans Libre (0 €) / Créateur (12,99 €/mois) / Studio (29,99 €/mois).
 
 ---
 
@@ -246,8 +246,8 @@ Des **millions de créateurs potentiels** (auteurs, scénaristes, conteurs, fans
 
 1. **Inscription/Connexion** → Dashboard
 2. **Création d'un projet** → Titre + description
-3. **Définition du style** : template texte + images de référence (Pro)
-4. **Création des assets** : personnages, décors, objets ; vues multiples (Pro)
+3. **Définition du style** : template texte + images de référence (tous les plans)
+4. **Création des assets** : personnages, décors, objets ; Sheet System 4 angles (tous les plans)
 5. **Section Scénario** : écrire ou importer le scénario (texte) ; créer des **chapitres** (correspondant aux chapitres webtoon) ; découper chaque chapitre en **panels** (liste + descriptions) pour permettre la génération panel par panel
 6. **Édition de l'œuvre** : chapitres visuels et panels alignés sur les chapitres écrits — mode Automatique (découpage scénario → panels → génération) ou Structuré (blocs → descriptions + assets → génération) ; pendant l'édition : visualisation du chapitre texte correspondant + assets sélectionnés ; dialogues/narration en overlay
 7. **Prévisualisation** : lecture verticale (images pleines dans panels/blocs)
@@ -257,13 +257,13 @@ Des **millions de créateurs potentiels** (auteurs, scénaristes, conteurs, fans
 ## 10. Points de différenciation
 
 1. **Cohérence stylistique garantie** : Templates de style + images de référence
-2. **Vues multiples des personnages** : Face, profil, dos (Pro)
+2. **Sheet System** : fiche composite 4 angles (face, profil, dos) générée en 1 action (tous les plans)
 3. **Workflow optimisé** : Projet → Assets → Chapitres → Panels
 4. **Format natif webtoon** : Vertical, mobile-first
 5. **Accessibilité** : Aucune compétence artistique requise
 6. **Rapidité** : Génération en quelques secondes
-7. **Plan gratuit généreux** : 20 générations/mois, projets et assets illimités
-8. **Multi-modèles IA** : Schnell (Free) / FLUX.2 Pro & Pro Edit (Pro)
+7. **Plan Libre généreux** : 20 crédits/mois, toutes les features, projets et assets illimités
+8. **Même IA pour tous** : FLUX.2 Pro & Pro Edit sur tous les plans (logique Spotify, différenciation = volume de crédits)
 
 ---
 
@@ -284,7 +284,7 @@ Des **millions de créateurs potentiels** (auteurs, scénaristes, conteurs, fans
 - **Frontend** : React 18 + TypeScript (strict) + Vite 7
 - **UI** : shadcn/ui + Tailwind CSS 3 + Framer Motion
 - **Backend** : Supabase (PostgreSQL + Auth + Storage + Edge Functions Deno)
-- **IA** : FAL.ai (FLUX.1 Schnell / FLUX.2 Pro / FLUX.2 Pro Edit)
+- **IA** : FAL.ai (FLUX.2 Pro / FLUX.2 Pro Edit) ; texte : Google Gemini Flash (primaire) + Groq Llama 3.3 70B (fallback)
 - **Routing** : React Router DOM 7 (lazy loading)
 - **State** : TanStack React Query 5
 - **Déploiement** : Vercel / Netlify
@@ -301,8 +301,8 @@ Le product-market fit est solide car :
 - ✅ La solution est techniquement viable (IA générative mature)
 - ✅ La valeur est immédiate (résultats visuels rapides, cohérence garantie)
 
-**État actuel** : MVP Phase 1 complète (projets, assets, style, plans Free/Pro, multi-modèles IA, profil, Plans). Phase 2 planifiée : panels avancés, dialogues, chapitres (flux Automatique/Structuré), intégration Stripe.
+**État actuel** : MVP Phase 1 complète (projets, assets, style, plans Libre/Créateur/Studio, FLUX.2 Pro pour tous, profil, Plans, Stripe implémenté). Phase 2 planifiée : panels avancés, dialogues, chapitres (flux Automatique/Structuré), déploiement Stripe (conditionné à la création de l'auto-entreprise).
 
 ---
 
-*Dernière mise à jour : 14 février 2026*
+*Dernière mise à jour : 7 juin 2026 — audit de cohérence (tiers Libre/Créateur/Studio, FLUX.2 Pro pour tous, Sheet System).*

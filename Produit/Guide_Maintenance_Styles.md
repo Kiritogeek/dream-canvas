@@ -71,7 +71,7 @@ Toujours inclure :
 
 ## 3.3 Déployer et générer
 
-Depuis `dream-canvas/` :
+Depuis la racine du projet (`DreamWeave/`) :
 
 ```bash
 npx supabase functions deploy generate-style-template-images
@@ -160,4 +160,4 @@ npx supabase functions deploy generate-panel-image
 
 ---
 
-*Dernière mise à jour : 15 avril 2026*
+*Dernière mise à jour : 15 avril 2026 · audit 7 juin 2026 : chemin de déploiement corrigé (racine `DreamWeave/`). Procédure styles inchangée et toujours valide (`StyleManager` `STYLE_OPTIONS`, `generate-style-template-images` `DEFINITIONS`, injection `style_template` dans `generate-asset-image` / `generate-panel-image`).*

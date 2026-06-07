@@ -1,6 +1,6 @@
 # Personas Utilisateurs — DreamWeave
 
-> Personas cibles : Luna (autrice webfiction), Marc (créateur contenu), Élodie (studio), Théo (amateur).
+> Personas cibles : Luna (autrice webfiction), Marc (créateur contenu), Élodie (éditrice — offre B2B/Enterprise sur devis), Théo (amateur).
 
 ---
 
@@ -40,7 +40,7 @@ Luna écrit des histoires de fantasy sur Wattpad depuis 3 ans. Elle a accumulé 
 
 - Crée un projet, définit un style "fantasy épique, couleurs chaudes"
 - Crée ses 5 personnages principaux avec des descriptions détaillées
-- Génère les vues multiples pour la cohérence
+- Génère les fiches Sheet System (4 angles) pour la cohérence
 - Crée un chapitre par semaine avec le synopsis de son roman
 - Utilise l'outil quotidiennement pendant 30-60 min
 
@@ -142,14 +142,16 @@ Marc fait des vidéos de storytelling et de narration sur YouTube. Il cherche co
 
 - Crée un projet par manuscrit reçu
 - Génère rapidement les personnages principaux pour validation
-- Utilise les vues multiples comme base de character sheet
+- Utilise le Sheet System (4 angles) comme base de character sheet
 - Partage les résultats avec son équipe et les auteurs
 - Utilise l'outil comme outil de pré-production, pas de production finale
 
 ### Willingness to Pay
 
-- **100-200 €/mois** : pour un plan équipe
+- **100-200 €/mois** : pour un usage studio / équipe
 - **500 €/mois** : si fonctionnalités de collaboration avancées
+
+> **Note** : Élodie relève de l'**offre B2B / Enterprise sur devis**, hors de la grille standard grand public (Libre 0 € / Créateur 12,99 € / Studio 29,99 €). Le plan **Studio à 29,99 €** est un plan individuel premium, pas une offre équipe.
 
 ### Citation clé
 
@@ -222,4 +224,4 @@ Théo est un lecteur assidu de webtoons (Webtoon, Tapas). Il passe 2-3h par jour
 
 ---
 
-*Dernière mise à jour : 14 février 2026*
+*Dernière mise à jour : 7 juin 2026 — audit de cohérence (Sheet System, Élodie = offre B2B/Enterprise sur devis).*

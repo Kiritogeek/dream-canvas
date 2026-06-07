@@ -1,6 +1,6 @@
 # NarraMind Compass — Spec
 ### Co-pilote créatif d'Ariane pour toute création dans DreamWeave
-*Porté par Ariane · Lore-first · Ne pas coder avant validation*
+*Porté par Ariane · Lore-first · Infrastructure de vectorisation livrée (EF `narramind-compass`, `project_embeddings`, `compass_proposals`, `text-embedding-004` 768D + pgvector) — voir §6. Phases produit en cours de déploiement (sections thématiques Univers v1 livrée).*
 
 ---
 
@@ -306,7 +306,7 @@ updated_at      timestamptz
 id              uuid primary key
 project_id      uuid references projects
 source_id       uuid  -- contexte source (chapitre ou asset déclencheur)
-proposal_type   text  -- 'lore_world' | 'lore_asset' | 'narrative_direction' | 'asset_prefill'
+proposal_type   text  -- 'lore_world' | 'lore_asset' | 'lore_chapter_update' | 'lore_connection' | 'narrative_direction' | 'asset_prefill'
 origin          text  -- 'extracted' (🔍) | 'generated' (✨)
 title           text  -- titre court affiché (langage auteur)
 content         text  -- corps de la suggestion
@@ -347,11 +347,13 @@ created_at      timestamptz
 
 ## 8. Tier gate
 
+> **Stratégie « tout gratuit » (actée le 2026-05-30)** : toutes les features Compass sont disponibles sur **tous les plans, y compris Libre**. La différenciation se fait sur le **volume de crédits** (20 / 100 / 250), pas sur les features. Seules exceptions Studio : mémoire narrative longue (`allowLongMemory`) + priorité FAL.ai. Source de vérité : `TIER_CONFIG` dans `src/types/index.ts`.
+
 | Plan | Compass |
 |---|---|
-| **Libre** | Lore structuré disponible · 3 suggestions Ariane/mois |
-| **Créateur** | Compass complet — toutes zones, illimité |
-| **Studio** | Idem + priorité traitement (file dédiée) |
+| **Libre** (0 €/20 crédits) | Compass complet — toutes zones |
+| **Créateur** (12,99 €/100 crédits) | Compass complet — toutes zones |
+| **Studio** (29,99 €/250 crédits) | Idem + mémoire narrative longue + priorité traitement FAL.ai |
 
 ---
 
@@ -374,4 +376,4 @@ Cette spec constitue la base d'une **Itération 4** pour le dossier WSF5 :
 
 ---
 
-*Spec v2 — 21 mai 2026. Réponses ouvertes intégrées. En attente de validation avant implémentation.*
+*Spec v2 — 21 mai 2026 · audit 7 juin 2026 : infrastructure de vectorisation livrée (EF `narramind-compass` mode index/propose, `project_embeddings`, `compass_proposals`, `text-embedding-004` 768D, pgvector), `CompassProposalType` étendu (`lore_chapter_update`, `lore_connection`), tier gate aligné « tout gratuit ». Les phases produit UI sont en cours de déploiement.*

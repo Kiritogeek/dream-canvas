@@ -16,7 +16,7 @@
 ### Phase E–F — IA Scénario, IA Chapitre, Diff visuel
 - **IA Scénario** : 1 prompt = 1 chapitre généré, accepter/rejeter
 - **IA Chapitre** : réécriture d'un chapitre + diff visuel (rouge supprimé / vert ajouté)
-- Edge Function `generate-scenario-ai` (Groq Llama 3.3 70B)
+- Edge Function `generate-scenario-ai` (Gemini Flash primaire + fallback Groq Llama 3.3 70B)
 
 ### Phase G — Détection assets, éléments non créés, création depuis scénario
 - Surbrillance des noms d'assets (par type), HoverCard, Dialog agrandi
@@ -88,7 +88,7 @@ Elle s'assied sans répondre. Long silence.
 
 - Nouveau champ `ai_summary TEXT` sur `scenario_chapters` (migration légère)
 - Contenu : personnages · lieu · ce qui se passe · enjeu pour la suite
-- Généré automatiquement après chaque sauvegarde (1 appel Groq rapide)
+- Généré automatiquement après chaque sauvegarde (1 appel Gemini Flash rapide, fallback Groq)
 - Quand l'IA travaille : utilise `ai_summary` des chapitres précédents + texte complet du chapitre courant uniquement (~600 mots max de contexte)
 
 ### 2.6 Accompagnement IA dans l'éditeur de l'œuvre
@@ -110,15 +110,17 @@ Retourne une proposition courte injectée **directement dans le champ prompt** (
 | Asset description | 300 caractères |
 | Style template | 500 caractères |
 
-### 2.8 Gate feature Pro — Découpage Chapitre → Panels
+### 2.8 Disponibilité des features — Découpage Chapitre → Panels
 
-| Feature | Free | Pro |
-|---------|------|-----|
-| Écriture + outils IA de base | ✓ | ✓ |
-| Détection blocs + verrouillage | ✓ | ✓ |
-| Temps de lecture estimé | ✓ | ✓ |
-| `✨ Suggérer un prompt` (éditeur) | ✓ | ✓ |
-| **Découpage Chapitre → Panels** | ✗ (CTA upgrade) | **✓** |
+> **Obsolète : l’ancien gate « Free / Pro » est abandonné.** Depuis la stratégie « tout gratuit » (2026-05-30), **toutes les features Scénario, dont le Découpage Chapitre → Panels, sont disponibles sur tous les plans (Libre / Créateur / Studio)**. La différenciation se fait sur le volume de crédits, pas sur les features.
+
+| Feature | Libre | Créateur | Studio |
+|---------|-------|----------|--------|
+| Écriture + outils IA de base | ✓ | ✓ | ✓ |
+| Détection blocs + verrouillage | ✓ | ✓ | ✓ |
+| Temps de lecture estimé | ✓ | ✓ | ✓ |
+| `✨ Suggérer un prompt` (éditeur) | ✓ | ✓ | ✓ |
+| **Découpage Chapitre → Panels** | ✓ | ✓ | ✓ |
 
 ---
 
@@ -172,4 +174,4 @@ src/integrations/supabase/types.ts           — régénérer après migration
 
 ---
 
-*Dernière mise à jour : 30 avril 2026*
+*Dernière mise à jour : 30 avril 2026 · audit 7 juin 2026 : modèle scénario corrigé (Gemini Flash primaire + fallback Groq), §2.8 gate Free/Pro retiré (stratégie tout gratuit, plans Libre/Créateur/Studio).*

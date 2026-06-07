@@ -2,6 +2,12 @@
 
 > NarraMind est le moteur de cohérence narrative de DreamWeave. Il analyse le texte **en arrière-plan** pendant l’écriture, extrait des fiches d’entités (personnages, décors, objets), génère des résumés compacts par chapitre, et calcule des **anomalies** (incohérences vs lore). Les alertes **affichables** sont persistées dans la table **`narramind_alerts`** (statuts actif / ignoré / résolu). La colonne `scenario_chapters.narramind_anomalies` sert de **snapshot JSON** du dernier run (compat utilitaires), pas de source unique produit — voir §3.
 
+> **Architecture d’ensemble (mise à jour juin 2026) : 1 tronc commun + 2 pistes convergeant vers la vectorisation.**
+> - **Tronc commun (mémoire compressée)** — ce document : fiches entités (`memory_entities`), résumés glissants (`memory_summaries`), méga-résumé projet (`narra_summary`), compression batch. Contexte borné (~1 400 tokens quel que soit le nombre de chapitres).
+> - **Piste A — NarraMind Scénario** : (A1) détection d’incohérences persistées dans `narramind_alerts`, présentées par **Ariane** en langage auteur ; (A2) **vectorisation des chapitres** → propositions de **directions narratives**.
+> - **Piste B — NarraMind Univers** : (B1) cartographie du lore (sections thématiques v1 livrée ; wiki graphique relationnel v2 spécifié) ; (B2) **vectorisation du lore** → suggestions Ariane 🔍 « tiré de ton histoire » / ✨ « proposé par Ariane ».
+> - **Infrastructure de vectorisation unique** mutualisée entre A2 et B2 : Edge Function **`narramind-compass`** (Gemini `text-embedding-004` 768D → `project_embeddings` ; recherche **pgvector** top-5 → Gemini Flash → `compass_proposals`). Spec dédiée : [`NarraMind-Compass.md`](./NarraMind-Compass.md) et [`NarraMind-Compass-Univers.md`](./NarraMind-Compass-Univers.md).
+
 **Principe produit (validé avril 2026, mis à jour nom interface)** : entités, résumés et métriques restent **non exposés** comme écrans de données brutes. Les **incohérences utilisateur** passent par **`narramind_alerts`** et, en **interface**, par le personnage **Ariane** (jalons §7–§10). Pas de bouton « Vérifier / Revérifier ce chapitre » — uniquement un **déclenchement automatique** avec **garde-fous tokens**. Le libellé **NarraMind** reste **documentation / code / métriques**, pas titre d’écran grand public.
 
 ---
@@ -244,4 +250,4 @@ Ordre d’implémentation suggéré : **1 (persistance alertes) ✅ → 4 (plafo
 
 ---
 
-*Dernière mise à jour : 30 avril 2026 — §7 onboarding (layout + progressif), alignement Gemini scénario.*
+*Dernière mise à jour : 7 juin 2026 (audit) — ajout de l’architecture d’ensemble « 1 tronc commun + 2 pistes » et du lien vers l’infrastructure de vectorisation NarraMind Compass. §7 onboarding (layout + progressif), alignement Gemini scénario.*

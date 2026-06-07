@@ -129,7 +129,7 @@
 | Génération IA d'images | ✅ | ✅ | ✅ | ✅ | ❌ |
 | Workflow webtoon complet | ✅ | ✅ | ❌ | ❌ | ✅ (manuel) |
 | Cohérence stylistique | ✅ (template) | ⚠️ (limité) | ❌ | ❌ | ✅ (artiste) |
-| Vues multiples personnages | ✅ | ❌ | ❌ | ❌ | ✅ (manuel) |
+| Sheet System (fiche 4 angles) | ✅ | ❌ | ❌ | ❌ | ✅ (manuel) |
 | Bibliothèque d'assets | ✅ | ⚠️ | ❌ | ❌ | ✅ |
 | Images de référence | ✅ | ⚠️ | ❌ | ✅ | N/A |
 | Gestion de projets | ✅ | ✅ | ❌ | ❌ | ❌ |
@@ -143,8 +143,9 @@
 
 | Solution | Prix mensuel | Coût/chapitre estimé | Public cible |
 |---------|-------------|---------------------|-------------|
-| **DreamWeave Free** | 0 € | ~0 € (limité) | Découverte |
-| **DreamWeave Pro** | 14,99 € | ~1-3 € | Créateurs indépendants |
+| **DreamWeave Libre** | 0 € | ~0 € (20 crédits) | Découverte (toutes features) |
+| **DreamWeave Créateur** | 12,99 € | ~1-3 € | Créateurs indépendants (100 crédits) |
+| **DreamWeave Studio** | 29,99 € | ~1-3 € | Créateurs intensifs (250 crédits + mémoire longue) |
 | **Dashtoon** | 10-30 $ | ~2-5 $ | Créateurs de comics |
 | **Midjourney** | 10-60 $ | ~5-20 $ (pas de workflow) | Artistes IA généraux |
 | **ChatGPT Plus** | 20 $ | Variable | Usage général |
@@ -160,7 +161,7 @@
 | Avantage | Description | Difficulté à copier |
 |---------|------------|-------------------|
 | **Système de cohérence stylistique** | Template texte + images de référence appliqués à toutes les générations | Moyenne — nécessite un système de prompts sophistiqué |
-| **Vues multiples des personnages** | Génération face/profil/dos en 1 clic | Faible — reproductible techniquement |
+| **Sheet System** | Fiche composite 4 angles (face/profil/dos) générée en 1 action, injectée comme référence | Moyenne — pipeline génération + injection référence |
 | **Workflow intégré** | Projet → Style → Assets → Chapitres → Panels | Moyenne — nécessite conception produit |
 | **Format natif webtoon** | Optimisé pour le format vertical | Faible — adaptation technique simple |
 | **Bibliothèque d'assets réutilisables** | Assets créés une fois, utilisés dans tous les panels | Moyenne — nécessite architecture spécifique |
@@ -183,9 +184,9 @@
 
 - Système de cohérence stylistique unique
 - Workflow intégré et spécialisé webtoon
-- Vues multiples des personnages (différenciateur)
+- Sheet System — fiche composite 4 angles (différenciateur)
 - Stack technique moderne et scalable
-- Coût d'entrée bas (freemium)
+- Coût d'entrée bas (freemium, toutes features dès le plan Libre)
 - Time to Value court (< 10 min)
 
 ### Faiblesses (Weaknesses)
@@ -249,4 +250,4 @@
 
 ---
 
-*Dernière mise à jour : 14 février 2026*
+*Dernière mise à jour : 7 juin 2026 — audit de cohérence (Sheet System, grille Libre 0 € / Créateur 12,99 € / Studio 29,99 €).*

@@ -49,9 +49,9 @@ DreamWeave est une application web monopage (SPA) basée sur une architecture **
 │  └───────────────┘  │                           ▼
 │  ┌───────────────┐  │         ┌─────────────────────────────────┐
 │  │  Storage      │  │         │       FAL.ai API             │
-│  │  (Bucket      │  │         │  Free : FLUX.1 Schnell         │
-│  │  dreamweave)  │  │         │  Pro : FLUX.2 Pro / Pro Edit    │
-│  └───────────────┘  │         │  Format : 1024×1024 PNG           │
+│  │  (Bucket      │  │         │  Tous tiers : FLUX.2 Pro       │
+│  │  dreamweave)  │  │         │  + FLUX.2 Pro Edit (refs)       │
+│  └───────────────┘  │         │  Format : PNG                     │
 │  ┌───────────────┐  │         └─────────────────────────────────┘
 │  │  Row Level    │  │
 │  │  Security     │  │
@@ -116,11 +116,9 @@ DreamWeave est une application web monopage (SPA) basée sur une architecture **
 | Composant | Détail |
 |-----------|--------|
 | **Provider** | FAL.ai |
-| **Modèle Free** | FLUX.1 Schnell (text-to-image, rapide, ~$0.003/image) |
-| **Modèle Pro** | FLUX.2 Pro (text-to-image, ~$0.03/image) |
-| **Modèle Pro + Refs** | FLUX.2 Pro Edit (multi-référence, ~$0.09/image avec 2 refs) |
+| **Modèle (tous les tiers)** | FLUX.2 Pro (text-to-image) — logique « Spotify », même modèle pour Libre/Créateur/Studio (décision 30/05/2026) |
+| **Modèle + Refs** | FLUX.2 Pro Edit (multi-référence, utilisé dès qu'il y a des images de référence / sheets) |
 | **API** | REST, URL response |
-| **Résolution** | 1024×1024 pixels |
 | **Format** | PNG |
 
 ### 2.5 Infrastructure & Déploiement
@@ -141,12 +139,16 @@ DreamWeave est une application web monopage (SPA) basée sur une architecture **
 | `generate-panel-image` | Génère image case/bloc (dimensions personnalisées), FAL.ai | `FAL_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY` |
 | `generate-scenario-ai` | Génère scénario/chapitre/découpage cases (Google Gemini Flash + fallback Groq Llama 3.3 70B) | `GEMINI_API_KEY`, `GROQ_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY` |
 | `narramind-update` | Mémoire narrative : entités, résumés, détection anomalies (Gemini Flash + fallback Groq) | `GEMINI_API_KEY`, `GROQ_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY` |
+| `narramind-compass` | NarraMind Compass : mode `index` (vectorise via Gemini text-embedding-004 → `project_embeddings`) + mode `propose` (recherche pgvector → Gemini Flash → `compass_proposals`) | `GEMINI_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY` |
+| `compose-chapter-layout` | Composition automatique du layout d'un chapitre (lecture `scene_type`) | `SUPABASE_SERVICE_ROLE_KEY` |
 | `generate-style-template-images` | Génère images de prévisualisation du style (FAL.ai) | `FAL_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY` |
 | `generate-landing-showcase` | Génère images hero pour la landing page (FAL.ai) | `FAL_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY` |
 | `create-checkout-session` | Crée une session Stripe Checkout (abonnement mensuel) | `STRIPE_SECRET_KEY`, `STRIPE_PRO_PRICE_ID`, `APP_URL`, `SUPABASE_SERVICE_ROLE_KEY` |
 | `create-portal-session` | Crée un lien Stripe Customer Portal (gestion abonnement) | `STRIPE_SECRET_KEY`, `SUPABASE_SERVICE_ROLE_KEY` |
 | `stripe-webhook` | Gère les événements Stripe (subscription.created/updated/deleted → update profiles.plan) | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `SUPABASE_SERVICE_ROLE_KEY` |
 | `admin-set-plan` | Endpoint admin pour changer manuellement le plan d'un utilisateur | `SUPABASE_SERVICE_ROLE_KEY` |
+| `admin-user-action` | Actions admin sur un utilisateur (gestion compte) | `SUPABASE_SERVICE_ROLE_KEY` |
+| `admin-get-kpis` | Récupère les KPIs produit pour le dashboard admin | `SUPABASE_SERVICE_ROLE_KEY` |
 
 ### 2.7 Intégrations tierces — données réelles
 
@@ -154,7 +156,9 @@ DreamWeave est une application web monopage (SPA) basée sur une architecture **
 |-------------|-------------------|------|------|
 | **FAL.ai** | FLUX.2 Pro (`fal-ai/flux-2-pro`), FLUX.2 Pro Edit (`fal-ai/flux-2-pro/edit`) | Génération d'images | Serveur (Edge Functions) |
 | **Google Gemini Flash** | `gemini-2.0-flash` (via REST API) | Génération scénario, NarraMind | Serveur |
+| **Google Gemini Embeddings** | `text-embedding-004` (768 dimensions) | Vectorisation Compass (chapitres, lore) | Serveur |
 | **Groq / Llama 3.3 70B** | Fallback scénario/NarraMind | Génération texte (fallback) | Serveur |
+| **pgvector** | Extension PostgreSQL Supabase | Recherche vectorielle Compass (`project_embeddings`) | Serveur (BDD) |
 | **Stripe** | REST API v1 (sans SDK npm) | Paiements, abonnements | Serveur |
 | **Supabase JS** | `@supabase/supabase-js` ^2.95.3 | BDD, Auth, Storage | Client + Serveur |
 | **Google OAuth 2.0** | Via Supabase Auth | Connexion Google | Client → Supabase |
@@ -244,7 +248,11 @@ src/
 │   │   ├── ScenarioSection.tsx       # Section Scénario (IA Scénario/Chapitre, chapitres texte)
 │   │   ├── EditionSection.tsx        # Section Édition de l'œuvre (chapitres visuels)
 │   │   ├── ScenarioTextHighlighter.tsx # Surbrillance assets + détection éléments non créés
-│   │   └── CharacterViewDialog.tsx   # Vues multiples personnage
+│   │   ├── CharacterViewDialog.tsx   # Dialog fiche personnage (4 angles, Sheet System)
+│   │   ├── AIChapterPreviewModal.tsx # Aperçu chapitre généré par l'IA avant insertion
+│   │   ├── ScenarioFormattedPreview.tsx # Rendu mis en forme du scénario
+│   │   ├── LoreGraphView.tsx         # Univers : graphe de connexions (cartographie du monde)
+│   │   └── LoreFriseView.tsx         # Univers : vue lore secondaire
 │   └── ui/                           # 50+ composants shadcn/ui
 │       ├── button.tsx
 │       ├── card.tsx
@@ -254,15 +262,18 @@ src/
 │       └── ...
 │
 └── pages/
-    ├── Index.tsx                      # Re-export Landing
     ├── Landing.tsx                    # Page marketing
     ├── Auth.tsx                       # Inscription / Connexion
+    ├── EmailVerification.tsx          # Vérification d'email post-inscription
+    ├── ResetPassword.tsx              # Réinitialisation de mot de passe
     ├── Dashboard.tsx                  # Tableau de bord (stats, usage, projets récents)
     ├── Projects.tsx                   # Liste des projets (recherche, CRUD)
-    ├── ProjectDetail.tsx             # Détail projet (onglets Style/Assets/Scénario/Édition)
-    ├── ChapterDetail.tsx             # Édition chapitre visuel (double visualisation + panels/blocs)
+    ├── ProjectDetail.tsx             # Détail projet (onglets Style / Assets / Univers / Scénario / Édition)
+    ├── ScenarioChapterEditor.tsx     # Éditeur de chapitre de scénario (prose, fil d'Ariane)
+    ├── ChapterDetail.tsx             # Édition chapitre visuel (canvas blocs / couleur / bulles)
     ├── Profile.tsx                   # Profil utilisateur
-    ├── Plans.tsx                     # Comparaison des plans Free / Pro
+    ├── Plans.tsx                     # Comparaison des plans Libre / Créateur / Studio
+    ├── Pilotage.tsx                  # Dashboard admin (KPIs produit, gestion plans)
     └── NotFound.tsx                  # Page 404
 ```
 
@@ -276,13 +287,16 @@ src/
         <Routes>
           ├── "/" → <Landing />
           ├── "/auth" → <Auth />
+          ├── "/auth/verify-email" → <EmailVerification />
+          ├── "/auth/reset-password" → <ResetPassword />
           ├── "/dashboard" → <ProtectedRoute> → <Dashboard />
           ├── "/dashboard/projects" → <ProtectedRoute> → <Projects />
-          ├── "/dashboard/projects/new" → <ProtectedRoute> → <Projects />
           ├── "/dashboard/projects/:id" → <ProtectedRoute> → <ProjectDetail />
+          ├── "/dashboard/projects/:id/scenario/:chapterId" → <ProtectedRoute> → <ScenarioChapterEditor />
           ├── "/dashboard/projects/:id/chapter/:chapterId" → <ProtectedRoute> → <ChapterDetail />
           ├── "/dashboard/profile" → <ProtectedRoute> → <Profile />
           ├── "/dashboard/plans" → <ProtectedRoute> → <Plans />
+          ├── "/dashboard/pilotage" → <ProtectedRoute> → <Pilotage />
           └── "*" → <NotFound />
         </Routes>
       </BrowserRouter>
@@ -358,9 +372,10 @@ src/
 │ id (PK, FK)  │       │ id (PK, UUID)    │
 │ display_name │       │ user_id (FK)     │
 │ avatar_url   │  1──N │ title            │
-│ plan (free/  │◄──────│ description      │
-│  pro)        │       │ style_template   │
-│ created_at   │       │ style_image_urls │
+│ plan (libre/ │◄──────│ description      │
+│ createur/    │       │ style_template   │
+│ studio)      │       │ style_image_urls │
+│ created_at   │       │                  │
 │ updated_at   │       │                  │
 └──────────────┘       │                  │
                        │ cover_url        │
@@ -423,10 +438,18 @@ src/
 | `memory_summaries` | id, project_id, user_id, chapter_id, chapter_number, summary, token_estimate | 20260423 |
 | `narramind_alerts` | id, project_id, user_id, type, message, chapter_number, status | 20260430 |
 | `scenario_versions` | Versions des scénarios (accepter/rejeter) | 20260214 |
+| `narramind_metrics` | Métriques de la mémoire narrative (tokens, compression) | 20260423 |
 | `word_mappings` | Mappings pour détection assets dans scénario | 20260421 |
-| `universe_lore` | Lore de l'univers narratif | 20260423 |
+| `universe_lore` / `lore_world_sections` / `lore_nodes` | Cartographie de l'univers narratif (sections + graphe lore) | 20260423, 20260522 |
+| `project_embeddings` | Index vectoriel Compass : `source_type`, `source_id`, `section_key`, `embedding vector(768)` | 20260522 |
+| `compass_proposals` | Propositions Compass : `proposal_type`, `origin` ('extracted'/'generated'), `title`, `content`, `status`, `dedupe_key` | 20260522 |
+| `chapter_assets` | Liaison assets ↔ chapitres (curation) | 20260531 |
 
 > **Note de migration clé** : La table `panels` a été renommée en `chapter_canvases` (migration 20260424). Le doc antérieur à cette date peut encore mentionner `panels`.
+>
+> **NarraMind Compass (infra vectorielle, mai 2026)** : extension `pgvector` activée (migration 20260522), fonction SQL `match_embeddings` pour la recherche par similarité, vectorisation via Gemini `text-embedding-004` (768D). Les tables `project_embeddings` + `compass_proposals` alimentent l'Edge Function `narramind-compass`.
+
+> ⚠️ Le schéma ne se résume plus à « 10 tables » : l'ensemble des tables couvre profiles, projects, assets, chapters, chapter_canvases, scenario_chapters/versions, usage, la mémoire narrative (memory_entities/summaries, narramind_alerts/metrics), le lore et l'infra vectorielle Compass.
 
 #### Enum
 
@@ -552,11 +575,9 @@ Bucket : dreamweave (public)
 │     ├── Comptage usage mensuel (table usage)                      │
 │     └── Rejet si quota dépassé (HTTP 429)                         │
 │                                                                 │
-│  4. Appel API FAL.ai (sélection modèle par tier)                │
-│     ├── Free → FLUX.1 Schnell (text-to-image, rapide)           │
-│     ├── Pro → FLUX.2 Pro (text-to-image, haute qualité)          │
-│     ├── Pro + refs → FLUX.2 Pro Edit (multi-référence)           │
-│     ├── Résolution : 1024×1024                                    │
+│  4. Appel API FAL.ai (FLUX.2 Pro pour tous les tiers)           │
+│     ├── Sans référence → FLUX.2 Pro (text-to-image)             │
+│     ├── Avec refs/sheet → FLUX.2 Pro Edit (multi-référence)     │
 │     └── Réponse : URL de l'image                                 │
 │                                                                 │
 │  5. Post-traitement                                             │
@@ -816,4 +837,4 @@ VITE_SUPABASE_PUBLISHABLE_KEY="eyJ..."
 
 ---
 
-*Dernière mise à jour : 4 mai 2026 — versions exactes package.json, devDependencies, 10 Edge Functions réelles (Stripe, NarraMind, admin), tables DB complètes (chapter_canvases, memory_entities/summaries, narramind_alerts, etc.), secrets réels (Gemini, Groq, Stripe), variables env complètes.*
+*Dernière mise à jour : 7 juin 2026 (audit) — FLUX.2 Pro pour tous les tiers (logique Spotify), Edge Functions complètes (ajout narramind-compass, compose-chapter-layout, admin-user-action, admin-get-kpis), infra vectorielle Compass (project_embeddings, compass_proposals, pgvector, Gemini text-embedding-004 768D), plans Libre/Créateur/Studio. Versions package.json/devDependencies conservées, secrets réels (Gemini, Groq, Stripe), variables env complètes. Arbre pages/routes synchronisé avec le code réel : suppression Index.tsx (inexistant), ajout EmailVerification, ResetPassword, ScenarioChapterEditor, Pilotage ; composants Univers (LoreGraphView/LoreFriseView) ; onglet Univers dans ProjectDetail.*

@@ -40,7 +40,7 @@
 | Étape | Écran / action | Détail |
 |-------|----------------|--------|
 | 1 | **Vue d’ensemble** | Message de bienvenue, liste des projets (grille responsive). |
-| 2 | **Statistiques** | Nombre de projets, assets, usage mensuel (barre + quota Free/Pro). Badge tier (Free / Pro). |
+| 2 | **Statistiques** | Nombre de projets, assets, usage mensuel (barre + crédits selon le plan). Badge tier (Libre / Créateur / Studio). |
 | 3 | **Actions** | Créer un projet, accéder au profil, déconnexion. |
 | 4 | **Recherche / filtre** | Recherche et filtrage des projets. |
 | 5 | **Recette admin** (email autorisé) | *Relancer l’onboarding Ariane*, *Simuler première connexion (menus)* — reset client + prochain projet = parcours premier projet. |
@@ -52,8 +52,8 @@
 | Élément | Détail |
 |---------|--------|
 | **Quand** | Compte avec **un seul projet** en base ; ou projet créé après **Simuler première connexion** (id forcé en `sessionStorage`). Les autres projets : sidebar **complète**. |
-| **Sidebar** | Onglets **masqués** tant qu’ils ne sont pas débloqués (pas de liste désactivée). Ordre : **Style** → **Scénario** → **Assets** → **Univers** → **Édition**. |
-| **Conditions de déblocage** | Scénario après validation du style en BDD ; Assets après 1er chapitre scénario ; Univers après 1ère image d’asset ; Édition après lore monde ou lore asset sauvegardé. |
+| **Sidebar** | Onglets **masqués** tant qu’ils ne sont pas débloqués (pas de liste désactivée). Ordre : **Style** → **Assets** → **Univers** → **Scénario** → **Édition**. |
+| **Conditions de déblocage** | Assets après validation du style en BDD ; Univers et Scénario après 1ère image d’asset générée ; Édition après 1ère image d’asset **et** 1er chapitre de scénario. |
 | **Badges** | **New** (vert) sur l’onglet nouvellement accessible ; disparition **définitive** après premier clic sur cet onglet. |
 | **Ariane** | Bienvenue plein écran, onboarding **Style**, carte **fin de parcours** sur **Édition**. |
 | **Suite produit** | Onboarding **par menu** (expliquer chaque onglet au premier passage) — à concevoir. |
@@ -64,7 +64,7 @@
 
 | Étape | Écran / action | Détail |
 |-------|----------------|--------|
-| 1 | **Détail projet** | Titre, description ; **onglets** : Style, Assets, Scénario, Univers, Édition. **Premier projet** : seuls les onglets débloqués apparaissent dans la sidebar (voir §2.2bis). |
+| 1 | **Détail projet** | Titre, description ; **onglets** : Style, Assets, Univers, Scénario, Édition. **Premier projet** : seuls les onglets débloqués apparaissent dans la sidebar (voir §2.2bis). |
 | 2 | **Navigation** | Clic sur un onglet → contenu correspondant. Onglet actif mis en évidence. |
 | 3 | **Édition projet** | Modification du titre, description et nombre cible de panels par chapitre (sauvegarde). |
 
@@ -79,7 +79,7 @@
 | 3 | **Vue détail** | Grille 3×1 : images personnage / décor / scène générées par le style + description. |
 | 4 | **Style System V1** | `style_template` = bloc STYLE_SYSTEM_V1 structuré (metadata + prompts de référence + règles visuelles). Jamais envoyé depuis un draft — toujours depuis `project.style_template` en BDD. |
 | 5 | **Précisions projet** | Champ texte optionnel "Contraintes additionnelles" injecté dans le template. |
-| 6 | **Images de référence** | Upload 2 images max (Pro uniquement), aperçu, suppression. Stockage Supabase Storage. Plan Free : badge Pro + hint. |
+| 6 | **Images de référence** | Upload 2 images max, aperçu, suppression. Stockage Supabase Storage. Disponible sur tous les plans (y compris Libre). |
 | 7 | **Prochaines étapes** | Après style sauvegardé : 2 liens rapides vers Scénario et Assets. |
 
 ---
@@ -91,12 +91,12 @@
 | 1 | **Onglets + recherche** | 3 onglets : **Personnages** (Users), **Décors** (MapPin), **Objets** (Box). **Barre de recherche** par nom + **dropdown filtre** fusionné avec l’onglet actif (source unique de vérité). Assets filtrés en temps réel. |
 | 2 | **Liste** | Grille d’assets avec image (ou placeholder), nom, type. **Badge type** sur chaque carte (Perso/Décor/Objet, couleurs design system). |
 | 3 | **Ajout** | Bouton contextuel (« Ajouter un personnage » / « Ajouter un décor » / « Ajouter un objet » selon filtre actif) → dialog : type pré-sélectionné, nom, description/prompt (**requis**, marqué `*`). Génération IA auto après création. Pré-rempli depuis scénario (`pendingAssetName`, `pendingAssetType`). |
-| 4 | **Carte asset** | Hover : boutons Modifier, Régénérer, Supprimer (désactivé pendant mutation). Clic `Eye` sur un personnage → `CharacterViewDialog` : grille 2×2 (face + profil G/D/dos). Génération par vue (Pro uniquement) avec spinner par slot. Free : boutons désactivés + tooltip "Pro uniquement". |
+| 4 | **Carte asset** | Hover : boutons Modifier, Régénérer, Supprimer (désactivé pendant mutation). Clic `Eye` sur un personnage → fiche **Sheet System** : composite 4 angles (face + profil G/D/dos) générée en une passe. Disponible sur tous les plans. |
 | 5 | **Modification** | Dialog avec **preview de l’image actuelle** + champs nom/prompt. Seul le nom change → « Sauvegarder ». Prompt change → « Sauvegarder sans régénérer » ou « Sauvegarder et régénérer ». |
 | 6 | **Renommage + scénario** | Si l’ancien nom apparaît dans des chapitres : « Mettre à jour le scénario ? » → remplace l’ancien nom partout. |
 | 7 | **Suppression** | Confirmation (AlertDialog `.glass`) avant suppression. Nettoyage Storage. |
-| 8 | **Quota** | Compteur `{usage} / {limit} générations ce mois` dans le header — amber si < 5 restantes, rouge si 0. |
-| 9 | **Prompts IA** | **Free** (FLUX.1 Schnell) : prompt court et direct, optimisé pour les capacités du modèle. **Pro** (FLUX.2 Pro) : prompt riche structuré + préfixe `masterpiece, best quality, ultra-detailed`. |
+| 8 | **Quota** | Compteur `{usage} / {limit} crédits ce mois` dans le header (20 Libre / 100 Créateur / 250 Studio) — amber si < 5 restants, rouge si 0. |
+| 9 | **Prompts IA** | **FLUX.2 Pro pour tous les tiers** : prompt riche structuré + préfixe `masterpiece, best quality, ultra-detailed`. Même modèle quel que soit le plan (différenciation = volume de crédits). |
 
 ---
 
@@ -121,7 +121,7 @@
 | Étape | Écran / action | Détail |
 |-------|----------------|--------|
 | 1 | **Page profil** | Nom d’affichage, email. Édition du display name. |
-| 2 | **Plans** | Accès à la page pricing (Free / Pro), changement de plan, visualisation des quotas. |
+| 2 | **Plans** | Accès à la page pricing (Libre / Créateur / Studio), changement de plan via Stripe, visualisation des crédits. |
 
 ---
 
@@ -260,4 +260,4 @@ Onglet Assets : Renommage d’un asset
 
 ---
 
-*Dernière mise à jour : 30 avril 2026 — §2.2bis parcours premier projet ; §2.3 onglets Univers + progressif.*
+*Dernière mise à jour : 7 juin 2026 (audit vérité) — Tiers Libre/Créateur/Studio (20/100/250 crédits), FLUX.2 Pro pour tous les tiers (suppression gating Free/Pro + FLUX.1 Schnell), Sheet System (ex multi-vues), ordre sidebar Style → Assets → Univers → Scénario → Édition, Plans via Stripe. 30 avril 2026 — §2.2bis parcours premier projet ; §2.3 onglets Univers + progressif.*

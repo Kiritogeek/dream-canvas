@@ -1,7 +1,7 @@
 # Benchmark complet — Webtoons, édition canvas & acteurs marché
 
 > **Document** : comparaison structurée pour positionner **DreamWeave** face à des référents **logiciels de création**, **plateformes de publication** et **solutions IA « webtoon vertical »**.  
-> **Mise à jour** : 2026-05-02  
+> **Mise à jour** : 2026-06-07 (audit de cohérence tiers/IA)  
 > **Méthode** : grille critères notée /10, pondérations explicites, sources web listées en fin de document (guides officiels, comparatifs, annonces plateformes).
 
 ---
@@ -47,7 +47,7 @@
 
 ## 3. Hypothèses sur DreamWeave (état produit au moment du benchmark)
 
-Utilisé pour noter de façon cohérente avec le code / la doc interne (`Edition-Oeuvre.md`, `ChapterDetail`, export ZIP 1280 px, largeur canvas 800 px, bulles, blocs couleur, historique image, scénario lié, plans Free/Pro).
+Utilisé pour noter de façon cohérente avec le code / la doc interne (`Edition-Oeuvre.md`, `ChapterDetail`, export ZIP 1280 px, largeur canvas 800 px, bulles, blocs couleur, historique image, scénario lié, plans Libre/Créateur/Studio).
 
 | Capacité | Hypothèse |
 |----------|-----------|
@@ -55,7 +55,7 @@ Utilisé pour noter de façon cohérente avec le code / la doc interne (`Edition
 | IA | Génération via Edge Functions + FAL, style projet, références. |
 | Scénario | Chapitres scénario, détection assets, IA chapitre/scénario (selon roadmap livrée). |
 | Export | Découpe **~1280 px** et **ZIP** depuis l’éditeur ; alignement avec pratiques type CANVAS à valider fichier par fichier. |
-| Publication | Pas d’upload direct intégré vers WEBTOON/Tapas ; monétisation **DreamWeave** via **Stripe/plans**. |
+| Publication | Pas d’upload direct intégré vers WEBTOON/Tapas ; monétisation **DreamWeave** via **Stripe/plans** (Libre 0 € / Créateur 12,99 € / Studio 29,99 €, FLUX.2 Pro pour tous). |
 
 Si une capacité évolue, **recalculer les lignes §4** lors de la prochaine révision du document.
 
@@ -76,7 +76,7 @@ Critères combinés dans un **indice pondéré** (somme des poids × note).
 | **Dialogue & typographie** | **15 %** | Bulles, styles, lisibilité, contrôle local du texte. |
 | **Pipeline assets & cohérence** | **20 %** | Bibliothèque personnages/décors/objets, réinjection dans les prompts, suivi sur la série. |
 | **Prévisualisation « lecture mobile »** | **15 %** | Préview scroll vertical, ratio téléphone, rythme (blancs), confiance avant export. |
-| **IA dans le flux créatif** | **25 %** | Génération intégrée, itération par bloc, suggestion prompts, modèles par plan. |
+| **IA dans le flux créatif** | **25 %** | Génération intégrée, itération par bloc, suggestion prompts, même modèle FLUX.2 Pro pour tous les plans. |
 
 #### Notes détaillées
 
@@ -117,7 +117,7 @@ Formule : \(\sum p_i \times s_i\) avec \(p\) en % et \(s\) la note /10.
 |---------|------------|----------------|-------|
 | Specs plateformes | **7** — export ZIP découpé, largeur 800 dans le flux ; vérif JPEG/poids fichier par fichier côté auteur | **10** — référent natif ([format](https://www.webtoons.com/en/canvas/webtoon-format/list?title_no=109936), [notice découpage](https://www.webtoons.com/en/notice/detail?noticeNo=1766)) | **9** — guidelines publiques + communauté |
 | Lecture finale | **4** — pas de hub lecteur DreamWeave identique WEBTOON | **10** | **9** |
-| Monétisation créateur | **7** — **Stripe** / plans (**Free/Pro**) dans le produit ; pas de Ink / partage épisode tiers | **8** — programmes créateurs 2026 ([annonce](https://www.webtoons.com/en/notice/detail?noticeNo=3553)) | **8** — Ink & écosystème Tapas |
+| Monétisation créateur | **7** — **Stripe** / plans (**Libre/Créateur/Studio**) dans le produit ; pas de Ink / partage épisode tiers | **8** — programmes créateurs 2026 ([annonce](https://www.webtoons.com/en/notice/detail?noticeNo=3553)) | **8** — Ink & écosystème Tapas |
 
 #### Indices pondérés (§4.2)
 
@@ -186,6 +186,7 @@ Alignées avec `07_Roadmap_Produit.md` et l’audit technique — **sans doublon
 | Date | Auteur | Changement |
 |------|--------|------------|
 | 2026-05-02 | Équipe produit / assistant | Création : grilles pondérées, sources web, recommandations. |
+| 2026-06-07 | Audit de cohérence | Plans alignés Libre/Créateur/Studio (0/12,99/29,99 €), FLUX.2 Pro pour tous, Sheet System. Notes /10 inchangées. |
 
 ---
 

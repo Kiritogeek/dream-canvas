@@ -1,6 +1,6 @@
 # Business Model Canvas — DreamWeave
 
-> Bloc canvas : proposition de valeur, segments, canaux, revenus (Free/Pro), partenaires IA et infra.
+> Bloc canvas : proposition de valeur, segments, canaux, revenus (Libre/Créateur/Studio), partenaires IA et infra.
 
 ---
 
@@ -27,7 +27,7 @@
 │  RESSOURCES       │                  │  Unique :         │                  │  CANAUX           │
 │  CLÉS             │                  │  • Cohérence      │                  │                   │
 │                   │                  │    stylistique    │                  │  • Site web       │
-│  • Équipe dev     │                  │  • Vues multiples │                  │  • SEO/SEM        │
+│  • Équipe dev     │                  │  • Sheet System   │                  │  • SEO/SEM        │
 │  • Modèles IA     │                  │  • Workflow natif │                  │  • Réseaux        │
 │  • Infrastructure │                  │    webtoon        │                  │    sociaux        │
 │    cloud          │                  │  • Bibliothèque   │                  │  • Communautés    │
@@ -41,7 +41,7 @@
 │  STRUCTURE DE COÛTS                            │  FLUX DE REVENUS                               │
 │                                                │                                                │
 │  • Infrastructure cloud (Supabase) : ~50-200€/m│  • Abonnements freemium (SaaS)                 │
-│  • API IA (FAL.ai) : variable, ~0.01-0.05€/img │  • Plans : Free / Pro / Team / Enterprise       │
+│  • API IA (FAL.ai) : variable, ~0.03-0.09€/img │  • Plans : Libre / Créateur / Studio / Enterprise│
 │  • Hébergement (Vercel) : ~20-100€/mois        │  • Crédits de génération supplémentaires        │
 │  • Salaires équipe : principal poste de coût   │  • (Futur) Marketplace de styles                │
 │  • Marketing & acquisition : 10-20% du CA      │  • (Futur) Commission sur publications          │
@@ -82,7 +82,7 @@
 | **Coût** | 300-2000 €/chapitre | < 5 €/chapitre (coût API) |
 | **Compétences requises** | Dessin, colorisation, mise en page | Écriture de descriptions |
 | **Cohérence visuelle** | Difficile à maintenir | Automatique (templates) |
-| **Vues personnages** | Redessin manuel à chaque angle | Génération en 1 clic |
+| **Fiches personnages (Sheet System)** | Redessin manuel à chaque angle | Fiche composite 4 angles en 1 action |
 
 ### Valeur émotionnelle
 
@@ -100,36 +100,42 @@
 
 ## 3. Modèle de revenus
 
-### 3.1 Freemium SaaS — Grille tarifaire (mise à jour 18/04/2026)
+### 3.1 Freemium SaaS — Grille tarifaire (décision « tout gratuit » actée le 30/05/2026)
 
-> **Logique Spotify** : même qualité pour tous, seule la quantité diffère. Un utilisateur Free génère avec le même modèle qu'un Pro → il voit la valeur → il upgarde pour en avoir plus.
+> **Logique Spotify** : même qualité et **mêmes features pour tous**, seule la quantité de crédits diffère. Un utilisateur Libre génère avec le même modèle (FLUX.2 Pro) et accède aux mêmes fonctionnalités qu'un Studio → il voit la valeur → il upgrade pour avoir plus de crédits. **Aucun gating de features par plan.**
 
-| | **Free** | **Pro** |
-|---|---------|---------|
-| **Prix** | 0 € | 14,99 €/mois |
-| **Modèle IA** | **FLUX.2 Pro** (identique au Pro) | **FLUX.2 Pro** |
-| **Crédits/mois** | **20** | **300** |
-| **1 crédit =** | 1 génération (asset, sheet, bloc panel) | 1 génération (unifié) |
-| **Sheet personnage** | ✓ (fiche composite 4 angles) | ✓ |
-| **Cohérence panels** | ✓ (sheet injectée automatiquement) | ✓ |
-| **Scénario IA basique** | ✓ | ✓ |
-| **Découpage Chapitre → Panels** | ✗ (CTA upgrade) | **✓** |
-| **Priorité traitement** | Standard | Prioritaire |
-| **Support** | Communauté | Email |
+| | **Libre** | **Créateur** | **Studio** |
+|---|---------|---------|---------|
+| **Prix** | 0 € | 12,99 €/mois | 29,99 €/mois |
+| **Modèle IA** | **FLUX.2 Pro** | **FLUX.2 Pro** | **FLUX.2 Pro** |
+| **Crédits/mois** | **20** | **100** | **250** |
+| **1 crédit =** | 1 génération (asset, sheet, bloc de case — unifié) | idem | idem |
+| **Sheet System** | ✓ (fiche composite 4 angles) | ✓ | ✓ |
+| **Cohérence panels** | ✓ (sheet injectée automatiquement) | ✓ | ✓ |
+| **Scénario IA** | ✓ | ✓ | ✓ |
+| **Découpage Chapitre → Cases** | ✓ | ✓ | ✓ |
+| **Export chapitre complet** | ✓ | ✓ | ✓ |
+| **Fil d'Ariane complet** | ✓ | ✓ | ✓ |
+| **Projets illimités** | ✓ | ✓ | ✓ |
+| **Mémoire narrative longue** | ✗ | ✗ | **✓** |
+| **Priorité traitement FAL.ai** | Standard | Standard | **Prioritaire** |
+| **Support** | Communauté | Email | Email |
 
-> **Note** : Le multi-vues (profil G/D/dos séparés) est remplacé par le **Sheet System** — une fiche composite 4 angles générée en 1 action, disponible pour tous les plans. La sheet est injectée automatiquement comme référence dans la génération de panels pour garantir la cohérence visuelle.
+> **Note** : Le multi-vues (profil G/D/dos séparés) est remplacé par le **Sheet System** — une fiche composite 4 angles générée en 1 action, disponible pour tous les plans. La sheet est injectée automatiquement comme référence dans la génération de cases pour garantir la cohérence visuelle.
+> **Seules exceptions Studio** : mémoire narrative longue (`allowLongMemory`) + priorité de traitement FAL.ai. Toutes les autres features sont accessibles dès le plan Libre.
 
-> **⚠️ Stripe code implémenté (18/04) — déploiement après finalisation Scénario + Sheet System.**
+> **⚠️ Stripe code implémenté — déploiement conditionné à la création de l'auto-entreprise.**
 
-#### Plans futurs (non implémentés)
+#### Offre B2B (hors grille standard)
 
-| | **Team** | **Enterprise** |
-|---|----------|---------------|
-| **Prix** | 39,99 €/mois | Sur devis |
-| **Générations/mois** | 1000 | Illimitées |
-| **Export** | PDF, PNG, Format plateforme | API + tous formats |
-| **Collaboration** | 5 membres | Illimité |
-| **Support** | Prioritaire | Dédié |
+| | **Enterprise** |
+|---|---------------|
+| **Prix** | Sur devis |
+| **Cible** | Studios, éditeurs (ex. persona Élodie), agences |
+| **Générations/mois** | Volume négocié |
+| **Export** | API + tous formats |
+| **Collaboration** | Multi-membres |
+| **Support** | Dédié |
 
 ### 3.2 Revenus complémentaires (futurs)
 
@@ -148,19 +154,19 @@
 |----------|-----|-----|-----|------|
 | **Utilisateurs inscrits** | 500 | 3 000 | 10 000 | 25 000 |
 | **Utilisateurs actifs (MAU)** | 200 | 1 200 | 4 000 | 10 000 |
-| **Taux conversion Free→Pro** | 2% | 4% | 5% | 6% |
+| **Taux conversion Libre→payant** | 2% | 4% | 5% | 6% |
 | **Abonnés payants** | 4 | 48 | 200 | 600 |
-| **ARPU** | 14,99 € | 17 € | 19 € | 21 € |
-| **MRR** | 60 € | 816 € | 3 800 € | 12 600 € |
+| **ARPU** | 12,99 € | 15 € | 17 € | 19 € |
+| **MRR** | 52 € | 720 € | 3 400 € | 11 400 € |
 | **ARR (projeté)** | — | — | — | ~150 000 € |
 
 #### Coût unitaire par génération
 
 | Modèle | Endpoint | Coût/image |
 |--------|----------|------------|
-| FLUX.1 Schnell (Free) | `fal-ai/flux/schnell` | ~$0.003 |
-| FLUX.2 Pro (Pro, sans refs) | `fal-ai/flux-2-pro` | ~$0.03 |
-| FLUX.2 Pro Edit (Pro, 2 refs) | `fal-ai/flux-2-pro/edit` | ~$0.09 |
+| FLUX.2 Pro (sans refs) | `fal-ai/flux-2-pro` | ~$0.03 |
+| FLUX.2 Pro Edit (2 refs, Sheet System) | `fal-ai/flux-2-pro/edit` | ~$0.09 |
+| **Moyenne pondérée par génération** | — | **~$0.065** |
 
 > FAL.ai facture au **megapixel traité** (output + input refs). Avec 2 images de référence, chaque génération traite 3 megapixels (1 sortie + 2 entrées).
 
@@ -168,8 +174,9 @@
 
 | Plan | Prix | Coût max/mois | Coût réaliste/mois | Marge brute |
 |------|------|---------------|-------------------|------------|
-| **Free** | 0 € | $0.06 (20 × $0.003) | ~$0.04 | -$0.04 |
-| **Pro** | 14,99 € | $27 (300 × $0.09 pire cas) | ~$15 (mix 50/50) | ~50-60% |
+| **Libre** | 0 € | $1.80 (20 × $0.09 pire cas) | ~$1.30 (20 × $0.065) | -$1.30 (coût d'acquisition) |
+| **Créateur** | 12,99 € | $9 (100 × $0.09 pire cas) | ~$6.50 (100 × $0.065) | ~55-65% |
+| **Studio** | 29,99 € | $22.50 (250 × $0.09 pire cas) | ~$16.25 (250 × $0.065) | ~50-60% |
 
 ---
 
@@ -262,7 +269,7 @@
 
 | Poste | Coût unitaire | Notes |
 |-------|--------------|-------|
-| API FAL.ai (par image) | ~0,02-0,04 € | Dépend du volume |
+| API FAL.ai (par génération) | ~0,065 $ moyen (0,03 $ sans ref / 0,09 $ avec refs) | Dépend du volume et du Sheet System |
 | Storage additionnel | ~0,02 €/GB/mois | Au-delà du plan inclus |
 | Bande passante | ~0,09 €/GB | CDN images |
 | Support (temps) | Variable | Proportionnel aux utilisateurs |
@@ -295,7 +302,7 @@
 | KPI | Définition | Cible |
 |-----|-----------|-------|
 | **MRR** | Monthly Recurring Revenue | Croissance > 15%/mois |
-| **Taux de conversion** | Free → Payant | > 5% |
+| **Taux de conversion** | Libre → Payant | > 5% |
 | **ARPU** | Average Revenue Per User (payants) | > 18 € |
 | **CAC** | Customer Acquisition Cost | < 30 € |
 | **LTV** | Lifetime Value | > 150 € |
@@ -350,4 +357,4 @@
 
 ---
 
-*Dernière mise à jour : 4 mai 2026 — section 11 ajoutée (Organisation & Équipe)*
+*Dernière mise à jour : 7 juin 2026 — audit de cohérence (grille Libre/Créateur/Studio 0/12,99/29,99 €, crédits 20/100/250, FLUX.2 Pro pour tous, Sheet System, Enterprise B2B sur devis). Section 11 (Organisation & Équipe) inchangée.*

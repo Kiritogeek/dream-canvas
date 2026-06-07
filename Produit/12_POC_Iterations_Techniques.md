@@ -40,7 +40,7 @@ DreamWeave s'attaque à trois problèmes techniques fondamentaux dans la créati
 **Solution implémentée** — Sheet System :
 - Fichier : `supabase/functions/generate-asset-image/index.ts`
 - Migration : `20260416100000_add_assets_image_url_sheet.sql`
-- Une "sheet" est une fiche composite 4 angles (face, profil gauche, profil droit, dos) générée en une seule génération avec FLUX.2 Pro
+- Une "sheet" est une fiche composite 4 angles (face, profil gauche, profil droit, dos) générée avec FLUX.2 Pro (modèle unique pour tous les tiers)
 - La sheet est stockée dans `assets.image_url_sheet` et injectée comme image de référence dans tous les appels FLUX.2 Pro Edit ultérieurs
 - Les panels de scènes utilisent `generate-panel-image` avec `block_asset_image_urls` = URLs des sheets des personnages sélectionnés → FAL.ai FLUX.2 Pro Edit reçoit 1-3 images de référence et génère une image cohérente avec les personnages
 
@@ -79,10 +79,14 @@ DreamWeave s'attaque à trois problèmes techniques fondamentaux dans la créati
 - Edge Function : `supabase/functions/narramind-update/index.ts`
 - Tables : `memory_entities`, `memory_summaries`, `narramind_alerts` (migrations 20260423-20260430)
 - À chaque sauvegarde de chapitre : NarraMind extrait les entités (personnages, lieux, objets), génère un résumé compact du chapitre (< 100 mots), détecte les anomalies narratives (contradictions, incohérences)
-- Les anomalies sont remontées comme alertes dans le fil d'Ariane (UI) et stockées dans `scenario_chapters.narramind_anomalies`
+- Les anomalies sont remontées comme alertes dans le fil d'Ariane (UI) via la réponse HTTP de `narramind-update` ; `scenario_chapters.narramind_anomalies` est toujours vidé (`[]`) après chaque run (pas de stockage de liste persistée pour l'UI)
 - Le contexte LLM pour la génération suivante = résumés compacts des N chapitres précédents (pas le texte brut) → économie de tokens, cohérence maintenue
 
 **Résultat** : Mémoire narrative extensible sans dépendre de la longueur du contexte LLM. Détection proactive des incohérences.
+
+**Trajectoire d'itérations (mesurée)** : un **tronc commun** précède deux pistes convergentes :
+- **Itération 1 — baseline** : injection du texte brut des chapitres précédents (~850 tokens/chapitre injectés). Latence ×2 dès le 6ᵉ chapitre — non viable au-delà.
+- **Itération 2 — mémoire compressée** : résumés compacts au lieu du texte brut (557 tokens injectés au 6ᵉ chapitre, ~50 tokens/chapitre supplémentaire), soit un contexte ~7× plus compact à cohérence équivalente.
 
 ### 2.4 Système de quotas et plans (libre/créateur/studio)
 
@@ -102,16 +106,37 @@ DreamWeave s'attaque à trois problèmes techniques fondamentaux dans la créati
 **Problème** : Dans une architecture Supabase partagée, un utilisateur ne doit jamais voir les données d'un autre, même en cas de fuite de la clé anon.
 
 **Solution implémentée** :
-- RLS activé sur toutes les tables (`profiles`, `projects`, `assets`, `chapter_canvases`, `scenario_chapters`, `usage`, `memory_entities`, `memory_summaries`, `narramind_alerts`)
+- RLS activé sur toutes les tables (`profiles`, `projects`, `assets`, `chapter_canvases`, `scenario_chapters`, `usage`, `memory_entities`, `memory_summaries`, `narramind_alerts`, `narramind_metrics`, `project_embeddings`, `compass_proposals`, lore)
 - Pattern universel : `auth.uid() = user_id` sur chaque table
 - La clé anon ne bypass jamais la RLS — seul `service_role` (côté serveur uniquement) peut le faire
 - Les Edge Functions utilisent `service_role` uniquement pour les opérations légitimes cross-user (webhooks, usage logging)
+
+### 2.6 NarraMind Compass — vectorisation & infra unique
+
+**Problème** : au-delà de la mémoire compressée (2.3), enrichir l'Univers et proposer des directions narratives demande de retrouver les passages pertinents (chapitres, lore) par **sens** et non par mots-clés.
+
+**Solution implémentée** — depuis le tronc commun « mémoire compressée », deux pistes convergent vers une **infrastructure vectorielle unique** :
+
+- **Piste A — Scénario**
+  - **A1** : alertes persistées (`narramind_alerts`, dédoublonnage, statuts) + UI fil d'Ariane + mémoire longue (`projects.narra_summary`, compression par batch).
+  - **A2** : vectorisation des chapitres → suggestions de **directions narratives**.
+- **Piste B — Univers**
+  - **B1** : cartographie lore (sections v1 `lore_world_sections` + graphe `lore_nodes` ; wiki graphique v2 spécifié).
+  - **B2** : vectorisation du lore → suggestions Ariane (`origin` = `extracted` / `generated`).
+
+**Infrastructure vectorielle unique** (migrations `20260522`) :
+- `project_embeddings` (`embedding vector(768)`) + `compass_proposals` + Edge Function `narramind-compass`.
+- Vectorisation via Gemini **`text-embedding-004` (768 dimensions)**, recherche par similarité **pgvector** (fonction SQL `match_embeddings`).
+- Ordres de grandeur mesurés : recherche vectorielle ~**4 ms**, ~**1 050 tokens** injectés par proposition générée.
+- Modes de la fonction : `index` (vectorise chapitres / lore → `project_embeddings`) et `propose` (recherche pgvector → Gemini Flash → `compass_proposals`).
+
+**Résultat** : une seule brique vectorielle alimente à la fois les directions narratives (Scénario) et les suggestions de lore (Univers), sans dupliquer l'infrastructure.
 
 ---
 
 ## 3. Itérations / méthodologie de prototypage
 
-> Reconstituées à partir de `git log --oneline` (237 commits) et des migrations SQL.
+> Reconstituées à partir de `git log --oneline` et des migrations SQL (≈ 40 migrations versionnées au 7 juin 2026).
 
 ### 3.1 Phase 0 — Scaffold initial (jan 2026)
 
@@ -120,7 +145,7 @@ DreamWeave s'attaque à trois problèmes techniques fondamentaux dans la créati
 **Itérations** :
 - Scaffold Lovable (1 commit) → architecture initiale React + Supabase
 - Migration fondatrice `20260209` : tables `profiles`, `projects`, `assets`, `chapters`, RLS de base
-- Premier test génération image FAL.ai — FLUX.1 Schnell (Free)
+- Premier test génération image FAL.ai (FLUX.1 Schnell pour le prototypage rapide ; abandonné depuis au profit de FLUX.2 Pro pour tous les tiers, décision 30/05/2026)
 
 **Résultat** : MVP fonctionnel en 2 semaines.
 
@@ -133,7 +158,7 @@ DreamWeave s'attaque à trois problèmes techniques fondamentaux dans la créati
 - Migration `20260213` : colonne `plan` dans `profiles`
 - Migration `20260214` : `scenario_chapters` + `scenario_versions` (système scénario texte)
 - Migration `20260215` : `chapter_canvases` (édition visuelle)
-- Passage FLUX.1 Schnell (Free) → FLUX.2 Pro (Pro) — qualité ×10 mais coût ×10
+- Passage FLUX.1 Schnell → FLUX.2 Pro — qualité ×10 mais coût ×10 (puis FLUX.2 Pro généralisé à tous les tiers en mai 2026)
 
 **Correctif critique** : `fetchWithRetry` + `fetchWithTimeout(120s)` pour résilience FAL.ai.
 
@@ -162,7 +187,21 @@ DreamWeave s'attaque à trois problèmes techniques fondamentaux dans la créati
 
 **Correctif Stripe** : Bug B3 (user pouvait s'upgrader gratuitement) corrigé en migration 20260418 avec durcissement RLS `profiles.plan`.
 
-### 3.5 Méthodologie générale
+### 3.5 Phase 4 — NarraMind Compass & infra vectorielle (mai-juin 2026)
+
+**Objectif** : Brancher la mémoire narrative sur une recherche sémantique pour alimenter directions narratives (Scénario) et suggestions de lore (Univers).
+
+**Itérations** :
+- Migration `20260522100000_enable_pgvector.sql` : activation de l'extension `pgvector`
+- Migrations `20260522` : `project_embeddings` (`vector(768)`), `compass_proposals`, fonction `match_embeddings`, sections lore (`lore_world_sections`, `lore_nodes`)
+- Edge Function `narramind-compass` : mode `index` (Gemini `text-embedding-004` → `project_embeddings`) + mode `propose` (pgvector → Gemini Flash → `compass_proposals`)
+- Edge Function `compose-chapter-layout` : composition automatique du layout (lecture `scene_type`)
+- Migration `20260531` : `chapter_assets` (curation assets ↔ chapitres)
+- Généralisation **FLUX.2 Pro à tous les tiers** (logique « Spotify », décision 30/05/2026)
+
+**Mesures** : recherche vectorielle ~4 ms ; ~1 050 tokens injectés par proposition générée.
+
+### 3.6 Méthodologie générale
 
 - **Solo + IA** : Développement solo avec assistance Claude Code, Cursor Agent (≈40% des commits sont des commits d'agent)
 - **Commits atomiques en français** : Convention stricte (impératif présent, français) — facilite le suivi

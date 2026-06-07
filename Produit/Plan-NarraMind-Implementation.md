@@ -10,7 +10,7 @@
 ## Phase 0 / 7 — Prérequis & conventions
 
 - [ ] **Constante front** pour le nom affiché de l’assistance (`ARIANE_DISPLAY_NAME` — déjà dans `src/constants/ariane.ts`) ; futurs textes « cohérence » importent depuis là.
-- [ ] **Ne pas renommer** les slugs `free` / `pro` en base sans migration dédiée ; les **libellés** « Amateur » / « Artiste » sont purement UI (`TIER_CONFIG` / `planDisplayName`).
+- [ ] Slugs `plan` en base : **`libre` / `createur` / `studio`** (les anciens `free` / `pro` ont été migrés) ; libellés UI **Libre / Créateur / Studio** via `TIER_CONFIG` / `planDisplayName` (`src/types/index.ts`).
 
 ---
 
@@ -70,7 +70,7 @@
 
 | # | Tâche | Détail |
 |---|--------|--------|
-| 5.1 | Quotas NarraMind | Plafond d’appels / mois par plan (table `usage` étendue ou action dédiée `narramind_update`) — aligné business Amateur / Artiste. |
+| 5.1 | Quotas NarraMind | Plafond d’appels / mois par plan (table `usage` étendue ou action dédiée `narramind_update`) — aligné business Libre / Créateur / Studio. |
 | 5.2 | UI | Message clair quand quota texte atteint (comme images). |
 
 ---
@@ -91,12 +91,10 @@
 
 ---
 
-## Tiers prix — « troisième plan » (hors scope immédiat du code ci-dessus)
+## Tiers prix — état livré (juin 2026)
 
-**Oui, un troisième plan est possible** (ex. « Studio », « Éditeur ») : il impose migration `profiles_plan_check` (`'free' \| 'pro' \| 'studio'`), mise à jour **stripe-webhook**, **create-checkout-session**, **admin-set-plan**, `UserPlan` + `TIER_CONFIG`, tous les `plan === "pro"` métier (gates features), et **prix Stripe** + page Plans. Prévoir **rétrocompatibilité** des utilisateurs existants.
-
-Document produit : à tracer dans `05_Business_Model_Canvas.md` / roadmap avant migration DB.
+Les **trois plans sont en production** : `libre` (0 €/20 crédits), `createur` (12,99 €/100), `studio` (29,99 €/250). La migration `profiles_plan_check` (`'libre' \| 'createur' \| 'studio'`), **stripe-webhook**, **create-checkout-session**, **admin-set-plan**, `UserPlan` + `TIER_CONFIG` et la page Plans sont livrés. Stratégie « tout gratuit » (2026-05-30) : toutes les features sur tous les plans ; différenciation = volume de crédits + (Studio) mémoire narrative longue `allowLongMemory` + priorité FAL.ai. Plus de gate `plan === "pro"`.
 
 ---
 
-*Créé : avril 2026 — DreamWeave.*
+*Créé : avril 2026 — DreamWeave. Audit 7 juin 2026 : noms de plans alignés (libre/createur/studio), section « troisième plan » mise à jour (3 plans en prod, stratégie tout gratuit).*

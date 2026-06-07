@@ -29,7 +29,7 @@ Le modèle de données de DreamWeave est construit sur **PostgreSQL** via Supaba
                           │  id (UUID, PK/FK)│◄─── Même ID que auth.users
                           │  display_name    │
                           │  avatar_url      │
-                          │  plan            │     TEXT ('free'|'pro'), défaut 'free'
+                          │  plan            │     TEXT ('libre'|'createur'|'studio'), défaut 'libre'
                           │  created_at      │
                           │  updated_at      │
                           └────────┬─────────┘
@@ -143,7 +143,11 @@ Le modèle de données de DreamWeave est construit sur **PostgreSQL** via Supaba
 | `id` | `UUID` | PK, FK → auth.users.id | Identifiant unique (= ID auth) |
 | `display_name` | `TEXT` | NULL | Nom d'affichage |
 | `avatar_url` | `TEXT` | NULL | URL de l'avatar |
-| `plan` | `TEXT` | NOT NULL, DEFAULT 'free', CHECK ('free', 'pro') | Plan tarifaire actif |
+| `plan` | `TEXT` | NOT NULL, DEFAULT 'libre', CHECK ('libre', 'createur', 'studio') | Plan tarifaire actif (renommé free→libre, pro→createur + ajout studio, migration 20260503) |
+| `email` | `TEXT` | NULL | Email de l'utilisateur (migration 20260217) |
+| `stripe_customer_id` | `TEXT` | NULL | ID client Stripe (abonnement) |
+| `billing_period_start` | `TIMESTAMPTZ` | NULL | Début de période de facturation (reset quota, migration 20260503) |
+| `excluded_from_stats` | `BOOLEAN` | DEFAULT false | Exclut le compte des statistiques produit (migration 20260515) |
 | `created_at` | `TIMESTAMPTZ` | NOT NULL, DEFAULT now() | Date de création |
 | `updated_at` | `TIMESTAMPTZ` | NOT NULL, DEFAULT now() | Date de mise à jour |
 
@@ -334,7 +338,9 @@ CREATE TYPE asset_type AS ENUM ('character', 'background', 'object');
 
 ---
 
-### 2.5 `panels`
+### 2.5 `panels` → renommée `chapter_canvases`
+
+> ⚠️ **Renommage (migration 20260424)** : la table `panels` a été renommée en **`chapter_canvases`**. Le canvas représente désormais **le chapitre entier en scroll vertical** (800 px de large, jusqu'à ~100 000 px de haut) : il y a **toujours une seule ligne par chapitre**, le `layout` JSONB contenant tous les blocs (`{blocks[], panelHeight}`), ainsi que `speech_bubbles` (JSONB) et `color_blocks` (JSONB). La description ci-dessous décrit l'ancien modèle « un panel = une ligne » conservé pour référence historique.
 
 > Panels composant un chapitre. En **mode Automatique** : un panel = une **image pleine** (illustration, pas de cases dans l’image). En **mode Structuré** : un panel contient des **blocs** (layout) ; chaque bloc a sa propre image pleine, affichée dans le bloc.
 
@@ -486,6 +492,28 @@ WHERE user_id = $1
 
 ---
 
+### 2.7 Tables additionnelles (mémoire narrative, lore, Compass)
+
+> Le modèle ne se limite pas aux tables ci-dessus : l'ensemble du schéma couvre aussi la mémoire narrative NarraMind, la cartographie de l'univers (lore) et l'infrastructure vectorielle Compass. Source de vérité : `supabase/migrations/`.
+
+| Table | Rôle | Colonnes clés | Migration |
+|-------|------|---------------|-----------|
+| `memory_entities` | Entités narratives (personnages, lieux, objets) | project_id, user_id, asset_id, name, entity_type, traits (JSONB), relations (JSONB), lore_summary, last_seen_chapter | 20260423 |
+| `memory_summaries` | Résumés compacts par chapitre (mémoire longue) | project_id, user_id, chapter_id, chapter_number, summary, token_estimate | 20260423 |
+| `narramind_alerts` | Alertes / anomalies narratives (fil d'Ariane) | project_id, user_id, type, message, chapter_number, status | 20260430 |
+| `narramind_metrics` | Métriques de la mémoire (tokens, compression) | project_id, user_id, … | 20260423 |
+| `universe_lore` / `lore_world_sections` / `lore_nodes` | Cartographie de l'univers (sections + graphe lore) | project_id, user_id, … | 20260423, 20260522 |
+| `word_mappings` | Mappings pour la détection d'assets dans le scénario | project_id, … | 20260421 |
+| `project_embeddings` | Index vectoriel Compass | project_id, user_id, source_type ('chapter'/'lore_world_section'/'asset_lore'/'summary'), source_id, section_key, content, **embedding vector(768)** | 20260522 |
+| `compass_proposals` | Propositions Compass (Ariane) | project_id, user_id, proposal_type ('lore_world'/'lore_asset'/'narrative_direction'/'asset_prefill'), origin ('extracted'/'generated'), title, content, prefill_data (JSONB), status ('active'/'accepted'/'dismissed'), dedupe_key | 20260522 |
+| `chapter_assets` | Liaison assets ↔ chapitres (curation) | chapter_id, asset_id, … | 20260531 |
+
+> **Infra vectorielle Compass** : extension `pgvector` activée (migration 20260522), fonction SQL `match_embeddings` pour la recherche par similarité cosinus, vectorisation via Gemini `text-embedding-004` (768 dimensions). RLS `auth.uid() = user_id` sur `project_embeddings` et `compass_proposals`.
+
+> **Note `scenario_chapters` (évolutions)** : la table a reçu `narramind_anomalies` (JSONB, vidé après chaque run NarraMind) et `narramind_checked_at` (migration 20260430). `projects` a reçu `narra_summary` (mémoire longue, migration 20260430) et `panels_target_per_chapter`. `assets` a reçu `image_url_sheet` (Sheet System, 20260416) et `lore` (20260423).
+
+---
+
 ## 3. Storage (Supabase Storage)
 
 ### 3.1 Bucket : `dreamweave`
@@ -601,8 +629,8 @@ Suppression d'un chapitre
 | Nouvelle table `styles` | `styles` | Marketplace de styles (name, template, images, author, price, rating) |
 | Nouvelle table `collaborators` | `collaborators` | Partage de projet (project_id, user_id, role) |
 | Nouvelle table `comments` | `comments` | Commentaires sur les panels |
-| Ajout `subscription_tier` sur `profiles` | `profiles` | Plan d'abonnement (free, pro, team) |
-| Nouvelle table `usage` | `usage` | Compteur de générations par mois |
+| Ajout `subscription_tier` sur `profiles` | `profiles` | (Déjà couvert par `plan` : libre/createur/studio) |
+| ~~Nouvelle table `usage`~~ | `usage` | ✅ Déjà implémentée (migration 20260213) |
 
 ### 5.3 Long terme
 
@@ -614,4 +642,4 @@ Suppression d'un chapitre
 
 ---
 
-*Dernière mise à jour : 17 février 2026 (Audit : ajout tables scenario_chapters et scenario_versions dans ERD, colonne panels_target_per_chapter dans projects, colonnes motion_lines et transition_effects dans panels)*
+*Dernière mise à jour : 7 juin 2026 (audit) — plans renommés libre/createur/studio + colonnes profiles (email, stripe_customer_id, billing_period_start, excluded_from_stats), note de renommage panels → chapter_canvases (1 ligne par chapitre), ajout des tables mémoire narrative / lore / infra vectorielle Compass (project_embeddings, compass_proposals, pgvector, Gemini text-embedding-004 768D), chapter_assets.*

@@ -1,5 +1,5 @@
 # NarraMind Compass — Spec Onglet Univers (Wiki Graphique)
-*Décision session 22/05/2026 — Ne pas coder avant validation étape par étape*
+*Décision session 22/05/2026 — wiki graphique relationnel v2 **spécifié, non livré**. État actuel (juin 2026) : les **sections thématiques v1** de l’onglet Univers (Règles du monde, Lieux, Peuples, Cultures, Chronologie) sont **livrées** et vectorisées sous `source_type = "lore_world_section"`. Les tables `lore_categories` / `lore_entries` / `lore_links` et `source_type = "lore_entry"` décrites ci-dessous sont la cible v2, pas encore implémentée. Valider étape par étape avant de coder.*
 
 ---
 
@@ -149,12 +149,14 @@ L'utilisateur peut tout supprimer/renommer. Ce ne sont que des suggestions :
 
 ## Vectorisation (Compass)
 
-Chaque `lore_entry` est vectorisée indépendamment :
+Chaque `lore_entry` sera vectorisée indépendamment (cible v2) :
 ```
-source_type: "lore_entry"   (nouveau — remplace "lore_world_section")
+source_type: "lore_entry"   (cible v2 — remplacera "lore_world_section")
 source_id:   lore_entry.id
 content:     name + "\n" + description
 ```
+
+> ⚠️ **État implémenté (juin 2026)** : `CompassSourceType` réel = `"chapter" | "lore_world_section" | "asset_lore" | "summary"` (cf. `src/types/index.ts`). La valeur `"lore_entry"` sera ajoutée lors de la migration vers le wiki graphique v2. Aujourd’hui le lore monde est vectorisé section par section sous `"lore_world_section"`.
 
 Les liens sont injectés dans le contexte lors des propositions :
 > "La Tour de Verre est possédée par Roi Aldric et protégée par les Gardiens."
@@ -169,4 +171,4 @@ Les liens sont injectés dans le contexte lors des propositions :
 | **B** | Liens entre éléments (lore_links) + modal relation + affichage sur fiche | Étape A terminée |
 | **C** | Vue graphe React Flow (nœuds/arêtes, layout dagre, clic → fiche) | Étape B terminée |
 
-*Spec v1 — 22/05/2026. En attente de validation avant implémentation.*
+*Spec v1 — 22/05/2026 · audit 7 juin 2026 : wiki graphique v2 toujours spécifié/non livré ; clarification que `source_type` implémenté = `"lore_world_section"` (sections thématiques v1 livrée), `"lore_entry"` reste la cible v2.*

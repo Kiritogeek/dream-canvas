@@ -92,4 +92,4 @@ Référence historique : **La Scripte**, **La Trame**, **Le Repère**, **La Cont
 
 ---
 
-*Dernière mise à jour : 30 avril 2026 — parcours progressif livré ; §8 prochains textes par menu.*
+*Dernière mise à jour : 30 avril 2026 — parcours progressif livré ; §8 prochains textes par menu. (Audit 7 juin 2026 : identité Ariane et contraintes de langage vérifiées, aucun fait technique obsolète.)*

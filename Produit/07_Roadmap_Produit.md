@@ -27,7 +27,7 @@
 
 ## Phase 1 : MVP & Fondations (Q1 2026) — ✅ LIVRÉ
 
-> **Objectif** : Proposer un workflow complet de création d'assets avec IA, une organisation de projet fonctionnelle, et un système de monétisation (tiers Free/Pro).
+> **Objectif** : Proposer un workflow complet de création d'assets avec IA, une organisation de projet fonctionnelle, et un système de monétisation (tiers Libre / Créateur / Studio).
 
 ### Fonctionnalités livrées ✅
 
@@ -35,12 +35,12 @@
 |---------------|------------|--------|
 | **Authentification complète** | Email/password + Google OAuth + sessions | ✅ Livré |
 | **Gestion de projets** | CRUD projets, dashboard, liste, recherche | ✅ Livré |
-| **Système de style** | Template texte + images de référence (2 max, Pro) | ✅ Livré |
+| **Système de style** | Template texte + images de référence (2 max) | ✅ Livré |
 | **Bibliothèque d'assets** | Personnages, décors, objets avec génération IA | ✅ Livré |
-| **Vues multiples** | Face, profil gauche/droit, dos pour les personnages (Pro) | ✅ Livré |
-| **Génération IA multi-modèles** | Free → FLUX.1 Schnell / Pro → FLUX.2 Pro / Pro Edit | ✅ Livré |
-| **Plans Free / Pro** | Page pricing, comparaison, changement de plan | ✅ Livré |
-| **Quotas mensuels** | 20 gen/mois (Free), 300 gen/mois (Pro), tracking usage | ✅ Livré |
+| **Sheet System** | Fiche composite 4 angles (face, profil G/D, dos) pour les personnages — remplace les multi-vues | ✅ Livré |
+| **Génération IA FLUX.2 Pro** | FLUX.2 Pro / FLUX.2 Pro Edit pour tous les tiers | ✅ Livré |
+| **Plans Libre / Créateur / Studio** | Page pricing, comparaison, changement de plan | ✅ Livré |
+| **Quotas mensuels** | 20 crédits (Libre), 100 crédits (Créateur), 250 crédits (Studio), tracking usage | ✅ Livré |
 | **Dashboard** | Stats temps réel, barre d'usage, badge tier | ✅ Livré |
 | **Profil utilisateur** | Page profil avec display_name, email | ✅ Livré |
 | **Landing page** | Page marketing avec CTA | ✅ Livré |
@@ -108,7 +108,7 @@ Voir `Plan_Action_Developpement_Scénario.md` pour le détail des phases A à G.
 | **✏️ Modifier ce passage** (IA) | Sélection de texte → IA propose réécriture du passage. | P0 | M | 📋 À faire |
 | **Résumés IA compacts** (`ai_summary`) | Après sauvegarde : génère un résumé 80 mots du chapitre. Utilisé comme contexte IA au lieu du texte complet. Migration : `ADD COLUMN ai_summary TEXT`. | P0 | M | 📋 À faire |
 | **`✨ Suggérer un prompt` dans l'éditeur** | Bouton sur chaque bloc vide → IA propose prompt court basé sur chapitre + blocs précédents + historique. Injecté directement dans le champ prompt. | P0 | L | 📋 À faire |
-| **Découpage Chapitre → Panels** | **Gate feature Pro.** IA découpe le chapitre en liste de panels avec description, lieu, personnages, ambiance. CTA upgrade pour Free. | P1 | L | 📋 À faire |
+| **Découpage Chapitre → Panels** | IA découpe le chapitre en liste de panels avec description, lieu, personnages, ambiance. Disponible sur tous les tiers (stratégie tout-gratuit). | P1 | L | 📋 À faire |
 | **Limites caractères champs prompt** | Bloc panel : 400 chars · Asset : 300 chars · Style : 500 chars. | P1 | S | 📋 À faire |
 | **Import scénario** | Import .txt / copier-coller. | P1 | S | 📋 À faire |
 | **Renommage assets → mise à jour scénario** | Au renommage : modale confirmation + remplacement dans les chapitres. | P1 | M | 📋 À faire |
@@ -197,17 +197,17 @@ Voir `Plan_Action_Developpement_Scénario.md` pour le détail des phases A à G.
 | **Navigation entre chapitres** | Précédent / Suivant | P1 | S |
 | **Préchargement d'images** | Chargement anticipé pour fluidité | P2 | M |
 
-### 2.3 Monétisation — Stripe (⚠️ PRIORITÉ Q2 2026)
+### 2.3 Monétisation — Stripe (✅ LIVRÉ)
 
-> **Situation actuelle** : Le plan Pro (14,99 €/mois) est entièrement simulé — n'importe quel utilisateur peut s'upgrader gratuitement depuis la page Plans. Le paiement réel est indispensable avant tout lancement public.
+> **Situation actuelle** : Stripe est intégré. Plans payants Créateur (12,99 €/mois) et Studio (29,99 €/mois) ; le plan Libre (0 €) reste l'entrée par défaut. La différenciation se fait sur le **volume de crédits** (20 / 100 / 250) et la mémoire narrative longue (Studio), pas sur le gating de features.
 
 | Tâche | Description | Priorité | Effort | Statut |
 |-------|------------|----------|--------|--------|
-| **Intégration Stripe Checkout** | Rediriger vers Stripe au clic "Passer au Pro" — abonnement mensuel | P0 | L | 📋 À faire |
-| **Webhook Stripe → Supabase** | Mettre à jour `profiles.plan` via webhook (events: `customer.subscription.created/deleted/updated`) | P0 | L | 📋 À faire |
-| **Sécuriser la page Plans** | Retirer le bouton "Passer au Pro" sans paiement — afficher statut abonnement réel | P0 | M | 📋 À faire |
-| **RLS sur `profiles.plan`** | S'assurer que seul le webhook (service role) peut modifier le plan — pas l'utilisateur lui-même | P0 | S | 📋 À faire |
-| **Portal de gestion abonnement** | Lien vers Stripe Customer Portal pour annulation/changement CB | P1 | S | 📋 À faire |
+| **Intégration Stripe Checkout** | Rediriger vers Stripe au clic "Passer à Créateur/Studio" — abonnement mensuel | P0 | L | ✅ Livré |
+| **Webhook Stripe → Supabase** | Mettre à jour `profiles.plan` via webhook (events: `customer.subscription.created/deleted/updated`) | P0 | L | ✅ Livré |
+| **Sécuriser la page Plans** | Statut abonnement réel ; changement de plan via Stripe | P0 | M | ✅ Livré |
+| **RLS sur `profiles.plan`** | Seul le webhook (service role) peut modifier le plan — pas l'utilisateur lui-même | P0 | S | ✅ Livré |
+| **Portal de gestion abonnement** | Lien vers Stripe Customer Portal pour annulation/changement CB | P1 | S | ✅ Livré |
 
 ### Métriques de succès Phase 2
 
@@ -257,10 +257,10 @@ Voir `Plan_Action_Developpement_Scénario.md` pour le détail des phases A à G.
 
 | Tâche | Description | Priorité | Effort | Statut |
 |-------|------------|----------|--------|--------|
-| **Système de plans** | Free / Pro avec tiers | P0 | L | ✅ Livré (Phase 1) |
-| **Gestion des quotas** | Compteur de générations, alertes, barre d'usage | P0 | M | ✅ Livré (Phase 1) |
+| **Système de plans** | Libre / Créateur / Studio avec tiers | P0 | L | ✅ Livré (Phase 1) |
+| **Gestion des quotas** | Compteur de générations (crédits), alertes, barre d'usage | P0 | M | ✅ Livré (Phase 1) |
 | **Page pricing** | Page de présentation et comparaison des plans | P0 | S | ✅ Livré (Phase 1) |
-| **Intégration Stripe** | Paiement par abonnement automatique | P0 | L | 📋 Planifié |
+| **Intégration Stripe** | Paiement par abonnement automatique | P0 | L | ✅ Livré (Phase 2) |
 
 ### Métriques de succès Phase 3
 
@@ -268,7 +268,7 @@ Voir `Plan_Action_Developpement_Scénario.md` pour le détail des phases A à G.
 |---------|-------|
 | Premiers utilisateurs payants | > 50 |
 | MRR | > 1 000 € |
-| Taux de conversion Free → Pro | > 3% |
+| Taux de conversion Libre → payant (Créateur/Studio) | > 3% |
 | Chapitres exportés par semaine | > 100 |
 
 ---
@@ -373,7 +373,7 @@ Jan     Fév     Mar     Avr     Mai     Juin    Jul     Aoû     Sep     Oct   
 | `ProjectDetail.tsx` | ✅ | Éditeur projet (Style/Assets/Scénario/Édition) |
 | `ChapterDetail.tsx` | ✅ | Éditeur chapitre visuel |
 | `Profile.tsx` | ✅ | Profil utilisateur |
-| `Plans.tsx` | ✅ | Page plans Free/Pro/Studio |
+| `Plans.tsx` | ✅ | Page plans Libre/Créateur/Studio |
 | `NotFound.tsx` | ✅ | Page 404 |
 | `ResetPassword.tsx` | ⚠️ absent du doc | Réinitialisation de mot de passe |
 | `EmailVerification.tsx` | ⚠️ absent du doc | Vérification email post-inscription |
@@ -389,7 +389,7 @@ Jan     Fév     Mar     Avr     Mai     Juin    Jul     Aoû     Sep     Oct   
 | `ScenarioSection.tsx` | ✅ | Section scénario |
 | `EditionSection.tsx` | ✅ | Section édition |
 | `ScenarioTextHighlighter.tsx` | ✅ | Surbrillance assets dans scénario |
-| `CharacterViewDialog.tsx` | ✅ | Vues multiples personnage |
+| `CharacterViewDialog.tsx` | ✅ | Fiche personnage — Sheet System (4 angles) |
 | `SpeechBubbleEditor.tsx` | ⚠️ absent du doc | Éditeur de bulles de dialogue |
 | `AIChapterPreviewModal.tsx` | ⚠️ absent du doc | Aperçu chapitre IA |
 | `ScenarioFormattedPreview.tsx` | ⚠️ absent du doc | Prévisualisation scénario formaté |
@@ -401,10 +401,11 @@ Jan     Fév     Mar     Avr     Mai     Juin    Jul     Aoû     Sep     Oct   
 | Feature | Statut roadmap | État réel dans le code |
 |---------|---------------|----------------------|
 | **Sheet System** (image_url_sheet) | 🔜 | ✅ Migration 20260416, EF generate-asset-image |
-| **NarraMind** (mémoire narrative) | 🔜 | ✅ EF narramind-update, tables memory_entities/summaries/narramind_alerts |
+| **NarraMind** (mémoire narrative) | 🔜 | ✅ EF narramind-update, mémoire compressée (entités + résumés glissants + méga-résumé) |
+| **NarraMind Compass** (vectorisation) | non documenté | ✅ EF narramind-compass (mode index/propose), tables project_embeddings + compass_proposals, pgvector + Gemini text-embedding-004 |
 | **3 tiers (libre/createur/studio)** | 📋 | ✅ Migration 20260503, useUserPlan.ts |
 | **billing_period_start** | 📋 | ✅ Migration 20260503 |
-| **Stripe infrastructure** | 📋 | ✅ EFs create-checkout-session, stripe-webhook, profiles.stripe_customer_id — non déployé en prod |
+| **Stripe** | 📋 | ✅ EFs create-checkout-session, stripe-webhook, profiles.stripe_customer_id — livré |
 | **Export PNG panel + chapitre** | 📋 | ✅ Livré (html2canvas, commit a9f1279) |
 | **universe_lore** | non documenté | ✅ Table + UniverseSection.tsx |
 | **Reset Password** | non documenté | ✅ ResetPassword.tsx |
@@ -456,4 +457,4 @@ Aucun commentaire `TODO` ou `FIXME` trouvé dans `/src/` (grep négatif — code
 
 ---
 
-*Dernière mise à jour : 4 mai 2026 (v5) — Annexe "État réel du code" ajoutée : pages manquantes (ResetPassword, EmailVerification, ScenarioChapterEditor), composants manquants, features réellement implémentées (Sheet System ✅, NarraMind ✅, 3 tiers ✅, Stripe infra ✅), git log -30.*
+*Dernière mise à jour : 7 juin 2026 (v6 — audit vérité) — Tiers Libre/Créateur/Studio (20/100/250 crédits), FLUX.2 Pro pour tous les tiers (suppression FLUX.1 Schnell + gating modèle), Sheet System (ex multi-vues), Stripe livré, NarraMind Compass (vectorisation pgvector). v5 — Annexe "État réel du code" : pages manquantes, composants manquants, features implémentées, git log -30.*

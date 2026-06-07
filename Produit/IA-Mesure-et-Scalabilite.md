@@ -8,9 +8,9 @@
 
 | Fournisseur | Usage principal | Où (couche code) |
 |-------------|-----------------|------------------|
-| **Google Gemini** | Génération scénario, découpage, résumés, modes structurés JSON, **NarraMind** (`narramind-update`) | Edge Functions `generate-scenario-ai`, `narramind-update` |
+| **Google Gemini** | Génération scénario, découpage, résumés, modes structurés JSON, **NarraMind** (`narramind-update`), **Compass** vectorisation/propositions (`narramind-compass`, text-embedding-004 768D) | Edge Functions `generate-scenario-ai`, `narramind-update`, `narramind-compass` |
 | **Groq** (Llama 3.3 70B) | **Fallback** si Gemini indisponible ; certains modes historiques scénario | Mêmes fonctions (ordre d’appel défini dans le code) |
-| **FAL.ai** | Images : assets (FLUX Schnell / 2 Pro / Edit), **panels par bloc** `generate-panel-image`, styles, landing | Edge Functions `generate-asset-image`, `generate-panel-image`, etc. |
+| **FAL.ai** | Images : assets (FLUX.2 Pro / FLUX.2 Pro Edit, **tous les tiers**), **panels par bloc** `generate-panel-image`, styles, landing | Edge Functions `generate-asset-image`, `generate-panel-image`, etc. |
 
 **Secrets** : uniquement côté serveur (Edge Functions / env Supabase). Une ou quelques **clés API par fournisseur** = **toute** la conso des utilisateurs est **consolidée** sur ton compte fournisseur.
 
@@ -32,7 +32,7 @@ Les **coûts variables** montent avec : **nombre d’appels** × **taille moyenn
 
 | Mécanisme | Contenu utile | Limite |
 |-----------|---------------|--------|
-| Table **`usage`** | Comptage mensuel côté **génération image** (quota Free/Pro) | Ne détaille pas les tokens Gemini |
+| Table **`usage`** | Comptage mensuel côté **génération image** (crédits Libre 20 / Créateur 100 / Studio 250) | Ne détaille pas les tokens Gemini |
 | Table **`narramind_metrics`** | `context_tokens`, `response_tokens`, `duration_ms`, `anomalies_detected`, `chapters_in_context`, etc. | Par run NarraMind, pas un tableau de bord « coût € » |
 | Logging / dashboards **fournisseurs** | Quotas, 429, facturation | Source de vérité pour la **€ réelle** |
 | **`canGenerate()`** + UI plans | Empêche les appels FAL au-delà du quota | Ne throttle pas le texte seul |
@@ -43,10 +43,10 @@ Les **coûts variables** montent avec : **nombre d’appels** × **taille moyenn
 
 ## 4. Leviers pour tenir la charge (N utilisateurs)
 
-1. **Produit** : quotas **différenciés** Free vs Pro sur **NarraMind**, **IA scénario**, **FAL** ; features « gourmandes » réservées au Pro.
+1. **Produit** : différenciation par **volume de crédits** (Libre 20 / Créateur 100 / Studio 250) — stratégie « tout gratuit » : toutes les features (NarraMind, IA scénario, FAL, Compass) sont disponibles sur tous les plans. Seule la **mémoire narrative longue** + la **priorité FAL.ai** sont réservées à Studio.
 2. **Throttles** (ex. NarraMind : intervalle minimum entre appels, seuil de mots) — déjà en place côté éditeur ; **généraliser** le principe aux autres flux si besoin..
 3. **Éviter les reruns** : ne pas rappeler l’EF si le **hash du contenu** n’a pas changé depuis le dernier run réussi.
-4. **Contexte borné** : fenêtres de résumés (NarraMind), pas d’injection du roman entier dans chaque prompt.
+4. **Contexte borné** : mémoire narrative compressée (entités + résumés glissants + méga-résumé), contexte borné ~1 400 mots quel que soit le nombre de chapitres ; pas d’injection du roman entier dans chaque prompt. Compass : recherche pgvector ciblée plutôt que tout le lore.
 5. **Fallback** : Groq quand Gemini rate-limite — disponibilité, pas nécessairement moindre coût.
 6. **Alertes** : budgets et seuils sur les consoles Google AI / FAL avant saturation.
 
@@ -71,4 +71,4 @@ Les **coûts variables** montent avec : **nombre d’appels** × **taille moyenn
 
 ---
 
-*Dernière mise à jour : 30 avril 2026 — création document ; fusion doc Produit.*
+*Dernière mise à jour : 7 juin 2026 (audit vérité) — FLUX.2 Pro pour tous les tiers (suppression FLUX Schnell + gating Free/Pro), crédits Libre/Créateur/Studio (20/100/250), stratégie tout-gratuit (features non gatées), ajout Compass (narramind-compass, text-embedding-004, pgvector). 30 avril 2026 — création document ; fusion doc Produit.*

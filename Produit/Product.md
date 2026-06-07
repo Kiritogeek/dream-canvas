@@ -20,7 +20,7 @@
 ### Solution DreamWeave
 
 DreamWeave résout ces problèmes en :
-- **Automatisant la génération visuelle** via l'IA (FLUX.1 Schnell / FLUX.2 Pro via FAL.ai)
+- **Automatisant la génération visuelle** via l'IA (FLUX.2 Pro / FLUX.2 Pro Edit via FAL.ai, pour tous les tiers)
 - **Garantissant la cohérence stylistique** grâce à un système de templates de style
 - **Réduisant drastiquement le temps de production** (de semaines à heures)
 - **Rendant la création accessible** à tous, sans compétences artistiques
@@ -92,16 +92,15 @@ DreamWeave résout ces problèmes en :
 
 #### 3.3 Gestion des personnages
 
-**Vues multiples** :
-- **Vue de face** : Image principale (générée automatiquement)
-- **Profil gauche** : Vue de profil gauche
-- **Profil droite** : Vue de profil droite
-- **Vue de dos** : Vue arrière du personnage
+**Sheet System** (fiche composite 4 angles — remplace les multi-vues) :
+- Une **fiche composite** unique regroupant les 4 angles : face, profil gauche, profil droit, dos
+- Générée en une seule passe pour garantir la cohérence du personnage
+- Disponible sur tous les plans (y compris Libre)
 
 **Fonctionnalités** :
-- Génération à la demande pour chaque vue
-- Interface dédiée pour gérer toutes les vues d'un personnage
-- Régénération individuelle de chaque vue
+- Génération de la fiche composite à la demande
+- Interface dédiée pour visualiser tous les angles d'un personnage
+- Régénération de la fiche
 
 **Valeur** : Réutilisation des personnages sous différents angles, cohérence visuelle maximale.
 
@@ -128,7 +127,7 @@ DreamWeave résout ces problèmes en :
 - Suppression de chapitres
 
 **Section Scénario (écriture de l'histoire)** :
-- Zone dédiée pour écrire ou importer le scénario (texte narratif). **Les chapitres sont le scénario** (un chapitre = un bloc de texte). **IA Scénario** : votre scénariste IA crée votre histoire **chapitre par chapitre** — **un prompt génère un chapitre** ; vous acceptez ou rejetez. **IA Chapitre** : sur un chapitre existant, réécriture ciblée (un chapitre). Options gratuites : Groq (Llama 3.3 70B), OpenRouter, Mistral, Google AI Studio.
+- Zone dédiée pour écrire ou importer le scénario (texte narratif). **Les chapitres sont le scénario** (un chapitre = un bloc de texte). **IA Scénario** : votre scénariste IA crée votre histoire **chapitre par chapitre** — **un prompt génère un chapitre** ; vous acceptez ou rejetez. **IA Chapitre** : sur un chapitre existant, réécriture ciblée (un chapitre). Moteur texte : **Google Gemini Flash** (primaire) + **Groq Llama 3.3 70B** (fallback).
 - **IA Scénario** : l'utilisateur saisit un **prompt** ; l'IA génère **toute l'histoire** chapitre par chapitre **directement sur le site**. Modification : nouveau prompt → réécriture → **comparaison visuelle ancienne / nouvelle** (diff mot à mot : supprimé en rouge, ajouté en vert) → **Accepter** ou **Rejeter**.
 - **IA Chapitre** : sur **chaque chapitre**, une IA qui **n'intervient que sur ce chapitre**. Même flux réécriture → **Accepter / Rejeter** avec **diff visuel**.
 - **Dans le scénario** : détection des **assets déjà créés** (surbrillance par type). **Hover** : image de l'asset (HoverCard). **Clic** : popup agrandie (Dialog) avec image, nom, type. Détection des **éléments mentionnés non encore créés** (panneau + surbrillance ambre). **Création depuis le scénario** : survol d'un élément non créé ou **sélection d'un mot/groupe de mots** → choix du type (Personnage / Décor / Objet) → **navigation vers l'onglet Assets** avec **dialog de création pré-rempli** (nom + type), sans création directe.
@@ -142,13 +141,12 @@ DreamWeave résout ces problèmes en :
 
 ### 5. 🖼️ Génération IA d'images
 
-**Description** : Génération automatique d'images via l'IA (FAL.ai, multi-modèles selon le plan).
+**Description** : Génération automatique d'images via l'IA (FAL.ai, FLUX.2 Pro pour tous les tiers).
 
 #### 5.1 Architecture technique
 
 - **Edge Function Supabase** : `generate-asset-image`
-- **Modèle IA** : FLUX.1 Schnell (Free) / FLUX.2 Pro / FLUX.2 Pro Edit (Pro) via API FAL.ai
-- **Format** : Images 512×512px en PNG
+- **Modèle IA** : FLUX.2 Pro / FLUX.2 Pro Edit via API FAL.ai — **même modèle pour tous les tiers** (logique « tout gratuit » : la différenciation se fait sur le volume de crédits, pas sur le modèle)
 - **Stockage** : Supabase Storage (bucket `dreamweave`)
 
 #### 5.2 Processus de génération
@@ -159,7 +157,7 @@ DreamWeave résout ces problèmes en :
    - Ajout des instructions système selon le type d'asset
    - Ajout des instructions pour les images de référence (si présentes)
    - Ajout des instructions pour les vues spécifiques (profil, dos, etc.)
-3. **Appel API FAL.ai** : Génération de l'image (modèle sélectionné selon le plan)
+3. **Appel API FAL.ai** : Génération de l'image (FLUX.2 Pro pour tous les tiers)
 4. **Upload Storage** : Sauvegarde dans Supabase Storage
 5. **Mise à jour BDD** : Mise à jour de l'URL de l'image dans la base de données
 
@@ -288,7 +286,7 @@ DreamWeave résout ces problèmes en :
    - Créer les personnages principaux (avec génération IA)
    - Créer les décors récurrents
    - Créer les objets importants
-   - Générer les vues supplémentaires des personnages (profil, dos)
+   - Générer la fiche Sheet System des personnages (4 angles : face, profils, dos)
 5. **Création des chapitres** :
    - Créer un chapitre avec titre et synopsis
    - (Bientôt) Générer automatiquement les panels
@@ -356,7 +354,7 @@ DreamWeave résout ces problèmes en :
 ## 💡 Points de différenciation
 
 1. **Cohérence stylistique garantie** : Système de templates de style unique
-2. **Vues multiples des personnages** : Génération de profil, dos, etc.
+2. **Sheet System** : Fiche composite 4 angles (face, profils, dos) par personnage
 3. **Workflow optimisé** : Création d'assets → Chapitres → Panels
 4. **Format natif webtoon** : Vertical, optimisé pour mobile
 5. **Accessibilité** : Aucune compétence artistique requise
@@ -386,11 +384,14 @@ DreamWeave résout ces problèmes en :
 
 - **Frontend** : React + TypeScript + Vite
 - **UI** : shadcn/ui + Tailwind CSS + Framer Motion
-- **Backend** : Supabase (PostgreSQL + Auth + Storage + Edge Functions)
-- **IA** : FAL.ai API (FLUX.1 Schnell / FLUX.2 Pro / FLUX.2 Pro Edit)
+- **Backend** : Supabase (PostgreSQL RLS + Auth email + Google OAuth + Storage bucket `dreamweave` + Edge Functions Deno)
+- **IA images** : FAL.ai API (FLUX.2 Pro / FLUX.2 Pro Edit, tous tiers)
+- **IA texte** : Google Gemini Flash (primaire) + Groq Llama 3.3 70B (fallback)
+- **IA vectorisation** : Google Gemini text-embedding-004 (768D) + pgvector — NarraMind Compass
+- **Paiement** : Stripe
 - **Routing** : React Router DOM 6 (lazy loading)
 - **State Management** : TanStack React Query 5
-- **Deployment** : Vercel / Netlify
+- **Deployment** : Vercel
 
 ---
 
@@ -405,3 +406,7 @@ Le product-market fit est solide car :
 - ✅ La valeur est immédiate (résultats visuels rapides)
 
 Le produit est actuellement en phase de développement actif, avec les fonctionnalités core (gestion de projets, assets, style) opérationnelles, et les fonctionnalités avancées (génération de panels, dialogues) en cours de développement.
+
+---
+
+*Dernière mise à jour : 7 juin 2026 (audit vérité) — Tiers Libre/Créateur/Studio, FLUX.2 Pro pour tous les tiers (suppression FLUX.1 Schnell + gating modèle), Sheet System (ex multi-vues), IA texte Gemini Flash + Groq fallback, NarraMind Compass (vectorisation), Stripe livré.*

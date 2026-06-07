@@ -134,11 +134,19 @@ Mêmes politiques que `projects` : SELECT/INSERT/UPDATE/DELETE restreint au prop
 |-----------|----------|-----------|
 | ALL | Accès total au propriétaire | `auth.uid() = user_id` |
 
-#### `narramind_alerts`
+#### `narramind_alerts`, `narramind_metrics`
 
 | Opération | Politique | Condition |
 |-----------|----------|-----------|
 | ALL | Accès total au propriétaire | `auth.uid() = user_id` |
+
+#### `project_embeddings`, `compass_proposals` (NarraMind Compass)
+
+| Opération | Politique | Condition |
+|-----------|----------|-----------|
+| ALL | Accès total au propriétaire | `auth.uid() = user_id` |
+
+> Index vectoriel `pgvector` (extension activée migration 20260522). Les embeddings (Gemini `text-embedding-004`, 768D) et les propositions Compass sont strictement isolés par utilisateur. La fonction SQL `match_embeddings` respecte le `project_id` / `user_id` de l'appelant.
 
 #### Durcissement RLS `profiles.plan` (migration 20260418)
 
@@ -246,7 +254,7 @@ panels           CRUD            CRUD        R           ✗
 | **Vérification ownership** | L'asset doit appartenir à l'utilisateur (query BDD) |
 | **Vérification quota** | Comptage usage mensuel vs. limite du plan (HTTP 429 si dépassé) |
 | **Validation des entrées** | Vérification de `asset_id`, `prompt`, `asset_type`, et `style_image_urls.length ≤ 2` (lus depuis `projects`, si présents) |
-| **Sélection de modèle** | Selon le plan : Free → Schnell (fallback), Pro → FLUX.2 Pro Edit pour dériver les vues depuis `assets.image_url_sheet` |
+| **Sélection de modèle** | FLUX.2 Pro pour tous les tiers (logique « Spotify ») : FLUX.2 Pro Edit dès qu'il y a des références (sheet `assets.image_url_sheet` / images de style), sinon FLUX.2 Pro text-to-image |
 | **Limitation de prompt** | Prompt tronqué à ~1900 caractères |
 | **CORS** | Headers CORS dynamiques (`ALLOWED_ORIGIN` ou `*` en dev) |
 | **Clé API serveur** | `FAL_API_KEY` lue depuis les Secrets |
@@ -260,7 +268,7 @@ panels           CRUD            CRUD        R           ✗
 |---------|-------------------|
 | **Vérification JWT** | Vérifié (via Supabase Auth) |
 | **Vérification ownership** | Le panel doit appartenir à l'utilisateur (table `panels`) |
-| **Utilisation des références images** | Pro uniquement : `block_asset_image_urls` sont passées à FAL `flux-2-pro/edit` (cohérence via sheets) ; Free → fallback text-to-image (les `block_asset_image_urls` sont ignorées) |
+| **Utilisation des références images** | `block_asset_image_urls` passées à FAL `flux-2-pro/edit` (cohérence via sheets) sur tous les tiers ; sans référence, FLUX.2 Pro text-to-image |
 | **Limitation de références** | Slice côté serveur (réduction du volume d’entrées) pour éviter des prompts trop longs |
 | **Limitation de prompt** | Instruction serveur pour remplir tout le cadre et respecter la taille px |
 
@@ -376,7 +384,7 @@ const corsHeaders = {
                        │                              │
                        │  ┌────────────────────────┐  │
                        │  │ FAL.ai API          │  │
-                       │  │ Schnell / Pro / Edit │  │
+                       │  │ FLUX.2 Pro / Edit    │  │
                        │  └────────────────────────┘  │
                        │                              │
                        │  ┌────────────────────────┐  │
@@ -540,4 +548,4 @@ jobs:
 
 ---
 
-*Dernière mise à jour : 4 mai 2026 — RLS nouvelles tables (memory_entities/summaries/narramind_alerts), durcissement profiles.plan, CI/CD réel (GitHub Actions ci.yml), secrets complets, note privacy/CGU absente.*
+*Dernière mise à jour : 7 juin 2026 (audit) — FLUX.2 Pro pour tous les tiers (suppression des références FLUX.1 Schnell / Free-Pro), RLS infra vectorielle Compass (project_embeddings, compass_proposals, pgvector, Gemini text-embedding-004 768D), RLS nouvelles tables (memory_entities/summaries/narramind_alerts/metrics), durcissement profiles.plan, CI/CD réel (GitHub Actions ci.yml), secrets complets.*

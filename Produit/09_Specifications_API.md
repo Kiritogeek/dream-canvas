@@ -117,6 +117,7 @@ GET /rest/v1/profiles?id=eq.{user_id}&select=*
     "id": "uuid",
     "display_name": "John Doe",
     "avatar_url": null,
+    "plan": "libre",
     "created_at": "2026-02-01T10:00:00Z",
     "updated_at": "2026-02-01T10:00:00Z"
   }
@@ -370,6 +371,25 @@ DELETE /rest/v1/panels?id=eq.{panel_id}
 
 ## 3. Edge Functions (Custom API)
 
+### 3.0 Liste réelle des Edge Functions (`supabase/functions/`)
+
+| Fonction | Rôle |
+|----------|------|
+| `generate-asset-image` | Génère l'image d'un asset (FAL.ai FLUX.2 Pro / Edit), génère la sheet composite, upload Storage, log usage |
+| `generate-panel-image` | Génère l'image d'un bloc de chapitre (dimensions du bloc) |
+| `generate-scenario-ai` | Génère scénario / chapitre / découpage cases (Google Gemini Flash + fallback Groq Llama 3.3 70B) |
+| `compose-chapter-layout` | Composition automatique du layout d'un chapitre (lit `scene_type`) |
+| `narramind-update` | Mémoire narrative : entités, résumés, détection d'anomalies |
+| `narramind-compass` | NarraMind Compass : mode `index` (vectorise via Gemini `text-embedding-004` → `project_embeddings`) ; mode `propose` (recherche pgvector → Gemini Flash → `compass_proposals`) |
+| `generate-style-template-images` | Génère les images de prévisualisation du style |
+| `generate-landing-showcase` | Génère les images hero de la landing page |
+| `create-checkout-session` | Crée une session Stripe Checkout |
+| `create-portal-session` | Crée un lien Stripe Customer Portal |
+| `stripe-webhook` | Traite les événements Stripe → met à jour `profiles.plan` (service_role) |
+| `admin-set-plan` / `admin-user-action` / `admin-get-kpis` | Endpoints d'administration (plan, actions utilisateur, KPIs) |
+
+Toutes les Edge Functions reçoivent le JWT utilisateur (`Authorization: Bearer`) et utilisent le `service_role` côté serveur pour les lectures cross-user légitimes.
+
 ### 3.1 `generate-asset-image`
 
 > Génère une image pour un asset en utilisant l'IA (FAL.ai / FLUX.2 Pro).
@@ -412,7 +432,7 @@ Authorization: Bearer {JWT_TOKEN}
   "image_view": "front",
   "update_field": "image_url",
   "model": "flux-2-pro-edit",
-  "plan": "pro"
+  "plan": "createur"
 }
 ```
 
@@ -447,9 +467,9 @@ Authorization: Bearer {JWT_TOKEN}
    - `character` : 2x2 vignettes (face + profils + dos)
    - `background` / `object` : 1 tuile
    - champ BDD : `assets.image_url_sheet`
-6. Générer la vue demandée :
-   - Pro : édition à partir de `image_url_sheet` via FAL image edit
-   - Free : fallback text-to-image
+6. Générer la vue demandée (FLUX.2 Pro pour tous les tiers) :
+   - Avec références / sheet : édition à partir de `image_url_sheet` via FLUX.2 Pro Edit (image edit)
+   - Sans référence : FLUX.2 Pro text-to-image
 7. Mettre à jour l'asset en BDD (vue demandée + `image_url_sheet`)
 8. Retourner l'URL publique (image_url + image_url_sheet)
 ```
@@ -496,7 +516,7 @@ Authorization: Bearer {JWT_TOKEN}
 | `height` | `number` | Oui | Hauteur du bloc (px) ; plafonnée à 1024 côté serveur |
 | `prompt` | `string` | Oui | Description de l'illustration pour ce bloc |
 | `block_asset_names` | `string[]` | Non | Noms des assets du bloc (utilisés dans le prompt pour guider les éléments à inclure) |
-| `block_asset_image_urls` | `string[]` | Non | URLs des “sheets” d’assets. En plan Pro, utilisées comme `image_urls` dans FAL image edit pour conserver la cohérence identitaire. En Free, ignorées. |
+| `block_asset_image_urls` | `string[]` | Non | URLs des “sheets” d’assets. Utilisées comme `image_urls` dans FLUX.2 Pro Edit pour conserver la cohérence identitaire (disponible sur tous les tiers). |
 | `context_chapter` | `string` | Non | Contexte du chapitre (lieu, scène, personnages) pour cohérence visuelle. Envoyé par le frontend depuis le découpage (`panels_outline[].context`) ou la description du panel. |
 
 **Réponse succès** (200) :
@@ -519,9 +539,9 @@ Authorization: Bearer {JWT_TOKEN}
 2. Vérifier que le panel appartient à l'utilisateur (table `panels`)
 3. Récupérer `project_id` via le chapitre du panel (pour le chemin Storage)
 4. Construire le prompt : template de style du projet (depuis `projects`) + contexte chapitre + noms des assets + instruction « remplir tout le cadre » + prompt du bloc
-5. Génération image :
-   - Pro + `block_asset_image_urls` fournis : FAL image edit avec `image_urls = block_asset_image_urls` (les sheets servent d'identité visuelle)
-   - Free : fallback text-to-image (les `block_asset_image_urls` sont ignorées)
+5. Génération image (FLUX.2 Pro pour tous les tiers) :
+   - Avec `block_asset_image_urls` fournis : FLUX.2 Pro Edit avec `image_urls = block_asset_image_urls` (les sheets servent d'identité visuelle)
+   - Sans référence : FLUX.2 Pro text-to-image
 6. Télécharger l'image et l'uploader dans Storage : `{user_id}/projects/{project_id}/panels/{panel_id}/blocks/{block_id}.png`
 7. Retourner l'URL publique (le frontend met à jour `layout.blocks[].image_url`)
 
@@ -593,37 +613,37 @@ POST /functions/v1/export-chapter
 
 | Paramètre | Valeur |
 |-----------|--------|
-| **Base URL** | `https://api.fal.ai/v1` |
-| **Modèle** | `black-forest-labs/flux-2-pro` |
-| **Auth** | API Key (header `Authorization: Bearer {FAL_API_KEY}`) |
+| **Endpoint text-to-image** | `https://fal.run/fal-ai/flux-2-pro` |
+| **Endpoint image edit (refs)** | `https://fal.run/fal-ai/flux-2-pro/edit` |
+| **Modèle** | `fal-ai/flux-2-pro` (tous les tiers) |
+| **Auth** | API Key (header `Authorization: Key {FAL_API_KEY}`) |
 
 ### 4.2 Appel de génération d'image
 
 ```
-POST https://api.fal.ai/v1/images/generations
+POST https://fal.run/fal-ai/flux-2-pro
 
 Headers:
-  Authorization: Bearer {FAL_API_KEY}
+  Authorization: Key {FAL_API_KEY}
   Content-Type: application/json
 
 Body:
 {
-  "model": "black-forest-labs/flux-2-pro",
   "prompt": "...(prompt enrichi)...",
-  "response_format": "b64_json",
-  "width": 1024,
-  "height": 1024,
-  "num_inference_steps": 4
+  "image_size": { "width": 1280, "height": 1024 },
+  "num_images": 1,
+  "output_format": "png",
+  "enable_safety_checker": true
 }
 ```
+
+> Avec images de référence (sheets / style), l'endpoint utilisé est `https://fal.run/fal-ai/flux-2-pro/edit` avec un champ supplémentaire `image_urls`.
 
 **Réponse** :
 ```json
 {
-  "data": [
-    {
-      "b64_json": "/9j/4AAQSkZJRg..."
-    }
+  "images": [
+    { "url": "https://fal.media/.../output.png" }
   ]
 }
 ```
@@ -632,9 +652,8 @@ Body:
 
 | Paramètre | Valeur |
 |-----------|--------|
-| **Résolution max** | 1024×1024 |
+| **Résolution** | Assets : 1280×1024 ; blocs de chapitre : dimensions du bloc (plafonnées à 1024 px) |
 | **Rate limit** | Variable selon le plan FAL.ai |
-| **Coût estimé** | ~0,01-0,03 $/image |
 | **Temps de réponse** | 3-15 secondes |
 
 ---
@@ -745,4 +764,4 @@ const { data, error } = await supabase.storage
 
 ---
 
-*Dernière mise à jour : 17 février 2026 (Audit : ajout Edge Functions generate-scenario-ai et generate-panel-image, documentation complète)*
+*Dernière mise à jour : 7 juin 2026 (audit) — liste réelle des Edge Functions (ajout narramind-compass, compose-chapter-layout, Stripe, admin), FAL.ai FLUX.2 Pro / Edit pour tous les tiers (endpoint fal.run, header `Authorization: Key`, payload réel), plans libre/createur/studio, résolutions réelles.*

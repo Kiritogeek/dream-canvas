@@ -249,13 +249,50 @@ En dessous des seuils, Ariane ne propose rien — le formulaire s'ouvre vide, av
 
 ## 4. Méthodologie de prototypage du POC
 
-> Le prototypage s'organise en **un tronc commun** (mesure du problème + moteur de mémoire compressée) puis **deux pistes parallèles** qui réutilisent ce tronc et convergent chacune vers le **même verrou technique final : la vectorisation sémantique des informations** (RAG pgvector).
->
-> - **Tronc commun** — Itérations 1 et 2 : prouver que l'injection brute du scénario est intenable, puis construire la mémoire narrative compressée qui sert de socle aux deux pistes.
-> - **Piste A — NarraMind Scénario** : exploiter cette mémoire pour la cohérence (détection d'anomalies) puis la vectorisation des chapitres afin de proposer des **directions narratives** ancrées dans l'histoire.
-> - **Piste B — NarraMind Univers** : structurer le monde (cartographie du lore) puis la vectorisation du lore afin de proposer l'**enrichissement des fiches** (suggestions Ariane extraites / inventées).
->
-> Les deux pistes partagent l'infrastructure d'embedding (Gemini `text-embedding-004`) et de recherche (`pgvector`) benchmarkée en 3.4 : la vectorisation est le défi technique commun, ses usages diffèrent selon la piste (retrieval pour proposer du scénario vs retrouver du lore proche).
+Ce projet explore **deux champs de recherche distincts** qui structurent la démarche de prototypage et convergent vers un dispositif de test commun sur un univers de référence.
+
+---
+
+### Champ 1 — Modélisation d'un Univers narratif pour la vectorisation
+
+**Question de recherche :** Comment représenter un univers narratif — champ de données complexe (entités, relations, règles, chronologie) — sous une forme vectorisable permettant un retrieval sémantique efficace ?
+
+Un univers narratif n'est pas du texte plat. C'est un **graphe de connaissances** avec plusieurs types de nœuds, chacun posant un défi de vectorisation différent :
+
+| Type de nœud | Exemples | Défi de vectorisation |
+|---|---|---|
+| Entités | Aldric (personnage), Tour de Verre (lieu) | Modéré — texte structuré, attributs + historique |
+| Relations | "Aldric possède la Tour de Verre", "Mira connaît Aldric" | Élevé — information relationnelle à sérialiser en texte |
+| Règles du monde | "La magie est interdite depuis la Chute des Gardiens" | Faible — texte narratif continu |
+| Événements | "Trahison d'Aldric, chapitre 1" | Modéré — ancré temporellement, référence implicite |
+
+**Hypothèse centrale (Champ 1) :** Vectoriser chaque nœud **indépendamment** (granularité fine) retourne un retrieval plus précis qu'un vecteur monolithique pour l'ensemble du lore. Un bloc unique "tout le lore" produit un vecteur moyen qui ne représente aucun élément précisément — le retrieval retourne des faux positifs.
+
+**Ce que ce champ doit prouver :** pour une requête sémantique (ex : "confrontation politique trahison"), le top-5 pgvector retourne des fragments pertinents — même sans mot commun avec la requête. Testé en B1 (sections thématiques v1) et spécifié en B1 v2 (wiki graphique avec relations sérialisées).
+
+---
+
+### Champ 2 — LM OPS : Observabilité, traçabilité et garde-fous
+
+**Question de recherche :** Comment garantir que ce que le LLM produit est cohérent avec les éléments de l'univers de l'auteur ? Quels mécanismes de traçabilité, de seuillage et de validation mettre en place ?
+
+Ce champ relève du **LM OPS** (opérationnalisation des LLMs en production), discipline qui couvre l'observabilité et la qualité des systèmes IA en conditions réelles :
+
+| Dimension LM OPS | Question clé | Mécanisme dans NarraMind |
+|---|---|---|
+| Observabilité | Qu'est-ce qui entre et sort du LLM ? | Logging tokens, scores, sources injectées |
+| Traçabilité | D'où vient chaque suggestion ? | Distinction `extracted` 🔍 / `generated` ✨ + fragment source |
+| Garde-fou seuillage | Quand ne pas proposer ? | Seuil `cos_sim ≥ 0.65` avant injection d'un fragment |
+| Qualité de sortie | Le JSON produit est-il valide ? | Validation schéma post-génération LLM |
+| Logique agentique | Le système peut-il refuser ? | Silence d'Ariane si aucun fragment ne dépasse le seuil |
+
+**Hypothèse centrale (Champ 2) :** Sans seuil minimum de similarité cosinus, le LLM reçoit des fragments non-pertinents et génère des suggestions hors-contexte — une *hallucination ancrée sur du mauvais contexte*, plus difficile à détecter qu'une hallucination pure. L'ajout d'un seuil `cos_sim ≥ 0.65` + logging structuré permet de mesurer et de garantir la pertinence.
+
+---
+
+### Architecture du prototypage — deux pistes, deux champs
+
+Un tronc commun (Itérations 1–2) mesure le problème de base et construit la mémoire compressée. Les deux pistes adressent ensuite les deux champs en parallèle :
 
 ```
                  ┌─────────────────────────────────────────────┐
@@ -276,9 +313,20 @@ En dessous des seuils, Ariane ne propose rien — le formulaire s'ouvre vide, av
 
 ---
 
+> **Deux approches complémentaires dans ce projet — ne pas confondre :**
+>
+> - **Compression LLM** (Itérations 1–2, A1) : le LLM lit un contexte structuré compact (~557 tokens) et *raisonne* sur les incohérences. C'est une approche **globale** — le LLM a une vue d'ensemble du projet. Utilisée pour la **détection d'anomalies narratives**.
+> - **Vectorisation + RAG** (A2, B2) : on transforme chaque fragment en vecteur 768D, puis on cherche les fragments sémantiquement les plus proches du contexte courant. Le LLM ne reçoit que les 5 plus pertinents (~1 050 tokens). C'est une approche **ciblée** — utilisée pour les **propositions créatives** (directions narratives, enrichissement lore).
+>
+> Ces deux approches coexistent et sont complémentaires : la compression sert la cohérence globale, la vectorisation sert la pertinence locale. **La détection d'anomalies ne passe pas par la vectorisation** — c'est une confusion courante que ce projet permet de clarifier.
+
+---
+
 ## TRONC COMMUN
 
 ### Itération 1 — Baseline : LLM sans mémoire (23 avril 2026)
+
+**Hypothèse :** Un LLM alimenté en texte brut (intégralité des chapitres précédents injectés à chaque génération) peut maintenir la cohérence d'un webtoon. Mais cette approche souffre d'une croissance non maîtrisée du contexte. Il faut d'abord la mesurer concrètement pour en quantifier l'impact réel — en tokens, en latence, en coût — avant de proposer une alternative.
 
 **Défi technique :** Mesurer concrètement la croissance du contexte LLM avec l'injection brute du scénario, et établir la baseline tokens/latence/cohérence.
 
@@ -312,6 +360,8 @@ La croissance est **linéaire à ~850 tokens/chapitre** (hypothèse initiale : 7
 ### Itération 2 — Mémoire compressée : fiches entités + résumé glissant (23 avril 2026)
 
 > **Socle partagé par les deux pistes.** La mémoire construite ici (`memory_entities`, `memory_summaries`, `narra_summary`) alimente la détection d'anomalies de la Piste A *et* sert de source vectorisable (`source_type: "summary"`) pour les deux pistes Compass.
+
+**Hypothèse :** Remplacer l'injection brute par une mémoire structurée à 3 niveaux — fiches entités mises à jour par upsert (O(1) en tokens), résumés glissants par chapitre (~80 tokens/chap), méga-résumé de projet — permettra d'atteindre un contexte stable ≤ 1 400 tokens quel que soit le nombre de chapitres écrits, sans perte de cohérence narrative détectable.
 
 **Défi technique :** Remplacer le scénario brut par une mémoire structurée. Valider que la cohérence est au moins équivalente à 10x moins de tokens.
 
@@ -349,6 +399,8 @@ La cible était 1 000–1 400 tokens stables. NarraMind V1 atteint **557 tokens 
 > **Objectif de la piste :** transformer la mémoire compressée (tronc commun) en un assistant de **cohérence et de proposition narrative** dans l'éditeur de chapitre. Deux itérations : d'abord la détection réactive d'anomalies (A1), puis le passage proactif par **vectorisation des chapitres** pour suggérer des directions narratives (A2).
 
 ### Itération A1 — Persistance des alertes + UI Ariane + Mémoire longue (mai 2026)
+
+**Hypothèse :** La mémoire compressée (Itération 2) contient suffisamment d'information pour qu'un LLM détecte des incohérences. Mais deux briques manquent : (1) la **persistance idempotente** des alertes — sans dédoublonnage, plusieurs runs du même chapitre génèrent des doublons inutilisables ; (2) une **UI en langage auteur** — les alertes brutes du LLM contiennent du jargon technique (`asset_id`, noms de champs JSON) qui rompt la confiance de l'utilisateur. La compression batch (`narra_summary`) devient aussi nécessaire dès que le projet dépasse 10 chapitres pour maintenir le contexte borné.
 
 **Défi technique :** Persister les alertes de façon idempotente (pas de doublons, statuts gérés), les présenter via un personnage-guide en langage auteur, et assurer la mémoire longue sur les projets > 10 chapitres.
 
@@ -395,6 +447,10 @@ Les 3 briques techniques complexes ont été validées : la persistance idempote
 
 ### Itération A2 — Vectorisation du scénario : directions narratives via RAG (mai–juin 2026)
 
+**Hypothèse :** La compression (Itérations 1–2 + A1) répond à "qu'est-ce qui s'est passé ?" et détecte les incohérences globales. Mais pour proposer des directions narratives pertinentes au chapitre en cours, le LLM a besoin d'une question différente : "quels éléments de cette histoire sont sémantiquement proches de la scène que l'auteur écrit *maintenant* ?". La vectorisation sémantique + pgvector permet de sélectionner ces K fragments sans injecter l'intégralité du projet.
+
+> **Important :** A2 ne remplace pas A1 — les deux coexistent. A1 (compression) continue de détecter les anomalies en arrière-plan. A2 (vectorisation) ajoute une couche proactive distincte pour les propositions créatives. Ce sont deux mécanismes différents sur les mêmes données.
+
 **Défi technique :** Les itérations précédentes ont résolu la **mémoire et la détection**. Le défi d'A2 est la **proposition créative cohérente** : générer des *directions narratives* alignées avec l'histoire existante, sans injecter tout le projet dans le LLM.
 
 Le problème central est la **sélection contextuelle** : quels 5 fragments parmi les 50–200 éléments du projet sont les plus pertinents pour le chapitre en cours d'écriture ? La compression par résumé (tronc commun) répond à "qu'est-ce qui s'est passé ?" — pas à "qu'est-ce qui est narrativement proche ?".
@@ -414,7 +470,7 @@ La solution : **vectorisation sémantique + retrieval pgvector** — chaque chap
 - Mode `"index"` sur `source_type: "chapter"` et `"summary"` : texte → Gemini `text-embedding-004` → upsert `project_embeddings` (idempotent par `source_id`)
 - Mode `"propose"` avec `proposal_type: "narrative_direction"` : contexte du chapitre courant → vectorise → `SELECT ... ORDER BY embedding <=> $v LIMIT 5` → top-5 fragments → prompt Gemini Flash → JSON `{ extracted, generated }` → upsert `compass_proposals`
 - Déclenchement `"index"` : silencieux, à chaque save chapitre (même pattern que `narramind-update`)
-- Déclenchement `"propose"` : sur demande explicite, composant "Proposition Ariane" dans l'éditeur scénario → 3 directions narratives avant génération
+- Déclenchement `"propose"` : automatique, déclenché par `ArianeAnalysisModal` lors de la validation du chapitre — la modale s'ouvre, `triggerCompassIndex` + `triggerCompassPropose` sont appelés en `Promise.all`, puis l'auteur continue. Zéro bouton "Suggestions".
 
 **Mesures relevées :**
 
@@ -429,6 +485,18 @@ La solution : **vectorisation sémantique + retrieval pgvector** — chaque chap
 
 La recherche sémantique résout le problème de sélection : au lieu d'un contexte fixe de 1 400 tokens (Itération 2), on injecte un contexte **dynamique et ciblé** de ~1 050 tokens adapté au chapitre travaillé. Le pipeline reste entièrement dans Supabase — pas de service vectoriel externe, pas de clé API supplémentaire.
 
+**Comparaison qualitative — sans vs avec vectorisation :**
+
+*Scénario de test : l'auteur écrit un chapitre de confrontation entre Aldric et le conseil royal. Le projet comporte 6 chapitres. Aldric a trahi une alliance au chapitre 1 — fil narratif qui n'est pas dans les chapitres récents.*
+
+| | Sans RAG (contexte chronologique) | Avec RAG (top-5 sémantique) |
+|---|---|---|
+| **Fragments injectés** | Chapitres 4, 5, 6 (les plus récents) | Chapitres 1, 3, 6 + entité Aldric + résumé arc politique |
+| **Direction proposée** | "Aldric pourrait fuir après la confrontation" | "Aldric a déjà trahi une alliance au chapitre 1 — rejouer ce pattern avec le conseil crée une continuité dramatique" |
+| **Ancrage dans l'histoire** | Générique — aucune référence précise | Ancré — référence au chapitre 1, à la première trahison |
+
+Sans vectorisation, le LLM se base sur les événements récents par défaut — hors-propos dès que la scène reprend un fil narratif ancien. La similarité sémantique retrouve ces fils par sens, indépendamment de leur position chronologique dans l'histoire.
+
 Le point délicat est le **chunking** : un chapitre de 2 000 mots produit ~2 800 tokens, trop grand pour un embedding efficace. Règle retenue : truncation à 2 000 caractères (~350 mots), en conservant les premiers paragraphes (exposition des enjeux + personnages > fin de chapitre).
 
 **Distinction clé avec le tronc commun :** les Itérations 1–2 + A1 traitent la mémoire comme un problème de **compression** (réduire N chapitres en M tokens fixes). A2 traite la proposition créative comme un problème de **retrieval** (trouver les K fragments les plus pertinents parmi N). Les deux coexistent : NarraMind continue de tourner en arrière-plan pour les anomalies, Compass ajoute la couche proactive sur les mêmes données.
@@ -441,14 +509,16 @@ Le point délicat est le **chunking** : un chapitre de 2 000 mots produit ~2 800
 
 ### Itération B1 — Cartographie de l'Univers : structuration du lore (mai–juin 2026)
 
+**Hypothèse :** Pour que les suggestions d'enrichissement (B2) soient ancrées dans l'univers réel de l'auteur, le lore doit être **vectorisable élément par élément** — un bloc monolithique retournerait le même vecteur pour "règles de magie" et "géographie", rendant le retrieval inutile. Structurer le lore en sections thématiques indépendantes est suffisant en v1 pour valider cette granularité, sans nécessiter un modèle de graphe complet dès le départ.
+
 **Défi technique :** Offrir une saisie structurée et relationnelle du lore (le « cahier des charges » que la détection d'anomalies de la Piste A vérifie), tout en restant vectorisable élément par élément. Deux modèles ont été prototypés :
 
 - **v1 livrée — sections thématiques :** 5 axes (Règles du monde, Géographie, Factions/Peuples, Culture, Chronologie), chacun éditable et **vectorisé indépendamment** (`source_type: "lore_world_section"`), plus le LORE des assets (`source_type: "asset_lore"`).
 - **v2 spécifiée — wiki graphique :** modèle relationnel `lore_categories` / `lore_entries` / `lore_links` (chaque lieu, règle, peuple = une entrée liée aux autres et aux assets), avec vue liste et vue graphe (React Flow). Chaque `lore_entry` deviendra l'unité vectorisée (`source_type: "lore_entry"` remplaçant `"lore_world_section"`), et les liens seront injectés dans le contexte des propositions (« La Tour de Verre est possédée par Roi Aldric et protégée par les Gardiens »).
 
 **Implémentation (v1 livrée) :**
-- `UniverseSection.tsx` : 5 sections thématiques, chacune avec champ texte + bouton "✦ Suggestions Ariane"
-- Sauvegarde + déclenchement `triggerCompassIndex("lore_world_section", …)` à chaque save de section
+- `UniverseSection.tsx` : 5 sections thématiques, chacune avec champ texte ; sauvegarde déclenche `triggerCompassIndex("lore_world_section", …)` automatiquement
+- Suggestions Ariane affichées automatiquement à l'ouverture de la fiche lore (`LoreNodeSheet`) via le hook `useCompassProposals` → `CompassSuggestionsPanel`. Zéro bouton "Suggestions".
 - LORE des assets indexé en `asset_lore`
 - Migration suggestions : `20260524200000_compass_proposals_extend_types.sql` (ajout `lore_world`, `lore_connection`, `asset_prefill`)
 
@@ -456,13 +526,19 @@ Le point délicat est le **chunking** : un chapitre de 2 000 mots produit ~2 800
 
 **Résultat et analyse ✅ (v1) / 🔵 (v2)**
 
-La v1 (sections thématiques) valide que le lore est **saisissable et vectorisable** sans modèle de graphe complet — suffisant pour amorcer les suggestions. Le défi technique réel de la v2 est la **modélisation d'un graphe de connaissances multi-tenant** (entrées + relations typées), dont la difficulté n'est pas la vectorisation (déjà résolue en A2) mais l'injection des **relations** dans le prompt de proposition. La cartographie reste donc un prérequis de qualité, pas un verrou de faisabilité.
+La v1 (sections thématiques) valide que le lore est **saisissable et vectorisable** sans modèle de graphe complet — suffisant pour amorcer les suggestions.
+
+**Ce qui est validé en v1 :** chaque section lore est vectorisée indépendamment via un `triggerCompassIndex` ciblé. Modifier la section "Factions" ne ré-indexe que ce vecteur — pas l'ensemble du lore. Cette granularité est la condition nécessaire pour que le retrieval en B2 retourne un fragment précis (ex : la règle de magie) plutôt qu'un bloc de texte mélangé.
+
+**Limite identifiée (v2) :** le modèle à 5 sections fixes est trop rigide pour des univers sans magie structurée ou sans géographie cartographiée. La v2 (wiki graphique `lore_entries`/`lore_links`) résout ce problème — structure libre, chaque entrée est une unité vectorisée — mais son défi technique réel n'est pas la vectorisation (déjà résolue en A2) : c'est l'**injection des relations** dans le prompt de proposition. "La Tour de Verre est possédée par Aldric et protégée par les Gardiens" est une information relationnelle, pas un texte libre — sa sérialisation dans un prompt LLM nécessite un format structuré supplémentaire.
 
 **Correctif identifié :** sans contenu minimal (seuils 3.5), les suggestions sont bruitées. B2 conditionne donc le déclenchement à un seuil de données indexées.
 
 ---
 
 ### Itération B2 — Vectorisation du lore : enrichissement des fiches via RAG (mai–juin 2026)
+
+**Hypothèse :** La même infrastructure vectorielle qu'en A2 peut servir un usage différent sur les mêmes données. Au lieu de trouver les fragments de scénario proches d'un chapitre en cours (A2 — proposition narrative), on trouve les passages de l'histoire qui mentionnent un élément de l'Univers (B2 — enrichissement de fiche). La distinction `extracted` / `generated` répond à l'enjeu de propriété intellectuelle : l'auteur doit toujours savoir ce qui est tiré de son histoire et ce qui est inventé par Ariane.
 
 **Défi technique :** Utiliser la vectorisation (infrastructure A2) pour **proposer l'enrichissement de l'Univers** : compléter une fiche lore, suggérer un nouvel élément cohérent, pré-remplir une fiche asset détectée dans le scénario — toujours en distinguant ce qui est **extrait** de l'histoire de ce qui est **inventé** par Ariane.
 
@@ -490,9 +566,180 @@ La v1 (sections thématiques) valide que le lore est **saisissable et vectorisab
 
 **Résultat et analyse ✅**
 
-La même brique vectorielle qu'en A2 sert ici un usage différent : **retrouver le lore proche** pour l'enrichir, plutôt que retrouver le scénario proche pour le prolonger. C'est la démonstration clé du Projet Innovant : **une infrastructure de vectorisation unique, deux usages produits distincts** (Scénario et Univers). La distinction `extracted` / `generated` répond à l'enjeu de propriété intellectuelle — Ariane montre toujours d'où vient une suggestion.
+La même brique vectorielle qu'en A2 sert ici un usage différent : **retrouver le lore proche** pour l'enrichir, plutôt que retrouver le scénario proche pour le prolonger. C'est la démonstration clé du Projet Innovant : **une infrastructure de vectorisation unique, deux usages produits distincts** (Scénario et Univers).
+
+**Exemple concret — enrichissement fiche personnage "Mira" :**
+
+*Contexte : Mira apparaît dans les chapitres 2, 4 et 7 ("la guérisseuse des Ruines du Nord"). Sa fiche Univers est vide. L'auteur ouvre sa fiche et clique "Suggestions Ariane".*
+
+La vectorisation de la requête "Mira [guérisseuse]" retrouve les 3 passages les plus proches parmi tous les embeddings du projet. Ces fragments sont injectés dans Gemini Flash avec la consigne de séparer extrait / inventé :
+
+| Type | Suggestion générée |
+|------|-------------------|
+| 🔍 Tiré de ton histoire | "Mira est présentée comme guérisseuse, associée aux Ruines du Nord, intervient lors de crises (chap. 2, 4, 7)" |
+| 🔍 Tiré de ton histoire | "Elle est connue des habitants de la région mais reste mystérieuse sur ses origines (chap. 4)" |
+| ✨ Proposé par Ariane | "Mira pourrait appartenir à une confrérie de soins itinérants — ce qui expliquerait sa présence dans plusieurs lieux distants" |
+| ✨ Proposé par Ariane | "Son attachement aux Ruines du Nord suggère un lien personnel avec ce lieu, peut-être une origine ou une perte" |
+
+L'auteur décide ce qu'il conserve. Les suggestions 🔍 sont des faits de l'histoire — canoniques, non discutables. Les suggestions ✨ ne deviennent canoniques que si l'auteur les valide en les ajoutant à sa fiche.
+
+La distinction `extracted` / `generated` répond à l'enjeu de propriété intellectuelle — Ariane montre toujours d'où vient une suggestion.
 
 **Convergence des deux pistes :** A2 et B2 partagent `project_embeddings`, `compass_proposals` et l'Edge Function `narramind-compass`. Le `source_type` discrimine l'origine (`chapter`/`summary` côté Scénario, `lore_world_section`/`asset_lore` côté Univers) et le `proposal_type` l'usage. La vectorisation est donc le **point de convergence technique** des deux pistes — le défi le plus complexe, mutualisé.
+
+---
+
+## 4.bis — Audit code : état réel du dispositif (10 juin 2026)
+
+> Cet audit compare les hypothèses du projet à l'implémentation réelle, fichier par fichier. Il identifie précisément ce qui existe et ce qui doit être implémenté pour valider les deux champs de recherche.
+
+### Ce qui est implémenté
+
+| Brique | État | Fichier / Référence |
+|--------|------|---------------------|
+| Vectorisation Gemini `text-embedding-004` | ✅ | `narramind-compass/index.ts` L.133 |
+| Stockage `project_embeddings` (vector 768D, RLS) | ✅ | Migration `20260522110000` |
+| Troncature contenu 2 000 chars (chunking) | ✅ | `CONTENT_MAX_CHARS = 2000` L.16 |
+| Distinction `extracted` / `generated` en BDD et UI | ✅ | `compass_proposals.origin` + `CompassSuggestionsPanel.tsx` L.26-27 |
+| Fonction SQL `match_embeddings()` avec score cos_sim | ✅ | Migration `20260522130000` |
+| Logging tokens + durée LLM | ✅ | `narramind_metrics` — `narramind-update/index.ts` L.1317-1330 |
+| Validation JSON LLM multi-stratégies | ✅ | `tryParseNarraMindAiJson()` L.88-132 |
+| Fallback LLM (Gemini 2.0 → 2.5 Flash → Groq) | ✅ | `narramind-update/index.ts` L.294-304 |
+| Upsert idempotent propositions (`dedupe_key`) | ✅ | `compass_proposals` |
+
+### Découverte critique — le fallback naïf
+
+La fonction SQL `match_embeddings()` — qui calcule la similarité cosinus et retourne les scores — **existe en base de données mais n'est jamais appelée** depuis le code. Le mode `propose` utilise à la place un fallback naïf : les 5 embeddings les plus récents, sans aucun calcul de similarité.
+
+```typescript
+// narramind-compass/index.ts — L.236-242 (état actuel)
+// Fallback naïf : pas de match_embeddings(), pas de score cosinus
+const embeddingsResp = await supabase
+  .from('project_embeddings')
+  .select('source_type, source_id, section_key, content')
+  .eq('project_id', project_id)
+  .order('updated_at', { ascending: false })   // ← tri chronologique, pas sémantique
+  .limit(5)
+```
+
+**Conséquence directe :** l'hypothèse centrale du Champ 1 (le retrieval sémantique retourne les fragments pertinents) **n'est pas testée** — les fragments injectés dans le LLM sont les plus récents, pas les plus proches. C'est précisément le verrou que les itérations de validation doivent lever.
+
+### Garde-fous LM OPS manquants (Champ 2)
+
+| Garde-fou | Impact si absent | Priorité |
+|-----------|-----------------|----------|
+| Appel réel à `match_embeddings()` + seuil cos_sim | Fragments non-pertinents injectés → hallucination contextualisée | 🔴 Critique |
+| Logging des scores de similarité | Traçabilité de la qualité impossible à auditer | 🟠 Haute |
+| Validation schéma JSON de sortie LLM (Zod) | Champs manquants retournent `[]` silencieusement sans alerte | 🟡 Moyenne |
+| Colonne `source_fragments` dans `compass_proposals` | Impossible de vérifier qu'une suggestion `extracted` est vraiment dans les sources | 🟡 Moyenne |
+
+---
+
+## 4.ter — Plan d'implémentation des garde-fous
+
+### Garde-fou 1 — Activer `match_embeddings()` + seuil cos_sim
+
+*(Modification Edge Function uniquement — pas de migration, la fonction SQL existe déjà)*
+
+```typescript
+// narramind-compass/index.ts — remplace le fallback naïf
+const COS_SIM_THRESHOLD = 0.65
+
+const { data: fragments, error } = await supabase.rpc('match_embeddings', {
+  query_embedding: queryVector,
+  match_project_id: project_id,
+  match_user_id: user_id,
+  match_count: 5
+})
+
+// Garde-fou agentique : si aucun fragment pertinent → Ariane ne propose rien
+const relevantFragments = fragments?.filter(f => f.similarity >= COS_SIM_THRESHOLD) ?? []
+if (!relevantFragments.length) {
+  return { success: true, proposals: [], reason: 'no_relevant_context' }
+}
+```
+
+Ce changement active le vrai RAG (Retrieval-Augmented Generation) à la place du fallback chronologique.
+
+### Garde-fou 2 — Logging des scores de similarité
+
+```sql
+-- Migration : 20260610_compass_metrics.sql
+ALTER TABLE narramind_metrics
+  ADD COLUMN IF NOT EXISTS compass_mode        TEXT,
+  ADD COLUMN IF NOT EXISTS fragments_retrieved JSONB,  -- [{source_type, source_id, cos_sim}]
+  ADD COLUMN IF NOT EXISTS cos_sim_min         FLOAT,
+  ADD COLUMN IF NOT EXISTS cos_sim_max         FLOAT,
+  ADD COLUMN IF NOT EXISTS proposals_count     INT,
+  ADD COLUMN IF NOT EXISTS schema_valid        BOOLEAN;
+```
+
+Permet d'auditer a posteriori : quel score moyen pour les fragments injectés ? Combien de runs ont déclenché le garde-fou silence (0 fragment pertinent) ?
+
+### Garde-fou 3 — Validation schéma JSON de sortie LLM
+
+```typescript
+// Schéma Zod à ajouter dans narramind-compass/index.ts
+import { z } from 'https://deno.land/x/zod/mod.ts'
+
+const ProposalSchema = z.object({
+  proposals: z.array(z.object({
+    origin:  z.enum(['extracted', 'generated']),
+    title:   z.string().max(200),
+    content: z.string().max(1000),
+  }))
+})
+
+const parsed = ProposalSchema.safeParse(llmOutput)
+if (!parsed.success) {
+  logCompassMetric({ schema_valid: false, error: parsed.error.message })
+  return errorResponse(422, 'LLM output schema invalid')   // HTTP 422, pas 200 silencieux
+}
+```
+
+### Garde-fou 4 — Traçabilité sources dans `compass_proposals`
+
+```sql
+-- Étend compass_proposals pour audit de traçabilité
+ALTER TABLE compass_proposals
+  ADD COLUMN IF NOT EXISTS source_fragments JSONB;
+  -- Valeur : [{source_type, source_id, cos_sim, content_excerpt (100 chars)}]
+```
+
+Permet de vérifier a posteriori qu'une suggestion `extracted` est réellement ancrée dans un fragment indexé — et non une reformulation inventée par le LLM.
+
+---
+
+## 4.quart — Dispositif de test — Univers de référence
+
+Pour valider les deux champs sur un corpus contrôlé et reproductible, un **univers de test standardisé** est défini :
+
+| Dimension | Contenu |
+|-----------|---------|
+| Personnages | Aldric (roi trahi), Mira (guérisseuse), Vael (conseiller) |
+| Lieux | Tour de Verre, Ruines du Nord |
+| Organisation | Gardiens (faction garante des règles de magie) |
+| Relations | 5 liens typés : possession, connaissance, appartenance, antagonisme |
+| Règle monde | Magie interdite depuis la Chute des Gardiens (1 contrainte principale, 2 exceptions) |
+| Chapitres | 5 chapitres (~300 mots chacun, progression narrative cohérente) |
+| Contradictions | 3 incohérences volontaires (personnage décédé qui réapparaît, règle de magie violée sans justification, lieu décrit différemment en chap. 2 et 5) |
+
+### Métriques de validation — Champ 1 (modélisation)
+
+| Métrique | Mesure | Cible |
+|----------|--------|-------|
+| Précision@5 | Sur 10 requêtes sémantiques types, combien des 5 fragments retournés sont pertinents ? (évaluation manuelle) | ≥ 4/5 fragments pertinents |
+| Score cos_sim moyen | Moyenne des scores des fragments retournés par `match_embeddings()` | > 0.70 |
+| Comparaison v1 vs fallback naïf | Les fragments sémantiques sont-ils meilleurs que les 5 derniers chronologiques ? | Oui sur ≥ 8/10 requêtes |
+
+### Métriques de validation — Champ 2 (LM OPS)
+
+| Métrique | Mesure | Cible |
+|----------|--------|-------|
+| Traçabilité extracted | % de suggestions `extracted` vérifiables dans les fragments sources injectés | 100 % |
+| Respect silence Ariane | % de runs sans fragment pertinent (cos_sim < 0.65) où Ariane ne propose rien | 100 % |
+| Validité schéma JSON | % de sorties LLM conformes au schéma Zod | ≥ 95 % |
+| Taux détection anomalies | Sur les 3 contradictions volontaires, combien détectées ? | ≥ 2/3 |
 
 ---
 
@@ -665,4 +912,4 @@ Le LORE est écrit par l'utilisateur. NarraMind ne génère que des *suggestions
 
 ---
 
-*Dernière mise à jour : 7 juin 2026 — Section 4 restructurée en deux pistes parallèles (Tronc commun → Piste A NarraMind Scénario → Piste B NarraMind Univers), chacune poussée jusqu'à la vectorisation des informations (A2 chapitres / B2 lore). Benchmarks vectoriels (3.4), seuil de données minimal (3.5), plan de release mappé aux itérations.*
+*Dernière mise à jour : 10 juin 2026 — Restructuration Section 4 autour de deux champs de recherche (Champ 1 : modélisation univers pour vectorisation / Champ 2 : LM OPS garde-fous). Hypothèses explicites par itération. Audit code réel : découverte que match_embeddings() existe en BDD mais n'est jamais appelée — fallback naïf actif à la place. Plan d'implémentation garde-fous (seuil cos_sim 0.65, logging scores, validation Zod, traçabilité sources). Dispositif de test univers de référence avec métriques de validation par champ.*

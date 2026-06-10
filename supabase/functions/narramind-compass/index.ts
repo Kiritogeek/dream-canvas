@@ -183,6 +183,37 @@ async function handleIndex(
   return jsonResponse({ success: true, source_id, source_type }, 200);
 }
 
+async function logCompassMetrics(
+  supabaseUrl: string,
+  serviceKey: string,
+  projectId: string,
+  proposalType: string,
+  fragments: Array<{ similarity: number; source_type: string; source_id: string }>,
+  proposalsCount: number,
+  durationMs: number
+): Promise<void> {
+  const scores = fragments.map(f => ({ source_type: f.source_type, source_id: f.source_id, cos_sim: f.similarity }));
+  void fetch(`${supabaseUrl}/rest/v1/narramind_metrics`, {
+    method: "POST",
+    headers: {
+      apikey: serviceKey,
+      Authorization: `Bearer ${serviceKey}`,
+      "Content-Type": "application/json",
+      Prefer: "return=minimal",
+    },
+    body: JSON.stringify({
+      project_id: projectId,
+      mode: "compass_propose",
+      compass_mode: proposalType,
+      fragments_retrieved: scores,
+      cos_sim_min: Math.min(...fragments.map(f => f.similarity)),
+      cos_sim_max: Math.max(...fragments.map(f => f.similarity)),
+      proposals_count: proposalsCount,
+      duration_ms: durationMs,
+    }),
+  }).catch(() => {});
+}
+
 async function handlePropose(
   body: Record<string, unknown>,
   userId: string,
@@ -191,6 +222,7 @@ async function handlePropose(
   geminiKey: string,
   jsonResponse: (b: object, s: number) => Response
 ): Promise<Response> {
+  const startMs = Date.now();
   const { project_id, context_text, proposal_type, source_id } = body as {
     project_id?: string;
     context_text?: string;
@@ -223,25 +255,36 @@ async function handlePropose(
     return jsonResponse({ success: false, error: "Embedding contexte indisponible." }, 200);
   }
 
-  // Recherche pgvector via RPC SQL (PostgREST ne supporte pas <=> directement dans les filtres)
-  // On utilise une requête SQL via le endpoint /rest/v1/rpc si disponible,
-  // sinon fallback : récupérer les 20 derniers embeddings et calculer la similarité côté EF.
-  let similarFragments: Array<{ source_type: string; source_id: string; section_key: string | null; content: string }> = [];
+  // Recherche sémantique via match_embeddings() — similarité cosinus pgvector
+  const COS_SIM_THRESHOLD = 0.65;
+  let similarFragments: Array<{ source_type: string; source_id: string; section_key: string | null; content: string; similarity: number }> = [];
 
   try {
-    // Tentative via rpc si une fonction SQL `match_embeddings` existe — sinon on fait un fallback naïf
-    // Pattern fallback : on récupère tous les embeddings du projet et on prend les 5 premiers (pas de tri vectoriel)
-    // Note : pour la vraie recherche pgvector, il faudra une SQL function déployée en migration.
-    // Pour Phase 1 nous utilisons un fallback sur les 5 derniers enregistrements pour scaffolding.
-    const embRes = await fetch(
-      `${supabaseUrl}/rest/v1/project_embeddings?project_id=eq.${project_id}&user_id=eq.${userId}&select=source_type,source_id,section_key,content&order=updated_at.desc&limit=5`,
-      { headers: dbHeaders }
-    );
-    if (embRes.ok) {
-      similarFragments = await embRes.json() as typeof similarFragments;
+    const embeddingStr = `[${contextEmbedding.join(",")}]`;
+    const rpcRes = await fetch(`${supabaseUrl}/rest/v1/rpc/match_embeddings`, {
+      method: "POST",
+      headers: { ...dbHeaders },
+      body: JSON.stringify({
+        query_embedding: embeddingStr,
+        match_project_id: project_id,
+        match_user_id: userId,
+        match_count: 5,
+      }),
+    });
+
+    if (rpcRes.ok) {
+      const rows = await rpcRes.json() as typeof similarFragments;
+      similarFragments = (rows ?? []).filter(f => f.similarity >= COS_SIM_THRESHOLD);
+    } else {
+      console.error("[narramind-compass] match_embeddings RPC error", rpcRes.status, await rpcRes.text());
     }
   } catch (err) {
     console.error("[narramind-compass] Similarity search error", err);
+  }
+
+  // Garde-fou agentique : aucun fragment pertinent → Ariane ne propose rien
+  if (!similarFragments.length) {
+    return jsonResponse({ success: true, proposals: [], reason: "no_relevant_context" }, 200);
   }
 
   // Construire le prompt Gemini Flash
@@ -354,6 +397,12 @@ ${contextBlock}`;
       prefill_data: null,
       status: "active",
       dedupe_key: dedupeKey,
+      source_fragments: similarFragments.map(f => ({
+        source_type: f.source_type,
+        source_id: f.source_id,
+        cos_sim: f.similarity,
+        excerpt: f.content.slice(0, 100),
+      })),
     };
 
     const upsertRes = await fetch(
@@ -370,6 +419,8 @@ ${contextBlock}`;
     }
     persisted.push({ origin, title, content });
   }
+
+  void logCompassMetrics(supabaseUrl, serviceKey, project_id, proposal_type, similarFragments, persisted.length, Date.now() - startMs);
 
   return jsonResponse({ success: true, proposals: persisted }, 200);
 }

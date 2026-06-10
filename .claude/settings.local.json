@@ -4,11 +4,15 @@
       "Bash(*)",
       "PowerShell(*)",
       "WebFetch(*)",
-      "WebSearch",
+      "WebSearch(*)",
       "Read(*)",
+      "Write(*)",
+      "Edit(*)",
       "Glob(**)",
       "Grep(**)",
-      "Skill(*)"
+      "Skill(*)",
+      "Agent(*)",
+      "mcp__*__*"
     ],
     "deny": [
       "Bash(git push origin main)",
@@ -28,15 +32,6 @@
         ]
       }
     ],
-    "SessionEnd": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash \"/c/Users/marin/.claude/skills/wiki-brain/hooks/session-end.sh\""
-          }
-        ]
-      }
-    ]
+    "SessionEnd": []
   }
 }

@@ -45,6 +45,18 @@
 
 ### 2.1 Concurrents directs (IA + Comics/Webtoon)
 
+#### Jenova.ai ⚠️ Menace principale (2026)
+
+| Critère | Détail |
+|---------|--------|
+| **Description** | Plateforme IA de création de manga/webtoon — concurrent direct le plus récent et le plus complet |
+| **Modèle IA** | Propriétaire (modèles fine-tunés manga) |
+| **Prix** | Freemium (~15-40 $/mois) |
+| **Forces** | Interface moderne, génération de panels cohérente, styles manga variés, communauté active |
+| **Faiblesses** | Pas de pipeline scénario → découpage → éditeur intégré ; pas de mémoire narrative (NarraMind) ; pas de graphe Univers/lore ; pas d'IA Ariane intégrée au workflow ; Sheet System absent ; pas de Compass (vectorisation narrative) |
+| **Format** | Manga + Webtoon vertical |
+| **Source** | Veille concurrentielle juin 2026 |
+
 #### AI Comic Factory
 
 | Critère | Détail |
@@ -124,20 +136,27 @@
 
 ### 3.1 Fonctionnalités
 
-| Fonctionnalité | DreamWeave | Dashtoon | AI Comic Factory | Midjourney | Clip Studio |
-|---------------|-----------|----------|-----------------|-----------|-------------|
-| Génération IA d'images | ✅ | ✅ | ✅ | ✅ | ❌ |
-| Workflow webtoon complet | ✅ | ✅ | ❌ | ❌ | ✅ (manuel) |
-| Cohérence stylistique | ✅ (template) | ⚠️ (limité) | ❌ | ❌ | ✅ (artiste) |
-| Sheet System (fiche 4 angles) | ✅ | ❌ | ❌ | ❌ | ✅ (manuel) |
-| Bibliothèque d'assets | ✅ | ⚠️ | ❌ | ❌ | ✅ |
-| Images de référence | ✅ | ⚠️ | ❌ | ✅ | N/A |
-| Gestion de projets | ✅ | ✅ | ❌ | ❌ | ❌ |
-| Gestion de chapitres | ✅ | ✅ | ❌ | ❌ | ❌ |
-| Format vertical natif | ✅ | ✅ | ❌ | ❌ | ✅ |
-| Export multi-format | 🔜 | ✅ | ❌ | ❌ | ✅ |
-| Collaboration | 🔜 | ⚠️ | ❌ | ❌ | ❌ |
-| Sans compétences artistiques | ✅ | ✅ | ✅ | ✅ | ❌ |
+| Fonctionnalité | DreamWeave | Jenova.ai | Dashtoon | AI Comic Factory | Midjourney | Clip Studio |
+|---------------|-----------|-----------|----------|-----------------|-----------|-------------|
+| Génération IA d'images | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| Workflow webtoon complet | ✅ | ⚠️ | ✅ | ❌ | ❌ | ✅ (manuel) |
+| Cohérence stylistique | ✅ (template + refs) | ⚠️ | ⚠️ (limité) | ❌ | ❌ | ✅ (artiste) |
+| Sheet System (fiche 4 angles) | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ (manuel) |
+| Bibliothèque d'assets réutilisables | ✅ | ⚠️ | ⚠️ | ❌ | ❌ | ✅ |
+| Images de référence | ✅ | ⚠️ | ⚠️ | ❌ | ✅ | N/A |
+| Éditeur canvas (blocs image + couleur) | ✅ | ❌ | ⚠️ | ❌ | ❌ | ✅ (manuel) |
+| Bulles de dialogue (6 types SVG) | ✅ | ❌ | ⚠️ | ❌ | ❌ | ✅ (manuel) |
+| Section Scénario + IA Scénario | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Mémoire narrative (NarraMind) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Graphe Univers / Lore | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| IA Ariane intégrée au workflow | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Compass (vectorisation narrative) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Export PNG panel + chapitre | ✅ | ⚠️ | ✅ | ❌ | ❌ | ✅ |
+| Gestion de projets | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
+| Format vertical natif | ✅ | ✅ | ✅ | ❌ | ❌ | ✅ |
+| Export multi-format avancé | 📋 | ⚠️ | ✅ | ❌ | ❌ | ✅ |
+| Collaboration | 📋 | ❌ | ⚠️ | ❌ | ❌ | ❌ |
+| Sans compétences artistiques | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
 
 ### 3.2 Positionnement prix
 
@@ -161,16 +180,20 @@
 | Avantage | Description | Difficulté à copier |
 |---------|------------|-------------------|
 | **Système de cohérence stylistique** | Template texte + images de référence appliqués à toutes les générations | Moyenne — nécessite un système de prompts sophistiqué |
-| **Sheet System** | Fiche composite 4 angles (face/profil/dos) générée en 1 action, injectée comme référence | Moyenne — pipeline génération + injection référence |
-| **Workflow intégré** | Projet → Style → Assets → Chapitres → Panels | Moyenne — nécessite conception produit |
-| **Format natif webtoon** | Optimisé pour le format vertical | Faible — adaptation technique simple |
+| **Sheet System** | Fiche composite 4 angles (face/profil/dos) générée en 1 action — unique sur le marché | Moyenne — pipeline génération + injection référence |
+| **Pipeline scénario → éditeur** | Scénario texte → découpage → éditeur canvas avec blocs image + couleur + bulles | Élevée — nécessite conception produit complète |
+| **NarraMind (mémoire narrative)** | Mémoire compressée entités + résumés glissants, détection d'incohérences, ~1 400 tokens quelque soit la taille du projet | Élevée — architecture spécifique LLM + BDD |
+| **Ariane (IA continuité)** | Personnage IA intégré au workflow (onboarding, fil d'Ariane, alertes, analyse, NarrativeSheet) | Élevée — UX + IA profondément intégrés |
+| **Graphe Univers / Lore** | Cartographie relationnelle des entités narratives (@xyflow/react) | Élevée — spécifique au domaine narratif |
+| **NarraMind Compass** | Vectorisation du contenu narratif (Gemini 768D + pgvector) → propositions contextualisées | Très élevée — infrastructure RAG narrative unique |
+| **Éditeur canvas complet** | Blocs image + couleur + bulles SVG manga, undo/redo, drag/resize, raccourcis clavier | Élevée — engineering complexe |
 | **Bibliothèque d'assets réutilisables** | Assets créés une fois, utilisés dans tous les panels | Moyenne — nécessite architecture spécifique |
 
 ### 4.2 Avantages à construire (futurs)
 
 | Avantage | Description | Timeline | Difficulté à copier |
 |---------|------------|----------|-------------------|
-| **Cohérence de personnage cross-panels** | Le même personnage reconnaissable dans tous les panels | 6 mois | Élevée — nécessite fine-tuning IA |
+| **Cohérence de personnage cross-panels** | Le même personnage reconnaissable dans tous les panels | 6 mois | Élevée — fine-tuning IA |
 | **Marketplace de styles** | Effet réseau : plus d'utilisateurs = plus de styles | 12 mois | Élevée — effet de réseau |
 | **Données de prompts optimisés** | Base de connaissances de prompts efficaces | Continu | Élevée — données propriétaires |
 | **Intégration plateformes webtoon** | Publication directe vers Webtoon/Tapas | 12 mois | Moyenne — partenariats nécessaires |
@@ -186,68 +209,4 @@
 - Workflow intégré et spécialisé webtoon
 - Sheet System — fiche composite 4 angles (différenciateur)
 - Stack technique moderne et scalable
-- Coût d'entrée bas (freemium, toutes features dès le plan Libre)
-- Time to Value court (< 10 min)
-
-### Faiblesses (Weaknesses)
-
-- Produit en phase de développement (fonctionnalités manquantes)
-- Résolution d'image limitée (1024×1024)
-- Pas encore de génération de panels automatique
-- Pas d'export ni de publication
-- Pas de collaboration
-- Équipe petite (capacité de développement limitée)
-
-### Opportunités (Opportunities)
-
-- Marché des webtoons en croissance rapide (+35% CAGR)
-- IA générative en amélioration constante (qualité, vitesse, coût)
-- Peu de concurrents directs spécialisés webtoon + IA
-- Demande forte non satisfaite (millions de créateurs potentiels)
-- Potentiel B2B (studios, éditeurs) à fort ARPU
-- Nouvelles plateformes de publication émergentes
-
-### Menaces (Threats)
-
-- Entrée de géants tech (Adobe, Canva) sur le segment
-- Amélioration rapide de Midjourney/DALL-E (cohérence native)
-- Plateformes webtoon développant leurs propres outils IA
-- Réglementations sur le contenu généré par IA
-- Questions de droits d'auteur sur les images IA
-- Dépendance aux fournisseurs IA (FAL.ai, modèles)
-
----
-
-## 6. Stratégie de différenciation
-
-### 6.1 Court terme (0-6 mois) — "Le meilleur workflow"
-
-**Focus** : Être l'outil le plus simple et le plus intégré pour créer un webtoon avec l'IA.
-
-- Compléter le workflow : génération de panels, dialogues
-- Optimiser la cohérence stylistique (meilleurs prompts)
-- Export en PDF et images
-- Onboarding guidé exceptionnel
-
-### 6.2 Moyen terme (6-18 mois) — "L'écosystème"
-
-**Focus** : Construire un effet de réseau via la communauté et la marketplace.
-
-- Marketplace de styles (création + partage)
-- Communauté Discord active
-- Intégration avec plateformes de publication
-- API pour développeurs
-
-### 6.3 Long terme (18+ mois) — "La référence"
-
-**Focus** : Devenir la plateforme de référence pour la création de webtoons.
-
-- Fine-tuning de modèles IA spécialisés webtoon
-- Cohérence de personnage parfaite (Character consistency AI)
-- Publication directe multi-plateforme
-- Analytics de lecture
-- App mobile native
-
----
-
-*Dernière mise à jour : 7 juin 2026 — audit de cohérence (Sheet System, grille Libre 0 € / Créateur 12,99 € / Studio 29,99 €).*
+- Coût d'entrée bas (freemium, toutes features d

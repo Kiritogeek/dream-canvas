@@ -17,10 +17,13 @@
 | E6 | **Chapitres (œuvre)** | Organiser l'œuvre visuelle en chapitres et cases (Édition de l'œuvre) | P0 |
 | E7 | **Cases** | Créer et gérer les cases ; édition avec visualisation scénario + assets | P1 |
 | E8 | **Dialogues** | Ajouter des bulles et narration aux cases | P1 |
-| E9 | **Export** | Exporter en PDF, images, format plateforme | P2 |
+| E9 | **Export** | Exporter en PNG panel + chapitre complet | P1 |
 | E10 | **Collaboration** | Partage, édition multi-utilisateurs | P2 |
 | E11 | **Dashboard** | Vue d'ensemble et statistiques | P1 |
 | E12 | **Landing page** | Page marketing et acquisition | P1 |
+| E13 | **NarraMind & Ariane** | Mémoire narrative, détection incohérences, fil d'Ariane, IA continuité | P0 |
+| E14 | **Univers / Lore** | Graph relationnel de lore (personnages, lieux, objets, événements) | P1 |
+| E15 | **NarraMind Compass** | Vectorisation narrative, propositions Ariane contextualisées | P1 |
 
 ---
 
@@ -77,17 +80,17 @@
 
 | ID | User Story | Critères d'acceptation | Statut |
 |----|-----------|----------------------|--------|
-| US-5b.1 | En tant qu'utilisateur, je veux écrire le scénario de mon histoire dans une section « Scénario » | - Section dédiée pour le texte narratif<br>- Édition libre (actions, lieux, personnages, dialogues)<br>- Sauvegarde automatique | 🔜 Planifié |
-| US-5b.2 | En tant qu'utilisateur, je veux importer un scénario (format texte) | - Import par fichier texte (.txt) ou copier-coller<br>- Le contenu remplit la section Scénario<br>- Possibilité d'éditer après import | 🔜 Planifié |
-| US-5b.3 | En tant qu'utilisateur, je veux créer des chapitres pour mon scénario | - Création de chapitres (titres, ordre, contenu texte)<br>- **Correspondance** : un chapitre écrit = un chapitre webtoon<br>- Servent à la génération panel par panel et à l'Édition de l'œuvre | 🔜 Planifié |
-| US-5b.3b | En tant qu'utilisateur, je veux découper chaque chapitre (texte) en panels dans la section Scénario | - Découpage **Chapitre → Panels** (liste + courte description par panel) directement dans la section Scénario<br>- Alimente la génération panel par panel en Édition de l'œuvre<br>- Règles de gestion du découpage à définir plus tard | 🔜 Planifié |
-| US-5b.4 | En tant qu'utilisateur, je veux que le scénario ne soit jamais utilisé dans le prompt de génération d'image | - Découpage IA (scénario → panels) = structure uniquement<br>- Prompts d'image = style + assets sélectionnés + courte description du panel | 🔜 Planifié |
-| US-5b.5 | En tant qu'utilisateur, je veux que l'IA crée mon histoire chapitre par chapitre à partir de mes prompts | - Saisie d'un **prompt** pour le scénario<br>- **Un prompt = un chapitre** généré par l'IA Scénario<br>- Accepter crée un chapitre avec le texte proposé ; l'histoire se construit chapitre par chapitre | 🔜 Planifié |
-| US-5b.5b | En tant qu'utilisateur, je veux modifier mon histoire par un nouveau prompt et choisir de garder ou non la version modifiée | - Saisie d'un **nouveau prompt** pour modifier des aspects de l'histoire<br>- L'IA **réécrit** le scénario directement sur le site<br>- **Comparaison** ancienne vs nouvelle version (lecture côte à côte ou bascule)<br>- **Accepter** (garder la nouvelle) ou **Rejeter** (revenir à l'ancienne) | 🔜 Planifié |
-| US-5b.5c | En tant qu'utilisateur, je veux une IA dédiée par chapitre pour modifier uniquement ce chapitre | - Sur **chaque chapitre de scénario**, une **IA qui n'intervient que sur ce chapitre**<br>- Saisie d'un prompt de modification (ex. « Allonger la scène du duel ») → réécriture du chapitre directement sur le site<br>- **Accepter** ou **Rejeter** (comparaison ancienne vs nouvelle version) | 🔜 Planifié |
-| US-5b.6 | En tant qu'utilisateur, je veux que mes scénarios approuvés soient sauvegardés | - Persistance en BDD de tout ce qui a été **approuvé** (scénarios, chapitres de scénario)<br>- Conservation des versions pour le flux accepter/rejeter | 🔜 Planifié |
-| US-5b.7 | En tant qu'utilisateur, je veux voir les assets déjà créés mis en évidence dans mon scénario | - Détection des mentions d'assets existants (personnages, décors, objets) dans le texte<br>- **Surbrillance** des mentions selon le type d'asset (ex. Jean → personnage, ville principale → décor, épée → objet)<br>- **Au survol (hover)** sur une mention : affichage de l'**image** de l'asset correspondant (tooltip / popover) | 🔜 Planifié |
-| US-5b.8 | En tant qu'utilisateur, je veux que l'IA détecte les éléments du scénario pas encore créés comme assets | - Détection (IA) des **personnages, décors, objets** mentionnés dans le scénario qui **n'existent pas** dans la bibliothèque<br>- Signalement dans le scénario (surbrillance distincte « à créer » ou liste « Éléments mentionnés non créés »)<br>- Permettre de créer les assets manquants depuis ce signalement pour garder la cohérence narrative | 🔜 Planifié |
+| US-5b.1 | En tant qu'utilisateur, je veux écrire le scénario de mon histoire dans une section « Scénario » | - Section dédiée pour le texte narratif<br>- Édition libre (actions, lieux, personnages, dialogues)<br>- Sauvegarde automatique | ✅ Fait |
+| US-5b.2 | En tant qu'utilisateur, je veux importer un scénario (format texte) | - Import par fichier texte (.txt) ou copier-coller<br>- Le contenu remplit la section Scénario<br>- Possibilité d'éditer après import | 📋 Backlog |
+| US-5b.3 | En tant qu'utilisateur, je veux créer des chapitres pour mon scénario | - Création de chapitres (titres, ordre, contenu texte)<br>- **Correspondance** : un chapitre écrit = un chapitre webtoon<br>- Servent à la génération panel par panel et à l'Édition de l'œuvre | ✅ Fait |
+| US-5b.3b | En tant qu'utilisateur, je veux découper chaque chapitre (texte) en panels dans la section Scénario | - Découpage **Chapitre → Panels** (liste + courte description par panel) directement dans la section Scénario<br>- Alimente la génération panel par panel en Édition de l'œuvre<br>- Règles de gestion du découpage à définir plus tard | 📋 Backlog |
+| US-5b.4 | En tant qu'utilisateur, je veux que le scénario ne soit jamais utilisé dans le prompt de génération d'image | - Découpage IA (scénario → panels) = structure uniquement<br>- Prompts d'image = style + assets sélectionnés + courte description du panel | ✅ Fait |
+| US-5b.5 | En tant qu'utilisateur, je veux que l'IA crée mon histoire chapitre par chapitre à partir de mes prompts | - Saisie d'un **prompt** pour le scénario<br>- **Un prompt = un chapitre** généré par l'IA Scénario<br>- Accepter crée le chapitre avec le texte proposé ; l'histoire se construit chapitre par chapitre | ✅ Fait |
+| US-5b.5b | En tant qu'utilisateur, je veux modifier mon histoire par un nouveau prompt et choisir de garder ou non la version modifiée | - Saisie d'un **nouveau prompt** pour modifier des aspects de l'histoire<br>- L'IA **réécrit** le scénario directement sur le site<br>- **Comparaison** ancienne vs nouvelle version (lecture côte à côte ou bascule)<br>- **Accepter** (garder la nouvelle) ou **Rejeter** (revenir à l'ancienne) | 📋 Backlog |
+| US-5b.5c | En tant qu'utilisateur, je veux une IA dédiée par chapitre pour modifier uniquement ce chapitre | - Sur **chaque chapitre de scénario**, une **IA qui n'intervient que sur ce chapitre**<br>- Saisie d'un prompt de modification (ex. « Allonger la scène du duel ») → réécriture du chapitre directement sur le site<br>- **Accepter** ou **Rejeter** (comparaison ancienne vs nouvelle version) | ✅ Fait |
+| US-5b.6 | En tant qu'utilisateur, je veux que mes scénarios approuvés soient sauvegardés | - Persistance en BDD de tout ce qui a été **approuvé** (scénarios, chapitres de scénario)<br>- Conservation des versions pour le flux accepter/rejeter | ✅ Fait |
+| US-5b.7 | En tant qu'utilisateur, je veux voir les assets déjà créés mis en évidence dans mon scénario | - Détection des mentions d'assets existants (personnages, décors, objets) dans le texte<br>- **Surbrillance** des mentions selon le type d'asset<br>- **Au survol (hover)** sur une mention : image de l'asset (HoverCard) ; **au clic** : Dialog agrandie avec image, nom, type | ✅ Fait |
+| US-5b.8 | En tant qu'utilisateur, je veux que l'IA détecte les éléments du scénario pas encore créés comme assets | - Détection des **personnages, décors, objets** mentionnés dans le scénario qui **n'existent pas** dans la bibliothèque<br>- Panneau « Éléments mentionnés non créés » + surbrillance ambre<br>- Option « Ne pas créer » pour exclure un élément ; création depuis le scénario via dialog pré-rempli | ✅ Fait |
 
 ### E6 — Chapitres (Édition de l'œuvre — visuel)
 
@@ -107,49 +110,89 @@
 
 #### Mode Automatique
 
-| ID | User Story | Critères d'acceptation | Statut |
+| ID | User Story | Critères d’acceptation | Statut |
 |----|-----------|----------------------|--------|
-| US-7.1 | En tant qu'utilisateur, je veux générer les panels (mode Automatique) | - **Sélection des assets du chapitre (impérative)** : personnages, décors, objets<br>- **Génération panel par panel** (minimum) : impossible de générer tout le chapitre d'un coup (limites API/erreurs)<br>- Prompt d'image = **style + assets sélectionnés + courte description du panel** (pas le scénario/synopsis)<br>- 1 **image pleine** par panel | 🔜 Planifié |
-| US-7.2 | En tant qu'utilisateur, je veux modifier le prompt d'un panel | - Édition inline<br>- Régénération → nouvelle image pleine | 🔜 Planifié |
-| US-7.2b | En tant qu'utilisateur, je veux que l'IA Panel suggère ou réécrive la description d'un panel | - **IA Panel** (même modèle LLM, system prompt dédié) : suggère ou **réécrit** la description du panel (contexte scénario + assets)<br>- Réécriture **directe** dans le champ<br>- **Accepter** (garder la nouvelle) ou **Rejeter** (revenir à l'ancienne description) | 🔜 Planifié |
-| US-7.3 | En tant qu'utilisateur, je veux régénérer un panel individuellement | - Bouton régénérer sur chaque panel<br>- Nouvelle image pleine | 🔜 Planifié |
-| US-7.4 | En tant qu'utilisateur, je veux réorganiser l'ordre des panels | - Drag & drop<br>- Mise à jour des numéros | 🔜 Planifié |
+| US-7.1 | En tant qu’utilisateur, je veux générer les panels (mode Automatique) | - **Sélection des assets du chapitre (impérative)** : personnages, décors, objets<br>- **Génération panel par panel** : prompt d’image = style + assets sélectionnés + description<br>- 1 **image pleine** par panel | 📋 Backlog |
+| US-7.2 | En tant qu’utilisateur, je veux modifier le prompt d’un panel | - Édition inline<br>- Régénération → nouvelle image pleine | ✅ Fait |
+| US-7.2b | En tant qu’utilisateur, je veux que l’IA Panel suggère ou réécrive la description d’un panel | - **IA Panel** (même modèle LLM, system prompt dédié) : suggère ou **réécrit** la description du panel<br>- Réécriture **directe** dans le champ<br>- **Accepter** ou **Rejeter** | 📋 Backlog |
+| US-7.3 | En tant qu’utilisateur, je veux régénérer un panel individuellement | - Bouton régénérer sur chaque bloc<br>- Nouvelle image pleine | ✅ Fait |
+| US-7.4 | En tant qu’utilisateur, je veux réorganiser l’ordre des panels | - Drag & drop blocs<br>- Mise à jour du layout | ✅ Fait |
 
 #### Mode Structuré (blocs)
 
-| ID | User Story | Critères d'acceptation | Statut |
+| ID | User Story | Critères d’acceptation | Statut |
 |----|-----------|----------------------|--------|
-| US-7.5 | En tant qu'utilisateur, je veux définir la structure du chapitre avec des blocs | - Création de panels puis de **blocs** (rectangles : position, largeur, hauteur)<br>- Aucune image générée à ce stade | 🔜 Planifié |
-| US-7.6 | En tant qu'utilisateur, je veux remplir chaque bloc (description + assets) | - Champ texte (prompt) par bloc<br>- Sélection d’assets (personnages, décors, objets) par bloc **(impérative** : cadre la génération, l'IA comprend les éléments à mettre dans l'image)<br>- Les refs sont injectées dans le prompt à la génération | 🔜 Planifié |
-| US-7.7 | En tant qu'utilisateur, je veux générer une image pleine par bloc | - Génération à partir du prompt et des **assets sélectionnés** pour ce bloc<br>- 1 image pleine par bloc (pas de cases dans l’image)<br>- L’image est affichée **dans** le bloc<br>- Régénération possible par bloc | 🔜 Planifié |
-| US-7.8 | En tant qu'utilisateur, je veux réorganiser les blocs (drag & drop, redimensionnement) | - Ordre et taille modifiables<br>- Mise à jour du layout | 🔜 Planifié |
+| US-7.5 | En tant qu’utilisateur, je veux définir la structure du chapitre avec des blocs | - Création de **blocs** (rectangles : position, largeur, hauteur) par panel<br>- Canvas vertical 800px, scroll jusqu’à 100 000px | ✅ Fait |
+| US-7.6 | En tant qu’utilisateur, je veux remplir chaque bloc (description + assets) | - Champ texte (prompt) par bloc<br>- Sélection d’assets (personnages, décors, objets) par bloc<br>- Les refs sont injectées dans le prompt à la génération | ✅ Fait |
+| US-7.7 | En tant qu’utilisateur, je veux générer une image pleine par bloc | - Génération à partir du prompt et des assets sélectionnés<br>- 1 image pleine par bloc ; affichée dans le bloc<br>- Régénération possible par bloc | ✅ Fait |
+| US-7.8 | En tant qu’utilisateur, je veux repositionner et redimensionner les blocs | - Drag & drop libre + poignées de redimensionnement (8 points)<br>- Touches clavier (Delete/Backspace pour supprimer l’élément actif)<br>- Undo/Redo complet | ✅ Fait |
+| US-7.8b | En tant qu’utilisateur, je veux ajouter des blocs de couleur pour l’ambiance du panel | - Blocs dédiés couleur (même positionnement/dimensions que blocs image)<br>- Couleur unie ou dégradé, sans génération d’image<br>- Rendu : couleur en arrière-plan, blocs image par-dessus | ✅ Fait |
 
 #### Lecture
 
-| ID | User Story | Critères d'acceptation | Statut |
+| ID | User Story | Critères d’acceptation | Statut |
 |----|-----------|----------------------|--------|
-| US-7.9 | En tant qu'utilisateur, je veux lire mon chapitre en défilement vertical | - Affichage vertical continu<br>- Images pleines dans les panels/blocs<br>- Format natif webtoon | 🔜 Planifié |
-| US-7.10 | En tant qu'utilisateur, je veux voir le chapitre de scénario adapté pendant l'édition d'un panel | - Visualisation du texte du chapitre de scénario (ou passage) associé<br>- Contexte narratif visible pendant la saisie du prompt / génération | 🔜 Planifié |
-| US-7.11 | En tant qu'utilisateur, je veux voir les assets sélectionnés pour le panel pendant l'édition | - Visualisation des personnages, décors et objets sélectionnés pour ce panel<br>- Rappel visuel pour le prompting et la cohérence | 🔜 Planifié |
+| US-7.9 | En tant qu’utilisateur, je veux lire mon chapitre en défilement vertical | - Affichage vertical continu<br>- Images pleines dans les blocs<br>- Format natif webtoon | ✅ Fait |
+| US-7.10 | En tant qu’utilisateur, je veux voir le chapitre de scénario pendant l’édition | - Visualisation du texte du chapitre de scénario associé (panneau latéral)<br>- Contexte narratif visible pendant la saisie du prompt | ✅ Fait |
+| US-7.11 | En tant qu’utilisateur, je veux voir les assets sélectionnés pour le bloc pendant l’édition | - Visualisation des personnages, décors et objets sélectionnés<br>- Rappel visuel pour le prompting | ✅ Fait |
 
-### E8 — Dialogues (à implémenter)
-
-| ID | User Story | Critères d'acceptation | Statut |
-|----|-----------|----------------------|--------|
-| US-8.1 | En tant qu'utilisateur, je veux ajouter des bulles de dialogue à un panel | - Clic pour ajouter<br>- Texte éditable<br>- Positionnement par drag | 📋 Backlog |
-| US-8.2 | En tant qu'utilisateur, je veux ajouter de la narration à un panel | - Zone de narration en haut/bas<br>- Texte stylisé | 📋 Backlog |
-| US-8.3 | En tant qu'utilisateur, je veux personnaliser les polices des dialogues | - Choix de police<br>- Taille<br>- Couleur | 📋 Backlog |
-
-### E8b — Personnalisation visuelle du panel (à implémenter)
+### E8 — Dialogues
 
 | ID | User Story | Critères d'acceptation | Statut |
 |----|-----------|----------------------|--------|
-| US-8b.1 | En tant qu'utilisateur, je veux modifier la couleur de fond d'un panel | - **Menu Couleur** accessible en mode Édition<br>- Sélecteur de couleur (couleur unie ou dégradé)<br>- Aperçu en temps réel<br>- Sauvegarde de la couleur de fond | 📋 Backlog |
-| US-8b.2 | En tant qu'utilisateur, je veux ajouter des effets visuels à mon panel pour enrichir l'œuvre | - **Bibliothèque d'effets** accessible en mode Édition<br>- Effets organisés par catégories : profondeur, douceur, émotion, vivant<br>- Aperçu des effets avant application<br>- Application sur le panel avec personnalisation (position, intensité, paramètres) | 📋 Backlog |
-| US-8b.3 | En tant qu'utilisateur, je veux utiliser des effets de profondeur pour donner de la dimension à mon panel | - Effets disponibles : ombres portées, lumières directionnelles, atmosphère<br>- Personnalisation de l'intensité et de la position<br>- Application en overlay (sans régénérer les images) | 📋 Backlog |
-| US-8b.4 | En tant qu'utilisateur, je veux utiliser des effets de douceur pour adoucir l'ambiance de mon panel | - Effets disponibles : flou artistique, transitions douces, brume<br>- Personnalisation de l'intensité et de la position<br>- Application en overlay | 📋 Backlog |
-| US-8b.5 | En tant qu'utilisateur, je veux utiliser des effets émotionnels pour transmettre l'ambiance de la scène | - Effets disponibles : météo, ambiances colorées, filtres<br>- Personnalisation de l'intensité et de la position<br>- Application en overlay | 📋 Backlog |
-| US-8b.6 | En tant qu'utilisateur, je veux utiliser des effets vivants pour donner du dynamisme à mon panel | - Effets disponibles : lignes de mouvement, particules, dynamisme<br>- Personnalisation de l'intensité et de la position<br>- Application en overlay | 📋 Backlog |
+| US-8.1 | En tant qu'utilisateur, je veux ajouter des bulles de dialogue à un panel | - Clic pour ajouter une bulle (centrée sur le panel)<br>- Texte éditable inline<br>- Drag & drop libre pour repositionner<br>- Redimensionnement par 8 poignées | ✅ Fait |
+| US-8.1b | En tant qu'utilisateur, je veux choisir le type de bulle | - Types disponibles : Parole, Pensée, Cri, Chuchotement, Narration, Radio + texte brut sans bulle<br>- Formes SVG manga/webtoon distinctes par type | ✅ Fait |
+| US-8.1c | En tant qu'utilisateur, je veux personnaliser l'apparence d'une bulle | - Texte, type, fond, contour, police, taille, couleur éditables dans la sidebar<br>- Édition inline sans éditeur plein écran séparé | ✅ Fait |
+| US-8.2 | En tant qu'utilisateur, je veux ajouter de la narration à un panel | - Type « Narration » (rectangle) ou texte brut sans fond<br>- Positionnement libre par drag | ✅ Fait |
+| US-8.3 | En tant qu'utilisateur, je veux personnaliser les polices des dialogues | - Choix de police, taille, couleur dans la sidebar | ✅ Fait |
+| US-8.4 | En tant qu'utilisateur, je veux personnaliser typographiquement de façon avancée | - Gras, italique, espacement lettres, ombre texte | 📋 Backlog |
+| US-8.5 | En tant qu'utilisateur, je veux générer des dialogues par IA | - Suggestion de dialogues à partir du synopsis et des assets | 📋 Backlog |
+
+### E8b — Personnalisation visuelle du panel
+
+| ID | User Story | Critères d'acceptation | Statut |
+|----|-----------|----------------------|--------|
+| US-8b.1 | En tant qu'utilisateur, je veux modifier la couleur de fond d'un panel | - Blocs de couleur (même système que blocs image : position, dimensions)<br>- Couleur unie ou dégradé<br>- Rendu en arrière-plan des blocs image | ✅ Fait |
+| US-8b.2 | En tant qu'utilisateur, je veux ajouter des effets visuels à mon panel pour enrichir l'œuvre | - **Bibliothèque d'effets** avec catégories : profondeur, douceur, émotion, vivant<br>- Application sur le panel avec personnalisation | 📋 Backlog |
+| US-8b.3 | En tant qu'utilisateur, je veux utiliser des effets de profondeur | - Ombres portées, lumières directionnelles, atmosphère<br>- Application en overlay sans régénérer les images | 📋 Backlog |
+| US-8b.4 | En tant qu'utilisateur, je veux utiliser des effets de douceur | - Flou artistique, transitions douces, brume en overlay | 📋 Backlog |
+| US-8b.5 | En tant qu'utilisateur, je veux utiliser des effets émotionnels | - Météo, ambiances colorées, filtres en overlay | 📋 Backlog |
+| US-8b.6 | En tant qu'utilisateur, je veux utiliser des effets vivants | - Lignes de mouvement, particules, dynamisme en overlay | 📋 Backlog |
+
+### E9 — Export
+
+| ID | User Story | Critères d'acceptation | Statut |
+|----|-----------|----------------------|--------|
+| US-9.1 | En tant qu'utilisateur, je veux exporter un panel individuel en PNG | - Téléchargement PNG (800×H) via html2canvas<br>- Inclut blocs image + couleurs + bulles | ✅ Fait |
+| US-9.2 | En tant qu'utilisateur, je veux exporter un chapitre complet en PNG | - Assemblage vertical de tous les panels (800×ΣH)<br>- Format Webtoon Canvas / Tapas | ✅ Fait |
+| US-9.3 | En tant qu'utilisateur, je veux exporter en haute résolution | - Upscaling 2× pour impression ou plateformes HD | 📋 Backlog |
+| US-9.4 | En tant qu'utilisateur, je veux exporter tous les chapitres en batch | - Export groupé de plusieurs chapitres | 📋 Backlog |
+
+### E13 — NarraMind & Ariane
+
+| ID | User Story | Critères d'acceptation | Statut |
+|----|-----------|----------------------|--------|
+| US-13.1 | En tant qu'auteur, je veux qu'Ariane détecte les incohérences narratives dans mon scénario | - Déclenchement automatique après auto-save (≥ 80 mots, garde-fou ≥ 12 min)<br>- Ariane signale les incohérences en langage auteur (pas de jargon technique)<br>- Alertes persistées dans `narramind_alerts` (actif / ignoré / résolu) | ✅ Fait |
+| US-13.2 | En tant qu'auteur, je veux qu'Ariane maintienne une mémoire de mes personnages et lieux | - Extraction automatique d'entités (personnages, décors, objets) dans `memory_entities`<br>- Résumés glissants par chapitre dans `memory_summaries`<br>- Contexte borné (~1 400 tokens quel que soit le nombre de chapitres) | ✅ Fait |
+| US-13.3 | En tant qu'auteur, je veux être guidé par Ariane dès mon premier projet | - Fil d'Ariane progressif (ArianeBubble, ArianeTabTourOverlay)<br>- Menus débloqués étape par étape (useProgressiveMenuGate)<br>- Onboarding différent au 2e projet | ✅ Fait |
+| US-13.4 | En tant qu'auteur, je veux qu'Ariane m'aide à maintenir la continuité narrative | - ArianeContinuityPanel : fil d'Ariane doré animé, alertes continuité<br>- ArianeNarrativeSheet : fiche narrative de l'asset (lore) | ✅ Fait |
+| US-13.5 | En tant qu'auteur, je veux accéder à une analyse narrative approfondie via Ariane | - ArianeAnalysisModal : analyse complète du projet/chapitre | ✅ Fait |
+| US-13.6 | En tant qu'auteur, je veux une mémoire narrative longue (Studio) | - Contexte narratif étendu pour projets longs<br>- `allowLongMemory` activé sur plan Studio uniquement | ✅ Fait |
+
+### E14 — Univers / Lore
+
+| ID | User Story | Critères d'acceptation | Statut |
+|----|-----------|----------------------|--------|
+| US-14.1 | En tant qu'auteur, je veux cartographier les éléments de mon univers narratif | - Graphe relationnel des entités (personnages, lieux, objets, événements)<br>- Vue interactive avec @xyflow/react (ReactFlow) | ✅ Fait |
+| US-14.2 | En tant qu'auteur, je veux créer et lier des fiches lore | - Création de nœuds lore dans le graphe<br>- Connexions entre entités (relations narratives)<br>- Table `universe_lore` en BDD | ✅ Fait |
+| US-14.3 | En tant qu'auteur, je veux qu'Ariane propose des enrichissements de lore à partir de mon scénario | - Ariane scanne le scénario et propose d'enrichir/créer des fiches lore<br>- `compass_proposals` avec statuts (accepted/rejected/pending) | ✅ Fait |
+
+### E15 — NarraMind Compass (vectorisation narrative)
+
+| ID | User Story | Critères d'acceptation | Statut |
+|----|-----------|----------------------|--------|
+| US-15.1 | En tant que système, je veux vectoriser le contenu narratif du projet | - Mode `index` : vectorisation via Gemini text-embedding-004 (768D) → `project_embeddings` (pgvector)<br>- Sources indexées : scénario, lore, entités | ✅ Fait |
+| US-15.2 | En tant qu'auteur, je veux qu'Ariane me propose des directions narratives contextualisées | - Mode `propose` : recherche pgvector top-5 → Gemini Flash → `compass_proposals`<br>- Propositions typées (directions narratives, suggestions lore)<br>- Provenance : 'extracted' (tiré du scénario) ou 'generated' (proposé par Ariane) | ✅ Fait |
 
 ---
 
@@ -221,30 +264,29 @@
                              │
                              ▼
                     ┌─────────────┐
-                    │  CHAPITRE   │
-                    │ Titre +     │
-                    │ Synopsis    │
-                    └──────┬──────┘
+                    │  SCÉNARIO   │ ← IA Scénario (1 prompt = 1 chap)
+                    │ Chapitres   │ ← IA Chapitre (réécriture + diff)
+                    │ texte       │ ← NarraMind (mémoire + alertes)
+                    └──────┬──────┘ ← Ariane (continuité narrative)
                            │
-                           ▼ (futur)
+                           ▼
                     ┌─────────────┐
-                    │  PANELS     │
-                    │ Génération  │
-                    │ automatique │
-                    └──────┬──────┘
+                    │  ÉDITEUR    │ ← Blocs image (drag/resize/génération)
+                    │  Canvas     │ ← Blocs couleur (ambiance)
+                    │  (visuel)   │ ← Bulles SVG (6 types + texte brut)
+                    └──────┬──────┘ ← Undo/Redo + raccourcis clavier
                            │
-                           ▼ (futur)
+                           ▼
                     ┌─────────────┐
-                    │  DIALOGUES  │
-                    │ Bulles +    │
-                    │ Narration   │
-                    └──────┬──────┘
+                    │   UNIVERS   │ ← Graphe lore (@xyflow/react)
+                    │   / Lore    │ ← Compass (propositions narratives)
+                    └──────┬──────┘ ← Ariane 🔍 suggestions
                            │
-                           ▼ (futur)
+                           ▼
                     ┌─────────────┐
-                    │   LECTURE   │
-                    │  Vertical   │
-                    │  Webtoon    │
+                    │   EXPORT    │ ← PNG panel (html2canvas)
+                    │  PNG panel  │ ← PNG chapitre complet (800×ΣH)
+                    │  + chapitre │
                     └─────────────┘
 ```
 
@@ -285,8 +327,10 @@ Asset existant ──► Résultat insatisfaisant
 | **1er asset** | Génère un personnage | **Excitation !** | Attente de la génération | Feedback temps réel |
 | **Résultat** | Voit l'image générée | **Émerveillement** ou Déception | Qualité variable | Régénération facile |
 | **Itération** | Régénère / ajuste | Déterminé | Pas assez de contrôle | Options avancées |
-| **Chapitre** | Crée un chapitre | Productif | Pas encore de panels auto | Génération panels |
-| **Partage** | (Futur) Partage le résultat | Fier | Pas de fonctionnalité d'export | Export + partage social |
+| **Scénario** | Écrit avec IA Scénario | Créatif | Parfois hésitant sur la direction narrative | Ariane + Compass propose des directions |
+| **Éditeur** | Compose les cases visuellement | Engagé | Positionnement précis des blocs | Snap-to-grid futur |
+| **Bulles** | Ajoute dialogues et narration | Satisfait | Sélection de la police parfois lente | Éditeur inline sidebar optimisé |
+| **Export** | Télécharge son chapitre en PNG | **Fier** | Résolution limitée à 1024px | Export haute résolution futur |
 
 ---
 
@@ -305,4 +349,4 @@ Asset existant ──► Résultat insatisfaisant
 
 ---
 
-*Dernière mise à jour : 7 juin 2026 (audit vérité) — US-4.6 multi-vues → Sheet System (fiche 4 angles), diagrammes parcours mis à jour. 14 février 2026 — version initiale.*
+*Dernière mise à jour : 13 juin 2026 — Mise à jour majeure statuts : E5b (Section Scénario), E7 (Éditeur canvas mode Structuré), E8 (Dialogues/Bulles), E9 (Export PNG) tous ✅ Fait. Ajout E13 (NarraMind & Ariane), E14 (Univers/Lore), E15 (Compass). Diagramme parcours mis à jour avec workflow réel complet. Précédente : 7 juin 2026 — Sheet System, tiers.*

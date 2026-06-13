@@ -50,9 +50,13 @@ Des **millions de créateurs potentiels** (auteurs, scénaristes, conteurs, fans
 ### 2.3 Avantage compétitif durable
 
 1. **Système de cohérence stylistique** : Template texte + images de référence appliqués à toutes les générations
-2. **Sheet System** : fiche composite 4 angles (face, profil gauche, profil droit, dos) générée en 1 action, injectée comme référence — unique sur le marché (tous les plans)
-3. **Workflow natif webtoon** : Format vertical, optimisé lecture mobile
-4. **Bibliothèque d'assets réutilisables** : Un personnage créé une fois, utilisé dans tous les panels
+2. **Sheet System** : fiche composite 4 angles (face, profil gauche, profil droit, dos) générée en 1 action — unique sur le marché (tous les plans)
+3. **Pipeline scénario → éditeur complet** : Section Scénario (IA Scénario + IA Chapitre) → Éditeur Canvas (blocs image + couleur + bulles SVG) → Export PNG
+4. **NarraMind** : Mémoire narrative compressée (entités + résumés glissants, ~1 400 tokens), détection d'incohérences en arrière-plan — aucun concurrent ne propose cela
+5. **Ariane** : IA de continuité intégrée à tout le workflow — onboarding, fil d'Ariane, alertes narratives, analyse, lore
+6. **NarraMind Compass** : Vectorisation RAG du contenu narratif (Gemini 768D + pgvector) → propositions Ariane contextualisées
+7. **Graphe Univers / Lore** : Cartographie relationnelle des entités narratives
+8. **Bibliothèque d'assets réutilisables** : Un personnage créé une fois, utilisé dans tous les panels
 
 ---
 
@@ -256,14 +260,17 @@ Des **millions de créateurs potentiels** (auteurs, scénaristes, conteurs, fans
 
 ## 10. Points de différenciation
 
-1. **Cohérence stylistique garantie** : Templates de style + images de référence
-2. **Sheet System** : fiche composite 4 angles (face, profil, dos) générée en 1 action (tous les plans)
-3. **Workflow optimisé** : Projet → Assets → Chapitres → Panels
-4. **Format natif webtoon** : Vertical, mobile-first
-5. **Accessibilité** : Aucune compétence artistique requise
-6. **Rapidité** : Génération en quelques secondes
-7. **Plan Libre généreux** : 20 crédits/mois, toutes les features, projets et assets illimités
-8. **Même IA pour tous** : FLUX.2 Pro & Pro Edit sur tous les plans (logique Spotify, différenciation = volume de crédits)
+1. **Cohérence stylistique garantie** : Templates de style + images de référence sur tous les plans
+2. **Sheet System** : fiche composite 4 angles (face, profil, dos) en 1 action — unique sur le marché
+3. **Workflow complet** : Scénario (IA) → Assets → Éditeur Canvas → Univers/Lore → Export
+4. **NarraMind** : Mémoire narrative compressée, détection d'incohérences, contexte borné — aucun concurrent ne propose cela
+5. **Ariane** : IA de continuité intégrée à tout le workflow (5 composants, de l'onboarding à l'analyse narrative)
+6. **NarraMind Compass** : RAG narratif (Gemini 768D + pgvector) → propositions contextualisées
+7. **Graphe Univers / Lore** : Cartographie relationnelle des entités narratives
+8. **Format natif webtoon** : Canvas vertical 800px, export assemblé compatible Webtoon/Tapas
+9. **Accessibilité** : Aucune compétence artistique requise
+10. **Plan Libre généreux** : 20 crédits/mois, toutes les features (y compris NarraMind, Ariane, Univers)
+11. **Même IA pour tous** : FLUX.2 Pro & Pro Edit sur tous les plans (logique Spotify)
 
 ---
 
@@ -301,8 +308,8 @@ Le product-market fit est solide car :
 - ✅ La solution est techniquement viable (IA générative mature)
 - ✅ La valeur est immédiate (résultats visuels rapides, cohérence garantie)
 
-**État actuel** : MVP Phase 1 complète (projets, assets, style, plans Libre/Créateur/Studio, FLUX.2 Pro pour tous, profil, Plans, Stripe implémenté). Phase 2 planifiée : panels avancés, dialogues, chapitres (flux Automatique/Structuré), déploiement Stripe (conditionné à la création de l'auto-entreprise).
+**État actuel** : Phases 1 et 2 complètes. Livré : projets, assets, Sheet System, style, plans Libre/Créateur/Studio, FLUX.2 Pro pour tous, Stripe, Section Scénario (IA Scénario + IA Chapitre + NarraMind + Ariane), Éditeur Canvas complet (blocs image + couleur + bulles 6 types SVG + undo/redo + export PNG), Univers/Lore (graphe relationnel), NarraMind Compass (vectorisation RAG). Phase 3 : génération panels Mode Auto, export haute résolution, import scénario, lancement public.
 
 ---
 
-*Dernière mise à jour : 7 juin 2026 — audit de cohérence (tiers Libre/Créateur/Studio, FLUX.2 Pro pour tous, Sheet System).*
+*Dernière mise à jour : 13 juin 2026 — Mise à jour majeure : avantages compétitifs enrichis (NarraMind, Ariane, Compass, Univers/Lore, Éditeur Canvas, Export), différenciateurs mis à jour (11 points), conclusion état actuel corrigé (Phases 1+2 livrées). Précédente : 7 juin 2026 — tiers, Sheet System.*

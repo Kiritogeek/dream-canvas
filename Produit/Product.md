@@ -180,28 +180,75 @@ DreamWeave résout ces problèmes en :
 
 ---
 
-### 6. 📱 Interface de lecture (panels)
+### 6. ✍️ Section Scénario & IA narrative
 
-**Description** : Prévisualisation des chapitres en format vertical (style webtoon).
+**Description** : Écriture complète du scénario avec assistance IA, mémoire narrative et cohérence.
 
-**Fonctionnalités actuelles** :
-- Affichage vertical des panels
-- Format 800×1200px (ratio webtoon)
-- Clic sur un panel pour le modifier
-- Placeholder pour les panels sans image
+**Fonctionnalités** :
+- Zone dédiée pour écrire le scénario chapitre par chapitre (prose narrative libre)
+- **IA Scénario** : un prompt = un chapitre généré (Gemini Flash + Groq fallback) — accepter/rejeter
+- **IA Chapitre** : réécriture ciblée d'un chapitre avec diff visuel (rouge = supprimé, vert = ajouté)
+- Détection des assets existants dans le texte (surbrillance + HoverCard image + Dialog agrandie)
+- Détection des éléments non créés (panneau « à créer », surbrillance ambre, option exclure)
+- **NarraMind** : mémoire narrative automatique (entités `memory_entities`, résumés glissants `memory_summaries`, contexte borné ~1 400 tokens)
+- Alertes d'incohérence Ariane en langage auteur (persistées dans `narramind_alerts`)
+- Déclenchement automatique après auto-save (≥ 80 mots, ≥ 12 min de garde-fou)
 
-**Fonctionnalités prévues (bientôt disponible)** :
-- Génération automatique de 10-20 panels à partir du synopsis
-- Édition des prompts de panels
-- Régénération individuelle de panels
-- Ajout de dialogues et bulles de texte
-- Ajout de narration
-
-**Valeur** : Expérience de lecture immersive, format natif webtoon.
+**Valeur** : Écrire et itérer sur son histoire sans perdre la cohérence narrative, avec une IA qui connaît tous ses personnages.
 
 ---
 
-### 7. 🔐 Authentification et sécurité
+### 7. 🎨 Éditeur Canvas (Édition de l'œuvre)
+
+**Description** : Éditeur visuel type Figma pour composer les panels du webtoon.
+
+**Fonctionnalités** :
+- Canvas vertical 800px × jusqu'à 100 000px (chapitre entier en scroll vertical continu)
+- **Blocs image** : ajout, drag & drop, redimensionnement (8 poignées), génération FLUX.2 Pro, régénération
+- **Blocs couleur** : zones de couleur unie ou dégradé pour l'ambiance du panel
+- **Bulles de dialogue** (6 types SVG manga/webtoon) : Parole, Pensée, Cri, Chuchotement, Narration, Radio + texte brut sans forme
+- Positionnement libre des bulles, redimensionnement 8 points, édition inline dans la sidebar
+- Undo/Redo complet, raccourcis clavier (Delete, Ctrl+Z, Ctrl+Y), zoom + panoramique
+- Sélection explicite au clic (ring + handles Figma-style), panneau de propriétés contextuel
+
+**Export** :
+- PNG panel individuel (800×H) via html2canvas
+- PNG chapitre complet assemblé verticalement (800×ΣH) — format Webtoon Canvas / Tapas
+
+**Valeur** : Composer des pages webtoon professionnelles sans compétences graphiques.
+
+---
+
+### 8. 🌌 Univers / Lore & Ariane Compass
+
+**Description** : Cartographie narrative de l'univers + propositions Ariane contextualisées par vectorisation.
+
+**Fonctionnalités** :
+- **Graphe Univers** : vue interactive des entités (personnages, lieux, objets, événements) avec connexions relationnelles (@xyflow/react)
+- Création et édition de fiches lore directement dans le graphe
+- **NarraMind Compass** : vectorisation via Gemini text-embedding-004 (768D) → pgvector (`project_embeddings`)
+- Propositions Ariane : recherche sémantique top-5 → Gemini Flash → `compass_proposals` (directions narratives, suggestions lore)
+
+**Valeur** : Construire un univers cohérent et profond grâce au scénario lui-même.
+
+---
+
+### 9. 🤖 Ariane — IA continuité intégrée
+
+**Description** : Personnage IA intégré à tout le workflow, de l'onboarding à la continuité narrative.
+
+**Composants** :
+- **ArianeBubble** : bulle flottante présente dans toutes les vues
+- **ArianeTabTourOverlay** : onboarding progressif (onglets débloqués étape par étape via `useProgressiveMenuGate`)
+- **ArianeContinuityPanel** : fil d'Ariane doré animé, alertes de continuité narrative
+- **ArianeNarrativeSheet** : fiche narrative de l'asset (lore du personnage/décor)
+- **ArianeAnalysisModal** : analyse narrative approfondie du projet ou d'un chapitre
+
+**Valeur** : Un assistant créatif qui guide l'auteur sans jamais l'interrompre.
+
+---
+
+### 10. 🔐 Authentification et sécurité
 
 **Description** : Système d'authentification sécurisé avec Supabase Auth.
 
@@ -277,88 +324,79 @@ DreamWeave résout ces problèmes en :
 
 ### Création d'un webtoon
 
-1. **Inscription/Connexion** → Dashboard
+1. **Inscription/Connexion** → Dashboard (guidé par Ariane dès le premier projet)
 2. **Création d'un projet** → Titre + description
 3. **Définition du style** :
-   - Remplir le template de style texte
-   - Uploader des images de référence
+   - Sélection preset (Manga, Webtoon coréen, Manwha...) + sous-style
+   - Upload d'images de référence
 4. **Création des assets** :
-   - Créer les personnages principaux (avec génération IA)
-   - Créer les décors récurrents
-   - Créer les objets importants
-   - Générer la fiche Sheet System des personnages (4 angles : face, profils, dos)
-5. **Création des chapitres** :
-   - Créer un chapitre avec titre et synopsis
-   - (Bientôt) Générer automatiquement les panels
-   - (Bientôt) Ajouter les dialogues et narration
-6. **Prévisualisation** : Lire le chapitre en format vertical
+   - Personnages, décors, objets (génération FLUX.2 Pro)
+   - Sheet System 4 angles (face, profil G/D, dos) pour les personnages
+5. **Section Scénario** :
+   - Écrire l'histoire chapitre par chapitre ou avec l'IA Scénario
+   - NarraMind analyse la cohérence en arrière-plan, Ariane signale les incohérences
+6. **Éditeur Canvas** :
+   - Composer les panels avec blocs image + blocs couleur + bulles de dialogue
+   - Drag, resize, génération IA par bloc, undo/redo
+7. **Univers / Lore** :
+   - Cartographier les entités dans le graphe
+   - Ariane Compass propose des enrichissements à partir du scénario
+8. **Export** : PNG panel individuel ou chapitre complet (800×ΣH)
 
 ---
 
-## 🚀 Fonctionnalités à venir
+## 🚀 Fonctionnalités à venir (backlog)
 
-### Court terme
+### Court terme (P0)
 
-1. **Génération automatique de panels** :
-   - Génération de 10-20 panels à partir du synopsis
-   - Utilisation des assets existants dans les prompts
-   - Format vertical optimisé (800×1200px)
+1. **Génération automatique de panels (Mode Auto)** :
+   - Sélection des assets du chapitre → génération panel par panel à partir du scénario
+   - Prompt = style + assets sélectionnés + description (jamais le scénario brut)
 
-2. **Édition de panels** :
-   - Modification du prompt d'un panel
-   - Régénération individuelle
-   - Réorganisation de l'ordre
+2. **Import scénario** :
+   - Import .txt ou copier-coller dans la section Scénario
 
-3. **Système de dialogues** :
-   - Ajout de bulles de dialogue
-   - Personnalisation des polices
-   - Positionnement des bulles
-   - Ajout de narration
+3. **Export haute résolution** :
+   - Upscaling 2× des exports PNG
 
 ### Moyen terme
 
-4. **Export** :
-   - Export en PDF
-   - Export en images individuelles
-   - Export optimisé pour les plateformes webtoon
+4. **Collaboration** :
+   - Partage de projets (lecture seule + éditeurs)
+   - Commentaires sur les panels
 
-5. **Collaboration** :
-   - Partage de projets
-   - Édition collaborative
-   - Commentaires
-
-6. **Bibliothèque de styles** :
-   - Styles prédéfinis
+5. **Marketplace de styles** :
    - Partage de styles entre utilisateurs
-   - Marketplace de styles
+   - Styles officiels DreamWeave
+
+6. **Personnalisation typographique avancée** :
+   - Gras, italique, espacement lettres, ombre texte dans les bulles
 
 ### Long terme
 
-7. **Génération de scénario** :
-   - IA pour générer des synopsis
-   - Suggestions de dialogues
-   - Développement de l'histoire
+7. **Publication directe** :
+   - Intégration Webtoon Canvas / Tapas
+   - Lien de lecture public
 
 8. **Animation** :
-   - Panels animés
-   - Transitions entre panels
-   - Effets visuels
+   - Panels animés, transitions, effets dynamiques
 
-9. **Publication** :
-   - Intégration avec les plateformes webtoon
-   - Publication directe depuis l'application
-   - Analytics de lecture
+9. **Mobile / PWA** :
+   - Progressive Web App installable, app iOS/Android
 
 ---
 
 ## 💡 Points de différenciation
 
-1. **Cohérence stylistique garantie** : Système de templates de style unique
-2. **Sheet System** : Fiche composite 4 angles (face, profils, dos) par personnage
-3. **Workflow optimisé** : Création d'assets → Chapitres → Panels
-4. **Format natif webtoon** : Vertical, optimisé pour mobile
-5. **Accessibilité** : Aucune compétence artistique requise
-6. **Rapidité** : Génération en quelques secondes
+1. **Cohérence stylistique garantie** : Template texte + images de référence appliqués à toutes les générations
+2. **Sheet System** : Fiche composite 4 angles (face, profils, dos) par personnage — unique sur le marché
+3. **Workflow intégré complet** : Scénario → Assets → Éditeur Canvas → Univers → Export
+4. **NarraMind** : Mémoire narrative compressée, détection d'incohérences, contexte borné
+5. **Ariane** : IA continuité intégrée à tout le workflow (onboarding, alertes, analyse, lore)
+6. **Compass** : Vectorisation narrative (RAG) → propositions contextualisées uniques
+7. **Format natif webtoon** : Canvas vertical 800px, export assemblé (Webtoon / Tapas)
+8. **Accessibilité** : Aucune compétence artistique requise
+9. **Plan Libre généreux** : Toutes les features, 20 crédits/mois, projets illimités
 
 ---
 
@@ -409,4 +447,4 @@ Le produit est actuellement en phase de développement actif, avec les fonctionn
 
 ---
 
-*Dernière mise à jour : 7 juin 2026 (audit vérité) — Tiers Libre/Créateur/Studio, FLUX.2 Pro pour tous les tiers (suppression FLUX.1 Schnell + gating modèle), Sheet System (ex multi-vues), IA texte Gemini Flash + Groq fallback, NarraMind Compass (vectorisation), Stripe livré.*
+*Dernière mise à jour : 13 juin 2026 — Mise à jour majeure : ajout Section Scénario (IA Scénario + NarraMind), Éditeur Canvas (blocs image + couleur + bulles 6 types SVG + export PNG), Univers/Lore (graphe + Compass), Ariane (5 composants). Suppression "À venir" pour toutes les features livrées. Précédente : 7 juin 2026 — Sheet System, tiers, NarraMind Compass.*

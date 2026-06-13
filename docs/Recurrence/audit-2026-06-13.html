@@ -1,0 +1,1064 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Audit DreamWeave — 13 juin 2026</title>
+  <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&family=Nunito:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    /* ── Reset & Base ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ── Tokens ── */
+    :root {
+      --lavender:       hsl(275, 45%, 72%);
+      --lavender-soft:  hsl(275, 30%, 92%);
+      --lavender-dark:  hsl(275, 35%, 18%);
+      --lavender-glow:  hsl(275, 55%, 65%);
+      --peach:          hsl(28, 80%, 88%);
+      --peach-deep:     hsl(20, 70%, 75%);
+      --mint:           hsl(170, 35%, 78%);
+      --cream:          hsl(40, 40%, 96%);
+      --bg-dark:        hsl(275, 20%, 7%);
+      --bg-card:        hsl(275, 18%, 11%);
+      --bg-card-hover:  hsl(275, 18%, 14%);
+      --border-subtle:  hsl(275, 20%, 22%);
+      --text-primary:   hsl(40, 40%, 96%);
+      --text-secondary: hsl(275, 15%, 70%);
+      --text-muted:     hsl(275, 10%, 50%);
+      --green:          hsl(150, 60%, 55%);
+      --orange:         hsl(35, 85%, 60%);
+      --red:            hsl(0, 70%, 62%);
+      --blue:           hsl(210, 70%, 65%);
+    }
+
+    body {
+      font-family: 'Nunito', sans-serif;
+      background: var(--bg-dark);
+      color: var(--text-primary);
+      font-size: 15px;
+      line-height: 1.7;
+      min-height: 100vh;
+    }
+
+    /* ── Background décor ── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0; z-index: 0; pointer-events: none;
+      background:
+        radial-gradient(ellipse 60% 50% at 15% 20%, hsl(275, 45%, 20%, 0.35) 0%, transparent 60%),
+        radial-gradient(ellipse 50% 40% at 85% 75%, hsl(20, 70%, 20%, 0.25) 0%, transparent 55%),
+        radial-gradient(ellipse 40% 35% at 50% 50%, hsl(170, 35%, 15%, 0.15) 0%, transparent 60%);
+    }
+
+    /* ── Layout ── */
+    .container {
+      position: relative; z-index: 1;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 3rem 2rem 6rem;
+    }
+
+    /* ── Glass ── */
+    .glass {
+      background: hsl(275, 20%, 10%, 0.72);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 1px solid var(--border-subtle);
+      border-radius: 16px;
+      box-shadow: 0 4px 32px hsl(275, 45%, 10%, 0.5), inset 0 1px 0 hsl(275, 60%, 80%, 0.06);
+    }
+
+    /* ── Header ── */
+    .header { padding: 2.5rem 3rem; margin-bottom: 2.5rem; }
+    .header-meta { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+    .badge-date {
+      font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 0.78rem;
+      padding: 0.3rem 0.9rem; border-radius: 999px;
+      background: hsl(275, 40%, 20%, 0.8); border: 1px solid var(--lavender);
+      color: var(--lavender); letter-spacing: 0.06em; text-transform: uppercase;
+    }
+    .badge-recurring {
+      font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 0.78rem;
+      padding: 0.3rem 0.9rem; border-radius: 999px;
+      background: hsl(28, 80%, 20%, 0.6); border: 1px solid var(--peach-deep);
+      color: var(--peach); letter-spacing: 0.06em;
+    }
+    .header h1 {
+      font-family: 'Quicksand', sans-serif; font-weight: 700; font-size: 2.2rem;
+      background: linear-gradient(135deg, var(--lavender) 0%, var(--peach-deep) 60%, var(--mint) 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 0.5rem;
+    }
+    .header p { color: var(--text-secondary); font-size: 1rem; max-width: 600px; }
+
+    /* ── TOC ── */
+    .toc { padding: 1.8rem 2rem; margin-bottom: 2rem; }
+    .toc h3 { font-family: 'Quicksand', sans-serif; font-weight: 700; font-size: 0.9rem;
+      text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); margin-bottom: 1rem; }
+    .toc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 0.5rem; }
+    .toc-item {
+      display: flex; align-items: center; gap: 0.7rem;
+      padding: 0.6rem 0.9rem; border-radius: 10px;
+      background: hsl(275, 20%, 13%, 0.6); border: 1px solid var(--border-subtle);
+      text-decoration: none; color: var(--text-primary); font-size: 0.9rem;
+      transition: all 0.18s ease;
+    }
+    .toc-item:hover { background: hsl(275, 30%, 20%, 0.8); border-color: var(--lavender); color: var(--lavender); }
+    .toc-num { font-family: 'Quicksand', sans-serif; font-weight: 700; font-size: 0.75rem;
+      color: var(--lavender); min-width: 1.6rem; }
+
+    /* ── Section ── */
+    section { margin-bottom: 2.5rem; }
+    .section-header {
+      display: flex; align-items: center; gap: 1rem;
+      padding: 1.4rem 2rem; border-radius: 16px 16px 0 0;
+      background: hsl(275, 25%, 13%, 0.9);
+      border: 1px solid var(--border-subtle);
+      border-bottom: 1px solid hsl(275, 40%, 30%, 0.4);
+    }
+    .section-icon { font-size: 1.4rem; min-width: 2rem; text-align: center; }
+    .section-header h2 {
+      font-family: 'Quicksand', sans-serif; font-weight: 700; font-size: 1.25rem;
+      color: var(--cream);
+    }
+    .section-body { padding: 2rem; border: 1px solid var(--border-subtle); border-top: none; border-radius: 0 0 16px 16px;
+      background: hsl(275, 18%, 10%, 0.6); }
+
+    /* ── Cards grid ── */
+    .cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1.2rem; }
+    .card {
+      padding: 1.4rem 1.6rem; border-radius: 12px;
+      background: hsl(275, 20%, 12%, 0.8); border: 1px solid var(--border-subtle);
+      transition: all 0.18s ease;
+    }
+    .card:hover { background: hsl(275, 25%, 16%, 0.9); border-color: hsl(275, 40%, 35%); transform: translateY(-1px); }
+    .card-title { font-family: 'Quicksand', sans-serif; font-weight: 700; font-size: 0.95rem;
+      color: var(--cream); margin-bottom: 0.4rem; display: flex; align-items: center; gap: 0.5rem; }
+    .card-sub { font-size: 0.82rem; color: var(--text-muted); margin-bottom: 0.8rem; }
+    .card-desc { font-size: 0.88rem; color: var(--text-secondary); line-height: 1.6; }
+
+    /* ── Score cards ── */
+    .scores-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem; }
+    .score-card {
+      padding: 1.4rem 1.6rem; border-radius: 12px; text-align: center;
+      background: hsl(275, 20%, 12%, 0.8); border: 1px solid var(--border-subtle);
+      position: relative; overflow: hidden;
+    }
+    .score-card::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+      background: linear-gradient(90deg, var(--lavender), var(--peach-deep));
+    }
+    .score-label { font-family: 'Quicksand', sans-serif; font-weight: 700; font-size: 0.82rem;
+      color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.6rem; }
+    .score-value {
+      font-family: 'Quicksand', sans-serif; font-weight: 700; font-size: 2.2rem;
+      line-height: 1;
+    }
+    .score-value.good   { color: var(--green); }
+    .score-value.medium { color: var(--orange); }
+    .score-value.bad    { color: var(--red); }
+    .score-justif { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.5rem; line-height: 1.4; }
+
+    /* ── Tags ── */
+    .tag {
+      display: inline-flex; align-items: center; gap: 0.3rem;
+      padding: 0.2rem 0.65rem; border-radius: 999px; font-size: 0.75rem; font-weight: 600;
+      font-family: 'Quicksand', sans-serif;
+    }
+    .tag.green  { background: hsl(150, 60%, 12%); border: 1px solid hsl(150, 60%, 30%); color: var(--green); }
+    .tag.orange { background: hsl(35, 85%, 12%); border: 1px solid hsl(35, 85%, 35%); color: var(--orange); }
+    .tag.red    { background: hsl(0, 70%, 12%); border: 1px solid hsl(0, 70%, 30%); color: var(--red); }
+    .tag.blue   { background: hsl(210, 70%, 12%); border: 1px solid hsl(210, 70%, 35%); color: var(--blue); }
+    .tag.lavender { background: hsl(275, 40%, 14%); border: 1px solid hsl(275, 40%, 35%); color: var(--lavender); }
+
+    /* ── Table ── */
+    .table-wrap { overflow-x: auto; border-radius: 10px; border: 1px solid var(--border-subtle); }
+    table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    th {
+      font-family: 'Quicksand', sans-serif; font-weight: 700; font-size: 0.78rem;
+      text-transform: uppercase; letter-spacing: 0.07em;
+      padding: 0.85rem 1.2rem; text-align: left;
+      background: hsl(275, 25%, 13%); color: var(--text-muted);
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    td { padding: 0.8rem 1.2rem; border-bottom: 1px solid hsl(275, 20%, 14%); color: var(--text-secondary); vertical-align: top; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: hsl(275, 20%, 13%, 0.5); }
+
+    /* ── Checklist ── */
+    .checklist { list-style: none; display: flex; flex-direction: column; gap: 0.6rem; }
+    .checklist li {
+      display: flex; align-items: flex-start; gap: 0.75rem;
+      padding: 0.75rem 1rem; border-radius: 8px;
+      background: hsl(275, 18%, 12%, 0.6); border: 1px solid var(--border-subtle);
+      font-size: 0.9rem; color: var(--text-secondary);
+    }
+    .checklist li .check { min-width: 1.1rem; margin-top: 0.1rem; }
+    .checklist li .check.done { color: var(--green); }
+    .checklist li .check.warn { color: var(--orange); }
+    .checklist li .check.fail { color: var(--red); }
+    .checklist li strong { color: var(--text-primary); font-weight: 600; }
+
+    /* ── Improvements ── */
+    .improve-group { margin-bottom: 1.8rem; }
+    .improve-group h3 {
+      font-family: 'Quicksand', sans-serif; font-weight: 700; font-size: 1rem;
+      display: flex; align-items: center; gap: 0.6rem; margin-bottom: 1rem;
+      padding-bottom: 0.6rem; border-bottom: 1px solid var(--border-subtle);
+    }
+    .improve-list { display: flex; flex-direction: column; gap: 0.7rem; }
+    .improve-item {
+      padding: 1rem 1.2rem; border-radius: 10px;
+      background: hsl(275, 18%, 11%, 0.7); border: 1px solid var(--border-subtle);
+    }
+    .improve-item-top { display: flex; align-items: center; gap: 0.7rem; flex-wrap: wrap; margin-bottom: 0.35rem; }
+    .improve-item-top strong { font-size: 0.92rem; color: var(--cream); }
+    .improve-item p { font-size: 0.87rem; color: var(--text-secondary); line-height: 1.6; }
+    .improve-item .source { font-size: 0.78rem; color: var(--text-muted); margin-top: 0.3rem; }
+    .improve-item .source a { color: var(--lavender); text-decoration: none; }
+    .improve-item .source a:hover { text-decoration: underline; }
+
+    /* ── Marketing tasks ── */
+    .task-list { display: flex; flex-direction: column; gap: 0.7rem; }
+    .task-item {
+      display: grid; grid-template-columns: 1fr auto auto;
+      align-items: start; gap: 1rem;
+      padding: 1rem 1.4rem; border-radius: 10px;
+      background: hsl(275, 18%, 11%, 0.7); border: 1px solid var(--border-subtle);
+    }
+    .task-item:hover { background: hsl(275, 22%, 14%, 0.8); }
+    .task-name { font-size: 0.9rem; color: var(--text-primary); font-weight: 500; }
+    .task-desc { font-size: 0.82rem; color: var(--text-muted); margin-top: 0.2rem; }
+
+    /* ── Alert box ── */
+    .alert {
+      display: flex; align-items: flex-start; gap: 0.9rem;
+      padding: 1rem 1.3rem; border-radius: 10px; margin-bottom: 1.2rem;
+      font-size: 0.88rem; line-height: 1.6;
+    }
+    .alert.warn { background: hsl(35, 85%, 12%); border: 1px solid hsl(35, 85%, 30%); color: hsl(35, 85%, 80%); }
+    .alert.danger { background: hsl(0, 70%, 10%); border: 1px solid hsl(0, 70%, 28%); color: hsl(0, 70%, 80%); }
+    .alert.info  { background: hsl(275, 40%, 12%); border: 1px solid hsl(275, 40%, 30%); color: hsl(275, 40%, 82%); }
+    .alert-icon { font-size: 1.1rem; margin-top: 0.05rem; min-width: 1.4rem; }
+
+    /* ── Progress bar ── */
+    .progress-wrap { margin: 0.5rem 0; }
+    .progress-label { display: flex; justify-content: space-between; font-size: 0.82rem; color: var(--text-muted); margin-bottom: 0.3rem; }
+    .progress-bar { height: 6px; border-radius: 999px; background: hsl(275, 20%, 16%); overflow: hidden; }
+    .progress-fill { height: 100%; border-radius: 999px;
+      background: linear-gradient(90deg, var(--lavender), var(--peach-deep)); }
+
+    /* ── Stat pills ── */
+    .stat-row { display: flex; flex-wrap: wrap; gap: 0.8rem; margin-bottom: 1.2rem; }
+    .stat-pill {
+      padding: 0.5rem 1.1rem; border-radius: 999px; font-size: 0.85rem;
+      background: hsl(275, 22%, 14%); border: 1px solid var(--border-subtle);
+      display: flex; align-items: center; gap: 0.5rem;
+    }
+    .stat-pill strong { color: var(--lavender); font-family: 'Quicksand', sans-serif; font-weight: 700; }
+
+    /* ── Competitor highlight ── */
+    .competitor-card {
+      padding: 1.4rem 1.6rem; border-radius: 12px; margin-bottom: 1rem;
+      background: hsl(275, 18%, 11%, 0.7); border: 1px solid var(--border-subtle);
+    }
+    .competitor-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 0.7rem; flex-wrap: wrap; }
+    .competitor-name { font-family: 'Quicksand', sans-serif; font-weight: 700; font-size: 1.05rem; color: var(--cream); }
+    .competitor-threat { font-size: 0.82rem; }
+    .competitor-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; font-size: 0.87rem; }
+    .competitor-col h4 { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-muted);
+      margin-bottom: 0.4rem; font-family: 'Quicksand', sans-serif; font-weight: 700; }
+    .competitor-col ul { list-style: none; display: flex; flex-direction: column; gap: 0.2rem; }
+    .competitor-col ul li { display: flex; align-items: flex-start; gap: 0.4rem; color: var(--text-secondary); }
+    .competitor-col ul li::before { content: ''; min-width: 5px; height: 5px; border-radius: 50%; margin-top: 0.55rem; }
+    .strengths li::before { background: var(--green); }
+    .weaknesses li::before { background: var(--red); }
+
+    /* ── Divider ── */
+    .divider { border: none; border-top: 1px solid var(--border-subtle); margin: 1.5rem 0; }
+
+    /* ── Inline link ── */
+    a { color: var(--lavender); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* ── Footer ── */
+    footer {
+      margin-top: 4rem; padding: 1.5rem 2rem;
+      text-align: center; font-size: 0.82rem; color: var(--text-muted);
+      border-top: 1px solid var(--border-subtle);
+    }
+
+    @media (max-width: 640px) {
+      .container { padding: 1.5rem 1rem 4rem; }
+      .header { padding: 1.5rem; }
+      .section-body { padding: 1.2rem; }
+      .competitor-grid { grid-template-columns: 1fr; }
+      .task-item { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <!-- ═══ HEADER ═══ -->
+  <div class="glass header">
+    <div class="header-meta">
+      <span class="badge-date">13 juin 2026</span>
+      <span class="badge-recurring">🔄 Tâche récurrente</span>
+    </div>
+    <h1>Audit Complet & Veille Stratégique</h1>
+    <p>DreamWeave · Rapport mensuel — Benchmark concurrentiel, audit technique, produit, UX, pistes d'action et plan marketing.</p>
+  </div>
+
+  <!-- ═══ TOC ═══ -->
+  <div class="glass toc">
+    <h3>Sommaire</h3>
+    <div class="toc-grid">
+      <a href="#benchmark" class="toc-item"><span class="toc-num">01</span>🔍 Benchmark &amp; Veille</a>
+      <a href="#technique" class="toc-item"><span class="toc-num">02</span>🛠️ Audit Technique</a>
+      <a href="#produit" class="toc-item"><span class="toc-num">03</span>📦 Audit Produit</a>
+      <a href="#ux" class="toc-item"><span class="toc-num">04</span>🎨 Audit UX / UI</a>
+      <a href="#ameliorations" class="toc-item"><span class="toc-num">05</span>💡 Pistes d'amélioration</a>
+      <a href="#lancement" class="toc-item"><span class="toc-num">06</span>🚀 Statut de lancement</a>
+      <a href="#marketing" class="toc-item"><span class="toc-num">07</span>📣 Plan Marketing</a>
+    </div>
+  </div>
+
+  <!-- ═══ 1. BENCHMARK ═══ -->
+  <section id="benchmark">
+    <div class="section-header">
+      <span class="section-icon">🔍</span>
+      <h2>Benchmark &amp; Veille concurrentielle — Juin 2026</h2>
+    </div>
+    <div class="section-body">
+
+      <div class="alert info">
+        <span class="alert-icon">📊</span>
+        <div><strong>Marché webtoon 2026 :</strong> $14,44 milliards en 2026 → $60,25 milliards en 2031 (CAGR 33,1 %). Le marché IA comics/manga croît à +34,3 % CAGR. WEBTOON Entertainment investit <strong>$47M</strong> dans l'écosystème créateurs en 2026.
+        <br/><a href="https://marketintelo.com/report/webtoon-market" target="_blank">Source marketintelo.com</a> · <a href="https://aitribune.net/2026/05/08/ai-webtoon-in-2026/" target="_blank">AI Tribune mai 2026</a></div>
+      </div>
+
+      <!-- Concurrents directs -->
+      <h3 style="font-family:'Quicksand',sans-serif;font-weight:700;font-size:1rem;color:var(--cream);margin-bottom:1rem;">Concurrents directs actifs (juin 2026)</h3>
+
+      <div class="competitor-card">
+        <div class="competitor-header">
+          <span class="competitor-name">Jenova.ai — Webtoon Creator</span>
+          <span class="tag red competitor-threat">⚠️ Menace haute</span>
+          <a href="https://www.jenova.ai/en/resources/ai-webtoon-creator" target="_blank" style="font-size:0.78rem;color:var(--text-muted);">mars–avril 2026</a>
+        </div>
+        <div class="competitor-grid">
+          <div class="competitor-col">
+            <h4>Points forts</h4>
+            <ul class="strengths">
+              <li>Vertical scroll natif, presets LINE/Tapas/Lezhin</li>
+              <li>6 style templates (romance, fantasy, action, horror…)</li>
+              <li>Character reference sheets systématiques → cohérence cross-panels</li>
+              <li>Aucun lock plateforme, droits créateurs inclus</li>
+              <li>À partir de $20/mois</li>
+            </ul>
+          </div>
+          <div class="competitor-col">
+            <h4>Faiblesses vs DreamWeave</h4>
+            <ul class="weaknesses">
+              <li>Pas de pipeline scénario → découpage → éditeur</li>
+              <li>Pas de mémoire narrative (NarraMind)</li>
+              <li>Pas de graphe Univers / lore</li>
+              <li>Pas d'IA Ariane intégrée au workflow</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="competitor-card">
+        <div class="competitor-header">
+          <span class="competitor-name">Dashtoon</span>
+          <span class="tag orange competitor-threat">⚡ Menace moyenne</span>
+          <a href="https://tracxn.com/d/companies/dashtoon/__fyb3bu53aHKlNq-E11RgO5SgmUncP_QslwzZGvYeNqc" target="_blank" style="font-size:0.78rem;color:var(--text-muted);">2026</a>
+        </div>
+        <div class="competitor-grid">
+          <div class="competitor-col">
+            <h4>Points forts</h4>
+            <ul class="strengths">
+              <li>Distribution intégrée (création + publication)</li>
+              <li>100 générations/jour en freemium</li>
+              <li>Optimisé mobile vertical</li>
+            </ul>
+          </div>
+          <div class="competitor-col">
+            <h4>Faiblesses vs DreamWeave</h4>
+            <ul class="weaknesses">
+              <li>Freemium oblige publication exclusive sur Dashtoon</li>
+              <li>Cohérence personnages limitée (modèles propriétaires figés)</li>
+              <li>Peu de contrôle sur le style personnalisé</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="competitor-card">
+        <div class="competitor-header">
+          <span class="competitor-name">ComicsMaker.ai</span>
+          <span class="tag orange competitor-threat">⚡ Menace montante</span>
+          <a href="https://llamagen.ai/blogs/best-ai-manga-generators-2026-comprehensive-tool-comparison-rankings-guide" target="_blank" style="font-size:0.78rem;color:var(--text-muted);">2026</a>
+        </div>
+        <div class="competitor-grid">
+          <div class="competitor-col">
+            <h4>Points forts</h4>
+            <ul class="strengths">
+              <li>LoRA character training (upload design → modèle custom)</li>
+              <li>Cohérence visuelle maximale via fine-tuning</li>
+              <li>Contrôle fort sur les personnages uniques</li>
+            </ul>
+          </div>
+          <div class="competitor-col">
+            <h4>Faiblesses vs DreamWeave</h4>
+            <ul class="weaknesses">
+              <li>Pas de workflow webtoon complet</li>
+              <li>Fine-tuning = temps + coût élevé par personnage</li>
+              <li>Pas de mémoire narrative ni de scénario IA</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="competitor-card">
+        <div class="competitor-header">
+          <span class="competitor-name">AI Comic Factory</span>
+          <span class="tag green competitor-threat">✓ Menace faible</span>
+        </div>
+        <div class="competitor-grid">
+          <div class="competitor-col">
+            <h4>Points forts</h4>
+            <ul class="strengths">
+              <li>100 % gratuit, open source</li>
+              <li>Communauté active</li>
+            </ul>
+          </div>
+          <div class="competitor-col">
+            <h4>Faiblesses vs DreamWeave</h4>
+            <ul class="weaknesses">
+              <li>Format comics occidental, pas webtoon vertical</li>
+              <li>Aucune cohérence stylistique ni workflow projet</li>
+              <li>Pas de gestion scénario, assets, lore</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <hr class="divider"/>
+
+      <!-- Signaux faibles -->
+      <h3 style="font-family:'Quicksand',sans-serif;font-weight:700;font-size:1rem;color:var(--cream);margin-bottom:1rem;">Signaux forts à surveiller (juin 2026)</h3>
+      <div class="cards-grid">
+        <div class="card">
+          <div class="card-title">📡 FLUX.1 Kontext Pro/Max</div>
+          <div class="card-sub">fal.ai · Mai 2026</div>
+          <div class="card-desc">Nouveau modèle top-tier dépassant potentiellement FLUX.2 Pro sur la typographie et le rendu professionnel. DreamWeave utilise encore FLUX.2 Pro — migration à évaluer.</div>
+          <div style="margin-top:0.7rem"><a href="https://fal.ai/models/fal-ai/flux-2-pro/edit" target="_blank" style="font-size:0.78rem">fal.ai/models ↗</a></div>
+        </div>
+        <div class="card">
+          <div class="card-title">🌐 WEBTOON Canvas AI Translation</div>
+          <div class="card-sub">WEBTOON Entertainment · Mars 2026</div>
+          <div class="card-desc">WEBTOON lance un programme de traduction IA pour les créateurs indie Canvas. Signal fort : la plateforme n'attend pas les tiers outils — opportunité de partenariat.</div>
+          <div style="margin-top:0.7rem"><a href="https://kcomicsbeat.com/2026/03/26/webtoon-pushes-to-expand-indie-creators-reach-on-canvas-introduces-ai-powered-translation-program/" target="_blank" style="font-size:0.78rem">kcomicsbeat.com ↗</a></div>
+        </div>
+        <div class="card">
+          <div class="card-title">🎓 CHI 2026 Research</div>
+          <div class="card-sub">ACM Digital Library · Mai 2026</div>
+          <div class="card-desc">Étude scientifique sur l'IA dans la création webtoon : "bad continuity", "static faces", "wrong expressions" sont les 3 plaintes principales des créateurs. DreamWeave adresse directement ces points via le Sheet System + style cohérent.</div>
+          <div style="margin-top:0.7rem"><a href="https://dl.acm.org/doi/10.1145/3772318.3790343" target="_blank" style="font-size:0.78rem">dl.acm.org ↗</a></div>
+        </div>
+        <div class="card">
+          <div class="card-title">⚡ +35–45 % nouvelles séries</div>
+          <div class="card-sub">AI Tribune · Mai 2026</div>
+          <div class="card-desc">Les outils IA vont provoquer une augmentation de 35–45 % du volume de nouvelles séries sur les plateformes d'ici 2027. Marché en explosion = fenêtre d'acquisition à saisir maintenant.</div>
+          <div style="margin-top:0.7rem"><a href="https://aitribune.net/2026/05/08/ai-webtoon-in-2026/" target="_blank" style="font-size:0.78rem">aitribune.net ↗</a></div>
+        </div>
+      </div>
+
+      <hr class="divider"/>
+      <h3 style="font-family:'Quicksand',sans-serif;font-weight:700;font-size:1rem;color:var(--cream);margin-bottom:1rem;">Positionnement DreamWeave vs concurrence</h3>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Feature clé</th>
+              <th>DreamWeave</th>
+              <th>Jenova</th>
+              <th>Dashtoon</th>
+              <th>ComicsMaker</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Pipeline complet (Style → Éditeur)</td>
+              <td><span class="tag green">✓ Oui</span></td>
+              <td><span class="tag red">✗ Non</span></td>
+              <td><span class="tag orange">~ Partiel</span></td>
+              <td><span class="tag red">✗ Non</span></td>
+            </tr>
+            <tr>
+              <td>Scénario + découpage IA</td>
+              <td><span class="tag green">✓ Oui</span></td>
+              <td><span class="tag red">✗ Non</span></td>
+              <td><span class="tag red">✗ Non</span></td>
+              <td><span class="tag red">✗ Non</span></td>
+            </tr>
+            <tr>
+              <td>Mémoire narrative (NarraMind)</td>
+              <td><span class="tag green">✓ Oui</span></td>
+              <td><span class="tag red">✗ Non</span></td>
+              <td><span class="tag red">✗ Non</span></td>
+              <td><span class="tag red">✗ Non</span></td>
+            </tr>
+            <tr>
+              <td>Graphe Univers / Lore</td>
+              <td><span class="tag green">✓ Oui</span></td>
+              <td><span class="tag red">✗ Non</span></td>
+              <td><span class="tag red">✗ Non</span></td>
+              <td><span class="tag red">✗ Non</span></td>
+            </tr>
+            <tr>
+              <td>Sheet System (4 angles)</td>
+              <td><span class="tag green">✓ Oui</span></td>
+              <td><span class="tag orange">~ Ref sheet</span></td>
+              <td><span class="tag red">✗ Non</span></td>
+              <td><span class="tag orange">~ LoRA</span></td>
+            </tr>
+            <tr>
+              <td>Style personnalisé par projet</td>
+              <td><span class="tag green">✓ Oui</span></td>
+              <td><span class="tag orange">~ 6 presets</span></td>
+              <td><span class="tag red">✗ Limité</span></td>
+              <td><span class="tag green">✓ Oui (LoRA)</span></td>
+            </tr>
+            <tr>
+              <td>Modèle IA (génération)</td>
+              <td><span class="tag lavender">FLUX.2 Pro</span></td>
+              <td><span class="tag lavender">Propriétaire</span></td>
+              <td><span class="tag lavender">Propriétaire</span></td>
+              <td><span class="tag lavender">SD + LoRA</span></td>
+            </tr>
+            <tr>
+              <td>IA continuité (Ariane)</td>
+              <td><span class="tag green">✓ Oui</span></td>
+              <td><span class="tag red">✗ Non</span></td>
+              <td><span class="tag red">✗ Non</span></td>
+              <td><span class="tag red">✗ Non</span></td>
+            </tr>
+            <tr>
+              <td>Export PNG panel + chapitre</td>
+              <td><span class="tag green">✓ Oui</span></td>
+              <td><span class="tag orange">~ Partiel</span></td>
+              <td><span class="tag green">✓ Oui</span></td>
+              <td><span class="tag red">✗ Non</span></td>
+            </tr>
+            <tr>
+              <td>Éditeur canvas (blocs + bulles SVG)</td>
+              <td><span class="tag green">✓ Oui</span></td>
+              <td><span class="tag red">✗ Non</span></td>
+              <td><span class="tag orange">~ Partiel</span></td>
+              <td><span class="tag red">✗ Non</span></td>
+            </tr>
+            <tr>
+              <td>Publication intégrée</td>
+              <td><span class="tag red">✗ Non</span></td>
+              <td><span class="tag green">✓ Oui</span></td>
+              <td><span class="tag green">✓ Oui (lock-in)</span></td>
+              <td><span class="tag red">✗ Non</span></td>
+            </tr>
+            <tr>
+              <td>Plan gratuit</td>
+              <td><span class="tag orange">20 crédits/mois</span></td>
+              <td><span class="tag orange">Limité</span></td>
+              <td><span class="tag green">100 gen/jour*</span></td>
+              <td><span class="tag orange">Limité</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p style="font-size:0.78rem;color:var(--text-muted);margin-top:0.5rem;">* Dashtoon freemium oblige publication exclusive sur leur plateforme.</p>
+    </div>
+  </section>
+
+  <!-- ═══ 2. AUDIT TECHNIQUE ═══ -->
+  <section id="technique">
+    <div class="section-header">
+      <span class="section-icon">🛠️</span>
+      <h2>Audit Technique</h2>
+    </div>
+    <div class="section-body">
+
+      <div class="scores-grid" style="margin-bottom:2rem;">
+        <div class="score-card">
+          <div class="score-label">Qualité du code</div>
+          <div class="score-value medium">7<span style="font-size:1rem;color:var(--text-muted)">/10</span></div>
+          <div class="score-justif">Architecture hooks/services propre. God Components (2 500+ lignes) à refactoriser.</div>
+        </div>
+        <div class="score-card">
+          <div class="score-label">Architecture</div>
+          <div class="score-value good">7.5<span style="font-size:1rem;color:var(--text-muted)">/10</span></div>
+          <div class="score-justif">42 migrations, Edge Functions bien séparées, Stripe intégré, lazy loading.</div>
+        </div>
+        <div class="score-card">
+          <div class="score-label">Performance</div>
+          <div class="score-value medium">6.5<span style="font-size:1rem;color:var(--text-muted)">/10</span></div>
+          <div class="score-justif">Canvas 100 000px non virtualisé. 66 hooks dans ChapterDetail.</div>
+        </div>
+        <div class="score-card">
+          <div class="score-label">Sécurité</div>
+          <div class="score-value good">8.5<span style="font-size:1rem;color:var(--text-muted)">/10</span></div>
+          <div class="score-justif">RLS stricte, JWT PKCE, aucun service_role côté client, Zod aux frontières.</div>
+        </div>
+        <div class="score-card">
+          <div class="score-label">Dette technique</div>
+          <div class="score-value medium">6<span style="font-size:1rem;color:var(--text-muted)">/10</span></div>
+          <div class="score-justif">2 God Components critiques, TestSection en prod, incohérence TIER_CONFIG.</div>
+        </div>
+      </div>
+
+      <!-- Bug critique -->
+      <div class="alert danger">
+        <span class="alert-icon">🚨</span>
+        <div><strong>Bug / Incohérence critique — TIER_CONFIG :</strong> La Edge Function <code>generate-asset-image</code> autorise <strong>150 générations/mois</strong> pour le plan Créateur, alors que le frontend (<code>TIER_CONFIG</code> dans <code>types/index.ts</code>) en affiche <strong>100</strong>. L'utilisateur peut donc générer 50 images "gratuites" supplémentaires sans que l'UI ne le reflète. À corriger en priorité.</div>
+      </div>
+
+      <div class="alert warn">
+        <span class="alert-icon">⚠️</span>
+        <div><strong>God Components :</strong> <code>ChapterDetail.tsx</code> (2 501 lignes, 66 hooks React) et <code>LoreGraphView.tsx</code> (2 244 lignes) représentent les dettes techniques les plus importantes. Maintenance difficile, risque de régressions élevé à chaque modification.</div>
+      </div>
+
+      <!-- Détail par axe -->
+      <div class="table-wrap" style="margin-bottom:1.5rem;">
+        <table>
+          <thead>
+            <tr><th>Axe</th><th>Points positifs</th><th>Points d'attention</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Qualité code</strong></td>
+              <td>TypeScript strict (0 erreur tsc), hooks spécialisés, services découplés, commentaires WHY uniquement</td>
+              <td>ChapterDetail.tsx 2 501L · LoreGraphView.tsx 2 244L · TestSection.tsx en production</td>
+            </tr>
+            <tr>
+              <td><strong>Architecture</strong></td>
+              <td>42 migrations SQL traçées · Edge Functions séparées par responsabilité · Stripe intégré · Lazy loading App.tsx</td>
+              <td>30+ packages @radix-ui (vérifier inutilisés) · Pas de Storybook ni de tests E2E</td>
+            </tr>
+            <tr>
+              <td><strong>Performance</strong></td>
+              <td>React Query staleTime configuré · Lazy loading pages · XYFlow pour le graph lore</td>
+              <td>Canvas jusqu'à 100 000px sans virtualisation · 66 hooks dans ChapterDetail = re-renders potentiels</td>
+            </tr>
+            <tr>
+              <td><strong>Sécurité</strong></td>
+              <td>RLS toutes tables · JWT PKCE · refreshSession() avant Edge Functions · Stripe webhook en Edge Function</td>
+              <td>CORS origins dans _shared/cors.ts à auditer pour la prod · Vérifier wildcard vs domaines explicites</td>
+            </tr>
+            <tr>
+              <td><strong>Tests</strong></td>
+              <td>2 fichiers .test.ts présents (chapterCanvasImageHistory, panels)</td>
+              <td>Couverture très faible · Vitest non exécutable sans rollup natif en CI · 0 test E2E · 0 test Edge Functions</td>
+            </tr>
+            <tr>
+              <td><strong>Dépendances</strong></td>
+              <td>Stack moderne et à jour (React 18.3, Vite 7.3, TanStack Query 5.83, Framer Motion 12)</td>
+              <td>html2canvas @types/0.5.35 (types d'ancienne version) · lucide-react 0.462 (décalé vs latest)</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ 3. AUDIT PRODUIT ═══ -->
+  <section id="produit">
+    <div class="section-header">
+      <span class="section-icon">📦</span>
+      <h2>Audit Produit</h2>
+    </div>
+    <div class="section-body">
+
+      <div class="stat-row">
+        <div class="stat-pill">Pages : <strong>13</strong></div>
+        <div class="stat-pill">Edge Functions : <strong>12</strong></div>
+        <div class="stat-pill">Migrations DB : <strong>42</strong></div>
+        <div class="stat-pill">Composants : <strong>60+</strong></div>
+        <div class="stat-pill">Hooks : <strong>30</strong></div>
+        <div class="stat-pill">Services : <strong>18</strong></div>
+      </div>
+
+      <h3 style="font-family:'Quicksand',sans-serif;font-weight:700;font-size:1rem;color:var(--cream);margin-bottom:0.8rem;">Couverture vision vs livraison</h3>
+      <ul class="checklist" style="margin-bottom:1.5rem;">
+        <li><span class="check done">✓</span><div><strong>Style Template + images de référence</strong> — Livré. Génération FLUX.2 Pro, cohérence style par projet.</div></li>
+        <li><span class="check done">✓</span><div><strong>Asset Library (personnages / décors / objets)</strong> — Livré. Sheet System 4 angles, génération + stockage Supabase.</div></li>
+        <li><span class="check done">✓</span><div><strong>Scénario IA (Gemini Flash + Groq fallback)</strong> — Livré. Génération, découpage cases, NarraMind alertes.</div></li>
+        <li><span class="check done">✓</span><div><strong>Éditeur de cases (blocs image / couleur / bulles)</strong> — Livré. Canvas scroll vertical, undo/redo, export PNG.</div></li>
+        <li><span class="check done">✓</span><div><strong>NarraMind Compass (vectoriel pgvector)</strong> — Livré. Index Gemini text-embedding-004, propositions Lore.</div></li>
+        <li><span class="check done">✓</span><div><strong>Univers — Graphe Lore (cartographie)</strong> — Livré. XYFlow, fiches nœuds, connexions labelisées.</div></li>
+        <li><span class="check done">✓</span><div><strong>Plans Libre / Créateur / Studio + Stripe</strong> — Livré. Webhook, Checkout, Portal.</div></li>
+        <li><span class="check done">✓</span><div><strong>Dashboard Admin (KPIs, plans, users)</strong> — Livré.</div></li>
+        <li><span class="check warn">~</span><div><strong>Univers — Ariane amélioration continue</strong> — Partiel. Propositions Compass existent mais l'experience "Ariane scanne et enrichit le lore" reste à finaliser selon roadmap.</div></li>
+        <li><span class="check warn">~</span><div><strong>Export PNG panel + chapitre</strong> — Livré (html2canvas, commit a9f1279) : panel individuel (800×H) + chapitre complet assemblé verticalement (800×ΣH). <em>Manque encore :</em> presets LINE Webtoon / Tapas, export ZIP, haute résolution 2×.</div></li>
+        <li><span class="check fail">✗</span><div><strong>Mobile / PWA</strong> — Absent. Pas de responsive adapté à la création mobile.</div></li>
+      </ul>
+
+      <h3 style="font-family:'Quicksand',sans-serif;font-weight:700;font-size:1rem;color:var(--cream);margin-bottom:0.8rem;">Incohérences identifiées</h3>
+      <ul class="checklist" style="margin-bottom:1.5rem;">
+        <li><span class="check fail">!</span><div><strong>TIER_CONFIG Créateur :</strong> 100 crédits affichés en UI, 150 autorisés par l'Edge Function. Discordance directe.</div></li>
+        <li><span class="check warn">~</span><div><strong>TestSection.tsx :</strong> Composant de tests/debug présent dans <code>src/components/project/</code>. Visible et accessible depuis ProjectDetail en production.</div></li>
+        <li><span class="check warn">~</span><div><strong>LoreFriseView.tsx :</strong> Composant "frise" présent dans le codebase alors que l'ADN Univers (CLAUDE.md) exclut explicitement la frise chronologique. Feature orpheline ?</div></li>
+        <li><span class="check warn">~</span><div><strong>Dashboard "À revoir" :</strong> Noté explicitement dans UX.md. Le Dashboard reste en état "v1 non finalisée" depuis la livraison.</div></li>
+        <li><span class="check warn">~</span><div><strong>Prolifération composants Ariane :</strong> 5 composants Ariane distincts (ArianeBubble, ArianeContinuityPanel, ArianeTabTourOverlay, ArianeNarrativeSheet, ArianeAnalysisModal). Risque de fragmentation de l'expérience.</div></li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ═══ 4. AUDIT UX / UI ═══ -->
+  <section id="ux">
+    <div class="section-header">
+      <span class="section-icon">🎨</span>
+      <h2>Audit UX / UI</h2>
+    </div>
+    <div class="section-body">
+
+      <h3 style="font-family:'Quicksand',sans-serif;font-weight:700;font-size:1rem;color:var(--cream);margin-bottom:1rem;">Fluidité des parcours</h3>
+      <div class="table-wrap" style="margin-bottom:1.5rem;">
+        <table>
+          <thead><tr><th>Parcours</th><th>Statut</th><th>Friction identifiée</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Inscription → Première génération</td>
+              <td><span class="tag green">Fluide</span></td>
+              <td>Parcours progressif (déblocage menus) bien pensé. Ariane onboarding intégré.</td>
+            </tr>
+            <tr>
+              <td>Création d'asset (style → génération)</td>
+              <td><span class="tag green">Fluide</span></td>
+              <td>Sheet System fonctionnel. Quota affiché en temps réel.</td>
+            </tr>
+            <tr>
+              <td>Scénario → Découpage → Cases</td>
+              <td><span class="tag orange">Friction légère</span></td>
+              <td>Transition Scénario → Éditeur via onglet, pas de lien direct case-by-case depuis le scénario découpé.</td>
+            </tr>
+            <tr>
+              <td>Édition canvas (blocs + bulles)</td>
+              <td><span class="tag orange">Friction moyenne</span></td>
+              <td>ChapterDetail très chargé (2 501L = beaucoup d'états visuels). Interface probablement dense.</td>
+            </tr>
+            <tr>
+              <td>Univers (graphe lore)</td>
+              <td><span class="tag orange">Friction légère</span></td>
+              <td>Atterrissage direct sur le graphe ReactFlow sans landing/intro. Pas de guide "premier nœud".</td>
+            </tr>
+            <tr>
+              <td>Dashboard</td>
+              <td><span class="tag red">À refondre</span></td>
+              <td>Noté "À revoir" dans UX.md depuis des mois. Manque de valeur ajoutée (statistiques, last activity, suggestions).</td>
+            </tr>
+            <tr>
+              <td>Plans &amp; Upgrade</td>
+              <td><span class="tag green">Fonctionnel</span></td>
+              <td>Page Plans (673L) + Stripe. Quota Reached Dialog présent. Bonne clarté des niveaux.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 style="font-family:'Quicksand',sans-serif;font-weight:700;font-size:1rem;color:var(--cream);margin-bottom:1rem;">Cohérence visuelle</h3>
+      <ul class="checklist" style="margin-bottom:1.5rem;">
+        <li><span class="check done">✓</span><div><strong>Tokens HSL respectés</strong> — Vérification spot-check : aucune couleur hardcodée hors SVG Ariane (justifié pour le composant iconique).</div></li>
+        <li><span class="check done">✓</span><div><strong>Quicksand + Nunito</strong> — Typographie DreamWeave correcte. Inter absent des composants UI.</div></li>
+        <li><span class="check done">✓</span><div><strong>Mode dark permanent</strong> — Correctement implémenté (useTheme hook, next-themes).</div></li>
+        <li><span class="check done">✓</span><div><strong>Glassmorphisme .glass</strong> — Appliqué cohéremment aux cartes. Animations Framer Motion exclusivement sur transform/opacity.</div></li>
+        <li><span class="check warn">~</span><div><strong>shadcn/ui restyled</strong> — À vérifier cas par cas. Risque d'apparition de composants shadcn "par défaut" dans les nouveaux développements.</div></li>
+      </ul>
+
+      <h3 style="font-family:'Quicksand',sans-serif;font-weight:700;font-size:1rem;color:var(--cream);margin-bottom:1rem;">Comparaison standards UX concurrents</h3>
+      <div class="cards-grid">
+        <div class="card">
+          <div class="card-title">📱 Mobile-first</div>
+          <div class="card-desc">Jenova et Dashtoon sont mobile-first natifs (webtoon = lecture mobile). DreamWeave est desktop-only. Manque à terme pour les créateurs jeunes (14-25 ans, cible principale).</div>
+        </div>
+        <div class="card">
+          <div class="card-title">🎯 Onboarding progressif</div>
+          <div class="card-desc">DreamWeave a une longueur d'avance avec le parcours progressif (déblocage onglets + Ariane). Jenova a un onboarding plus linéaire et moins contextuel.</div>
+        </div>
+        <div class="card">
+          <div class="card-title">🔄 Feedback génération</div>
+          <div class="card-desc">Le feedback pendant la génération (loader, état) semble correct d'après l'architecture. À vérifier que le skeleton loading est présent sur tous les points de génération.</div>
+        </div>
+        <div class="card">
+          <div class="card-title">📤 Export</div>
+          <div class="card-desc">Concurrent majeur : export optimisé par plateforme (LINE, Tapas) chez Jenova. DreamWeave : export PNG panel + chapitre complet assemblé livré. Manque encore : presets dimensionnels LINE/Tapas et export ZIP. Point de friction pour les créateurs qui publient.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ 5. PISTES D'AMÉLIORATION ═══ -->
+  <section id="ameliorations">
+    <div class="section-header">
+      <span class="section-icon">💡</span>
+      <h2>Pistes d'amélioration</h2>
+    </div>
+    <div class="section-body">
+
+      <!-- Suppressions -->
+      <div class="improve-group">
+        <h3 style="color:var(--red);">🗑️ Suppressions</h3>
+        <div class="improve-list">
+          <div class="improve-item">
+            <div class="improve-item-top">
+              <strong>Retirer TestSection.tsx de la production</strong>
+              <span class="tag red">P0</span><span class="tag orange">Rapide</span>
+            </div>
+            <p>Composant de debug accessible depuis ProjectDetail en prod. Expose des actions admin (reset Ariane, mock alerts) à tout utilisateur connaissant l'UI. À déplacer derrière un flag admin ou supprimer du bundle prod.</p>
+          </div>
+          <div class="improve-item">
+            <div class="improve-item-top">
+              <strong>Supprimer ou archiver LoreFriseView.tsx</strong>
+              <span class="tag orange">P1</span><span class="tag orange">Rapide</span>
+            </div>
+            <p>Incohérent avec l'ADN Univers (cartographie uniquement, pas de frise temporelle selon CLAUDE.md). Feature orpheline qui charge le bundle inutilement.</p>
+          </div>
+          <div class="improve-item">
+            <div class="improve-item-top">
+              <strong>Auditer et retirer les @radix-ui inutilisés</strong>
+              <span class="tag blue">P2</span><span class="tag blue">Moyen</span>
+            </div>
+            <p>30+ packages @radix-ui dans le bundle. Un tree-shaking check (<code>npx depcheck</code>) permettrait d'identifier et supprimer les composants jamais importés → réduction du bundle JS.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Améliorations -->
+      <div class="improve-group">
+        <h3 style="color:var(--orange);">⚡ Améliorations</h3>
+        <div class="improve-list">
+          <div class="improve-item">
+            <div class="improve-item-top">
+              <strong>Corriger l'incohérence TIER_CONFIG Créateur (100 vs 150)</strong>
+              <span class="tag red">P0 — Bug</span><span class="tag orange">Rapide</span>
+            </div>
+            <p>Aligner <code>generate-asset-image/index.ts</code> (150) avec <code>src/types/index.ts</code> (100). Décider de la valeur cible et synchroniser les deux sources.</p>
+          </div>
+          <div class="improve-item">
+            <div class="improve-item-top">
+              <strong>Refactoriser ChapterDetail.tsx</strong>
+              <span class="tag red">P0 — Dette</span><span class="tag red">Long</span>
+            </div>
+            <p>2 501 lignes / 66 hooks React = God Component critique. Découper en composants focalisés : <code>PanelManager</code>, <code>CanvasEditorCore</code>, <code>PanelHistorySidebar</code>. Chaque composant &lt; 400L.</p>
+          </div>
+          <div class="improve-item">
+            <div class="improve-item-top">
+              <strong>Refondre le Dashboard</strong>
+              <span class="tag orange">P1</span><span class="tag blue">Moyen</span>
+            </div>
+            <p>Marqué "À revoir" depuis des mois. Proposer : last activity timeline, progression par projet (% chapitres complétés), suggestions Ariane actives, accès rapide au dernier chapitre édité.</p>
+          </div>
+          <div class="improve-item">
+            <div class="improve-item-top">
+              <strong>Landing page — Waitlist &amp; Social Proof</strong>
+              <span class="tag red">P1 — Lancement</span><span class="tag orange">Moyen</span>
+            </div>
+            <p>La Landing actuelle (650L) est bien construite mais n'a pas de capture email / waitlist ni de témoignages. Ajouter un formulaire waitlist et 2-3 quotes utilisateurs avant le lancement public.</p>
+          </div>
+          <div class="improve-item">
+            <div class="improve-item-top">
+              <strong>Évaluer migration FLUX.1 Kontext Pro/Max</strong>
+              <span class="tag orange">P2</span><span class="tag blue">Moyen</span>
+            </div>
+            <p>FLUX.1 Kontext Max est identifié en mai 2026 comme supérieur à FLUX.2 Pro sur la précision et la typographie. Faire un test comparatif fal.ai sur des prompts DreamWeave réels avant de décider. Prix similaire ($0.03/MP).
+            <span class="source"><a href="https://www.siliconflow.com/articles/en/best-open-source-models-for-comics-and-manga" target="_blank">Source : siliconflow.com ↗</a></span></p>
+          </div>
+          <div class="improve-item">
+            <div class="improve-item-top">
+              <strong>Consolider les composants Ariane</strong>
+              <span class="tag blue">P2</span><span class="tag blue">Moyen</span>
+            </div>
+            <p>5 composants Ariane distincts créent de la fragmentation. Unifier ArianeContinuityPanel + ArianeNarrativeSheet + ArianeAnalysisModal en un seul drawer contextuel avec onglets internes.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Ajouts -->
+      <div class="improve-group">
+        <h3 style="color:var(--green);">➕ Ajouts — Nouvelles fonctionnalités</h3>
+        <div class="improve-list">
+          <div class="improve-item">
+            <div class="improve-item-top">
+              <strong>Export presets plateformes (ZIP + dimensionnels LINE/Tapas)</strong>
+              <span class="tag orange">P1</span><span class="tag blue">Moyen</span>
+            </div>
+            <p>L'export PNG panel individuel et chapitre complet (800×ΣH) est livré. Gap restant : presets dimensionnels LINE Webtoon (800×1280), Tapas, export ZIP du chapitre, haute résolution 2×. Jenova les propose déjà. Impact direct sur la rétention des créateurs qui publient.
+            <span class="source"><a href="https://www.jenova.ai/en/resources/ai-webtoon-creator" target="_blank">Source : jenova.ai mars 2026 ↗</a></span></p>
+          </div>
+          <div class="improve-item">
+            <div class="improve-item-top">
+              <strong>Traduction IA des bulles de dialogue</strong>
+              <span class="tag orange">P2</span><span class="tag blue">Moyen</span>
+            </div>
+            <p>WEBTOON Canvas lance son programme de traduction IA en mars 2026. Les créateurs francophones ciblant un public international sont demandeurs. Intégration Gemini Flash sur le contenu des bulles existantes.
+            <span class="source"><a href="https://kcomicsbeat.com/2026/03/26/webtoon-pushes-to-expand-indie-creators-reach-on-canvas-introduces-ai-powered-translation-program/" target="_blank">Source : kcomicsbeat.com mars 2026 ↗</a></span></p>
+          </div>
+          <div class="improve-item">
+            <div class="improve-item-top">
+              <strong>Capture waitlist + page teasing pré-lancement</strong>
+              <span class="tag red">P1 — Marketing</span><span class="tag orange">Rapide</span>
+            </div>
+            <p>Avant le lancement public, une waitlist email permet de construire une audience et de mesurer l'appétit produit. À intégrer directement dans la Landing ou via une page dédiée.</p>
+          </div>
+          <div class="improve-item">
+            <div class="improve-item-top">
+              <strong>Virtualisation du canvas (panels &gt; 10 000px)</strong>
+              <span class="tag blue">P3</span><span class="tag red">Long</span>
+            </div>
+            <p>Canvas théorique jusqu'à 100 000px sans virtualisation. Sur des chapitres longs (20+ cases), les performances peuvent se dégrader significativement. Implémenter une virtualisation des panels hors viewport.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ 6. STATUT LANCEMENT ═══ -->
+  <section id="lancement">
+    <div class="section-header">
+      <span class="section-icon">🚀</span>
+      <h2>Statut de mise en ligne</h2>
+    </div>
+    <div class="section-body">
+
+      <div class="alert info">
+        <span class="alert-icon">📍</span>
+        <div><strong>Contexte actuel :</strong> Déployé sur Vercel (<code>vercel.json</code> configuré avec SPA rewrite), Edge Functions Supabase en production. <strong>Non communiqué publiquement.</strong> Stripe intégré mais non testé en conditions réelles à grande échelle.</div>
+      </div>
+
+      <h3 style="font-family:'Quicksand',sans-serif;font-weight:700;font-size:1rem;color:var(--cream);margin-bottom:1rem;">Checklist de lancement priorisée</h3>
+      <ul class="checklist" style="margin-bottom:1.5rem;">
+        <li><span class="check fail">P0</span><div><strong>Corriger TIER_CONFIG Créateur (100 vs 150 crédits)</strong> — Bug de cohérence facturation/affichage. Bloquant avant lancement.</div></li>
+        <li><span class="check fail">P0</span><div><strong>Retirer TestSection.tsx du bundle prod</strong> — Sécurité/UX. Accessible par les utilisateurs finaux.</div></li>
+        <li><span class="check fail">P0</span><div><strong>Tester le flow Stripe end-to-end</strong> — Checkout → Webhook → mise à jour plan → accès features. En prod avec une vraie CB test.</div></li>
+        <li><span class="check warn">P1</span><div><strong>Vérifier CORS origins en production</strong> — S'assurer que <code>_shared/cors.ts</code> n'autorise pas de wildcard en prod.</div></li>
+        <li><span class="check warn">P1</span><div><strong>Ajouter monitoring / error tracking</strong> — Sentry ou équivalent. Aucun observability visible dans le codebase actuel.</div></li>
+        <li><span class="check warn">P1</span><div><strong>Landing page : waitlist + témoignages</strong> — Capturer les emails avant annonce publique.</div></li>
+        <li><span class="check warn">P1</span><div><strong>Tester le quota Libre (20 crédits) sur parcours complet</strong> — S'assurer que QuotaReachedDialog s'affiche proprement et que l'upgrade vers Créateur est fluide.</div></li>
+        <li><span class="check warn">P2</span><div><strong>Rédiger une Privacy Policy &amp; CGU</strong> — Obligatoire pour Stripe et pour se conformer au RGPD. Non visible dans le codebase.</div></li>
+        <li><span class="check warn">P2</span><div><strong>Optimiser les images de la Landing</strong> — Vérifier les formats (WebP), le lazy loading, le LCP pour le SEO.</div></li>
+        <li><span class="check warn">P2</span><div><strong>Configurer un domaine custom sur Vercel</strong> — dreamweave.app ou équivalent. L'URL Vercel générée ne convient pas au lancement public.</div></li>
+        <li><span class="check warn">P3</span><div><strong>Tests de charge Edge Functions</strong> — Simuler 50 générations simultanées sur fal.ai / Gemini. Vérifier les timeouts (100s configurés).</div></li>
+      </ul>
+
+      <h3 style="font-family:'Quicksand',sans-serif;font-weight:700;font-size:1rem;color:var(--cream);margin-bottom:1rem;">Estimation avant lancement public</h3>
+      <div class="progress-wrap">
+        <div class="progress-label"><span>Préparation lancement</span><span>~68%</span></div>
+        <div class="progress-bar"><div class="progress-fill" style="width:68%"></div></div>
+      </div>
+      <p style="font-size:0.87rem;color:var(--text-muted);margin-top:0.5rem;">Les P0 représentent 1-2 jours de travail. Les P1 (monitoring, CGU, CORS) : 3-5 jours. Lancement réaliste dans <strong>2 semaines</strong> si focus total.</p>
+    </div>
+  </section>
+
+  <!-- ═══ 7. PLAN MARKETING ═══ -->
+  <section id="marketing">
+    <div class="section-header">
+      <span class="section-icon">📣</span>
+      <h2>Plan Marketing &amp; Actions concrètes</h2>
+    </div>
+    <div class="section-body">
+
+      <div class="alert info">
+        <span class="alert-icon">🎯</span>
+        <div><strong>Contexte :</strong> Marché en explosion (+33 % CAGR), fenêtre d'acquisition ouverte. DreamWeave a un avantage différenciant réel (pipeline complet, NarraMind, Ariane) qui n'est pas encore communiqué. Priorité : construire une audience <em>avant</em> le lancement public, pas après.</div>
+      </div>
+
+      <h3 style="font-family:'Quicksand',sans-serif;font-weight:700;font-size:1rem;color:var(--cream);margin:1rem 0 0.8rem;">Phase 0 — Pré-lancement (maintenant → J-14)</h3>
+      <div class="task-list" style="margin-bottom:1.5rem;">
+        <div class="task-item">
+          <div><div class="task-name">📧 Mettre en place une waitlist email</div><div class="task-desc">Intégrer un formulaire sur la Landing (Mailchimp, Brevo ou Supabase direct). Objectif : 200 emails avant annonce.</div></div>
+          <span class="tag red">Haute</span>
+          <span class="tag orange">Rapide</span>
+        </div>
+        <div class="task-item">
+          <div><div class="task-name">🎬 Enregistrer 1 vidéo démo complète (60-90s)</div><div class="task-desc">Flow : création projet → génération asset → scénario IA → composition case. Aucun montage nécessaire, juste un screen record propre.</div></div>
+          <span class="tag red">Haute</span>
+          <span class="tag orange">Rapide</span>
+        </div>
+        <div class="task-item">
+          <div><div class="task-name">📸 Créer le compte Instagram @dreamweave.app</div><div class="task-desc">Publier 3 posts "before/after" (prompt texte → visuel généré) avant l'annonce. Format Reels 9:16.</div></div>
+          <span class="tag red">Haute</span>
+          <span class="tag orange">Rapide</span>
+        </div>
+        <div class="task-item">
+          <div><div class="task-name">🐦 Créer le compte X/Twitter @dreamweave_ai</div><div class="task-desc">1 thread de présentation du projet + vision. Cible : communautés #webtoon #mangaka #comicsai.</div></div>
+          <span class="tag orange">Moyenne</span>
+          <span class="tag orange">Rapide</span>
+        </div>
+      </div>
+
+      <h3 style="font-family:'Quicksand',sans-serif;font-weight:700;font-size:1rem;color:var(--cream);margin:1rem 0 0.8rem;">Phase 1 — Lancement (J0 → J+30)</h3>
+      <div class="task-list" style="margin-bottom:1.5rem;">
+        <div class="task-item">
+          <div><div class="task-name">🚀 Lancer sur Product Hunt</div><div class="task-desc">Préparer la fiche (tagline, GIF démo, screenshots). Choisir un mardi ou mercredi pour maximiser l'audience. Mobiliser le réseau pour les upvotes J0.</div></div>
+          <span class="tag red">Haute</span>
+          <span class="tag blue">Moyen</span>
+        </div>
+        <div class="task-item">
+          <div><div class="task-name">📝 Post Reddit r/webtoons + r/comicbookcollecting</div><div class="task-desc">Partager le projet de manière authentique (témoignage createur, pas de pub directe). Mentionner le plan Libre gratuit.</div></div>
+          <span class="tag red">Haute</span>
+          <span class="tag orange">Rapide</span>
+        </div>
+        <div class="task-item">
+          <div><div class="task-name">🎯 Identifier 10 créateurs webtoon micro-influenceurs</div><div class="task-desc">Créateurs avec 1k-20k abonnés sur Instagram/TikTok. Leur offrir 3 mois Studio gratuits en échange d'un post honnête.</div></div>
+          <span class="tag red">Haute</span>
+          <span class="tag blue">Moyen</span>
+        </div>
+        <div class="task-item">
+          <div><div class="task-name">📺 Publier 3 vidéos TikTok "génération en direct"</div><div class="task-desc">Format : "Je génère mon personnage en 30 secondes avec DreamWeave". Hashtags #mangaai #webtoon #aiart.</div></div>
+          <span class="tag orange">Moyenne</span>
+          <span class="tag orange">Rapide</span>
+        </div>
+        <div class="task-item">
+          <div><div class="task-name">🌐 Rédiger 2 articles SEO longue traîne</div><div class="task-desc">"Comment créer un webtoon sans savoir dessiner" + "Meilleurs outils IA pour manga 2026". Cibler les requêtes identifiées dans le benchmark.</div></div>
+          <span class="tag orange">Moyenne</span>
+          <span class="tag blue">Moyen</span>
+        </div>
+      </div>
+
+      <h3 style="font-family:'Quicksand',sans-serif;font-weight:700;font-size:1rem;color:var(--cream);margin:1rem 0 0.8rem;">Phase 2 — Croissance organique (J+30 → J+90)</h3>
+      <div class="task-list">
+        <div class="task-item">
+          <div><div class="task-name">🤝 Approcher WEBTOON Canvas pour un partenariat</div><div class="task-desc">WEBTOON investit $47M dans l'écosystème créateurs en 2026. Proposer une intégration "Créé avec DreamWeave" + export direct vers Canvas.</div></div>
+          <span class="tag orange">Moyenne</span>
+          <span class="tag red">Long</span>
+        </div>
+        <div class="task-item">
+          <div><div class="task-name">💬 Ouvrir un Discord communauté DreamWeave</div><div class="task-desc">Canal feedback, showcase des créations, annonces. Objectif : 500 membres à J+60. Point de rétention fort.</div></div>
+          <span class="tag orange">Moyenne</span>
+          <span class="tag orange">Rapide</span>
+        </div>
+        <div class="task-item">
+          <div><div class="task-name">🏆 Programme "Creator Spotlight" mensuel</div><div class="task-desc">Mettre en avant un créateur DreamWeave chaque mois sur tous les canaux. Crée du contenu UGC et fidélise les early adopters.</div></div>
+          <span class="tag blue">Basse</span>
+          <span class="tag blue">Moyen</span>
+        </div>
+        <div class="task-item">
+          <div><div class="task-name">📊 Mettre en place Google Analytics 4 + événements</div><div class="task-desc">Tracker les conversions clés : signup → première génération → premier chapitre → upgrade plan. Indispensable pour optimiser le funnel.</div></div>
+          <span class="tag orange">Moyenne</span>
+          <span class="tag orange">Rapide</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    Rapport généré automatiquement par Claude · DreamWeave Audit Récurrent · 13 juin 2026
+    <br/>Sources : <a href="https://dl.acm.org/doi/10.1145/3772318.3790343" target="_blank">CHI 2026</a> · <a href="https://aitribune.net/2026/05/08/ai-webtoon-in-2026/" target="_blank">AI Tribune mai 2026</a> · <a href="https://anifusion.ai/articles/best-ai-manga-generators-2026/" target="_blank">Anifusion 2026</a> · <a href="https://fal.ai/" target="_blank">fal.ai juin 2026</a> · <a href="https://kcomicsbeat.com/2026/03/26/webtoon-pushes-to-expand-indie-creators-reach-on-canvas-introduces-ai-powered-translation-program/" target="_blank">kcomicsbeat mars 2026</a>
+  </footer>
+
+</div>
+</body>
+</html>

@@ -34,6 +34,7 @@ function snapToFluxDim(v: number): number {
 }
 
 import { getCorsHeaders, makeJsonResponse, isAllowedOriginConfigured } from "../_shared/cors.ts";
+import { getTierLimits, type UserPlan } from "../_shared/tierConfig.ts";
 
 function clip(value: string, max = 1200): string {
   if (value.length <= max) return value;
@@ -706,11 +707,12 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "JWT invalide ou expiré" }, 401);
     }
 
-    // Plan utilisateur : détermine si on peut utiliser les images de référence (cohérence graphique).
-    let userPlan: "libre" | "createur" | "studio" = "libre";
+    // Plan utilisateur + vérification quota (même logique que generate-asset-image)
+    let userPlan: UserPlan = "libre";
+    let billingPeriodStart: string | null = null;
     try {
       const profileRes = await fetch(
-        `${supabaseUrl}/rest/v1/profiles?user_id=eq.${encodeURIComponent(userId)}&select=plan`,
+        `${supabaseUrl}/rest/v1/profiles?user_id=eq.${encodeURIComponent(userId)}&select=plan,billing_period_start`,
         {
           headers: {
             apikey: serviceKey,
@@ -720,12 +722,57 @@ Deno.serve(async (req) => {
         }
       );
       if (profileRes.ok) {
-        const profiles = (await profileRes.json()) as { plan?: string }[];
+        const profiles = (await profileRes.json()) as { plan?: string; billing_period_start?: string | null }[];
         const p = profiles?.[0]?.plan;
         if (p === "createur" || p === "studio") userPlan = p;
+        billingPeriodStart = profiles?.[0]?.billing_period_start ?? null;
       }
     } catch {
       userPlan = "libre";
+    }
+
+    // Calcul de la période d'usage courante
+    const now = new Date();
+    let periodStart: Date;
+    if (billingPeriodStart) {
+      const billingDay = new Date(billingPeriodStart).getDate();
+      const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), billingDay);
+      periodStart = thisMonthStart <= now
+        ? thisMonthStart
+        : new Date(now.getFullYear(), now.getMonth() - 1, billingDay);
+    } else {
+      periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    }
+
+    // Vérification quota — bloque la génération si le quota mensuel est atteint
+    const limits = getTierLimits(userPlan);
+    const usageRes = await fetch(
+      `${supabaseUrl}/rest/v1/usage?user_id=eq.${encodeURIComponent(userId)}&action=eq.image_generation&created_at=gte.${periodStart.toISOString()}&select=id`,
+      {
+        headers: {
+          apikey: serviceKey,
+          Authorization: `Bearer ${serviceKey}`,
+          "Content-Type": "application/json",
+          Prefer: "count=exact",
+        },
+      }
+    );
+    const usageCount = usageRes.ok
+      ? parseInt(usageRes.headers.get("content-range")?.split("/")[1] ?? "0", 10)
+      : 0;
+
+    if (usageCount >= limits.maxGenerationsPerMonth) {
+      return jsonResponse(
+        {
+          error: "Quota mensuel atteint",
+          details: `Vous avez utilisé ${usageCount}/${limits.maxGenerationsPerMonth} générations ce mois-ci.`,
+          quota_exceeded: true,
+          current_usage: usageCount,
+          max_usage: limits.maxGenerationsPerMonth,
+          plan: userPlan,
+        },
+        429
+      );
     }
 
     let body: {

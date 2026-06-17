@@ -32,32 +32,7 @@ const NO_BORDER_NEGATIVE_PROMPT =
   "postcard, poster frame, image frame, canvas frame, image inside image, " +
   "collage, grid, reference sheet, contact sheet, color chart";
 
-// ── Limites par tier ──────────────────────────────────────────
-type UserPlan = "libre" | "createur" | "studio";
-
-interface TierLimits {
-  maxGenerationsPerMonth: number;
-  allowReferenceImages: boolean;
-  model: string;
-}
-
-const TIER_LIMITS: Record<UserPlan, TierLimits> = {
-  libre: {
-    maxGenerationsPerMonth: 20,
-    allowReferenceImages: true,
-    model: "flux-2-pro",
-  },
-  createur: {
-    maxGenerationsPerMonth: 150,
-    allowReferenceImages: true,
-    model: "flux-2-pro",
-  },
-  studio: {
-    maxGenerationsPerMonth: 500,
-    allowReferenceImages: true,
-    model: "flux-2-pro",
-  },
-};
+import { type UserPlan, TIER_LIMITS } from "../_shared/tierConfig.ts";
 
 import {
   buildCharacterPrompt,

@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from "react";
-import { LayoutPanelTop, Palette, MessageCircle, X, Download, History, LayoutList } from "lucide-react";
+import { LayoutPanelTop, Palette, MessageCircle, X, Download, History, LayoutList, Layers } from "lucide-react";
 import { CaseLayers } from "@/components/chapter/CaseLayers";
+import { ScenarioCasesPanel, type ValidatedCase } from "@/components/chapter/ScenarioCasesPanel";
 import { getPanelBlocks, getPanelColorBlocks, getPanelSpeechBubbles } from "@/services/panels";
 import type { ChapterCanvasImageHistoryRow } from "@/services/chapterCanvasImageHistory";
 import { ChapterImageHistoryList } from "@/components/chapter/ChapterImageHistoryList";
@@ -40,13 +41,13 @@ const COLOR_PRESETS_SIDEBAR = [
   { label: "Jaune",  color: "#fbbf24" },
 ] as const;
 
-export type SidebarTab = "blocs" | "couleurs" | "dialogue" | "historique" | "calques";
+export type SidebarTab = "cases-scenario" | "blocs" | "couleurs" | "dialogue" | "historique" | "calques";
 
-/** Bibliothèque (Cases, Couleurs, Dialogue, Calques) — chrome flyout lisible comme Couleurs ; historique gardé compact. */
+/** Bibliothèque (Cases du scénario, Cases, Couleurs, Dialogue, Calques) — chrome flyout lisible comme Couleurs ; historique gardé compact. */
 function isLibraryContentSidebarTab(
   tab: SidebarTab | null,
 ): tab is Exclude<SidebarTab, "historique"> {
-  return tab === "blocs" || tab === "couleurs" || tab === "dialogue" || tab === "calques";
+  return tab === "cases-scenario" || tab === "blocs" || tab === "couleurs" || tab === "dialogue" || tab === "calques";
 }
 
 interface EditorLeftSidebarProps {
@@ -72,6 +73,25 @@ interface EditorLeftSidebarProps {
   onSelectBlock: (v: { panelId: string; blockId: string } | null) => void;
   onSelectColorBlock: (v: { panelId: string; colorBlockId: string } | null) => void;
   onSelectSpeechBubble: (v: { panelId: string; bubbleId: string } | null) => void;
+  // ── Cases du scénario (onglet en haut du rail) ──
+  scenarioContent: string | null | undefined;
+  loadingScenario: boolean;
+  validatedCases: ValidatedCase[];
+  existingBlockPrompts: string[];
+  canUseCases: boolean;
+  onNavigateToPlans: () => void;
+  onCompose?: () => void;
+  isComposing?: boolean;
+  hasOutlineToCompose?: boolean;
+  hasExistingComposition?: boolean;
+  showRecomposeActions?: boolean;
+  onAcceptRecompose?: () => void;
+  onRefuseRecompose?: () => void;
+  isRefusingRecompose?: boolean;
+  onGenerateAll?: () => void;
+  isGeneratingAll?: boolean;
+  generateAllProgress?: { current: number; total: number } | null;
+  blocksToGenerateCount?: number;
 }
 
 export function EditorLeftSidebar({
@@ -96,6 +116,24 @@ export function EditorLeftSidebar({
   onSelectBlock,
   onSelectColorBlock,
   onSelectSpeechBubble,
+  scenarioContent,
+  loadingScenario,
+  validatedCases,
+  existingBlockPrompts,
+  canUseCases,
+  onNavigateToPlans,
+  onCompose,
+  isComposing,
+  hasOutlineToCompose,
+  hasExistingComposition,
+  showRecomposeActions,
+  onAcceptRecompose,
+  onRefuseRecompose,
+  isRefusingRecompose,
+  onGenerateAll,
+  isGeneratingAll,
+  generateAllProgress,
+  blocksToGenerateCount,
 }: EditorLeftSidebarProps) {
   const [draggingKey, setDraggingKey] = useState<string | null>(null);
 
@@ -107,6 +145,15 @@ export function EditorLeftSidebar({
     [panel],
   );
 
+  // Cases du découpage pas encore posées sur le canvas (badge du bouton).
+  // Pas de useMemo : validatedCases et existingBlockPrompts sont réalloués à
+  // chaque rendu par le parent, donc la mémoïsation ne cacherait jamais.
+  const unaddedCasesCount = validatedCases.filter(
+    (c) =>
+      c.description?.trim() &&
+      !existingBlockPrompts.some((p) => p.trim() === c.description?.trim()),
+  ).length;
+
   return (
     <aside
       className={cn(
@@ -116,6 +163,48 @@ export function EditorLeftSidebar({
     >
       {/* Onglets — en haut uniquement */}
       <div className="w-full flex flex-col items-stretch gap-1.5 px-1.5 pt-2 pb-2 sm:pt-2.5 sm:pb-2.5 shrink-0">
+        {/* Cases du scénario — tout en haut du rail */}
+        <button
+          type="button"
+          title={
+            canUseCases
+              ? unaddedCasesCount > 0
+                ? `${unaddedCasesCount} case${unaddedCasesCount > 1 ? "s" : ""} à ajouter au canvas · ${validatedCases.length} validée${validatedCases.length > 1 ? "s" : ""} au total`
+                : `Cases du scénario · ${validatedCases.length} validée${validatedCases.length > 1 ? "s" : ""}`
+              : "Réservé au plan Créateur — cliquez pour vous abonner"
+          }
+          aria-pressed={activeSidebarTab === "cases-scenario"}
+          onClick={() =>
+            canUseCases
+              ? onTabChange(activeSidebarTab === "cases-scenario" ? null : "cases-scenario")
+              : onNavigateToPlans()
+          }
+          className={cn(
+            "relative",
+            CHAPTER_EDITOR_RAIL_BTN_BASE,
+            activeSidebarTab === "cases-scenario"
+              ? CHAPTER_EDITOR_RAIL_BTN_ACTIVE
+              : CHAPTER_EDITOR_RAIL_BTN_IDLE,
+          )}
+        >
+          <Layers className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" strokeWidth={1.75} />
+          {canUseCases && unaddedCasesCount > 0 && (
+            <span
+              className={cn(
+                CHAPTER_EDITOR_RAIL_COUNT_BADGE_CLASS,
+                unaddedCasesCount > 99 && "min-w-7 px-1",
+              )}
+            >
+              {unaddedCasesCount > 99 ? "99+" : unaddedCasesCount}
+            </span>
+          )}
+          {!canUseCases && (
+            <span className="absolute -top-0.5 -right-0.5 bg-amber-400/30 text-amber-600 dark:text-amber-400 border border-amber-400/40 text-[7px] font-bold rounded px-0.5 tracking-wide leading-tight">
+              PRO
+            </span>
+          )}
+        </button>
+
         {([
           { id: "blocs" as const, icon: LayoutPanelTop, label: "Cases" },
           { id: "couleurs" as const, icon: Palette, label: "Couleurs" },
@@ -226,6 +315,7 @@ export function EditorLeftSidebar({
                 <kbd className="text-[10px] font-mono bg-muted text-muted-foreground border border-border px-1.5 py-px rounded-md leading-none">D</kbd>
               </>
             )}
+            {activeSidebarTab === "cases-scenario" && <>Cases du scénario</>}
             {activeSidebarTab === "calques" && <>Calques</>}
             {activeSidebarTab === "historique" && <>Historique</>}
           </span>
@@ -247,6 +337,27 @@ export function EditorLeftSidebar({
             isLibraryContentSidebarTab(activeSidebarTab) ? "p-5 space-y-4" : "p-4 space-y-3",
           )}
         >
+          {activeSidebarTab === "cases-scenario" && (
+            <ScenarioCasesPanel
+              scenarioContent={scenarioContent}
+              loadingScenario={loadingScenario}
+              validatedCases={validatedCases}
+              existingBlockPrompts={existingBlockPrompts}
+              newBlockDragGhostRef={newBlockDragGhostRef}
+              onCompose={onCompose}
+              isComposing={isComposing}
+              hasOutlineToCompose={hasOutlineToCompose}
+              hasExistingComposition={hasExistingComposition}
+              showRecomposeActions={showRecomposeActions}
+              onAcceptRecompose={onAcceptRecompose}
+              onRefuseRecompose={onRefuseRecompose}
+              isRefusingRecompose={isRefusingRecompose}
+              onGenerateAll={onGenerateAll}
+              isGeneratingAll={isGeneratingAll}
+              generateAllProgress={generateAllProgress}
+              blocksToGenerateCount={blocksToGenerateCount}
+            />
+          )}
           {activeSidebarTab === "calques" && (
             <CaseLayers
               panel={panel}

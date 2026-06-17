@@ -364,7 +364,7 @@ export default function ChapterDetail() {
     return cached && cached.length > 0 ? cached[0].id : null;
   });
   /** Outil à droite dans la modale d'édition — null = panel rétracté. */
-  const [panelEditorRightTool, setPanelEditorRightTool] = useState<"chapter-text" | "assets" | "cases" | null>(null);
+  const [panelEditorRightTool, setPanelEditorRightTool] = useState<"chapter-text" | "assets" | null>(null);
   /** Bloc sélectionné dans la modale (mode Personalisation) pour afficher le panneau droit ou gauche */
   const [selectedBlockIdInModal, setSelectedBlockIdInModal] = useState<{ panelId: string; blockId: string } | null>(null);
   /** Bloc de couleur sélectionné (onglet Couleurs) pour éditer la couleur */
@@ -1617,6 +1617,86 @@ export default function ChapterDetail() {
           onSelectBlock={setSelectedBlockIdInModal}
           onSelectColorBlock={setSelectedColorBlockIdInModal}
           onSelectSpeechBubble={setSelectedSpeechBubbleIdInModal}
+          scenarioContent={scenarioChapter?.content}
+          loadingScenario={loadingScenario}
+          validatedCases={validatedCases}
+          existingBlockPrompts={layout.blocks.map((b) => b.prompt ?? "")}
+          canUseCases={canUseCases}
+          onNavigateToPlans={() => navigate("/dashboard/plans")}
+          hasOutlineToCompose={
+            Array.isArray(linkedScenarioChapter?.panels_outline) &&
+            (linkedScenarioChapter.panels_outline as unknown[]).length > 0
+          }
+          isComposing={composeLayout.isPending}
+          hasExistingComposition={layout.blocks.length > 0}
+          showRecomposeActions={savedCompositionBeforeRecompose !== null && !composeLayout.isPending}
+          onAcceptRecompose={handleAcceptRecompose}
+          onRefuseRecompose={handleRefuseRecompose}
+          isRefusingRecompose={isRefusingRecompose}
+          onCompose={() => {
+            if (!linkedScenarioChapter?.panels_outline) return;
+            const isRecompose = layout.blocks.length > 0;
+            // Sauvegarder la composition actuelle avant d'écraser
+            if (isRecompose) {
+              setSavedCompositionBeforeRecompose({
+                layout: getPanelLayout(panel),
+                speechBubbles: getPanelSpeechBubbles(panel),
+              });
+            }
+            const outline = linkedScenarioChapter.panels_outline as Array<{
+              panel_number: number;
+              block_number?: number;
+              description: string;
+              text_excerpt?: string;
+              locked?: boolean;
+              scene_type?: string;
+              shot_type?: string;
+              effects?: string[];
+            }>;
+            // Blocs existants avec images — pour les préserver lors d'une recomposition
+            const existingBlocksForRecompose = isRecompose
+              ? getPanelLayout(panel).blocks
+                  .filter((b) => b.prompt?.trim())
+                  .map((b) => ({ prompt: b.prompt, image_url: b.image_url ?? null, name: b.name ?? null }))
+              : undefined;
+
+            composeLayout.mutate(
+              {
+                chapterId: chapterId!,
+                panelsOutline: outline,
+                projectStyle: project?.style_template ?? undefined,
+                characters: assets
+                  .filter((a) => a.asset_type === "character")
+                  .map((a) => a.name),
+                chapterTitle: chapter?.title ?? undefined,
+                chapterSynopsis: linkedScenarioChapter?.synopsis ?? undefined,
+                chapterScenarioContent: linkedScenarioChapter?.content ?? undefined,
+                existingBlocks: existingBlocksForRecompose,
+              },
+              {
+                onSuccess: (result) => {
+                  if (!isRecompose) {
+                    toast({
+                      title: `✨ ${result.blocksCount} blocs composés`,
+                      description: "La mise en page est prête. Génère maintenant les images !",
+                    });
+                  }
+                },
+                onError: (err) => {
+                  if (isRecompose) setSavedCompositionBeforeRecompose(null);
+                  toast({
+                    title: "Erreur de composition",
+                    description: err.message,
+                    variant: "destructive",
+                  });
+                },
+              }
+            );
+          }}
+          blocksToGenerateCount={layout.blocks.filter((b) => b.prompt?.trim() && !b.image_url).length}
+          onGenerateAll={handleGenerateAllBlocks}
+          isGeneratingAll={generatingAllProgress !== null}
+          generateAllProgress={generatingAllProgress}
         />
         {/* Centre : panel 800px de large exactement, zoomable via contrôles header ou Ctrl+Scroll */}
         <div
@@ -1877,86 +1957,6 @@ export default function ChapterDetail() {
           loadingScenario={loadingScenario}
           scenarioContent={scenarioChapter?.content}
           assets={assets}
-          validatedCases={validatedCases}
-          existingBlockPrompts={layout.blocks.map((b) => b.prompt ?? "")}
-          isUpdating={updatePanelMutation.isPending}
-          canUseCases={canUseCases}
-          newBlockDragGhostRef={newBlockDragGhostRef}
-          onNavigateToPlans={() => navigate("/dashboard/plans")}
-          hasOutlineToCompose={
-            Array.isArray(linkedScenarioChapter?.panels_outline) &&
-            (linkedScenarioChapter.panels_outline as unknown[]).length > 0
-          }
-          isComposing={composeLayout.isPending}
-          hasExistingComposition={layout.blocks.length > 0}
-          showRecomposeActions={savedCompositionBeforeRecompose !== null && !composeLayout.isPending}
-          onAcceptRecompose={handleAcceptRecompose}
-          onRefuseRecompose={handleRefuseRecompose}
-          isRefusingRecompose={isRefusingRecompose}
-          onCompose={() => {
-            if (!linkedScenarioChapter?.panels_outline) return;
-            const isRecompose = layout.blocks.length > 0;
-            // Sauvegarder la composition actuelle avant d'écraser
-            if (isRecompose) {
-              setSavedCompositionBeforeRecompose({
-                layout: getPanelLayout(panel),
-                speechBubbles: getPanelSpeechBubbles(panel),
-              });
-            }
-            const outline = linkedScenarioChapter.panels_outline as Array<{
-              panel_number: number;
-              block_number?: number;
-              description: string;
-              text_excerpt?: string;
-              locked?: boolean;
-              scene_type?: string;
-              shot_type?: string;
-              effects?: string[];
-            }>;
-            // Blocs existants avec images — pour les préserver lors d'une recomposition
-            const existingBlocksForRecompose = isRecompose
-              ? getPanelLayout(panel).blocks
-                  .filter((b) => b.prompt?.trim())
-                  .map((b) => ({ prompt: b.prompt, image_url: b.image_url ?? null, name: b.name ?? null }))
-              : undefined;
-
-            composeLayout.mutate(
-              {
-                chapterId: chapterId!,
-                panelsOutline: outline,
-                projectStyle: project?.style_template ?? undefined,
-                characters: assets
-                  .filter((a) => a.asset_type === "character")
-                  .map((a) => a.name),
-                chapterTitle: chapter?.title ?? undefined,
-                chapterSynopsis: linkedScenarioChapter?.synopsis ?? undefined,
-                chapterScenarioContent: linkedScenarioChapter?.content ?? undefined,
-                existingBlocks: existingBlocksForRecompose,
-              },
-              {
-                onSuccess: (result) => {
-                  if (!isRecompose) {
-                    toast({
-                      title: `✨ ${result.blocksCount} blocs composés`,
-                      description: "La mise en page est prête. Génère maintenant les images !",
-                    });
-                  }
-                },
-                onError: (err) => {
-                  if (isRecompose) setSavedCompositionBeforeRecompose(null);
-                  toast({
-                    title: "Erreur de composition",
-                    description: err.message,
-                    variant: "destructive",
-                  });
-                },
-              }
-            );
-          }}
-          blocksToGenerateCount={layout.blocks.filter((b) => b.prompt?.trim() && !b.image_url).length}
-          onGenerateAll={handleGenerateAllBlocks}
-          isGeneratingAll={generatingAllProgress !== null}
-          generateAllProgress={generatingAllProgress}
           settings={settings}
           onUpdateSettings={updateSettings}
         />

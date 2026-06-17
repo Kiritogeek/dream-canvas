@@ -316,55 +316,65 @@ DELETE /rest/v1/chapters?id=eq.{chapter_id}
 
 ---
 
-### 2.6 Panels
+### 2.6 Canvas de chapitre (`chapter_canvases`)
 
-#### Lister les panels d'un chapitre
+> ⚠️ La table `panels` a été **renommée `chapter_canvases`** (migration 20260424) et son modèle a changé : **une seule ligne par chapitre** représentant le canvas vertical entier (800px × jusqu'à 100 000px). La mise en page n'est plus une liste de panels mais un **layout JSONB** (`{ blocks[], panelHeight }`), avec `speech_bubbles` et `color_blocks` en colonnes JSONB séparées.
 
-```
-GET /rest/v1/panels?chapter_id=eq.{chapter_id}&select=*&order=panel_number.asc
-```
-
-#### Créer un panel
+#### Récupérer le canvas d'un chapitre
 
 ```
-POST /rest/v1/panels
+GET /rest/v1/chapter_canvases?chapter_id=eq.{chapter_id}&select=*
+```
+
+**Réponse** (0 ou 1 ligne) :
+```json
+[
+  {
+    "id": "canvas-uuid",
+    "user_id": "user-uuid",
+    "chapter_id": "chapter-uuid",
+    "panel_number": 1,
+    "layout": {
+      "blocks": [
+        { "id": "blk1", "x": 0, "y": 0, "width": 800, "height": 1000,
+          "prompt": "Luna sur un toit sous l'orage", "asset_refs": ["asset-uuid"],
+          "image_url": "https://.../blocks/blk1.png", "scene_type": "establishing" }
+      ],
+      "panelHeight": 5000
+    },
+    "speech_bubbles": [
+      { "id": "b1", "type": "speech", "text": "Qu'est-ce qui m'arrive ?",
+        "character": "Luna", "position": { "x": 200, "y": 100 } }
+    ],
+    "color_blocks": [],
+    "image_history": []
+  }
+]
+```
+
+#### Créer / mettre à jour le canvas (upsert)
+
+```
+POST /rest/v1/chapter_canvases     (ou PATCH si la ligne existe)
 Content-Type: application/json
+Prefer: resolution=merge-duplicates
 
 {
   "user_id": "{user_id}",
   "chapter_id": "{chapter_id}",
   "panel_number": 1,
-  "prompt": "Vue large de la ville sous l'orage, Luna debout sur un toit...",
-  "dialogue": "C'est quoi cette lumière ?",
-  "narration": "Cette nuit-là, tout a changé."
+  "layout": { "blocks": [ ... ], "panelHeight": 5000 },
+  "speech_bubbles": [ ... ],
+  "color_blocks": [ ... ]
 }
 ```
 
-#### Mettre à jour un panel
+> L'image de chaque bloc est produite par l'Edge Function `generate-panel-image` (§3.2) ; le frontend écrit ensuite l'URL retournée dans `layout.blocks[].image_url`. La composition automatique du `layout` peut être déléguée à `compose-chapter-layout` (§3.0).
+
+#### Supprimer le canvas d'un chapitre
 
 ```
-PATCH /rest/v1/panels?id=eq.{panel_id}
-Content-Type: application/json
-
-{
-  "prompt": "Gros plan sur le visage de Luna, éclairs se reflétant dans ses yeux...",
-  "dialogue": "Qu'est-ce qui m'arrive ?",
-  "speech_bubbles": [
-    {
-      "id": "b1",
-      "type": "speech",
-      "text": "Qu'est-ce qui m'arrive ?",
-      "character": "Luna",
-      "position": { "x": 200, "y": 100 }
-    }
-  ]
-}
-```
-
-#### Supprimer un panel
-
-```
-DELETE /rest/v1/panels?id=eq.{panel_id}
+DELETE /rest/v1/chapter_canvases?id=eq.{canvas_id}
 ```
 
 ---
@@ -764,4 +774,4 @@ const { data, error } = await supabase.storage
 
 ---
 
-*Dernière mise à jour : 7 juin 2026 (audit) — liste réelle des Edge Functions (ajout narramind-compass, compose-chapter-layout, Stripe, admin), FAL.ai FLUX.2 Pro / Edit pour tous les tiers (endpoint fal.run, header `Authorization: Key`, payload réel), plans libre/createur/studio, résolutions réelles.*
+*Dernière mise à jour : 13 juin 2026 (audit vérité 2) — §2.6 `panels` → `chapter_canvases` (1 ligne/chapitre, layout JSONB blocks + speech_bubbles + color_blocks, upsert), renvoi vers compose-chapter-layout. Précédente (7 juin) : liste réelle des Edge Functions (narramind-compass, compose-chapter-layout, Stripe, admin), FAL.ai FLUX.2 Pro / Edit pour tous les tiers (endpoint fal.run, header `Authorization: Key`, payload réel), plans libre/createur/studio, résolutions réelles.*

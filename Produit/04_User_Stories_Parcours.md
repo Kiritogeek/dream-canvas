@@ -273,7 +273,7 @@
                     ┌─────────────┐
                     │  ÉDITEUR    │ ← Blocs image (drag/resize/génération)
                     │  Canvas     │ ← Blocs couleur (ambiance)
-                    │  (visuel)   │ ← Bulles SVG (6 types + texte brut)
+                    │  (visuel)   │ ← Bulles SVG (12 types + texte libre)
                     └──────┬──────┘ ← Undo/Redo + raccourcis clavier
                            │
                            ▼

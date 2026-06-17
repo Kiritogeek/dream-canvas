@@ -206,7 +206,7 @@ DreamWeave résout ces problèmes en :
 - Canvas vertical 800px × jusqu'à 100 000px (chapitre entier en scroll vertical continu)
 - **Blocs image** : ajout, drag & drop, redimensionnement (8 poignées), génération FLUX.2 Pro, régénération
 - **Blocs couleur** : zones de couleur unie ou dégradé pour l'ambiance du panel
-- **Bulles de dialogue** (6 types SVG manga/webtoon) : Parole, Pensée, Cri, Chuchotement, Narration, Radio + texte brut sans forme
+- **Bulles de dialogue** (12 types SVG manga/webtoon + texte libre) : Dialogue, Dramatique, Pensée, Cri, Colère, Tristesse, Chuchotement, Narration, Transmission, Électronique, Impact, Tremblant, + Texte libre (sans forme). Voir `SPEECH_BUBBLE_TYPE_LABELS` dans `src/types/index.ts`.
 - Positionnement libre des bulles, redimensionnement 8 points, édition inline dans la sidebar
 - Undo/Redo complet, raccourcis clavier (Delete, Ctrl+Z, Ctrl+Y), zoom + panoramique
 - Sélection explicite au clic (ring + handles Figma-style), panneau de propriétés contextuel
@@ -352,6 +352,7 @@ DreamWeave résout ces problèmes en :
 1. **Génération automatique de panels (Mode Auto)** :
    - Sélection des assets du chapitre → génération panel par panel à partir du scénario
    - Prompt = style + assets sélectionnés + description (jamais le scénario brut)
+   - **Moteur de composition déjà livré** : `generate-scenario-ai` mode `panels` produit le découpage (`scenario_chapters.panels_outline`), puis `compose-chapter-layout` (Gemini 2.5-flash) compose la mise en page du canvas (`chapter_canvases.layout`). Reste à enchaîner automatiquement la génération d'image de chaque bloc.
 
 2. **Import scénario** :
    - Import .txt ou copier-coller dans la section Scénario
@@ -447,4 +448,4 @@ Le produit est actuellement en phase de développement actif, avec les fonctionn
 
 ---
 
-*Dernière mise à jour : 13 juin 2026 — Mise à jour majeure : ajout Section Scénario (IA Scénario + NarraMind), Éditeur Canvas (blocs image + couleur + bulles 6 types SVG + export PNG), Univers/Lore (graphe + Compass), Ariane (5 composants). Suppression "À venir" pour toutes les features livrées. Précédente : 7 juin 2026 — Sheet System, tiers, NarraMind Compass.*
+*Dernière mise à jour : 13 juin 2026 (audit vérité 2) — bulles corrigées (12 types SVG + texte libre, ex « 6 types »), moteur de composition Mode Auto précisé (generate-scenario-ai mode panels → compose-chapter-layout Gemini 2.5-flash → chapter_canvases.layout). Précédente (13 juin) : ajout Section Scénario (IA Scénario + NarraMind), Éditeur Canvas, Univers/Lore (graphe + Compass), Ariane (5 composants). 7 juin : Sheet System, tiers, NarraMind Compass.*

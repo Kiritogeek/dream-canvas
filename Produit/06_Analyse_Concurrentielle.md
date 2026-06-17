@@ -145,7 +145,7 @@
 | Bibliothèque d'assets réutilisables | ✅ | ⚠️ | ⚠️ | ❌ | ❌ | ✅ |
 | Images de référence | ✅ | ⚠️ | ⚠️ | ❌ | ✅ | N/A |
 | Éditeur canvas (blocs image + couleur) | ✅ | ❌ | ⚠️ | ❌ | ❌ | ✅ (manuel) |
-| Bulles de dialogue (6 types SVG) | ✅ | ❌ | ⚠️ | ❌ | ❌ | ✅ (manuel) |
+| Bulles de dialogue (12 types SVG + texte libre) | ✅ | ❌ | ⚠️ | ❌ | ❌ | ✅ (manuel) |
 | Section Scénario + IA Scénario | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Mémoire narrative (NarraMind) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Graphe Univers / Lore | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
@@ -209,4 +209,67 @@
 - Workflow intégré et spécialisé webtoon
 - Sheet System — fiche composite 4 angles (différenciateur)
 - Stack technique moderne et scalable
-- Coût d'entrée bas (freemium, toutes features d
+- Coût d'entrée bas (freemium, toutes features dès le plan Libre)
+- Time to Value court (< 10 min)
+
+### Faiblesses (Weaknesses)
+
+- Résolution d'image limitée (1024×1024) — upscaling non encore implémenté
+- Pas de génération de panels en mode Automatique (découpeur scénario → panels en backlog)
+- Export avancé (PDF, batch, haute résolution) non encore disponible
+- Pas de collaboration multi-utilisateurs
+- Équipe petite (capacité de développement limitée)
+- Dépendance aux fournisseurs IA (FAL.ai, Gemini, Groq)
+
+### Opportunités (Opportunities)
+
+- Marché des webtoons en croissance rapide (+35% CAGR)
+- IA générative en amélioration constante (qualité, vitesse, coût)
+- Peu de concurrents directs spécialisés webtoon + IA
+- Demande forte non satisfaite (millions de créateurs potentiels)
+- Potentiel B2B (studios, éditeurs) à fort ARPU
+- Nouvelles plateformes de publication émergentes
+
+### Menaces (Threats)
+
+- Entrée de géants tech (Adobe, Canva) sur le segment
+- Amélioration rapide de Midjourney/DALL-E (cohérence native)
+- Plateformes webtoon développant leurs propres outils IA
+- Réglementations sur le contenu généré par IA
+- Questions de droits d'auteur sur les images IA
+- Dépendance aux fournisseurs IA (FAL.ai, modèles)
+
+---
+
+## 6. Stratégie de différenciation
+
+### 6.1 Court terme (0-6 mois) — "Le workflow le plus complet"
+
+**Focus** : Être l'outil le plus intégré du marché — de l'écriture à l'export, avec mémoire narrative.
+
+- ✅ Livré : pipeline scénario → éditeur canvas → export PNG, NarraMind, Ariane, Univers/Lore, Compass
+- À livrer : génération panels automatique (mode Auto), export haute résolution, import scénario .txt
+- Lancement public + communication produit
+
+### 6.2 Moyen terme (6-18 mois) — "L'écosystème"
+
+**Focus** : Construire un effet de réseau via la communauté et la marketplace.
+
+- Marketplace de styles (création + partage)
+- Communauté Discord active
+- Intégration avec plateformes de publication
+- API pour développeurs
+
+### 6.3 Long terme (18+ mois) — "La référence"
+
+**Focus** : Devenir la plateforme de référence pour la création de webtoons.
+
+- Fine-tuning de modèles IA spécialisés webtoon
+- Cohérence de personnage parfaite (Character consistency AI)
+- Publication directe multi-plateforme
+- Analytics de lecture
+- App mobile native
+
+---
+
+*Dernière mise à jour : 13 juin 2026 — Ajout Jenova.ai (concurrent principal 2026), mise à jour matrice comparative (NarraMind, Ariane, Compass, Univers/Lore, Éditeur canvas, Bulles, Export PNG), mise à jour SWOT faiblesses, avantages compétitifs actuels enrichis avec NarraMind + Ariane + Compass + Canvas. Précédente : 7 juin 2026 — Sheet System, tiers.*

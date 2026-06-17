@@ -91,9 +91,18 @@ Règle : ne jamais hardcoder des couleurs — utiliser les tokens HSL ou les cla
 | `generate-panel-image` | Génère image case/bloc, dimensions = bloc (800px max width) |
 | `generate-scenario-ai` | Génère scénario / chapitre / découpage cases via Google Gemini Flash (+ fallback Groq) |
 | `narramind-update` | Mémoire narrative (entités, résumés, détection anomalies) ; réponse HTTP contient les anomalies ; `scenario_chapters.narramind_anomalies` toujours `[]` après run (pas de stockage liste pour l’UI) |
+| `compose-chapter-layout` | Mode Auto : reçoit `panels_outline`, Gemini 2.5-flash groupe/compose les scènes (serveur calcule la géométrie), upsert `chapter_canvases.layout` |
 | `generate-style-template-images` | Génère images de prévisualisation du style |
 | `generate-landing-showcase` | Images hero pour la landing page |
 | `narramind-compass` | Compass : mode `index` (vectorise via Gemini text-embedding-004 → project_embeddings) + mode `propose` (pgvector search → Gemini Flash → compass_proposals) |
+| `create-checkout-session` | Crée une session Stripe Checkout (abonnement Créateur / Studio) |
+| `create-portal-session` | Crée un lien Stripe Customer Portal (gestion / annulation) |
+| `stripe-webhook` | Événements Stripe (`subscription.created/updated/deleted`) → met à jour `profiles.plan` (service_role) — **seule entrée autorisée à modifier le plan** |
+| `admin-get-kpis` | KPIs produit pour le dashboard admin (`Pilotage.tsx`) |
+| `admin-set-plan` | Change manuellement le plan d'un utilisateur (admin) |
+| `admin-user-action` | Actions admin sur un utilisateur (admin) |
+
+**14 Edge Functions** au total. Liste détaillée avec « appelée par » : `docs/EDGE_FUNCTIONS_INDEX.md`. Flux inter-features : `Produit/02_Architecture_Technique.md` §6.3.
 
 Les Edge Functions reçoivent le JWT utilisateur en `Authorization: Bearer`, utilisent le service role pour lire les données cross-user. Ne jamais appeler les Edge Functions sans access_token valide.
 

@@ -7,7 +7,9 @@ Plateforme web de création de webtoons assistée par intelligence artificielle.
 - **Frontend** : React 18 + TypeScript (strict) + Vite 7
 - **UI** : shadcn/ui + Tailwind CSS 3 + Framer Motion
 - **Backend** : Supabase (PostgreSQL + Auth + Storage + Edge Functions Deno)
-- **IA** : FAL.ai (FLUX.1 Schnell / FLUX.2 Pro / FLUX.2 Pro Edit)
+- **IA images** : FAL.ai — FLUX.2 Pro / FLUX.2 Pro Edit (même modèle pour tous les plans)
+- **IA texte** : Google Gemini Flash (primaire) + Groq Llama 3.3 70B (fallback) ; vectorisation `text-embedding-004` (768D) + pgvector
+- **Paiement** : Stripe
 - **State** : TanStack React Query 5
 - **Routing** : React Router DOM 6 (lazy loading)
 

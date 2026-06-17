@@ -1,12 +1,15 @@
 # Edge Functions
 
+> Ce fichier détaille les fonctions de génération principales. **Liste complète et à jour des 14 Edge Functions** : [`docs/EDGE_FUNCTIONS_INDEX.md`](../../docs/EDGE_FUNCTIONS_INDEX.md). Cartographie des flux (qui appelle quoi) : `Produit/02_Architecture_Technique.md` §6.3.
+
 ## generate-asset-image
 
-Génère une image via l'API FAL.ai à partir d'un prompt, l'upload dans le bucket Storage `dreamweave` et met à jour l'asset avec l'URL publique.
+Génère une image via l'API FAL.ai à partir d'un prompt, génère la sheet composite 4 angles (personnages), l'upload dans le bucket Storage `dreamweave`, met à jour l'asset et log l'usage.
 
-**Modèles utilisés :**
-- Plan Free → FLUX.1 Schnell (`fal-ai/flux/schnell`)
-- Plan Pro → FLUX.2 Pro (`fal-ai/flux-2-pro`) ou FLUX.2 Pro Edit (`fal-ai/flux-2-pro/edit`) si images de référence
+**Modèle (identique pour tous les tiers — logique « tout gratuit », décision 30/05/2026) :**
+- Sans image de référence → FLUX.2 Pro (`fal-ai/flux-2-pro`, text-to-image)
+- Avec sheet / images de référence → FLUX.2 Pro Edit (`fal-ai/flux-2-pro/edit`, multi-référence)
+- La différenciation entre plans (libre / createur / studio) porte sur le **volume de crédits** (20 / 100 / 250), jamais sur le modèle.
 
 **Secrets requis :**
 - `FAL_API_KEY` (clé API FAL.ai)
@@ -26,10 +29,11 @@ Voir aussi le guide principal : [SUPABASE_SETUP.md](../../SUPABASE_SETUP.md) (se
 
 ## generate-scenario-ai
 
-IA Scénario, IA Chapitre et **découpage chapitre → panels** (mode `panels`). Utilise Groq (Llama 3.3 70B).
+IA Scénario, IA Chapitre et **découpage chapitre → panels** (mode `panels`). Moteur : **Google Gemini Flash (primaire)** avec **fallback Groq Llama 3.3 70B** en cas d'erreur 429 (quota).
 
 **Secrets requis (Dashboard Supabase → Edge Functions → Secrets) :**
-- `GROQ_API_KEY` — clé API Groq
+- `GEMINI_API_KEY` — clé API Google Gemini (modèle primaire)
+- `GROQ_API_KEY` — clé API Groq (fallback)
 - `SUPABASE_ANON_KEY` — clé anon du projet (souvent déjà injectée ; nécessaire pour valider le JWT utilisateur dans la fonction)
 - `SUPABASE_URL` et `SUPABASE_SERVICE_ROLE_KEY` — en général déjà définis par Supabase
 

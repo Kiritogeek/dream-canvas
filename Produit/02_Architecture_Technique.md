@@ -406,22 +406,23 @@ src/
           │  back        │       │ 1──N     │
           │ metadata     │       ▼          │
           │ created_at   │ ┌──────────┐     │
-          └──────────────┘ │  panels  │     │
+          └──────────────┘ │  canvas  │     │  (chapter_canvases)
                            ├──────────┤     │
                            │ id (PK)  │     │
                            │ user_id  │     │
                            │ chapter_ │     │
                            │  id (FK) │     │
-                           │ panel_   │     │
-                           │  number  │     │
-                           │ prompt   │     │
-                           │ image_url│     │
-                           │ dialogue │     │
-                           │ narration│     │
+                           │ layout   │     │
+                           │ (JSONB:  │     │
+                           │  blocks) │     │
                            │ speech_  │     │
                            │  bubbles │     │
-                           │ created_ │     │
-                           │  at      │     │
+                           │ color_   │     │
+                           │  blocks  │     │
+                           │ image_   │     │
+                           │  history │     │
+                           │ → 1 ligne│     │
+                           │ /chapitre│     │
                            └──────────┘     │ 
 ```
 
@@ -534,8 +535,12 @@ Bucket : dreamweave (public)
 │   │       │       ├── profile_right.png
 │   │       │       └── back.png
 │   │       └── panels/
-│   │           └── {panel_id}.png
+│   │           └── {panel_id}/
+│   │               └── blocks/
+│   │                   └── {block_id}.png   ← 1 image par bloc du canvas
 ```
+
+> **Note** : la sheet composite 4 angles d'un personnage est stockée avec l'asset et référencée par `assets.image_url_sheet` ; elle est réinjectée comme `image_urls` dans `generate-panel-image` pour la cohérence identitaire.
 
 **Politiques de sécurité Storage** :
 - Upload : limité au dossier de l'utilisateur authentifié
@@ -693,6 +698,49 @@ Utilisateur                Frontend                    Supabase Auth
 
 ---
 
+### 6.3 Communication entre features (source de vérité)
+
+Les features ne s'appellent pas directement entre elles : elles communiquent par **trois canaux** — (1) des **tables Postgres partagées**, (2) des **Edge Functions**, (3) l'**invalidation du cache React Query** (une mutation invalide les `queryKey` concernées, ce qui rafraîchit les vues dépendantes).
+
+#### Pipeline principal de création
+
+```
+ STYLE ──────► ASSETS ──────► SCÉNARIO ──────► ÉDITION ──────► EXPORT
+   │             │               │                │              │
+projects.      assets.*      scenario_         chapter_       PNG (client,
+style_template image_url_    chapters.         canvases.      html2canvas)
+style_image_   sheet         content /         layout /
+urls                         panels_outline    speech_bubbles
+   │             │               │                │
+   └─ injecté ───┴── injecté ────┴── découpage ───┘
+      dans chaque génération        + composition
+```
+
+1. **Style → Assets / Édition** : `projects.style_template` (+ `style_image_urls`) est **lu par `generate-asset-image` et `generate-panel-image`** et préfixé à chaque prompt. Aucune génération n'ignore le style du projet.
+2. **Assets → Édition** : la **sheet** d'un personnage (`assets.image_url_sheet`) est passée comme `block_asset_image_urls` à `generate-panel-image` (FLUX.2 Pro Edit multi-référence) → cohérence identitaire entre cases.
+3. **Scénario → Assets** : `ScenarioTextHighlighter` détecte les noms d'assets dans `scenario_chapters.content` (existants = surbrillance, manquants = panneau ambre) ; « créer depuis le scénario » pré-remplit le dialog de création dans l'onglet Assets.
+4. **Scénario → Édition (Mode Auto)** : `generate-scenario-ai` mode `panels` écrit `scenario_chapters.panels_outline` → `compose-chapter-layout` (Gemini 2.5-flash) compose la mise en page → `chapter_canvases.layout` → l'éditeur génère l'image de chaque bloc via `generate-panel-image`.
+5. **Édition → Export** : l'export PNG est **100 % client** (html2canvas) — il lit le canvas rendu (`chapter_canvases.layout` + `speech_bubbles` + `color_blocks`), aucune Edge Function.
+
+#### Services transverses (greffés sur le pipeline)
+
+| Système | Déclencheur | Edge Function | Lit | Écrit | Restitué à l'utilisateur via |
+|---|---|---|---|---|---|
+| **NarraMind** (mémoire) | Auto-save d'un chapitre de scénario (≥ 80 mots, debounce) | `narramind-update` | `scenario_chapters`, `memory_entities`, `memory_summaries` | `memory_entities`, `memory_summaries`, `narramind_alerts`, `projects.narra_summary` | Fil d'Ariane (alertes de continuité) |
+| **Compass** (RAG) | Indexation après sauvegarde ; demande de propositions | `narramind-compass` (`index` / `propose`) | `scenario_chapters`, `lore_world_sections`, `project_embeddings` (pgvector) | `project_embeddings`, `compass_proposals`, `compass_metrics` | Onglet Univers (propositions Ariane) |
+| **Univers / Lore** | Édition manuelle du graphe ; acceptation d'une proposition Compass | — (PostgREST direct) | `lore_nodes`, `lore_edges` | `lore_nodes`, `lore_edges` | Graphe `@xyflow/react` |
+| **Plans / Quota** | Génération d'image ; passage à un plan payant | `stripe-webhook` (plan), Edge de génération (quota) | `profiles.plan`, `usage` | `usage` (log), `profiles.plan` (webhook only) | `useUserPlan` → garde `canGenerate()` |
+| **Ariane** | Présente dans tout le workflow | via les EF ci-dessus | — | — | Bulle flottante, onboarding, panneau continuité |
+
+#### Règle d'or des invariants de communication
+
+- **`profiles.plan`** n'est modifiable **que** par `stripe-webhook` (service_role) — jamais par le client (RLS). `useUserPlan` ne fait que **lire** le plan + compter `usage`.
+- Le **style** transite toujours par `projects.style_template` en BDD, jamais depuis un brouillon local.
+- Le **prompt d'image** d'une case = `style_template` + assets sélectionnés + description du bloc — **jamais** le scénario brut.
+- `chapter_canvases` = **une seule ligne par chapitre** (le canvas entier en scroll vertical), pas une ligne par case.
+
+---
+
 ## 7. Sécurité
 
 ### 7.1 Couches de sécurité
@@ -838,4 +886,4 @@ VITE_SUPABASE_PUBLISHABLE_KEY="eyJ..."
 
 ---
 
-*Dernière mise à jour : 7 juin 2026 (audit) — FLUX.2 Pro pour tous les tiers (logique Spotify), Edge Functions complètes (ajout narramind-compass, compose-chapter-layout, admin-user-action, admin-get-kpis), infra vectorielle Compass (project_embeddings, compass_proposals, pgvector, Gemini text-embedding-004 768D), plans Libre/Créateur/Studio. Versions package.json/devDependencies conservées, secrets réels (Gemini, Groq, Stripe), variables env complètes. Arbre pages/routes synchronisé avec le code réel : suppression Index.tsx (inexistant), ajout EmailVerification, ResetPassword, ScenarioChapterEditor, Pilotage ; composants Univers (LoreGraphView/LoreFriseView) ; onglet Univers dans ProjectDetail.*
+*Dernière mise à jour : 13 juin 2026 (audit vérité 2) — ajout §6.3 « Communication entre features » (pipeline Style→Assets→Scénario→Édition→Export, services transverses NarraMind/Compass/Univers/Plans, invariants), ERD `panels` → `chapter_canvases` (1 ligne/chapitre, layout JSONB), arbre Storage corrigé (panels/{panel_id}/blocks/{block_id}.png + note sheet), `compose-chapter-layout` = Gemini 2.5-flash. Précédente (7 juin) : FLUX.2 Pro tous tiers, 14 Edge Functions, infra Compass (pgvector, text-embedding-004 768D), plans Libre/Créateur/Studio, arbre pages/routes synchronisé.*

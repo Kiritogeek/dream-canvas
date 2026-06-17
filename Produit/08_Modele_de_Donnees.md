@@ -502,11 +502,16 @@ WHERE user_id = $1
 | `memory_summaries` | Résumés compacts par chapitre (mémoire longue) | project_id, user_id, chapter_id, chapter_number, summary, token_estimate | 20260423 |
 | `narramind_alerts` | Alertes / anomalies narratives (fil d'Ariane) | project_id, user_id, type, message, chapter_number, status | 20260430 |
 | `narramind_metrics` | Métriques de la mémoire (tokens, compression) | project_id, user_id, … | 20260423 |
-| `universe_lore` / `lore_world_sections` / `lore_nodes` | Cartographie de l'univers (sections + graphe lore) | project_id, user_id, … | 20260423, 20260522 |
+| `narramind_missing_assets` | Assets mentionnés dans le scénario mais non créés (suggestions) | project_id, chapter_id, name, suggested_type, mention_count, status ('pending'/'dismissed') | 20260503 |
+| `lore_world_sections` | Sections de lore monde (univers) | project_id, user_id, section_key, content | 20260522 |
+| `lore_nodes` | Nœuds du graphe Univers (personnage / lieu / objet / événement) | project_id, user_id, type, name, description, image_url, asset_id, chapter_id, pos_x, pos_y | 20260522, 20260523 |
+| `lore_edges` | Relations (arêtes) du graphe Univers | project_id, user_id, from_node_id, to_node_id, label | 20260522 |
 | `word_mappings` | Mappings pour la détection d'assets dans le scénario | project_id, … | 20260421 |
 | `project_embeddings` | Index vectoriel Compass | project_id, user_id, source_type ('chapter'/'lore_world_section'/'asset_lore'/'summary'), source_id, section_key, content, **embedding vector(768)** | 20260522 |
-| `compass_proposals` | Propositions Compass (Ariane) | project_id, user_id, proposal_type ('lore_world'/'lore_asset'/'narrative_direction'/'asset_prefill'), origin ('extracted'/'generated'), title, content, prefill_data (JSONB), status ('active'/'accepted'/'dismissed'), dedupe_key | 20260522 |
-| `chapter_assets` | Liaison assets ↔ chapitres (curation) | chapter_id, asset_id, … | 20260531 |
+| `compass_proposals` | Propositions Compass (Ariane) | project_id, user_id, proposal_type ('lore_world'/'lore_asset'/'lore_chapter_update'/'lore_connection'/'narrative_direction'/'asset_prefill'), origin ('extracted'/'generated'), title, content, prefill_data (JSONB), status ('active'/'accepted'/'dismissed'), dedupe_key | 20260522, 20260524 |
+| `compass_metrics` | Observabilité Compass / LM-Ops (latence, tokens, coût par run) | project_id, … | 20260610 |
+| `compass_proposals_source_fragments` | Fragments sources (RAG) rattachés à une proposition Compass | proposal_id, source_type, source_id, content | 20260610 |
+| `chapter_assets` | Liaison assets ↔ chapitres (curation 3 états : auto/added/removed/skipped) | chapter_id, asset_id, … (aussi JSONB `scenario_chapters.chapter_assets`) | 20260531 |
 
 > **Infra vectorielle Compass** : extension `pgvector` activée (migration 20260522), fonction SQL `match_embeddings` pour la recherche par similarité cosinus, vectorisation via Gemini `text-embedding-004` (768 dimensions). RLS `auth.uid() = user_id` sur `project_embeddings` et `compass_proposals`.
 
@@ -642,4 +647,4 @@ Suppression d'un chapitre
 
 ---
 
-*Dernière mise à jour : 7 juin 2026 (audit) — plans renommés libre/createur/studio + colonnes profiles (email, stripe_customer_id, billing_period_start, excluded_from_stats), note de renommage panels → chapter_canvases (1 ligne par chapitre), ajout des tables mémoire narrative / lore / infra vectorielle Compass (project_embeddings, compass_proposals, pgvector, Gemini text-embedding-004 768D), chapter_assets.*
+*Dernière mise à jour : 13 juin 2026 (audit vérité 2) — ajout des tables manquantes : `narramind_missing_assets`, `lore_world_sections`, `lore_nodes`, `lore_edges` (détaillées), `compass_metrics` + `compass_proposals_source_fragments` (observabilité Compass / RAG, migrations 20260610), types `compass_proposals` complétés (lore_chapter_update, lore_connection). Précédente (7 juin) : plans renommés libre/createur/studio + colonnes profiles, renommage panels → chapter_canvases, tables mémoire/lore/Compass (project_embeddings, compass_proposals, pgvector, text-embedding-004 768D), chapter_assets.*

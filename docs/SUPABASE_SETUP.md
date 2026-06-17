@@ -136,9 +136,9 @@ Si l'inscription email marche mais que la connexion Google renvoie 401 après re
 
 ## Génération d'images IA (FAL.ai)
 
-Les personnages, décors et objets sont générés par l'IA via **FAL.ai** :
-- **Plan Free** : FLUX.1 Schnell (~$0.003/image)
-- **Plan Pro** : FLUX.2 Pro (~$0.03/image) ou FLUX.2 Pro Edit avec images de référence (~$0.09/image)
+Les personnages, décors et objets sont générés par l'IA via **FAL.ai**, avec le **même modèle pour tous les plans** (libre / createur / studio) — la différenciation porte sur le volume de crédits, pas sur le modèle :
+- **Sans référence** : FLUX.2 Pro (`fal-ai/flux-2-pro`, ~$0.03/image)
+- **Avec sheet / images de référence** : FLUX.2 Pro Edit (`fal-ai/flux-2-pro/edit`, ~$0.06–0.09/image)
 
 ### 1. Obtenir une clé FAL.ai
 
@@ -165,7 +165,7 @@ npx supabase functions deploy generate-asset-image
 
 La fonction est configurée avec `verify_jwt = false` au niveau de la passerelle : elle vérifie elle-même le JWT via `supabase.auth.getUser()`. Pense à **redéployer** après toute modification.
 
-Quand tu crées un asset avec un **prompt**, l'image est générée automatiquement selon ton plan (Schnell pour Free, FLUX.2 Pro pour Pro).
+Quand tu crées un asset avec un **prompt**, l'image est générée automatiquement en FLUX.2 Pro (ou FLUX.2 Pro Edit si une sheet / des images de référence sont présentes), quel que soit le plan.
 
 ---
 

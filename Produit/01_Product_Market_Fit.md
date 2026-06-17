@@ -308,7 +308,7 @@ Le product-market fit est solide car :
 - ✅ La solution est techniquement viable (IA générative mature)
 - ✅ La valeur est immédiate (résultats visuels rapides, cohérence garantie)
 
-**État actuel** : Phases 1 et 2 complètes. Livré : projets, assets, Sheet System, style, plans Libre/Créateur/Studio, FLUX.2 Pro pour tous, Stripe, Section Scénario (IA Scénario + IA Chapitre + NarraMind + Ariane), Éditeur Canvas complet (blocs image + couleur + bulles 6 types SVG + undo/redo + export PNG), Univers/Lore (graphe relationnel), NarraMind Compass (vectorisation RAG). Phase 3 : génération panels Mode Auto, export haute résolution, import scénario, lancement public.
+**État actuel** : Phases 1 et 2 complètes. Livré : projets, assets, Sheet System, style, plans Libre/Créateur/Studio, FLUX.2 Pro pour tous, Stripe, Section Scénario (IA Scénario + IA Chapitre + NarraMind + Ariane), Éditeur Canvas complet (blocs image + couleur + bulles 12 types SVG + texte libre + undo/redo + export PNG), Univers/Lore (graphe relationnel), NarraMind Compass (vectorisation RAG). Phase 3 : génération panels Mode Auto, export haute résolution, import scénario, lancement public.
 
 ---
 

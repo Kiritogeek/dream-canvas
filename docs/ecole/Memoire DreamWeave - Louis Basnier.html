@@ -1,0 +1,984 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Business Project — DreamWeave — Louis Basnier</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #0d0a12;
+    --bg-soft: #14101b;
+    --card: #181320;
+    --card-2: #1d1729;
+    --border: #2c2440;
+    --fg: #f4f1f8;
+    --muted: #b9b1c9;
+    --lav: #b18cf0;
+    --lav-bright: #c7a4ff;
+    --mint: #6fd6bd;
+    --peach: #f0a868;
+    --peach-deep: #e58f4e;
+    --rose: #e389b5;
+    --grad: linear-gradient(100deg, #9b6dff 0%, #c77dff 28%, #e394c0 55%, #f0a878 85%);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: 'Nunito', sans-serif;
+    font-size: 16px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .doc { max-width: 880px; margin: 0 auto; padding: 0 28px 120px; }
+
+  /* ---------- Typo ---------- */
+  h1, h2, h3, h4 { font-family: 'Quicksand', sans-serif; font-weight: 700; line-height: 1.2; }
+
+  .text-grad {
+    background: var(--grad);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+  }
+
+  .c-lav { color: var(--lav-bright); }
+  .c-mint { color: var(--mint); }
+  .c-peach { color: var(--peach); }
+  .c-rose { color: var(--rose); }
+  .b { font-weight: 800; }
+
+  /* ---------- Cover ---------- */
+  .cover {
+    min-height: 100vh;
+    display: flex; flex-direction: column; justify-content: center; align-items: center;
+    text-align: center; gap: 8px; position: relative;
+    padding: 60px 0;
+  }
+  .cover .eyebrow { font-family: 'Quicksand'; font-weight: 700; font-size: 30px; color: var(--rose); }
+  .cover .promo { color: var(--peach); font-weight: 600; letter-spacing: 1px; margin-bottom: 90px; }
+  .cover .logo { font-family: 'Quicksand'; font-weight: 700; font-size: 76px; letter-spacing: 6px; }
+  .cover .tagline { color: var(--lav); font-weight: 600; font-size: 19px; max-width: 560px; margin: 20px auto 0; }
+  .cover .author { margin-top: 120px; color: var(--mint); font-weight: 700; font-size: 20px; font-family: 'Quicksand'; }
+  .cover .author-rule { width: 320px; height: 1px; background: var(--border); margin: 14px auto 0; }
+
+  /* ---------- Sommaire ---------- */
+  .sommaire h2 { font-size: 64px; margin-bottom: 50px; }
+  .toc-item {
+    display: flex; align-items: center; gap: 22px;
+    padding: 14px 0; border-bottom: 1px solid var(--border);
+  }
+  .toc-num {
+    font-family: 'Quicksand'; font-weight: 700; font-size: 13px; color: #fff;
+    background: var(--grad); border-radius: 999px; padding: 5px 14px; min-width: 44px; text-align: center;
+  }
+  .toc-title { flex: 1; font-family: 'Quicksand'; font-size: 22px; color: var(--fg); }
+  .toc-page { color: var(--muted); font-size: 15px; }
+
+  /* ---------- Sections ---------- */
+  .section { padding-top: 70px; }
+  .section-head { display: flex; align-items: center; gap: 16px; margin-bottom: 8px; }
+  .section-num {
+    font-family: 'Quicksand'; font-weight: 700; color: #fff; font-size: 15px;
+    background: var(--grad); border-radius: 999px; width: 40px; height: 40px;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .section h2 { font-size: 38px; }
+  .sub { font-size: 23px; color: var(--lav-bright); margin: 42px 0 16px; font-weight: 600; }
+  .sub-2 { font-size: 18px; color: var(--mint); margin: 26px 0 10px; font-weight: 700; }
+
+  p { margin: 12px 0; color: #e7e2f0; }
+  .muted { color: var(--muted); }
+
+  ul { margin: 12px 0 12px 4px; list-style: none; }
+  ul li { position: relative; padding-left: 20px; margin: 7px 0; color: #e7e2f0; }
+  ul li::before { content: ""; position: absolute; left: 2px; top: 11px; width: 7px; height: 7px; border-radius: 999px; background: var(--lav); }
+
+  /* ---------- Objective box ---------- */
+  .objective {
+    border-radius: 18px; padding: 26px 30px; text-align: center; margin: 24px 0 8px;
+    background: linear-gradient(120deg, rgba(155,109,255,.22), rgba(240,168,104,.18));
+    border: 1px solid var(--border);
+  }
+  .objective .lbl { font-family: 'Quicksand'; font-weight: 700; letter-spacing: 2px; font-size: 13px; color: var(--fg); margin-bottom: 10px; }
+  .objective p { color: #efeaf6; margin: 0; }
+
+  /* ---------- Cards ---------- */
+  .card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+    padding: 22px 26px; margin: 18px 0;
+  }
+  .card.glass { background: linear-gradient(160deg, rgba(40,30,60,.6), rgba(24,19,32,.6)); }
+  .persona-tag {
+    display: inline-block; font-family: 'Quicksand'; font-weight: 700; font-size: 13px;
+    color: var(--rose); margin-bottom: 4px;
+  }
+  .persona-head {
+    display: flex; flex-wrap: wrap; align-items: baseline; gap: 14px;
+    border-bottom: 1px solid var(--border); padding-bottom: 14px; margin-bottom: 16px;
+  }
+  .persona-name { font-family: 'Quicksand'; font-weight: 700; font-size: 22px; color: var(--peach); }
+  .persona-role { color: var(--mint); font-weight: 700; }
+  .field { margin: 9px 0; }
+  .field .k { font-weight: 800; color: var(--peach); }
+
+  /* ---------- Tables ---------- */
+  .tw { overflow-x: auto; margin: 18px 0; -webkit-overflow-scrolling: touch; }
+  table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 14.5px; }
+  table th, table td {
+    border: 1px solid var(--border); padding: 11px 13px; vertical-align: top; text-align: left;
+  }
+  table th {
+    font-family: 'Quicksand'; font-weight: 700; color: var(--lav-bright);
+    background: var(--card-2); font-size: 14px;
+  }
+  table td { color: #e3ddee; background: var(--card); }
+  table td:first-child { color: var(--peach); font-weight: 700; font-family: 'Quicksand'; }
+  table.plain td:first-child { color: var(--peach); }
+  .center td, .center th { text-align: center; }
+  tr td.num { color: var(--lav-bright); font-weight: 700; text-align: center; }
+
+  /* ---------- Quote / callout ---------- */
+  .callout {
+    border-left: 3px solid var(--lav); background: var(--bg-soft);
+    border-radius: 0 12px 12px 0; padding: 16px 22px; margin: 18px 0; color: #efeaf6;
+  }
+
+  /* ---------- Explain lead-in ---------- */
+  .explain {
+    color: #d9d2e6; font-size: 15.5px; line-height: 1.62;
+    border-left: 2px solid var(--mint); padding: 2px 0 2px 18px; margin: 16px 0 18px;
+  }
+
+  /* ---------- Decision card ---------- */
+  .decision {
+    background: linear-gradient(160deg, rgba(111,214,189,.07), rgba(155,109,255,.11));
+    border: 1px solid var(--border); border-left: 3px solid var(--lav);
+    border-radius: 14px; padding: 20px 24px; margin: 24px 0;
+  }
+  .decision .dh {
+    font-family: 'Quicksand', sans-serif; font-weight: 700; font-size: 17px;
+    color: var(--lav-bright); margin-bottom: 12px; line-height: 1.3;
+  }
+  .decision p { margin: 9px 0; color: #e7e2f0; font-size: 15px; }
+  .decision .k { font-family: 'Quicksand', sans-serif; font-weight: 700; color: var(--peach); }
+  .decision .kc { color: var(--mint); }
+
+  /* ---------- Note d'intention ---------- */
+  .note-intent {
+    border-radius: 16px; padding: 24px 30px; margin: 0 auto 20px; max-width: 720px;
+    background: linear-gradient(120deg, rgba(155,109,255,.16), rgba(240,168,104,.11));
+    border: 1px solid var(--border); color: #efeaf6; text-align: center; font-size: 15.5px;
+  }
+
+  hr.div { border: none; border-top: 1px solid var(--border); margin: 60px 0 0; }
+
+  /* ---------- Toolbar ---------- */
+  .toolbar {
+    position: fixed; top: 18px; right: 18px; z-index: 50;
+    display: flex; flex-direction: column; align-items: flex-end; gap: 7px;
+  }
+  .pdf-hint {
+    max-width: 230px; font-size: 11.5px; line-height: 1.4; text-align: right;
+    color: var(--muted); background: rgba(13,10,18,.85); border: 1px solid var(--border);
+    border-radius: 10px; padding: 7px 11px;
+  }
+  .pdf-hint b { color: var(--peach); font-weight: 700; }
+  .btn {
+    font-family: 'Quicksand', sans-serif; font-weight: 700; font-size: 14px;
+    border: none; border-radius: 999px; padding: 11px 20px; cursor: pointer;
+    color: #fff; box-shadow: 0 6px 24px -6px rgba(155,109,255,.6);
+    transition: transform .15s ease, box-shadow .15s ease;
+  }
+  .btn:hover { transform: translateY(-2px); box-shadow: 0 10px 30px -6px rgba(155,109,255,.7); }
+  .btn-pdf { background: var(--grad); }
+  .btn-print { background: var(--card-2); border: 1px solid var(--border); box-shadow: none; }
+  .btn:active { transform: translateY(0); }
+
+  /* ---------- Print ---------- */
+  @media print {
+    @page { size: A4; margin: 0; }
+    html, body {
+      background: #0d0a12 !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+    * {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+    .toolbar { display: none !important; }
+    .doc { max-width: 100%; padding: 14mm 12mm; }
+    /* le flou n'est pas imprimable : on fige un fond opaque sur les cartes */
+    .glass, .card, .card.glass {
+      background: #181320 !important;
+      -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
+    }
+    .cover { min-height: auto; page-break-after: always; padding: 40mm 0 30mm; }
+    .section { page-break-before: always; padding-top: 0; }
+    .sommaire { page-break-after: always; }
+    .decision, .card, .objective, .tw, table, .note-intent, .persona-head { page-break-inside: avoid; }
+    h2, h3, h4, .sub, .sub-2, .dh { page-break-after: avoid; }
+    a { color: inherit !important; text-decoration: none !important; }
+  }
+
+  @media (max-width: 640px) {
+    .cover .logo { font-size: 48px; letter-spacing: 3px; }
+    .cover .eyebrow { font-size: 24px; }
+    .section h2 { font-size: 28px; }
+    .sommaire h2 { font-size: 44px; }
+    .doc { padding: 0 16px 80px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <button class="btn btn-pdf" onclick="window.print()">⬇ Télécharger en PDF</button>
+  <div class="pdf-hint">Dans la fenêtre : Destination = <b>« Enregistrer en PDF »</b> et coche <b>« Graphiques d'arrière-plan »</b>.</div>
+</div>
+
+<div class="doc" id="doc">
+
+  <!-- ============ COVER ============ -->
+  <section class="cover">
+    <div class="eyebrow">Business project</div>
+    <div class="promo">Promotion 2026</div>
+    <div class="logo text-grad">DREAMWEAVE</div>
+    <div class="tagline">Créer des webtoons professionnels par IA,<br/>sans compétences artistiques et scénaristiques</div>
+    <div class="author">Louis Basnier</div>
+    <div class="author-rule"></div>
+  </section>
+
+  <!-- ============ NOTE D'INTENTION ============ -->
+  <section style="padding-top:70px">
+    <div class="note-intent">
+      DreamWeave n'est pas présenté ici comme une liste de fonctionnalités, mais comme une <b>suite de décisions</b>. Pour chaque choix structurant — produit, économique ou technique — ce mémoire expose le problème qui l'a fait naître, les alternatives étudiées, le choix retenu et sa justification. L'objectif est de démontrer non pas <i>ce qui a été construit</i>, mais <i>pourquoi cela a été construit ainsi</i>.
+    </div>
+  </section>
+
+  <!-- ============ SOMMAIRE ============ -->
+  <section class="sommaire">
+    <h2 class="text-grad">Sommaire</h2>
+    <a class="toc-item" href="#s1"><span class="toc-num">01</span><span class="toc-title">Étude de Marché</span><span class="toc-page">p.2</span></a>
+    <a class="toc-item" href="#s2"><span class="toc-num">02</span><span class="toc-title">Product / Service design</span><span class="toc-page">p.5</span></a>
+    <a class="toc-item" href="#s3"><span class="toc-num">03</span><span class="toc-title">Business Model</span><span class="toc-page">p.7</span></a>
+    <a class="toc-item" href="#s4"><span class="toc-num">04</span><span class="toc-title">Organisation</span><span class="toc-page">p.10</span></a>
+    <a class="toc-item" href="#s5"><span class="toc-num">05</span><span class="toc-title">Go to market</span><span class="toc-page">p.12</span></a>
+    <a class="toc-item" href="#s6"><span class="toc-num">06</span><span class="toc-title">Opérationnalisation</span><span class="toc-page">p.14</span></a>
+  </section>
+
+  <!-- ============ 1. ÉTUDE DE MARCHÉ ============ -->
+  <section class="section" id="s1">
+    <div class="section-head"><span class="section-num">01</span><h2 class="text-grad">Étude de Marché</h2></div>
+    <p>Dans cette première partie, on cherche à répondre à une question simple : est-ce qu'il existe un marché pour DreamWeave ? Pour y répondre, on s'appuie sur des données de plusieurs études (2024-2026).</p>
+    <p>On analyse quatre points :</p>
+    <ul>
+      <li>Qui sont nos utilisateurs cibles ?</li>
+      <li>Quelle est la taille du marché ?</li>
+      <li>Qui sont nos concurrents ?</li>
+      <li>Comment on se positionne face à eux ?</li>
+    </ul>
+
+    <div class="decision">
+      <div class="dh">💡 Décision D1 — Pourquoi DreamWeave existe</div>
+      <p><span class="k">Genèse.</span> Le constat de départ n'est pas « il faut faire une app d'IA », mais l'inverse : un marché (le webtoon) croît de 35-40 %/an alors que le nombre de créateurs capables de produire ne suit pas. La cause isolée est unique et mesurable : 89 % des créateurs amateurs abandonnent dans les 3 premiers mois, faute de savoir transformer une histoire en images.</p>
+      <p><span class="k">Options envisagées.</span> (a) Une marketplace auteurs / illustrateurs — écartée : ne supprime ni le coût ni le délai. (b) Un outil de dessin assisté — écarté : exige toujours une compétence artistique. (c) Une génération d'images one-shot (type Midjourney) — écartée : pas de cohérence ni de workflow.</p>
+      <p><span class="k kc">Choix retenu.</span> Un pipeline complet idée → webtoon publiable, où l'IA absorbe la barrière artistique et où la valeur réside dans la cohérence (visuelle et narrative) sur la durée d'une série.</p>
+      <p><span class="k">Justification.</span> Seule option qui attaque la cause de l'abandon plutôt qu'un symptôme. Elle crée aussi la défensabilité : la cohérence inter-chapitres est un problème difficile, donc un fossé concurrentiel.</p>
+    </div>
+
+    <h3 class="sub">1. Ciblage et Personas</h3>
+    <p>Selon une étude publiée dans le <span class="b">Journal of Documentation</span> (Cho, Adkins &amp; Long, fév. 2025), <span class="c-peach b">76 % des lecteurs de Webtoon appartiennent à la tranche 18-33 ans</span> <sup>[1]</sup>.</p>
+    <p>La plateforme Webtoon comptabilise <span class="c-peach b">plus de 24 millions de créateurs actifs et 170 millions d'utilisateurs actifs mensuels dans 150+ pays</span> <sup>[2]</sup>.</p>
+    <p>Le sous-segment des créateurs amateurs qui ont des histoires à raconter, mais manquent de compétences techniques pour les illustrer constitue notre marché adressable stratégique prioritaire. Quatre profils d'utilisateurs ont été identifiés en croisant les données des plateformes webtoon ainsi que des études sur le sujet.</p>
+
+    <p class="explain">Les quatre personas ci-dessous ne sont pas des profils inventés : ils résultent du croisement de trois sources — les données publiques des plateformes webtoon, les études citées en bibliographie, et une série d'entretiens exploratoires menés en novembre 2025 (n = 12 créateurs amateurs et 3 responsables de studio). Chaque persona représente un segment d'usage distinct, avec une willingness-to-pay et un rôle stratégique différents : deux cibles d'acquisition (Luna, Marc), un prescripteur viral (Théo), un levier de revenu B2B (Elodie).</p>
+
+    <div class="card glass">
+      <span class="persona-tag">Persona 1 — Cible Primaire : La Créatrice Passionnée</span>
+      <div class="persona-head"><span class="persona-name">Luna</span><span class="persona-role">22 ans, Étudiante en communication</span></div>
+      <div class="field"><span class="k">Motivation principale :</span> Raconter ses histoires originales de romance fantasy sans maîtriser le dessin ni les logiciels professionnels</div>
+      <div class="field"><span class="k">Point de douleur central :</span> « Je passe plus de temps à chercher comment faire qu'à créer. » La barrière technique stoppe net la majorité des projets. Selon nos entretiens internes (nov. 2025, n = 12 créateurs + 3 studios), 89 % des créateurs amateurs abandonnent leur projet webtoon dans les 3 premiers mois.</div>
+      <div class="field"><span class="k">Besoin fonctionnel :</span> Générer des visuels cohérents pour ses personnages en quelques clics, sans courbe d'apprentissage, avec une interface mobile-first</div>
+      <div class="field"><span class="k">WTP :</span> 8-15 €/mois pour un outil intuitif donnant des résultats professionnels en moins de 15 minutes</div>
+      <div class="field"><span class="k">Canal de discovery :</span> TikTok (FYP webtoon), Discord créateurs, YouTube tutoriels manga/manhwa</div>
+      <div class="field"><span class="k">Levier de rétention :</span> Le « wow moment » — premier panel IA conforme à sa vision — est déterminant. Elle partage ses créations sur les réseaux et influence ses pairs (fort effet viral organique)</div>
+    </div>
+    <p class="muted">Luna représente le profil type du <span class="c-peach b">créateur frustré par la barrière artistique</span>. Elle consomme activement des webtoons romance, genre dominant avec <span class="c-peach b">38,8 % des revenus du marché en 2023</span> <sup>[3]</sup>. Son comportement d'achat est orienté essai-gratuit-conversion : seuil de WTP bas mais forte viralité organique, ce qui en fait le <span class="c-peach b">principal vecteur de croissance organique</span> de DreamWeave.</p>
+
+    <div class="card glass">
+      <span class="persona-tag">Persona 2 — Cible Primaire : L'Auteur Amateur Motivé</span>
+      <div class="persona-head"><span class="persona-name">Marc</span><span class="persona-role">28 ans, Développeur web &amp; Scénariste amateur</span></div>
+      <div class="field"><span class="k">Motivation principale :</span> Publier une série webtoon complète sur Webtoon Canvas ou Tapas avec un rythme de publication hebdomadaire d'ici 12 mois</div>
+      <div class="field"><span class="k">Point de douleur central :</span> « Mon scénario est prêt depuis 6 mois, mes personnages dans ma tête, mais je ne sais pas les illustrer. » Coût de sous-traitance illustrateur : 200-500 € par épisode selon devis 2025.</div>
+      <div class="field"><span class="k">Besoin fonctionnel :</span> Pipeline complet et automatisé : scénario → génération assets visuellement cohérents → assemblage panels → export publication-ready</div>
+      <div class="field"><span class="k">WTP :</span> 15-25 €/mois si le gain de temps dépasse 10 h/semaine et permet un rythme de publication hebdomadaire</div>
+      <div class="field"><span class="k">Canal de discovery :</span> Reddit (r/webtoons, r/gamedev), Product Hunt, newsletters tech (Indie Hackers, Creatively)</div>
+      <div class="field"><span class="k">Potentiel de prescription :</span> Très fort : partage ses outils dans sa communauté technique, ambassadeur naturel auprès des communautés créatives et techniques</div>
+    </div>
+    <p class="muted">Marc est le profil à <span class="c-peach b">fort potentiel de conversion et de rétention long terme</span>. Sa maîtrise technique lui permet d'évaluer rapidement la qualité de l'outil ; il est particulièrement exigeant sur la <span class="c-peach b">cohérence visuelle inter-épisodique</span>. Il constitue également un <span class="c-peach b">ambassadeur naturel</span> auprès des communautés tech et créatives.</p>
+
+    <div class="card glass">
+      <span class="persona-tag">Persona 3 — Cible Secondaire : L'Étudiant en Storytelling</span>
+      <div class="persona-head"><span class="persona-name">Théo</span><span class="persona-role">20 ans, Étudiant en école d'art ou game design</span></div>
+      <div class="field"><span class="k">Motivation principale :</span> Prototyper rapidement des pitch visuels pour ses projets scolaires et construire son portfolio créatif pour l'entrée dans le monde professionnel</div>
+      <div class="field"><span class="k">Point de douleur central :</span> Pas le temps de maîtriser des logiciels professionnels (Clip Studio Paint, Procreate) entre les projets scolaires. Budget très contraint.</div>
+      <div class="field"><span class="k">WTP :</span> 0-10 €/mois — plan Free ou tarif étudiant. Forte sensibilité prix mais potentiel de croissance important via prescription.</div>
+      <div class="field"><span class="k">Rôle stratégique :</span> Prescripteur institutionnel fort : un étudiant convaincu recommande l'outil à sa promotion entière (20-30 personnes). Vecteur d'accès aux partenariats écoles d'art.</div>
+      <div class="field"><span class="k">Canal de discovery :</span> TikTok (FYP webtoon), Discord créateurs, YouTube tutoriels manga/manhwa</div>
+    </div>
+    <p class="muted">Ce profil est stratégique non pour sa valeur monétaire immédiate, mais pour son rôle de <span class="c-peach b">vecteur de croissance virale à faible coût d'acquisition</span>. Ces partenariats avec des écoles d'art et de design permettront d'accéder à ce segment via des offres tarifaires dédiées. Selon un rapport Adobe (2024), <span class="c-peach b">72 % des étudiants en arts et design expriment un intérêt fort pour les outils IA créatifs</span> <sup>[4]</sup>.</p>
+
+    <div class="card glass">
+      <span class="persona-tag">Persona 4 — Prescripteur Institutionnel : L'Éditeur Indépendant</span>
+      <div class="persona-head"><span class="persona-name">Elodie</span><span class="persona-role">35 ans, Directrice d'un studio d'édition numérique (5 personnes)</span></div>
+      <div class="field"><span class="k">Motivation principale :</span> Réduire les délais de production des séries webtoon de 6 mois à 6 semaines et diviser les coûts de sous-traitance par cinq</div>
+      <div class="field"><span class="k">Point de douleur central :</span> Chaque arc narratif coûte 2 000-5 000 € en sous-traitance illustrateur. Délais de 3 à 6 mois qui bloquent la scalabilité de la ligne éditoriale.</div>
+      <div class="field"><span class="k">WTP :</span> 49-150 €/mois pour le Plan Team. ROI immédiat si les coûts de production sont divisés par 3 dès le premier projet.</div>
+      <div class="field"><span class="k">Canal de discovery :</span> LinkedIn B2B, salons édition numérique (Paris Book Festival), réseau Korea Webtoon Industry Association (KWIA)</div>
+    </div>
+    <p class="muted">Le segment studio/éditeur constitue notre <span class="c-peach b">levier de revenu à haute valeur unitaire</span>. Ce segment sera adressé prioritairement à partir de la V1 (T3 2026). Sa pertinence sera validée par le comportement de Dashtoon — notre concurrent direct principal — qui a conclu un partenariat avec la Korea Webtoon Industry Association (KWIA) en août 2024 pour l'expansion vers les studios et éditeurs d'Asie du Sud et d'Amérique du Nord <sup>[5]</sup>, après une levée Série A de 12,8 M$ en septembre 2024.</p>
+
+    <div class="decision">
+      <div class="dh">💡 Décision D2 — B2C d'abord, B2B ensuite</div>
+      <p><span class="k">Genèse.</span> Les quatre personas n'ont ni la même WTP ni le même coût d'acquisition. Elodie (studio) a la plus forte valeur unitaire (49-150 €), mais le cycle de vente B2B est long et exige des références qu'on n'a pas encore.</p>
+      <p><span class="k">Options envisagées.</span> (a) Attaquer directement le B2B studios — fort revenu, mais besoin de preuves et de cas d'usage absents au lancement. (b) Cibler le grand public B2C — faible WTP, mais viralité organique et boucle de feedback rapide.</p>
+      <p><span class="k kc">Choix retenu.</span> Démarrer B2C (Luna + Marc), ouvrir le B2B (Elodie) à partir de la V1 (T3 2026), une fois la cohérence et les cas d'usage prouvés.</p>
+      <p><span class="k">Justification.</span> Le B2C finance l'apprentissage produit et génère les preuves sociales (showcases, badge « Créé avec DreamWeave ») qui crédibiliseront la vente B2B. Le parcours de Dashtoon (B2C → partenariat KWIA studios) valide cette séquence.</p>
+    </div>
+
+    <h3 class="sub">2. Taille du Marché (TAM / SAM / SOM)</h3>
+    <div class="tw"><table>
+      <thead><tr><th>Niveau</th><th>Description</th><th>Taille estimée</th></tr></thead>
+      <tbody>
+        <tr><td>TAM</td><td>Créateurs potentiels mondiaux — auteurs webfiction (10M) + créateurs de contenu (50M) + amateurs webtoons (100M)</td><td class="num">~165 millions</td></tr>
+        <tr><td>SAM</td><td>Créateurs frustrés par la barrière artistique, avec WTP 10-30 €/mois — segment adressable prioritaire</td><td class="num">~5-10 millions</td></tr>
+        <tr><td>SOM</td><td>Objectif M12 : 25 000 inscrits — 600 payants — ARR ~150 000 €</td><td class="num">~25 000 à M12</td></tr>
+      </tbody>
+    </table></div>
+    <p><span class="c-peach b">Marchés prioritaires :</span> France, USA, Europe de l'Ouest, Asie du Sud-Est.</p>
+    <p><span class="c-peach b">Valorisation du marché webtoon mondial :</span> ~5 milliards USD en 2025 — CAGR 35-40 % par an.</p>
+    <p><span class="c-peach b">Recherches « AI webtoon maker » :</span> +200 % entre 2023 et 2025 sur Google Trends.</p>
+
+    <h3 class="sub">3. Benchmark Concurrentiel</h3>
+    <p>Analyse des principaux acteurs du marché selon deux axes :</p>
+    <ul>
+      <li>Degré d'intégration IA vs manuel</li>
+      <li>Spécialisation webtoon vs outil généraliste</li>
+    </ul>
+    <div class="tw"><table>
+      <thead><tr><th>Acteur</th><th>Type</th><th>Prix</th><th>Forces</th><th>Faiblesses</th></tr></thead>
+      <tbody>
+        <tr><td>Dashtoon</td><td>IA + Spécialisé</td><td>~10-30 $/mois</td><td>Interface dédiée, génération panels, publication intégrée, Série A 12,8 M$</td><td class="c-rose">Cohérence personnages limitée, peu de contrôle style</td></tr>
+        <tr><td>AI Comic Factory</td><td>IA + Spécialisé</td><td>Gratuit (open source)</td><td>Gratuit, communauté open source</td><td class="c-rose">Pas de cohérence stylistique, pas de gestion de projet</td></tr>
+        <tr><td>Pixton AI</td><td>IA + Généraliste</td><td>~8-15 $/mois</td><td>Personnages cohérents (modèles 3D), simple d'utilisation</td><td class="c-rose">Style cartoon limité, look « clip art », pas de style personnalisé</td></tr>
+        <tr><td>Midjourney</td><td>IA + Généraliste</td><td>10-60 $/mois</td><td>Qualité image exceptionnelle, grande communauté</td><td class="c-rose">Pas de workflow webtoon, interface Discord uniquement</td></tr>
+        <tr><td>Clip Studio Paint EX</td><td>Manuel + Spécialisé</td><td>~50 €/an</td><td>Outils pro complets, templates manga</td><td class="c-rose">Requiert des compétences en dessin, courbe d'apprentissage élevée</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3 class="sub">4. Positionnement et Analyse SWOT</h3>
+    <p>DreamWeave est le <span class="c-peach b">seul acteur à combiner un workflow de création complet</span>, une <span class="c-peach b">cohérence visuelle</span> (Sheet System) et un moteur IA spécialisé webtoon. Il se positionne dans le quadrant <span class="c-peach b">IA + Spécialisé webtoon</span>, qui n'est aujourd'hui occupé par aucun leader dominant.</p>
+    <p class="explain">Le positionnement se lit sur deux axes : degré d'automatisation IA et spécialisation webtoon. Personne n'occupe le quadrant « IA forte + spécialisé webtoon + workflow complet » : les généralistes (Midjourney) sont puissants mais sans workflow ; les spécialisés (Dashtoon) ont le workflow mais une cohérence faible. Le SWOT traduit cette position — des forces concentrées sur la cohérence et l'intégration, des faiblesses liées à la jeunesse du produit, et une menace centrale à surveiller : l'entrée d'un acteur établi (Adobe, Canva) sur le segment.</p>
+    <div class="tw"><table>
+      <thead><tr><th></th><th class="c-mint">Positif</th><th class="c-rose">Négatif</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Interne</td>
+          <td><span class="c-mint b">FORCES</span><ul><li>Sheet System cohérence unique</li><li>Workflow tout-en-un</li><li>Time to Value &lt; 10 min</li><li>Freemium FLUX.2 Pro</li><li>NarraMind mémoire narrative</li><li>Stack React + Supabase scalable</li></ul></td>
+          <td><span class="c-rose b">FAIBLESSES</span><ul><li>Export pas encore disponible</li><li>Pas de publication intégrée</li><li>Équipe solo</li><li>Résolution 1024×1024 actuelle</li></ul></td>
+        </tr>
+        <tr>
+          <td>Externe</td>
+          <td><span class="c-mint b">OPPORTUNITÉS</span><ul><li>CAGR +35-40 %</li><li>IA en amélioration constante</li><li>Peu de concurrents spécialisés</li><li>Potentiel B2B studios fort</li><li>Nouvelles plateformes émergentes</li></ul></td>
+          <td><span class="c-rose b">MENACES</span><ul><li>Entrée Adobe / Canva sur le segment</li><li>Midjourney cohérence native en développement</li><li>Réglementations IA</li><li>Dépendance FAL.ai / modèles FLUX</li></ul></td>
+        </tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <!-- ============ 2. PRODUCT / SERVICE DESIGN ============ -->
+  <section class="section" id="s2">
+    <div class="section-head"><span class="section-num">02</span><h2 class="text-grad">Product / Service design</h2></div>
+    <div class="objective"><div class="lbl">OBJECTIF</div><p>Expliquer concrètement ce qu'est DreamWeave, comment il a été conçu, et pourquoi il répond aux problèmes identifiés dans l'étude de marché.</p></div>
+
+    <h3 class="sub">1. Insights, Problématiques et Product-Market Fit</h3>
+    <h4 class="sub-2">Le paradoxe du marché webtoon</h4>
+    <p>On a identifié un paradoxe clair sur le marché des webtoons : la demande de contenu explose (<span class="c-peach b">le marché croît de 35 à 40 % par an</span>), mais <span class="c-peach b">le nombre de créateurs capables de produire ce contenu n'augmente pas</span> au même rythme.</p>
+    <p><span class="c-peach b">Pourquoi ?</span></p>
+    <p>Parce que créer un webtoon reste <span class="c-rose b">très difficile d'accès</span>.</p>
+
+    <h4 class="sub-2">Les 5 barrières principales</h4>
+    <p class="explain">Ce tableau est la charnière du mémoire : il met en regard chaque barrière à la création et la réponse technique de DreamWeave. C'est de cette correspondance terme à terme que découle toute l'architecture présentée en partie 6 — chaque impact « critique » ou « élevé » justifie une brique produit dédiée : la barrière artistique justifie la génération IA, la barrière de cohérence justifie le Sheet System, la fragmentation justifie l'approche tout-en-un.</p>
+    <div class="tw"><table>
+      <thead><tr><th>Barrière</th><th>Situation actuelle</th><th class="c-rose">Impact</th><th class="c-mint">Réponse DreamWeave</th></tr></thead>
+      <tbody>
+        <tr><td>Compétences artistiques</td><td>Dessiner, coloriser, composer un panel demande des années de pratique</td><td class="c-rose">Critique</td><td class="c-mint">Génération IA automatique (modèles FLUX.2 Pro via FAL.ai)</td></tr>
+        <tr><td>Coût de production</td><td>300-2 000 € par chapitre en sous-traitance (devis 2025)</td><td class="c-rose">Élevé</td><td class="c-mint">Coût marginal de quelques centimes par image via API FAL.ai</td></tr>
+        <tr><td>Temps de production</td><td>1 à 4 semaines par chapitre fait à la main (20-40 panels)</td><td class="c-rose">Élevé</td><td class="c-mint">Un asset en secondes, un chapitre en quelques heures</td></tr>
+        <tr><td>Cohérence visuelle</td><td>Maintenir un même style sur 50+ chapitres est un défi, même pour les pros</td><td class="c-rose">Moyen</td><td class="c-mint">Sheet System : fiche composite 4 angles injectée automatiquement</td></tr>
+        <tr><td>Fragmentation des outils</td><td>Photoshop + Clip Studio Paint + export manuel — pas de solution tout-en-un</td><td class="c-rose">Moyen</td><td class="c-mint">Plateforme tout-en-un : scénario → assets → édition → export</td></tr>
+      </tbody>
+    </table></div>
+    <h4 class="sub-2">Résultat concret</h4>
+    <p><span class="c-peach b">89 % des créateurs amateurs abandonnent</span> leur projet webtoon dans les <span class="b">3 premiers mois</span>. Pas par manque d'idées ou de motivation, mais parce qu'ils ne savent pas comment <span class="c-peach b">passer de l'histoire dans leur tête à une image à l'écran</span>. (Entretiens internes, nov. 2025, n = 12 créateurs + 3 studios)</p>
+
+    <h4 class="sub-2">Validation du Product-Market Fit</h4>
+    <p>Pour qu'un produit ait un vrai product-market fit, il faut que les utilisateurs en aient vraiment <span class="b">besoin</span>, pas juste qu'ils trouvent ça « sympa ».</p>
+    <div class="tw"><table>
+      <thead><tr><th>Type d'indicateur</th><th>Métrique</th><th class="c-mint">Cible</th></tr></thead>
+      <tbody>
+        <tr><td>Signaux marché</td><td>CAGR marché webtoon</td><td class="c-mint">+35-40 %/an</td></tr>
+        <tr><td>Signaux marché</td><td>Recherches « AI webtoon maker » (Google Trends 2023→2025)</td><td class="c-mint">+200 %</td></tr>
+        <tr><td>Métriques produit</td><td>Time to Value (inscription → première image générée)</td><td class="c-mint">&lt; 10 minutes</td></tr>
+        <tr><td>Métriques produit</td><td>Taux d'activation (inscrits qui créent un premier projet)</td><td class="c-mint">&gt; 60 %</td></tr>
+        <tr><td>Métriques produit</td><td>Conversion plan Libre → payant</td><td class="c-mint">&gt; 5 %</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3 class="sub">2. Principaux Parcours Utilisateurs</h3>
+    <p>Le parcours principal correspond à la <span class="c-peach b">création d'un premier webtoon</span>, de l'inscription à la première image générée. Il est optimisé pour un <span class="c-peach b">Time to Value inférieur à 10 minutes</span>.</p>
+    <div class="tw"><table>
+      <thead><tr><th>Étapes</th><th>Écran / Action</th><th>Détail</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td class="c-peach">Landing page</td><td>Présentation du produit, CTA « Commencer gratuitement », thème clair/sombre</td></tr>
+        <tr><td>2</td><td class="c-peach">Authentification</td><td>Email + mot de passe ou Google OAuth — profil créé automatiquement</td></tr>
+        <tr><td>3</td><td class="c-peach">Dashboard</td><td>Liste projets, statistiques, quota mensuel (barre recharts), badge tier Libre/Créateur</td></tr>
+        <tr><td>4</td><td class="c-peach">Nouveau projet</td><td>Titre + description → Onglet Style → 4 templates → validation → Ariane onboarding</td></tr>
+        <tr><td>5</td><td class="c-peach">Onglets progressifs</td><td>Style → Scénario → Assets → Univers → Édition (déblocage progressif, badges New)</td></tr>
+        <tr><td>6</td><td class="c-peach">Scénario</td><td>IA Scénario (Gemini Flash) → chapitres → détection assets → NarraMind / Ariane alertes</td></tr>
+        <tr><td>7</td><td class="c-peach">Assets</td><td>Création personnages/décors/objets → génération IA → Sheet System 4 angles</td></tr>
+        <tr><td>8</td><td class="c-peach">Édition</td><td>Chapitre par blocs → génération par bloc FLUX.2 Pro Edit → dialogues/bulles (Q2 2026)</td></tr>
+      </tbody>
+    </table></div>
+    <p class="muted"><span class="c-peach b">Time to Value cible :</span> première image générée en moins de 10 minutes après l'inscription.</p>
+
+    <div class="decision">
+      <div class="dh">💡 Décision D3 — Onboarding par déblocage progressif plutôt que tout exposer</div>
+      <p><span class="k">Genèse.</span> Un éditeur webtoon complet (style, assets, scénario, univers, édition) est intimidant. Un nouvel utilisateur confronté à toutes les sections d'un coup ne sait pas par où commencer — facteur d'abandon.</p>
+      <p><span class="k">Options envisagées.</span> (a) Tout afficher dès l'inscription — puissant mais écrasant. (b) Un wizard linéaire forcé — rassurant mais frustrant pour les avancés. (c) Un déblocage progressif guidé par Ariane, avec badges « New ».</p>
+      <p><span class="k kc">Choix retenu.</span> Le déblocage progressif (c) : les onglets s'ouvrent au fil de la progression, Ariane accompagne.</p>
+      <p><span class="k">Justification.</span> Concilie le Time-to-Value < 10 min (l'utilisateur atteint vite son « wow moment ») et la profondeur de l'outil (les fonctions avancées restent accessibles, juste non imposées). C'est la logique des jeux et des outils créatifs qui réussissent leur adoption.</p>
+    </div>
+
+    <h3 class="sub">3. Blueprint Global de la Solution</h3>
+    <p>DreamWeave est construit sur une architecture <span class="c-peach b">JAMstack</span> avec un backend serverless Supabase et une intégration IA via API externe.</p>
+    <h4 class="sub-2">Workflow en 5 étapes</h4>
+    <div class="tw"><table>
+      <thead><tr><th>Étapes</th><th>Fonctionnalité</th><th class="c-peach">Technologie</th></tr></thead>
+      <tbody>
+        <tr><td>① STYLE</td><td>4 templates (Manga, Webtoon Coréen, Manhwa, Européen) + images de référence. <code>style_template</code> sauvegardé en BDD, injecté dans chaque génération.</td><td class="c-peach">StyleManager.tsx — Supabase Storage</td></tr>
+        <tr><td>② SCÉNARIO</td><td>IA Scénario : Gemini Flash → découpage chapitres. Détection assets dans le texte (surbrillance + hover). NarraMind / Ariane : mémoire narrative, alertes incohérences.</td><td class="c-peach">Edge Function generate-scenario-ai — narramind-update</td></tr>
+        <tr><td>③ ASSETS</td><td>Création personnages/décors/objets. Sheet System : fiche composite 4 angles (face, profil G/D, dos) générée en 1 action. Stockée dans <code>assets.image_url_sheet</code>.</td><td class="c-peach">Edge Function generate-asset-image — FLUX.2 Pro Edit</td></tr>
+        <tr><td>④ ÉDITION</td><td>Panels par blocs — layout JSONB dans <code>chapter_canvases</code>. Génération indépendante par bloc. FLUX.2 Pro Edit : sheet injectée → cohérence garantie.</td><td class="c-peach">Edge Function generate-panel-image</td></tr>
+        <tr><td>⑤ EXPORT</td><td>Export PDF / PNG / ZIP (html2canvas + jszip). Publication directe Webtoon Canvas, Tapas.</td><td class="c-peach">html2canvas + jszip — API Webtoon</td></tr>
+      </tbody>
+    </table></div>
+
+    <h4 class="sub-2">Architecture technique</h4>
+    <p class="explain">L'architecture répond à trois contraintes simultanées : coût quasi nul au démarrage (projet bootstrappé), scalabilité sans réécriture, et sécurité multi-tenant dès le premier utilisateur. Le choix d'une architecture JAMstack + backend serverless en découle directement. Le tableau donne la vue d'ensemble ; la partie 6 explique pourquoi chaque couche a été retenue contre ses alternatives.</p>
+    <div class="tw"><table>
+      <thead><tr><th>Couche</th><th>Technologie</th><th class="c-peach">Rôle</th></tr></thead>
+      <tbody>
+        <tr><td>Frontend</td><td>React 18.3.1 + TypeScript 5.8.3 + Vite 7.3.1 + Tailwind CSS + shadcn/ui + Framer Motion 12.34.0 + TanStack React Query 5.83.0 — hébergé Vercel</td><td class="c-peach">SPA, UI, cache serveur intelligent</td></tr>
+        <tr><td>Backend</td><td>Supabase Cloud — PostgreSQL (10 tables, RLS native) — Auth (email + Google OAuth PKCE) — Storage bucket dreamweave — Edge Functions Deno</td><td class="c-peach">BDD, authentification, stockage images, logique métier serverless</td></tr>
+        <tr><td>IA Images</td><td>FAL.ai FLUX.2 Pro tous plans — coûts réels testés 10/05/2026 : ~0,065 €/crédit moyen pondéré (personnage $0,06 | décor $0,09 | objet $0,05)</td><td class="c-peach">Génération d'images IA — cohérence via Sheet System</td></tr>
+        <tr><td>IA Texte</td><td>Google Gemini Flash (primaire) — Groq Llama 3.3 70B (fallback si erreur 429). Vectorisation : Gemini text-embedding-004 (768 dim., pgvector)</td><td class="c-peach">Génération scénarios, découpage cases, NarraMind</td></tr>
+        <tr><td>Sécurité</td><td>RLS PostgreSQL sur 10 tables — JWT RS256 — Supabase Secrets — <code>profiles.plan</code> protégé (seul Stripe webhook peut modifier)</td><td class="c-peach">Multi-tenant, isolation données, protection upgrade frauduleux</td></tr>
+        <tr><td>CI/CD</td><td>GitHub Actions : lint + TypeCheck + deploy Vercel automatique — Vitest + ESLint + husky lint-staged</td><td class="c-peach">Qualité code, déploiement continu</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <!-- ============ 3. BUSINESS MODEL ============ -->
+  <section class="section" id="s3">
+    <div class="section-head"><span class="section-num">03</span><h2 class="text-grad">Business Model</h2></div>
+    <div class="objective"><div class="lbl">OBJECTIF</div><p>Présenter le modèle économique complet de DreamWeave — BMC, pricing argumenté et projections financières.</p></div>
+
+    <h3 class="sub">1. Business Model Canvas</h3>
+    <p class="explain">Le BMC ci-dessous est de type plateforme freemium. Deux blocs portent toute la logique économique : la structure de coûts (quasi fixe et faible, ~60 €/mois, + ~0,065 € par génération) et les flux de revenus (abonnement par volume). La marge se joue donc sur un seul levier — le ratio entre le prix d'un abonnement et le coût réel des générations consommées — d'où l'importance du pricing argumenté ci-après.</p>
+    <div class="tw"><table>
+      <thead><tr><th>Bloc BMC</th><th>Contenu</th></tr></thead>
+      <tbody>
+        <tr><td>Partenaires clés</td><td>FAL.ai (API IA FLUX.2 Pro) — Supabase (BaaS) — Vercel (hébergement CDN mondial) — Webtoon Canvas &amp; Tapas (distribution) — Communautés Discord/Reddit/Wattpad</td></tr>
+        <tr><td>Activités clés</td><td>Développement produit (continu) — Optimisation IA &amp; prompts (hebdo) — Acquisition utilisateurs (continu) — Support client (continu) — Analyse produit &amp; A/B tests (hebdo)</td></tr>
+        <tr><td>Ressources clés</td><td>Stack JAMstack — Modèles FLUX.2 Pro — Prompts système propriétaires — Communauté early adopters — Données d'usage</td></tr>
+        <tr><td>Proposition de valeur</td><td>Créer un webtoon professionnel en quelques heures, sans compétences artistiques — 1 à 4 semaines devient 2 à 4 heures — 300 à 2000 € devient &lt; 5 € par chapitre</td></tr>
+        <tr><td>Relations clients</td><td>Self-service — Onboarding Ariane — Support email (Créateur/Studio) — Discord communauté — Challenges créatifs</td></tr>
+        <tr><td>Canaux</td><td>SEO (« AI webtoon creator ») — Product Hunt — Reddit r/webtoons — TikTok/YouTube — Content Marketing — Influenceurs webtoon/manga — LinkedIn B2B</td></tr>
+        <tr><td>Segments clients</td><td>B2C : créateurs individuels (auteurs, YouTubers, amateurs passionnés) — B2B : studios webtoon, agences storytelling, institutions éducatives</td></tr>
+        <tr><td>Flux de revenus</td><td>Abonnements freemium SaaS (Libre/Créateur/Studio/Enterprise) — Packs de crédits supplémentaires (6 mois) — Marketplace de styles commission 30 % (12 mois) — API B2B (12 mois)</td></tr>
+        <tr><td>Structure de coûts</td><td>Fixes : ~60 €/mois (Supabase Pro 25 € + Vercel Pro 20 € + domaine + outils) — Variables : FAL.ai ~0,065 $/crédit — Gemini Flash ~0,005 $/appel — Croissance : marketing 10-20 % du CA</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3 class="sub">2. Proposition de valeur Détaillée</h3>
+    <h4 class="sub-2">Valeur fonctionnelle — Comparaison avant / après</h4>
+    <div class="tw"><table>
+      <thead><tr><th>Dimension</th><th>Avant DreamWeave</th><th class="c-mint">Avec DreamWeave</th><th class="c-peach">Gain</th></tr></thead>
+      <tbody>
+        <tr><td>Temps par chapitre</td><td>1 à 4 semaines</td><td class="c-mint">2 à 4 heures</td><td class="c-peach">x10 à x40</td></tr>
+        <tr><td>Coût de production</td><td>300€ à 2000€ (Illustrateur)</td><td class="c-mint">&lt; 5€ coût API</td><td class="c-peach">x60 à x400</td></tr>
+        <tr><td>Compétences requises</td><td>Dessin / colorisation, mise en page, Scénariste</td><td class="c-mint">Écriture de description texte (prompt)</td><td class="c-peach">Accessible à tous</td></tr>
+        <tr><td>Cohérence visuelle</td><td>Difficile à maintenir sur la durée</td><td class="c-mint">Automatique via Sheet System</td><td class="c-peach">100% Garantie</td></tr>
+        <tr><td>Vue personnages</td><td>Redessiné manuel à chaque angle</td><td class="c-mint">Fiche 4 angles en un clic</td><td class="c-peach">x4 vitesse</td></tr>
+        <tr><td>Mémoire narrative</td><td>Post-it, documents dispersés</td><td class="c-mint">NarraMind, alertes automatiques</td><td class="c-peach">Pas d'incohérence</td></tr>
+      </tbody>
+    </table></div>
+
+    <h4 class="sub-2">Valeur émotionnelle &amp; sociale</h4>
+    <div class="tw"><table>
+      <thead><tr><th>Type</th><th>Ce que ressent le créateur</th><th class="c-mint">Levier produit</th></tr></thead>
+      <tbody>
+        <tr><td>Empowerment</td><td>« Je peux enfin visualiser mes histoires »</td><td class="c-mint">Wow moment : première case IA conforme à la vision en &lt; 10 min</td></tr>
+        <tr><td>Fierté</td><td>« J'ai créé ça moi-même »</td><td class="c-mint">Badge « Créé avec DreamWeave » partageable sur TikTok / Instagram</td></tr>
+        <tr><td>Appartenance</td><td>« Je fais partie d'une communauté de créateurs IA »</td><td class="c-mint">Discord communauté, challenges créatifs, showcase hebdomadaire</td></tr>
+        <tr><td>Statut</td><td>Difficile à maintenir sur la durée</td><td class="c-mint">Export format Webtoon Canvas / Tapas, publication directe</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3 class="sub">3. Pricing Argumenté</h3>
+    <p>Le modèle de tarification repose sur une <span class="c-peach b">logique Spotify</span> : même qualité FLUX.2 Pro pour tous les plans, seule la <span class="c-peach b">quantité de générations mensuelles diffère</span>. L'utilisateur Libre accède à la pleine valeur du produit, se convainc de son utilité, puis <span class="c-peach b">upgrade</span> pour disposer de plus de volume.</p>
+
+    <div class="decision">
+      <div class="dh">💡 Décision D4 — Différencier sur le volume, pas sur les fonctionnalités</div>
+      <p><span class="k">Genèse.</span> Le réflexe SaaS classique est de réserver les fonctions « premium » aux plans payants (feature-gating). Mais brider une fonction (ex. le Sheet System) sur le plan gratuit casserait justement la démonstration de valeur censée convertir l'utilisateur.</p>
+      <p><span class="k">Options envisagées.</span> (a) Feature-gating classique — le gratuit a une qualité/des fonctions dégradées : l'utilisateur ne voit jamais la vraie valeur, donc ne convertit pas. (b) Pay-as-you-go pur — on paie chaque génération : friction à chaque clic, incompatible avec un usage créatif fluide. (c) Logique Spotify — 100 % des fonctions et la même qualité (FLUX.2 Pro) pour tous ; seul le volume mensuel de crédits diffère.</p>
+      <p><span class="k kc">Choix retenu.</span> La logique Spotify (c). Libre (20 crédits) / Créateur (100) / Studio (250) / Entreprise (sur devis), toutes fonctions ouvertes partout.</p>
+      <p><span class="k">Justification.</span> L'utilisateur gratuit éprouve la pleine valeur, se convainc, puis upgrade parce qu'il manque de volume — pas parce qu'on lui refuse une fonction. Conversion par la satisfaction plutôt que par la frustration (modèle éprouvé par Spotify et Canva). Contrainte assumée : le coût d'un utilisateur gratuit (20 × 0,065 € ≈ 1,30 €/mois) reste absorbable, ce que confirme le break-even.</p>
+    </div>
+
+    <div class="tw"><table class="center">
+      <thead><tr><th></th><th>Libre</th><th class="c-peach">Créateur</th><th class="c-lav">Studio</th><th class="c-mint">Entreprise</th></tr></thead>
+      <tbody>
+        <tr><td style="text-align:left">Prix</td><td>0€</td><td class="c-peach">12,99€/mois</td><td class="c-lav">29,99€/mois</td><td class="c-mint">Sur devis</td></tr>
+        <tr><td style="text-align:left">Crédits/mois</td><td>20</td><td class="c-peach">100</td><td class="c-lav">250</td><td class="c-mint">Illimité</td></tr>
+        <tr><td style="text-align:left">Modèle IA</td><td>FLUX.2 PRO</td><td class="c-peach">FLUX.2 PRO</td><td class="c-lav">FLUX.2 PRO</td><td class="c-mint">FLUX.2 PRO</td></tr>
+        <tr><td style="text-align:left">Sheet System</td><td>Oui</td><td class="c-peach">Oui</td><td class="c-lav">Oui</td><td class="c-mint">Oui</td></tr>
+        <tr><td style="text-align:left">Scénario IA</td><td>Oui</td><td class="c-peach">Oui</td><td class="c-lav">Oui</td><td class="c-mint">Oui</td></tr>
+        <tr><td style="text-align:left">Export Chapitre</td><td>Oui</td><td class="c-peach">Oui</td><td class="c-lav">Oui</td><td class="c-mint">Oui</td></tr>
+        <tr><td style="text-align:left">Mémoire Narrative</td><td>Oui</td><td class="c-peach">Oui</td><td class="c-lav">Oui</td><td class="c-mint">Oui</td></tr>
+        <tr><td style="text-align:left">Fil d'Ariane</td><td>Oui</td><td class="c-peach">Oui</td><td class="c-lav">Oui</td><td class="c-mint">Oui</td></tr>
+        <tr><td style="text-align:left">Support</td><td>Discord</td><td class="c-peach">Email</td><td class="c-lav">Prioritaire</td><td class="c-mint">Dédié</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3 class="sub">4. Revenus Complémentaires</h3>
+    <div class="tw"><table>
+      <thead><tr><th>Sources</th><th>Description</th><th>Modèle</th><th class="c-rose">Timeline</th></tr></thead>
+      <tbody>
+        <tr><td>Packs crédits</td><td>Achats one-shot de 50 / 100 / 250 crédits pour les utilisateurs qui dépassent leur quota mensuel sans vouloir changer de plan</td><td>Achat ponctuel</td><td class="c-rose">M+6 après lancement</td></tr>
+        <tr><td>Marketplace de styles</td><td>Les créateurs peuvent vendre leurs styles personnalisés à la communauté — DreamWeave prend une commission de 30 %</td><td>Commission 30 % sur chaque vente</td><td class="c-rose">M+12</td></tr>
+        <tr><td>API B2B</td><td>Accès API DreamWeave pour intégration dans des outils tiers (agences, plateformes éducatives, outils de création)</td><td>Abonnement mensuel selon volume d'appels — pricing sur devis</td><td class="c-rose">M+12</td></tr>
+        <tr><td>Publication assistée</td><td>Commission sur les webtoons publiés directement via DreamWeave sur les plateformes partenaires</td><td>Commission % sur monétisation plateforme</td><td class="c-rose">M+18</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3 class="sub">5. Projections Financières : Année 1</h3>
+    <p>Les projections ci-dessous sont basées sur un taux de <span class="c-peach b">conversion Libre → payant progressif</span>, aligné sur les benchmarks SaaS freemium du <span class="c-peach b">secteur créatif</span> (Canva, Figma, Adobe Express en phase de lancement).</p>
+    <p class="explain">Le point d'attention n'est pas le MRR absolu (modeste à M12) mais la trajectoire : la marge brute reste négative tant que coûts variables et marketing dépassent le MRR, puis redevient positive une fois la base de payants installée. Le break-even opérationnel est atteint dès 10-15 abonnés Créateur, ce qui rend le projet viable très tôt, même sans levée.</p>
+    <div class="tw"><table class="center">
+      <thead><tr><th style="text-align:left">Métrique</th><th>M3</th><th>M6</th><th class="c-lav">M9</th><th class="c-mint">M12</th></tr></thead>
+      <tbody>
+        <tr><td style="text-align:left">Inscrits cumulés</td><td>500</td><td>3 000</td><td class="c-lav">10 000</td><td class="c-mint">25 000</td></tr>
+        <tr><td style="text-align:left">MAU (utilisateurs actifs mensuels)</td><td>200</td><td>1 200</td><td class="c-lav">4 000</td><td class="c-mint">10 000</td></tr>
+        <tr><td style="text-align:left">Taux conversion Libre → payant</td><td>2%</td><td>4%</td><td class="c-lav">5%</td><td class="c-mint">6%</td></tr>
+        <tr><td style="text-align:left">Abonnés payants</td><td>4</td><td>48</td><td class="c-lav">200</td><td class="c-mint">600</td></tr>
+        <tr><td style="text-align:left">ARPU (payants)</td><td>12,99€</td><td>15€</td><td class="c-lav">17€</td><td class="c-mint">19€</td></tr>
+        <tr><td style="text-align:left">MRR</td><td>52€</td><td>720€</td><td class="c-lav">3 400€</td><td class="c-mint">11 400€</td></tr>
+        <tr><td style="text-align:left">ARR projeté</td><td>-</td><td>-</td><td class="c-lav">-</td><td class="c-mint">~137 000€</td></tr>
+        <tr><td style="text-align:left">Coûts variables estimés</td><td>~5€</td><td>~65€</td><td class="c-lav">~1 300€</td><td class="c-mint">~6 500€</td></tr>
+        <tr><td style="text-align:left">Marge brute estimée</td><td>-</td><td>~92%</td><td class="c-lav">~66%</td><td class="c-mint">~48%</td></tr>
+      </tbody>
+    </table></div>
+
+    <h4 class="sub-2">KPIs Business — Cibles M12</h4>
+    <div class="tw"><table>
+      <thead><tr><th>KPI Business</th><th>Définition</th><th class="c-lav">Cible M12</th></tr></thead>
+      <tbody>
+        <tr><td>CAC</td><td>Coût d'acquisition client tous canaux</td><td class="c-lav">&lt; 30 €</td></tr>
+        <tr><td>LTV</td><td>Durée moy. abonnement × ARPU</td><td class="c-lav">&gt; 150 €</td></tr>
+        <tr><td>LTV / CAC</td><td>Rentabilité de l'acquisition</td><td class="c-lav">&gt; 3:1</td></tr>
+        <tr><td>Churn mensuel</td><td>% abonnés qui annulent</td><td class="c-lav">&lt; 8 %</td></tr>
+        <tr><td>MRR growth</td><td>Croissance mensuelle du MRR</td><td class="c-lav">&gt; 15 %/mois</td></tr>
+        <tr><td>MRR</td><td>Revenu mensuel récurrent</td><td class="c-lav">3 400€ → 11 400€</td></tr>
+        <tr><td>ARPU payants</td><td>Revenu moyen par utilisateur payant</td><td class="c-lav">&gt; 18 € à M12</td></tr>
+        <tr><td>DAU / MAU</td><td>Ratio engagement quotidien / mensuel</td><td class="c-lav">&gt; 30 %</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <!-- ============ 4. ORGANISATION ============ -->
+  <section class="section" id="s4">
+    <div class="section-head"><span class="section-num">04</span><h2 class="text-grad">Organisation</h2></div>
+    <div class="objective"><div class="lbl">OBJECTIF</div><p>Présenter l'équipe opérationnelle, les besoins de recrutement, la structure juridique progressive et les mécanismes de gouvernance.</p></div>
+
+    <p><span class="c-lav b">DreamWeave</span> est un projet <span class="c-peach b">déjà lancé</span> : la plateforme est fonctionnelle sur l'ensemble du workflow créatif implémenté (style, assets, scénario, édition, paiements). Ce résultat a été obtenu en <span class="c-mint b">4 à 6 mois</span> grâce à un modèle de développement basé sur l'aide d'un <span class="c-peach b">outillage IA avancé</span>.</p>
+    <p>Le fondateur, Louis Basnier, assure <span class="c-peach b">l'intégralité du développement full-stack</span> (frontend React, backend Supabase, Edge Functions IA), du <span class="c-peach b">product management</span> et de la <span class="c-peach b">vision produit</span>. Il est accompagné par deux contributeurs spécialisés : l'un sur l'ingénierie des prompts d'images IA et le système de cohérence visuelle (Sheet System), l'autre sur la mémoire narrative (NarraMind) et la gestion du fallback entre modèles de langage.</p>
+    <p>Un aspect clé du modèle de développement de <span class="c-lav b">DreamWeave</span> est l'utilisation d'<span class="c-peach b">assistants IA de développement</span>. Cet outil accélère significativement la production de code, la rédaction de composants UI et la résolution de problèmes techniques. Cette approche permet à une équipe réduite de délivrer un produit dont la complexité technique équivaut normalement à celle d'une équipe de 3 à 5 développeurs à temps plein.</p>
+
+    <h3 class="sub">1. Équipe Opérationnelle (Build / Run)</h3>
+    <h4 class="sub-2">Postes &amp; Périmètres actuels</h4>
+    <p class="explain">Le modèle d'organisation repose sur un pari assumé : une équipe minimale outillée par l'IA de développement peut délivrer la complexité d'une équipe de 3 à 5 développeurs. Ce n'est pas une économie de façade — c'est la démonstration centrale de la posture lead dev de ce mémoire. Les recrutements P0 → P3 ne sont déclenchés que par des seuils de revenus, jamais « par anticipation ».</p>
+    <div class="tw"><table>
+      <thead><tr><th>Poste</th><th>Périmètre</th></tr></thead>
+      <tbody>
+        <tr><td>Fondateur &amp; Lead Developer (Louis Basnier)</td><td>Product Owner, architecture technique, développement full-stack (React, TypeScript, Supabase, Edge Functions Deno), vision produit, intégrations IA, DevOps</td></tr>
+        <tr><td>Ingénieur Prompt IA — Images</td><td>Ingénierie des prompts FLUX.2 Pro, conception et optimisation du Sheet System (cohérence visuelle 4 angles), navigation et interface sidebar</td></tr>
+        <tr><td>Ingénieur IA — Texte &amp; Mémoire Narrative</td><td>NarraMind v2 (mémoire narrative longue), fallback Groq en cas de quota Gemini épuisé, gestion du chargement des images, export ZIP</td></tr>
+      </tbody>
+    </table></div>
+
+    <h4 class="sub-2">Besoins de recrutement — Phase de croissance</h4>
+    <p>Les premiers recrutements sont conditionnés à l'atteinte de <span class="c-peach b">seuils de revenus précis</span>.</p>
+    <div class="tw"><table>
+      <thead><tr><th>Priorité</th><th>Poste</th><th class="c-lav">Mission principale</th><th class="c-peach">Timing</th><th class="c-mint">Salaire estimé</th></tr></thead>
+      <tbody>
+        <tr><td>P0</td><td>Growth Marketer</td><td class="c-lav">Acquisition organique (SEO, TikTok, Reddit), animation de la communauté Discord, content marketing créateurs webtoon</td><td class="c-peach">Dès 50 000 € d'ARR</td><td class="c-mint">28 000-35 000 €/an</td></tr>
+        <tr><td>P1</td><td>Customer Success</td><td class="c-lav">Support utilisateurs (plans Créateur et Studio), onboarding B2B studios, réduction du churn</td><td class="c-peach">Dès 150 abonnés payants</td><td class="c-mint">25 000-32 000 €/an</td></tr>
+        <tr><td>P2</td><td>Développeur Frontend junior</td><td class="c-lav">Accélération des fonctionnalités UI (export, bulles avancées, mobile), mise en place des tests E2E</td><td class="c-peach">Levée de fonds ou ARR &gt; 100 000 €</td><td class="c-mint">30 000-38 000 €/an</td></tr>
+        <tr><td>P3</td><td>Designer UX/UI</td><td class="c-lav">Refonte de l'onboarding, adaptation mobile-first, création du design system DreamWeave v2</td><td class="c-peach">Levée de fonds ou ARR &gt; 100 000 €</td><td class="c-mint">32 000-42 000 €/an</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3 class="sub">2. Structure Juridique</h3>
+    <p>La structuration juridique suit une <span class="c-peach b">progression par phases</span>, chaque transition étant déclenchée par un seuil de revenus ou un événement concret. Cette approche évite la <span class="c-peach b">complexité administrative prématurée</span> tout en préparant la scalabilité.</p>
+
+    <div class="decision">
+      <div class="dh">💡 Décision D5 — Trois statuts successifs plutôt qu'une SAS immédiate</div>
+      <p><span class="k">Genèse.</span> Créer une SAS dès le départ est tentant (image « startup ») mais coûte en frais comptables, en formalisme et en temps — pour un projet sans aucun revenu.</p>
+      <p><span class="k">Options envisagées.</span> (a) SAS dès J0 — crédible pour lever, mais lourd et prématuré. (b) Rester auto-entrepreneur indéfiniment — simple, mais plafond 77 700 €/an et impossible d'accueillir des associés. (c) Progression par paliers déclenchés par des seuils concrets.</p>
+      <p><span class="k kc">Choix retenu.</span> Auto-entrepreneur (lancement) → SASU (à 30 k€ CA ou 1er salarié) → SAS (entrée d'associés ou levée).</p>
+      <p><span class="k">Justification.</span> Chaque transition est déclenchée par un fait (seuil de CA, embauche, levée), pas par une intuition. On évite la complexité administrative tant qu'elle n'apporte rien, tout en gardant la trajectoire ouverte vers les statuts attendus des investisseurs (BSPCE, vesting). C'est la gestion du risque appliquée au juridique.</p>
+    </div>
+
+    <div class="tw"><table>
+      <thead><tr><th>Phase</th><th>Structure</th><th class="c-rose">Déclencheur</th><th>Avantages clés</th></tr></thead>
+      <tbody>
+        <tr><td>Phase 1 : Lancement</td><td>Auto-entrepreneur</td><td class="c-rose">Immédiat : création possible en 15 minutes</td><td>Obtention du SIRET, paiements Stripe légaux dès le CA déclaré, cotisations sociales de 22 % sur le CA déclaré, seuil de chiffre d'affaires 77 700 €/an, compte bancaire dédié</td></tr>
+        <tr><td>Phase 2 : Croissance</td><td>SASU (Société par Actions Simplifiée Unipersonnelle)</td><td class="c-rose">Dépassement de 30 000 €/an de CA ou embauche du premier salarié</td><td>Optimisation fiscale via l'impôt sur les Sociétés (15 puis 25 %), rémunération possible par dividendes, éligibilité au Crédit Impôt Recherche pour les développements IA, séparation patrimoine personnel et professionnel</td></tr>
+        <tr><td>Phase 3 : Scale</td><td>SAS (Société par Actions Simplifiée)</td><td class="c-rose">Entrée d'associés ou levée de fonds</td><td>Standard des investisseurs français (Bpifrance, French Tech), émission de BSPCE pour les salariés, flexibilité statutaire maximale, vesting cliff 1 an puis linéaire sur 4 ans</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3 class="sub">3. Gouvernance &amp; Vesting</h3>
+    <p>En phase SAS, les mécanismes de vesting <span class="c-peach b">protègent le fondateur</span> en cas d'entrée de <span class="c-peach b">co-fondateurs tardifs</span> ou d'<span class="c-peach b">investisseurs</span>. Le standard retenu est celui utilisé par l'écosystème <span class="c-mint b">French Tech</span>.</p>
+    <div class="tw"><table>
+      <thead><tr><th>Élément</th><th>Mécanisme</th><th class="c-lav">Détail</th></tr></thead>
+      <tbody>
+        <tr><td>Cliff</td><td>1 an</td><td class="c-lav">Aucune acquisition de parts avant la fin de la première année — protection contre le départ prématuré d'un associé</td></tr>
+        <tr><td>Acquisition</td><td>Linéaire sur 4 ans</td><td class="c-lav">1/48e des actions par mois après le cliff — standard investisseurs français et européens</td></tr>
+        <tr><td>Accélération</td><td>Double trigger</td><td class="c-lav">Acquisition accélérée si changement de contrôle combiné à une révocation — protection du fondateur en cas de rachat</td></tr>
+        <tr><td>BSPCE</td><td>Réservés aux salariés</td><td class="c-lav">Évolution à formaliser lors de l'entrée du premier investisseur ou associé</td></tr>
+        <tr><td>Cap table initiale</td><td>100 % fondateur</td><td class="c-lav">Bons de Souscription de Parts de Créateur d'Entreprise — fiscalité avantageuse pour attirer les premiers employés</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <!-- ============ 5. GO TO MARKET ============ -->
+  <section class="section" id="s5">
+    <div class="section-head"><span class="section-num">05</span><h2 class="text-grad">Go to Market</h2></div>
+    <div class="objective"><div class="lbl">OBJECTIF</div><p>Définir le cycle de vie des utilisateurs et la stratégie de lancement pour atteindre 25 000 inscrits et 600 payants à M12, avec un CAC &lt; 30 € et un LTV/CAC &gt; 3:1.</p></div>
+
+    <h3 class="sub">1. Customer Lifecycle</h3>
+    <p class="explain">Le cycle de vie est pensé comme un entonnoir où chaque phase a un seul objectif mesurable et un mécanisme produit dédié. Le point critique n'est pas l'acquisition (phase 1) mais l'activation (phase 2) : c'est le « wow moment » — première case conforme en moins de 10 minutes — qui détermine la rétention. Tout l'onboarding est optimisé pour y amener l'utilisateur au plus vite. La conversion (phase 4) n'intervient qu'ensuite, déclenchée par l'épuisement du quota gratuit chez un utilisateur déjà convaincu.</p>
+    <div class="tw"><table>
+      <thead><tr><th>Phase</th><th>Objectif</th><th class="c-lav">Actions clés</th><th>Canaux</th><th class="c-mint">KPI cible</th></tr></thead>
+      <tbody>
+        <tr><td>① DÉCOUVERTE</td><td>Générer du trafic qualifié</td><td class="c-lav">SEO « AI webtoon creator » — Content marketing (tutoriels YouTube, Reddit) — Product Hunt</td><td>Google, TikTok, Reddit, Product Hunt, YouTube</td><td class="c-mint">&gt; 1 000 visites/mois à M6</td></tr>
+        <tr><td>② ACTIVATION</td><td>Time to Value &lt; 10 min</td><td class="c-lav">Onboarding Ariane guidé — Wow moment : premier panel conforme en &lt; 10 min — Parcours progressif</td><td>In-app onboarding</td><td class="c-mint">Taux d'activation &gt; 60 %</td></tr>
+        <tr><td>③ RÉTENTION</td><td>Ancrer l'habitude créative</td><td class="c-lav">NarraMind mémoire narrative — Quota mensuel qui reset — Discord communauté — Email relance si inactif</td><td>In-app, Email automation, Discord</td><td class="c-mint">Rétention J+30 &gt; 25 %</td></tr>
+        <tr><td>④ CONVERSION</td><td>Upgrade Libre → payant</td><td class="c-lav">CTA upgrade quand quota Libre épuisé — Utilisateur a déjà éprouvé la pleine valeur (logique Spotify)</td><td>In-app CTA, Email</td><td class="c-mint">Conversion &gt; 5 % à M12</td></tr>
+        <tr><td>⑤ RÉFÉRENCEMENT</td><td>Viralité organique</td><td class="c-lav">Badge « Créé avec DreamWeave » sur les exports — Partage TikTok/Instagram — Ambassadeurs Discord</td><td>Réseaux sociaux, Discord</td><td class="c-mint">Viral coefficient &gt; 0,5</td></tr>
+        <tr><td>⑥ B2B STUDIO</td><td>Revenus haute valeur</td><td class="c-lav">LinkedIn outreach directeurs studios — Démo live 30 min — 3 mois pilote Studio gratuit</td><td>LinkedIn, Événements, KWIA</td><td class="c-mint">ARPU Entreprise &gt; 49 €/mois</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3 class="sub">2. Stratégie de Lancement — 4 Phases</h3>
+    <p class="explain">Le lancement est séquencé pour construire la preuve avant de dépenser. Phase 1 (Product Hunt) : un pic de visibilité à coût nul, qui sert aussi de test de charge réel. Phase 2 (content marketing) : on transforme ce pic en acquisition organique durable via le SEO long-tail. Phase 3 (influence + B2B) : on capitalise sur la base et les showcases pour ouvrir le B2B studios. Aucune dépense marketing significative n'est engagée avant que le produit n'ait prouvé son activation.</p>
+    <div class="tw"><table>
+      <thead><tr><th>Phase</th><th>Période</th><th class="c-lav">Description</th><th>Objectif</th><th class="c-mint">KPI</th></tr></thead>
+      <tbody>
+        <tr><td>Phase 1 — Product Hunt</td><td>Q3 2026</td><td class="c-lav">Lancement coordonné avec la communauté bêta. Démo workflow complet en live. Vidéo transformation idée → webtoon. Préparation 4 semaines avant (upvoters, galerie créations, copywriting).</td><td>Top 5 Product Hunt</td><td class="c-mint">500+ inscrits J+1 — 50+ upvotes</td></tr>
+        <tr><td>Phase 2 — Content Marketing</td><td>Janvier - Mars 2027</td><td class="c-lav">Tutoriels YouTube « Créer un webtoon avec l'IA en 2026 » — SEO long tail 20 requêtes — Articles blog — Newsletter bi-mensuelle créateurs — Templates packs gratuits contre inscription.</td><td>Acquisition organique</td><td class="c-mint">1 000+ visites organiques/mois</td></tr>
+        <tr><td>Phase 3 — Influence &amp; B2B</td><td>Avril - Juin 2027</td><td class="c-lav">Partenariats TikTok créateurs webtoon/manga — Outreach LinkedIn studios et éditeurs — Paris Book Festival — Partenariat KWIA pour studios coréens.</td><td>Scale virale + B2B</td><td class="c-mint">10 clients Studio signés</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3 class="sub">3. Support &amp; Communauté par Plan</h3>
+    <p>Le support est un <span class="c-peach b">levier de conversion</span>, pas un <span class="c-rose b">centre de coût</span>. Chaque niveau doit faire ressentir la valeur du plan supérieur.</p>
+    <div class="tw"><table>
+      <thead><tr><th>Plan</th><th class="c-lav">Canal support</th><th class="c-mint">SLA</th><th>Mécanisme</th><th>Objectif</th></tr></thead>
+      <tbody>
+        <tr><td>Libre</td><td class="c-lav">Discord public</td><td class="c-mint">Communauté — pas de SLA</td><td>FAQ + base de connaissances statique, channels Discord segmentés (aide, bugs, showcase)</td><td>Auto-support — ambassadeurs naturels → futurs Créateurs</td></tr>
+        <tr><td>Créateur</td><td class="c-lav">Email + Ariane LLM complète</td><td class="c-mint">48h ouvrées</td><td>Email avec contexte utilisateur pré-chargé (projets, quota, dernières générations) — escalade automatique si hors scope</td><td>Sentiment de care individuel — rétention</td></tr>
+        <tr><td>Studio</td><td class="c-lav">Email prioritaire + Slack Connect</td><td class="c-mint">24h ouvrées</td><td>SLA 24h affiché, onboarding offert à la souscription — accès anticipé aux features</td><td>Garantie de continuité de production</td></tr>
+        <tr><td>Enterprise</td><td class="c-lav">Account Manager dédié</td><td class="c-mint">SLA contractuel</td><td>Slack Connect ou canal dédié — appels réguliers — SLA dans le contrat — support technique avancé</td><td>Partenariat long terme — churn quasi nul</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3 class="sub">4. KPIs Marketing</h3>
+    <div class="tw"><table>
+      <thead><tr><th>KPI</th><th>Définition</th><th class="c-lav">Cible M6</th><th class="c-mint">Cible M12</th><th>Outil de mesure</th></tr></thead>
+      <tbody>
+        <tr><td>CAC</td><td>Coût d'acquisition client</td><td class="c-lav">&lt; 50 €</td><td class="c-mint">&lt; 30 €</td><td>Stripe + UTM tracking</td></tr>
+        <tr><td>LTV</td><td>Durée moy. × ARPU payants</td><td class="c-lav">&gt; 78 €</td><td class="c-mint">&gt; 150 €</td><td>Stripe MRR</td></tr>
+        <tr><td>LTV / CAC</td><td>Ratio valeur / coût</td><td class="c-lav">&gt; 1,5:1</td><td class="c-mint">&gt; 3:1</td><td>Calcul mensuel</td></tr>
+        <tr><td>Churn mensuel</td><td>% abonnés qui annulent</td><td class="c-lav">&lt; 12 %</td><td class="c-mint">&lt; 8 %</td><td>Stripe webhooks</td></tr>
+        <tr><td>Taux activation</td><td>% inscrits → 1 image générée</td><td class="c-lav">&gt; 50 %</td><td class="c-mint">&gt; 60 %</td><td>Admin KPI panel</td></tr>
+        <tr><td>Rétention J+30</td><td>% MAU actifs 30 jours après</td><td class="c-lav">&gt; 20 %</td><td class="c-mint">&gt; 25 %</td><td>Admin KPI panel</td></tr>
+        <tr><td>Conversion Libre → payant</td><td>% inscrits qui upgradent</td><td class="c-lav">&gt; 3 %</td><td class="c-mint">&gt; 5 %</td><td>Stripe + Admin</td></tr>
+        <tr><td>DAU / MAU</td><td>Ratio engagement quotidien</td><td class="c-lav">&gt; 20 %</td><td class="c-mint">&gt; 30 %</td><td>Admin KPI panel</td></tr>
+        <tr><td>Viral coefficient</td><td>Inscriptions générées par 1 actif</td><td class="c-lav">&gt; 0,3</td><td class="c-mint">&gt; 0,5</td><td>Tracking referral</td></tr>
+        <tr><td>NPS</td><td>Score net promoteur (Sean Ellis)</td><td class="c-lav">&gt; 30</td><td class="c-mint">&gt; 40</td><td>Enquête in-app</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <!-- ============ 6. OPÉRATIONNALISATION ============ -->
+  <section class="section" id="s6">
+    <div class="section-head"><span class="section-num">06</span><h2 class="text-grad">Opérationnalisation</h2></div>
+    <div class="objective"><div class="lbl">OBJECTIF</div><p>Posture CTO : benchmark technologique, architecture technique, défis techniques majeurs &amp; solutions implémentées (POC), méthodologie d'itération, plan de release détaillé, besoins techniques, budget Build/Run, cadre juridique IA et veille systémique.</p></div>
+
+    <p>DreamWeave s'attaque à <span class="c-peach b">trois problèmes techniques fondamentaux</span> dans la création de webtoons assistée par IA. Ces trois axes constituent les <span class="c-peach b">défis de posture CTO</span> qui ont guidé l'ensemble des <span class="c-mint b">choix techniques</span> et des itérations du projet.</p>
+    <p class="explain">Ces trois défis ne sont pas accessoires : ce sont les raisons d'être techniques du produit, et chacun constitue aussi un fossé concurrentiel. (1) La cohérence visuelle d'un personnage sur des dizaines de chapitres. (2) L'orchestration d'un workflow complet idée → image. (3) La continuité narrative sur 50+ chapitres couplée à une sécurité multi-tenant stricte. Les encadrés de décision plus bas racontent comment chacun a été résolu.</p>
+    <div class="tw"><table>
+      <thead><tr><th>Défi CTO</th><th>Problème</th><th class="c-mint">Solution DreamWeave</th></tr></thead>
+      <tbody>
+        <tr><td>Cohérence visuelle inter-panels</td><td>Chaque génération IA avec le même prompt produit un personnage visuellement différent. Un lecteur doit reconnaître un personnage sur 50+ chapitres.</td><td class="c-mint">Sheet System — fiche composite 4 angles injectée comme référence dans chaque génération (FLUX.2 Pro Edit multi-référence)</td></tr>
+        <tr><td>Workflow créatif complet</td><td>Passer de l'idée au webtoon exige d'orchestrer LLM (texte) + génération image + couches (narratif, visuel, métadonnées) + interface simple pour le créateur.</td><td class="c-mint">5 étapes intégrées : Style → Assets → Scénario → Édition → Export. Chaque étape a son Edge Function dédiée. Interface à déblocage progressif.</td></tr>
+        <tr><td>Continuité narrative et sécurité multi-tenant</td><td>Un LLM oublie les personnages après 5-10 chapitres. Chaque utilisateur doit accéder uniquement à ses données dans une architecture serverless partagée.</td><td class="c-mint">NarraMind — mémoire narrative compressée + alertes incohérences + vectorisation pgvector. RLS sur 10 tables — profiles.plan protégé côté serveur uniquement.</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3 class="sub">1. Benchmark Technologique</h3>
+    <p>Chaque <span class="c-peach b">choix technologique</span> a été évalué selon des critères de <span class="c-mint b">qualité, coût, maintenabilité</span> et adéquation avec les besoins spécifiques de DreamWeave. Le tableau ci-dessous inclut la justification post-implémentation (retour d'expérience après plusieurs mois de développement).</p>
+    <p class="explain">Le tableau donne le résultat ; les encadrés qui le suivent donnent le raisonnement. Chaque technologie a été évaluée sur quatre critères : adéquation au besoin, coût (au démarrage et à l'échelle), maintenabilité par une équipe minimale, et risque de dépendance (lock-in). Fil conducteur de tous les choix : maximiser ce qu'une seule personne peut livrer et maintenir, quitte à accepter une dépendance fournisseur tant qu'elle reste réversible.</p>
+    <div class="tw"><table>
+      <thead><tr><th>Composant</th><th class="c-lav">Choix retenu</th><th class="c-rose">Alternatives étudiées</th><th>Justification post-implémentation</th></tr></thead>
+      <tbody>
+        <tr><td>Framework Frontend</td><td class="c-lav">React 18.3.1 + TypeScript 5.8.3</td><td class="c-rose">Vue 3, SvelteKit</td><td>Aucune friction — stack mature, adaptée aux outils IA. Plusieurs mois de développement sans blocage framework</td></tr>
+        <tr><td>Build Tool</td><td class="c-lav">Vite 7.3.1</td><td class="c-rose">Create React App, Next.js</td><td>Build ultra-rapide, HMR &lt; 100 ms. Pas de SSR nécessaire (SPA). Pas de migration CRA pénible</td></tr>
+        <tr><td>Backend as a Service</td><td class="c-lav">Supabase</td><td class="c-rose">Firebase, PlanetScale + custom auth</td><td>BDD + Auth + Storage + Edge Functions + RLS native en un service. Vendor lock-in acceptable</td></tr>
+        <tr><td>Cache &amp; State serveur</td><td class="c-lav">TanStack React Query 5.83.0</td><td class="c-rose">SWR, Redux Toolkit Query</td><td>Élimine 80 % de la logique de chargement/cache manuelle. Invalidation automatique après mutations</td></tr>
+        <tr><td>IA Images</td><td class="c-lav">FAL.ai (FLUX.2 Pro / Pro Edit)</td><td class="c-rose">Replicate, Stability AI, DALL-E</td><td>Meilleure qualité webtoon, API multi-référence native = Sheet System possible. Indemnisation copyright. Tarification mégapixel</td></tr>
+        <tr><td>IA Texte</td><td class="c-lav">Gemini Flash + Groq Llama 3.3 70B</td><td class="c-rose">GPT-4o, Claude, Groq seul</td><td>Gemini : quotas généreux, latence &lt; 3 s. Groq : fallback ultra-rapide sur erreur 429</td></tr>
+        <tr><td>Runtime Edge Functions</td><td class="c-lav">Deno (natif Supabase)</td><td class="c-rose">Node.js Lambda, Cloudflare Workers</td><td>Natif Supabase, cold start &lt; 200 ms, isolation sécurisée, gestion secrets native</td></tr>
+        <tr><td>Paiements</td><td class="c-lav">Stripe (Edge Functions)</td><td class="c-rose">Paddle, LemonSqueezy</td><td>Standard SaaS, webhook fiable, Customer Portal inclus, RGPD compatible</td></tr>
+      </tbody>
+    </table></div>
+
+    <div class="decision">
+      <div class="dh">💡 Décision D9 — Supabase comme backend tout-en-un</div>
+      <p><span class="k">Genèse.</span> Une équipe solo ne peut pas opérer une base de données, un service d'auth, un stockage et un backend séparés. Il faut un socle unifié, sécurisé par défaut et serverless.</p>
+      <p><span class="k">Options envisagées.</span> (a) Firebase (NoSQL) — modèle documentaire mal adapté aux relations projet/asset/chapitre, requêtes complexes pénibles. (b) PlanetScale + auth maison — puissant mais impose de construire et maintenir l'auth, le stockage et la sécurité soi-même. (c) Supabase — PostgreSQL relationnel + Auth + Storage + Edge Functions + RLS native.</p>
+      <p><span class="k kc">Choix retenu.</span> Supabase.</p>
+      <p><span class="k">Justification.</span> La RLS PostgreSQL native donne l'isolation multi-tenant (chaque ligne filtrée par <code>auth.uid()</code>) dès le premier jour, sans code de sécurité applicatif — décisif pour un projet manipulant les données créatives privées de chaque utilisateur. Le relationnel colle au domaine (projets → assets → chapitres). Lock-in jugé acceptable et réversible (PostgreSQL standard, exportable).</p>
+    </div>
+
+    <div class="decision">
+      <div class="dh">💡 Décision D10 — FAL.ai + FLUX.2 Pro pour la génération d'images</div>
+      <p><span class="k">Genèse.</span> Le Sheet System impose une capacité précise : passer plusieurs images de référence à une génération (multi-référence). Tous les fournisseurs ne l'offrent pas nativement.</p>
+      <p><span class="k">Options envisagées.</span> (a) Stability AI / DALL·E — bons modèles, mais multi-référence native limitée et couverture juridique floue. (b) Replicate — flexible, mais latence et coûts variables moins maîtrisés. (c) FAL.ai (FLUX.2 Pro / Pro Edit) — qualité webtoon, multi-référence native, indemnisation copyright contractuelle.</p>
+      <p><span class="k kc">Choix retenu.</span> FAL.ai avec FLUX.2 Pro.</p>
+      <p><span class="k">Justification.</span> La multi-référence native rend le Sheet System possible — sans elle, le différenciateur n°1 du produit n'existe pas. L'indemnisation copyright de FAL.ai est un filet juridique précieux (partie 7). Coûts réels mesurés (~0,065 €/génération) compatibles avec le freemium. Dépendance fournisseur assumée et surveillée par la veille.</p>
+    </div>
+
+    <div class="decision">
+      <div class="dh">💡 Décision D11 — Gemini Flash en primaire, Groq en fallback</div>
+      <p><span class="k">Genèse.</span> La génération de scénario doit être rapide, peu coûteuse, et ne jamais tomber, même quand le quota du fournisseur primaire est atteint (erreur 429).</p>
+      <p><span class="k">Options envisagées.</span> (a) GPT-4o seul — qualité haute mais coût plus élevé et pas de filet en cas de quota. (b) Groq seul — ultra-rapide mais quotas plus contraints. (c) Gemini Flash primaire + Groq Llama 3.3 70B en fallback automatique sur 429.</p>
+      <p><span class="k kc">Choix retenu.</span> L'option (c), bascule automatique.</p>
+      <p><span class="k">Justification.</span> Gemini Flash offre des quotas généreux et une latence < 3 s pour un coût minime ; Groq garantit la continuité de service en secours. Le fallback automatique transforme une panne de quota en simple changement de modèle invisible pour l'utilisateur — la robustesse prime sur l'attachement à un fournisseur unique.</p>
+    </div>
+
+    <div class="decision">
+      <div class="dh">💡 Décision D12 — React + Vite + React Query + Edge Functions Deno</div>
+      <p><span class="k">Genèse.</span> L'interface est riche (éditeur canvas, drag & drop, nombreux états serveur) et doit rester maintenable par une seule personne.</p>
+      <p><span class="k">Options envisagées.</span> Next.js (SSR inutile ici, complexité de migration) ; Create React App (build lent, déprécié) ; Redux manuel (verbeux) ; runtime Node Lambda (cold start plus lent).</p>
+      <p><span class="k kc">Choix retenu.</span> Vite (build < 100 ms, HMR instantané, SPA suffisante), React + TypeScript (stack mature et bien outillée pour l'IA de dev), TanStack React Query (élimine ~80 % de la logique de cache manuelle), Edge Functions Deno (natif Supabase, cold start < 200 ms, secrets natifs).</p>
+      <p><span class="k">Justification.</span> Aucune de ces briques n'a généré de friction sur plusieurs mois de développement solo — critère décisif. Pas de SSR à opérer, pas de cache à coder à la main, pas d'infra Lambda à gérer : chaque choix retire de la charge à l'équipe minimale.</p>
+    </div>
+
+    <h3 class="sub">2. Architecture Technique Détaillée</h3>
+    <div class="tw"><table>
+      <thead><tr><th>Couche</th><th>Technologies</th><th class="c-lav">Rôle</th></tr></thead>
+      <tbody>
+        <tr><td>Frontend SPA</td><td>React + TypeScript + Vite + Tailwind CSS + shadcn/ui (50+ composants Radix) + Framer Motion + TanStack React Query + React Router DOM + React Hook Form + Zod + recharts</td><td class="c-lav">Interface utilisateur, cache serveur intelligent, animations</td></tr>
+        <tr><td>Backend</td><td>Supabase Cloud — PostgreSQL (10 tables, RLS native) — Auth (email + Google OAuth PKCE) — Storage bucket dreamweave (namespace user_id/projects/project_id/assets/) — Edge Functions Deno</td><td class="c-lav">BDD, auth, stockage images, logique métier serverless</td></tr>
+        <tr><td>Edge Functions (6)</td><td>generate-asset-image (Sheet System — FLUX.2 Pro Edit) | generate-panel-image (blocs JSONB — dimensions exactes) | generate-scenario-ai (Gemini Flash — découpage chapitres) | narramind-update (mémoire narrative — compression batch) | narramind-compass (vectorisation pgvector + suggestions Ariane) | stripe-webhook (upgrade plan — service_role)</td><td class="c-lav">Logique métier côté serveur — service_role uniquement pour les opérations sensibles</td></tr>
+        <tr><td>IA Images</td><td>FAL.ai FLUX.2 Pro tous plans — coûts réels testés 10/05/2026 : personnage $0,06 | décor $0,09 | objet $0,05 | bloc 3 refs ~$0,025 | moy. pondérée ~$0,065/crédit</td><td class="c-lav">Génération d'images — cohérence via Sheet System</td></tr>
+        <tr><td>IA Texte</td><td>Google Gemini Flash (primaire) — Groq Llama 3.3 70B (fallback si erreur 429). Vectorisation : Gemini text-embedding-004 (768 dim., pgvector). Modèles NarraMind : Gemini 2.0 Flash → 2.5 Flash → Groq.</td><td class="c-lav">Scénarios, découpage chapitres, NarraMind, Ariane support</td></tr>
+        <tr><td>Sécurité</td><td>RLS PostgreSQL sur 10 tables — JWT RS256 — Supabase Secrets — profiles.plan protégé (seul service_role peut modifier)</td><td class="c-lav">Multi-tenant, isolation données par utilisateur, upgrade frauduleux impossible</td></tr>
+        <tr><td>CI/CD</td><td>GitHub Actions : lint + TypeCheck + deploy Vercel auto — Vitest + ESLint 9.32 + husky + lint-staged</td><td class="c-lav">Qualité code, déploiement continu, conventions</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3 class="sub">3. Défis Techniques Majeurs &amp; Solutions (POC)</h3>
+    <h4 class="sub-2">Défi 1 — Sheet System : cohérence visuelle</h4>
+    <p>Chaque <span class="c-peach b">génération IA</span> avec le même prompt produit un personnage <span class="c-rose b">visuellement différent</span>. Un lecteur de webtoon doit <span class="c-lav b">reconnaître le personnage</span> du chapitre 1 au chapitre 50. Le Sheet System résout ce problème par une fiche composite 4 angles injectée automatiquement comme référence.</p>
+    <div class="tw"><table>
+      <thead><tr><th></th><th>Description</th><th class="c-lav">Implémentation</th><th class="c-mint">Résultat</th></tr></thead>
+      <tbody>
+        <tr><td>Problème</td><td>Sans mécanisme de référence, chaque appel FAL.ai produit un résultat visuellement différent même avec un prompt identique.</td><td class="c-lav">generate-asset-image — Migration SQL 20260416</td><td class="c-mint">Incohérence visuelle = perte du lecteur</td></tr>
+        <tr><td>Solution</td><td>Fiche composite 4 angles (face, profil G/D, dos) générée en 1 action FLUX.2 Pro (ratio 2560×768, fond blanc). Stockée dans assets.image_url_sheet, injectée dans chaque génération panel via FLUX.2 Pro Edit (multi-référence).</td><td class="c-lav">Edge Function generate-asset-image — Migration 20260416</td><td class="c-mint">Cohérence visuelle automatique — unique sur le marché webtoon IA</td></tr>
+        <tr><td>Itérations</td><td>20 itérations de prompt engineering pour stabiliser ratio, fond blanc, qualité des angles. Passage FLUX.2 Pro → FLUX.2 Pro Edit pour multi-référence.</td><td class="c-lav">Coût FAL ×3 avec 2 refs → absorbé dans 1 crédit</td><td class="c-mint">Feedback bêta : cohérence passable → très bonne</td></tr>
+      </tbody>
+    </table></div>
+
+    <div class="decision">
+      <div class="dh">💡 Décision D6 — Cohérence par fiche de référence injectée (Sheet System)</div>
+      <p><span class="k">Genèse.</span> En testant la génération naïve, on observe le problème bloquant : le même prompt produit à chaque appel un personnage visuellement différent. Inacceptable pour un webtoon où le lecteur doit reconnaître un personnage du chapitre 1 au chapitre 50.</p>
+      <p><span class="k">Options envisagées.</span> (a) Seed fixe — insuffisant : la cohérence se perd dès qu'on change l'angle, la pose ou le décor. (b) Fine-tuning / LoRA par personnage — qualité maximale, mais coûteux, lent (un entraînement par perso) et inadapté à un usage grand public temps réel. (c) Image de référence multi-angles injectée à chaque génération.</p>
+      <p><span class="k kc">Choix retenu.</span> Le Sheet System (c) : une fiche 4 angles (ratio 2560×768, fond blanc) générée en une action, stockée, puis injectée dans chaque génération de case via FLUX.2 Pro Edit (multi-référence).</p>
+      <p><span class="k">Justification.</span> Le LoRA (b) donnerait la meilleure cohérence mais casse le Time-to-Value et le modèle de coût (incompatible avec 20 crédits gratuits). Le Sheet System atteint ~90 % du bénéfice pour une fraction du coût, et fonctionne en temps réel (~20 itérations de prompt engineering pour stabiliser ratio/fond/qualité). Le LoRA reste planifié comme évolution de scale, pas comme socle. Choix d'ingénieur : la solution suffisante et livrable bat la solution parfaite et inatteignable.</p>
+    </div>
+
+    <h4 class="sub-2">Défi 2 — Génération par bloc : dimensions variables</h4>
+    <p>Un panel webtoon contient <span class="c-peach b">plusieurs scènes</span> avec des personnages et décors <span class="c-peach b">positionnés librement</span>, chacun avec ses propres dimensions.</p>
+    <div class="tw"><table>
+      <thead><tr><th></th><th>Description</th><th class="c-lav">Implémentation</th><th class="c-mint">Résultat</th></tr></thead>
+      <tbody>
+        <tr><td>Problème</td><td>Il faut générer une image adaptée à chaque bloc de mise en page (dimensions variables, position, contexte narratif différent).</td><td class="c-lav">—</td><td class="c-mint">Images non adaptées aux mises en page complexes</td></tr>
+        <tr><td>Solution</td><td>Structure JSONB layout dans chapter_canvases. Chaque bloc : { id, x, y, width, height, prompt, asset_refs, image_url }. Génération indépendante par bloc.</td><td class="c-lav">Edge Function generate-panel-image</td><td class="c-mint">Régénération d'un bloc sans toucher aux autres</td></tr>
+        <tr><td>Défi 3</td><td>NarraMind — mémoire narrative longue</td><td class="c-lav">narramind-update + narramind-compass</td><td class="c-mint">Résumés compacts, compression batch, alertes Ariane</td></tr>
+        <tr><td>Défi 4</td><td>Sécurité RLS multi-tenant &amp; Bug B3</td><td class="c-lav">Migration 20260418</td><td class="c-mint">RLS 10 tables — profiles.plan protégé côté serveur</td></tr>
+        <tr><td>Défi 5</td><td>Quotas et plans (Libre / Créateur / Studio)</td><td class="c-lav">useUserPlan.ts + vérif serveur</td><td class="c-mint">Break-even : 10-15 abonnés Créateur</td></tr>
+      </tbody>
+    </table></div>
+
+    <div class="decision">
+      <div class="dh">💡 Décision D7 — Layout JSONB et génération indépendante par bloc</div>
+      <p><span class="k">Genèse.</span> Une case de webtoon n'est pas une image unique : c'est une composition de plusieurs scènes/personnages aux dimensions et positions libres. Générer la case entière d'un coup donne des résultats inexploitables sur les mises en page complexes.</p>
+      <p><span class="k">Options envisagées.</span> (a) Générer une grande image par case et la recadrer — rigide, non éditable. (b) Découper la case en blocs indépendants décrits par une structure de données, chacun généré séparément.</p>
+      <p><span class="k kc">Choix retenu.</span> L'option (b) : un layout <code>JSONB</code> dans <code>chapter_canvases</code> ; chaque bloc porte <code>{ id, x, y, width, height, prompt, asset_refs, image_url }</code> et se génère seul.</p>
+      <p><span class="k">Justification.</span> La régénération d'un seul bloc sans toucher aux autres est indispensable à un workflow créatif itératif (l'auteur retouche un détail sans tout refaire). Le JSONB offre la souplesse de schéma nécessaire à des compositions imprévisibles, sans migration à chaque évolution de l'éditeur.</p>
+    </div>
+
+    <div class="decision">
+      <div class="dh">💡 Décision D8 — Mémoire compressée + vectorisation plutôt que contexte brut (NarraMind)</div>
+      <p><span class="k">Genèse.</span> Un LLM oublie : injecter brut tous les chapitres précédents fait croître le contexte d'environ 850 tokens par chapitre. Dès 10 chapitres la latence double et les coûts explosent ; à 50 chapitres, l'approche est inutilisable.</p>
+      <p><span class="k">Options envisagées.</span> (a) Tout injecter (contexte brut) — simple mais non scalable. (b) Fenêtre glissante (garder les N derniers chapitres) — perd le lore ancien, donc rate les incohérences longue distance. (c) Compression multi-niveaux + recherche vectorielle (résumés + entités + embeddings pgvector récupérés à la demande).</p>
+      <p><span class="k kc">Choix retenu.</span> L'option (c) : NarraMind compresse à ~50 tokens/chapitre (vs 850 en naïf), stocke entités et résumés, et récupère le contexte pertinent par similarité vectorielle (Gemini text-embedding-004, 768D, pgvector).</p>
+      <p><span class="k">Justification.</span> Seule l'option (c) maintient un contexte stable quel que soit le nombre de chapitres tout en conservant la mémoire longue nécessaire à la détection d'incohérences (un personnage mort qui réapparaît au ch. 40). Contrainte UX assumée : la mémoire reste invisible — l'auteur ne voit que les alertes d'Ariane, jamais la tuyauterie.</p>
+    </div>
+
+    <h3 class="sub">4. POC &amp; Itérations techniques</h3>
+    <p>Les itérations sont reconstituées à partir de l'historique de développement et des migrations SQL successives. Chaque phase correspond à un objectif technique précis avec ses correctifs.</p>
+    <div class="tw"><table>
+      <thead><tr><th>Phase</th><th>Période</th><th class="c-lav">Itérations clés</th><th class="c-mint">Correctifs</th></tr></thead>
+      <tbody>
+        <tr><td>Phase 0 — Scaffold</td><td>Janvier 2026</td><td class="c-lav">Scaffold React + Supabase — tables fondatrices (projets, assets, chapitres) — premier test de génération IA.</td><td class="c-mint">MVP fonctionnel en 2 semaines.</td></tr>
+        <tr><td>Phase 1 — Monétisation</td><td>Février 2026</td><td class="c-lav">Système de quotas et plans — passage FLUX.2 Pro. Qualité ×10, coût ×10.</td><td class="c-mint">Mécanisme de retry et timeout pour les appels FAL.ai</td></tr>
+        <tr><td>Phase 2+3 — Sheet + NarraMind</td><td>Avr-Juin 2026</td><td class="c-lav">Sheet System (ratio 2560×768). NarraMind v2 + fallback Groq. 2 pistes vectorisation (Scénario + Univers). narramind-compass.</td><td class="c-mint">Bug B3 corrigé (RLS profiles.plan). Contexte stabilisé à 557 tokens au ch.6.</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3 class="sub">5. Plan de Release</h3>
+    <p>De la Beta livrée en Q1 2026 à la V3 Scale prévue en Q4 2026, chaque phase correspond à un ensemble de <span class="c-peach b">fonctionnalités</span> et de <span class="c-mint b">métriques cibles</span> précises.</p>
+    <div class="tw"><table>
+      <thead><tr><th>Phase</th><th>Période</th><th>Statut</th><th class="c-lav">Fonctionnalités clés</th><th class="c-mint">Métriques cibles</th></tr></thead>
+      <tbody>
+        <tr><td>Beta / MVP</td><td>Q1 2026</td><td class="c-mint">✅ LIVRÉ</td><td class="c-lav">Auth email + Google OAuth — Gestion projets — Assets IA — Style (4 templates) — Plans Libre/Créateur — Dashboard recharts — NarraMind v1 — Onboarding Ariane</td><td class="c-mint">MVP fonctionne en 2 semaines</td></tr>
+        <tr><td>V1 — Panels</td><td>Q2 2026</td><td class="c-peach">🔄 EN COURS</td><td class="c-lav">Sheet System — Génération image par bloc — Éditeur panels — NarraMind v2 (alertes cohérence) — Vectorisation Compass — Parcours progressif Ariane</td><td class="c-mint">Time to Value &lt; 10 min — Activation &gt; 60 %</td></tr>
+        <tr><td>V2 — Export</td><td>Q3 2026</td><td class="c-lav">📋 PLANIFIÉ</td><td class="c-lav">Export PDF / PNG / ZIP — Plan Studio (29,99 €) — Mémoire narrative longue — Publication Webtoon Canvas &amp; Tapas</td><td class="c-mint">MRR &gt; 3 800 € — Conversion &gt; 5 %</td></tr>
+        <tr><td>V3 — Scale</td><td>Q4 2026</td><td class="c-rose">🔮 FUTUR</td><td class="c-lav">Marketplace styles (commission 30 %) — App mobile PWA — Analytics créateurs — API B2B studios — Fine-tuning IA webtoon</td><td class="c-mint">ARR &gt; 150 000 € — 600 payants</td></tr>
+        <tr><td>Prérequis MVP</td><td>Immédiat</td><td class="c-rose">⚠️ Bloquants</td><td class="c-lav">Stripe Checkout + webhook — CGU + Politique confidentialité — CORS restreint prod — Confirmation email — Sentry configuré</td><td class="c-mint">Premiers payants — MRR &gt; 0</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3 class="sub">6. Budget Build / Run</h3>
+    <p>Infra bootstrappée à <span class="c-peach b">~60 €/mois</span>. Les coups variables (FAL.ai, Gemini) croissent avec le <span class="c-peach b">volume de générations</span>. Le budget marketing reste <span class="c-peach b">nul</span> jusqu'au lancement public.</p>
+    <div class="tw"><table>
+      <thead><tr><th>Phase</th><th>Période</th><th class="c-lav">Infra / mois</th><th class="c-mint">Revenus estimés</th></tr></thead>
+      <tbody>
+        <tr><td>Bêta fermée</td><td>Juin-Août 2026</td><td class="c-lav">~60 € (Supabase Pro 25 + Vercel 20 + domaine + outils)</td><td class="c-mint">0 €</td></tr>
+        <tr><td>MVP lancement</td><td>Sep-Oct 2026</td><td class="c-lav">~100 € + marketing 200 € organique</td><td class="c-mint">~500-1 000 €</td></tr>
+        <tr><td>Croissance early</td><td>Nov 2026-Juin 2027</td><td class="c-lav">~150-500 € infra + ~1 000-3 000 € marketing</td><td class="c-mint">~2 000-15 000 €/mois</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3 class="sub">7. Cadre Juridique IA</h3>
+    <p>L'<span class="c-peach b">IA Act européen</span> et le droit français (L.111-1 CPI) encadrent les outils de création artistique assistée. DreamWeave transforme ces <span class="c-rose b">contraintes</span> en <span class="c-mint b">avantage compétitif</span>.</p>
+    <p class="explain">La stratégie consiste à transformer une contrainte réglementaire en argument commercial. Plutôt que de subir l'AI Act et le flou sur la propriété des œuvres IA, DreamWeave se positionne comme l'outil le plus conforme du secteur : intervention humaine créative à chaque étape (qui sécurise la propriété au sens du L.111-1 CPI), badge de transparence sur les exports (qui anticipe l'obligation de déclaration des plateformes), et couverture copyright héritée de FAL.ai. La conformité devient un différenciateur face aux outils génériques non balisés.</p>
+    <div class="tw"><table>
+      <thead><tr><th>Dimension</th><th>Situation 2026</th><th class="c-lav">Impact DreamWeave</th><th class="c-mint">Positionnement</th></tr></thead>
+      <tbody>
+        <tr><td>Propriété des outputs IA</td><td>Droit français L.111-1 CPI : intervention humaine créative nécessaire. Jurisprudence US : refus si purement machinique.</td><td class="c-lav">Créateur = prompts + style + scénario + validation de chaque panel = chaîne de décisions humaines.</td><td class="c-mint">Protection probable des œuvres</td></tr>
+        <tr><td>AI Act européen</td><td>Applicable août 2026 pour haut risque. Outils création artistique = faible risque.</td><td class="c-lav">DreamWeave hors périmètre contraignant. Obligation : transparence usage IA (badge exports).</td><td class="c-mint">Avantage conformité vs concurrents non balisés</td></tr>
+        <tr><td>Training data FLUX.2 Pro</td><td>Black Forest Labs : données sous licence. FAL.ai : indemnisation commerciale contre claims copyright tiers.</td><td class="c-lav">Couverture contractuelle FAL.ai = filet de sécurité. À documenter dans les CGU.</td><td class="c-mint">Sécurité juridique pour les créateurs</td></tr>
+        <tr><td>Plateformes diffusion</td><td>Webtoon Canvas et Tapas acceptent les œuvres IA à condition de les déclarer.</td><td class="c-lav">Badge « Créé avec DreamWeave » = outil de conformité intégré au produit.</td><td class="c-mint">Différenciateur vs outils génériques</td></tr>
+        <tr><td>Démographie</td><td>76 % des lecteurs webtoon ont 18-33 ans — génération native aux outils IA créatifs.</td><td class="c-lav">L'argument de l'inévitabilité : millions d'utilisateurs utilisent déjà Midjourney sans cadre.</td><td class="c-mint">DreamWeave = l'outil IA le plus responsable du secteur webtoon</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3 class="sub">8. Veille Systémique</h3>
+    <p>La veille couvre <span class="c-peach b">4 axes stratégiques</span> : marché, IA, juridique et concurrents. Elle alimente les <span class="c-peach b">décisions produit</span> et les ajustements de positionnement.</p>
+    <div class="tw"><table>
+      <thead><tr><th>Verticale</th><th>Sources principales</th><th class="c-lav">Fréquence</th><th class="c-mint">Outil</th></tr></thead>
+      <tbody>
+        <tr><td>Marché webtoon</td><td>Grand View Research, SEC filings Webtoon, KWIA, r/webtoons, Tapas Creator Blog</td><td class="c-lav">Hebdomadaire</td><td class="c-mint">Notion + newsletter interne mensuelle</td></tr>
+        <tr><td>IA générative</td><td>HuggingFace blog, Black Forest Labs changelog, FAL.ai releases, Twitter/X AI researchers</td><td class="c-lav">Quotidien</td><td class="c-mint">Flux RSS + Feedly — alerte Slack si changement tarifaire FAL.ai</td></tr>
+        <tr><td>Juridique &amp; Conformité</td><td>CNIL, EUR-Lex (AI Act), US Copyright Office, LinkedIn Legal Tech</td><td class="c-lav">Mensuel</td><td class="c-mint">Résumé Notion — alerte si nouveau texte EU/FR</td></tr>
+        <tr><td>Concurrents directs</td><td>Dashtoon blog, Pixton changelog, ProductHunt, AppSumo</td><td class="c-lav">Bi-hebdomadaire</td><td class="c-mint">Google Alerts — PH digest — comparatif pricing trimestriel</td></tr>
+        <tr><td>Stack technique</td><td>npm releases, Supabase changelog, Vite, React, FAL.ai docs</td><td class="c-lav">Hebdomadaire</td><td class="c-mint">GitHub Watch + Dependabot</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3 class="sub">9. Architecture de Scale</h3>
+    <p>Recommandations techniques pour passer de la Beta à <span class="c-peach b">l'échelle (&gt; 10 000 MAU)</span>. Chaque composant a une <span class="c-peach b">limite identifiée</span> et une <span class="c-mint b">évolution planifiée</span>.</p>
+    <p class="explain">Ce tableau est un exercice d'honnêteté technique : pour chaque composant, il assume la limite actuelle et nomme l'évolution déjà identifiée. Il démontre au jury que les choix présents sont des choix de phase de lancement (suffisants et économes), pas des impasses : chaque limite a son plan de dépassement priorisé (P1/P2/P3) pour passer le cap des 10 000 MAU.</p>
+    <div class="tw"><table>
+      <thead><tr><th>Composant</th><th class="c-rose">Limite actuelle</th><th class="c-lav">Évolution recommandée</th><th class="c-mint">Priorité</th></tr></thead>
+      <tbody>
+        <tr><td>Génération IA</td><td class="c-rose">Synchrone (timeout 120s)</td><td class="c-lav">Queue asynchrone (Supabase Realtime + worker)</td><td class="c-mint">P1</td></tr>
+        <tr><td>Cohérence personnages</td><td class="c-rose">1 sheet = référence unique</td><td class="c-lav">Fine-tuning LoRA par personnage</td><td class="c-mint">P2</td></tr>
+        <tr><td>NarraMind</td><td class="c-rose">Gemini Flash (32K tokens)</td><td class="c-lav">Gemini Pro ou Claude pour &gt; 20 chapitres</td><td class="c-mint">P2</td></tr>
+        <tr><td>Images</td><td class="c-rose">1024×1024 (FAL.ai standard)</td><td class="c-lav">Upscaling 4× post-génération (Real-ESRGAN via FAL.ai)</td><td class="c-mint">P1</td></tr>
+        <tr><td>Multi-tenant</td><td class="c-rose">Supabase Cloud (connexions partagées)</td><td class="c-lav">Supabase Dedicated pour &gt; 10K MAU</td><td class="c-mint">P3</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <!-- ============ CONCLUSION ============ -->
+  <section class="section" id="conclusion">
+    <h2 class="text-grad" style="font-size:42px;text-align:center;margin-bottom:8px">Conclusion Générale</h2>
+    <div class="objective" style="margin-top:26px">
+      <p><span class="b">DreamWeave n'est pas un outil de plus dans un marché saturé.</span> C'est la réponse structurée à un vide documenté : 89 % des créateurs abandonnent, non par manque d'idées, mais par manque d'outils accessibles.</p>
+    </div>
+    <p>En <span class="c-mint b">4 à 6 mois</span>, <span class="c-lav b">DreamWeave</span> a livré une <span class="c-peach b">application fonctionnelle</span> couvrant l'intégralité du workflow créatif : du style au scénario IA, des assets via FLUX.2 Pro, à l'édition par blocs et l'export. L'infrastructure tient à <span class="c-peach b">~60 €/mois</span>. Le <span class="c-peach b">break-even</span> est à 10-15 abonnés Créateur.</p>
+    <p>Les quatre <span class="c-peach b">différenciateurs techniques</span> — Sheet System (cohérence visuelle automatique), NarraMind (mémoire narrative 50+ chapitres), génération par blocs avec dimensions variables, et sécurité RLS multi-tenant — n'ont pas d'équivalent chez les <span class="c-peach b">concurrents directs</span> du marché webtoon IA.</p>
+    <p>La prochaine étape est le <span class="c-peach b">lancement public</span> : déploiement Stripe, CGU, CORS production et Sentry. Ensuite la V1 Panels (Sheet System + éditeur complet), la V2 Export, puis la V3 Scale (Marketplace, PWA, API B2B).</p>
+    <p>Le marché webtoon croît de 35-40 % par an. <span class="c-lav b">DreamWeave</span> est positionné pour capter <span class="c-peach b">la vague suivante de créateurs</span> qui veulent raconter leurs histoires — sans devoir apprendre à dessiner.</p>
+  </section>
+
+  <!-- ============ SOURCES ============ -->
+  <section class="section" id="sources">
+    <h2 class="text-grad" style="font-size:34px">Sources &amp; Références Bibliographiques</h2>
+    <p>Ensemble des <span class="c-peach b">sources utilisées</span> pour l'étude de marché, les données concurrentielles et le cadre juridique de ce mémoire.</p>
+    <div class="tw"><table>
+      <thead><tr><th>Réf.</th><th>Source</th><th class="c-peach">Année</th><th class="c-mint">URL</th></tr></thead>
+      <tbody>
+        <tr><td>[1]</td><td>Journal of Documentation — Cho, Adkins &amp; Long (fév. 2025) — 76 % des lecteurs Webtoon 18-33 ans</td><td class="c-peach">2025</td><td class="c-mint">doi.org/10.1108/JD-03-2024-0069</td></tr>
+        <tr><td>[2]</td><td>SEC Filing S-1 Webtoon — 170M MAU, 24M créateurs actifs, 150+ pays</td><td class="c-peach">2024</td><td class="c-mint">sec.gov/Archives/edgar/data/1997859</td></tr>
+        <tr><td>[3]</td><td>Grand View Research — Romance = 38,8 % des revenus du marché webtoon</td><td class="c-peach">2023</td><td class="c-mint">grandviewresearch.com/industry-analysis/webtoons-market-report</td></tr>
+        <tr><td>[4]</td><td>Adobe Creative Economy Report — 72 % étudiants arts intéressés par outils IA créatifs</td><td class="c-peach">2024</td><td class="c-mint">news.adobe.com/news/2025/10/adobe-max-2025-creators-survey</td></tr>
+        <tr><td>[5]</td><td>Globe Newswire — Dashtoon × KWIA Partnership + Série A 12,8 M$</td><td class="c-peach">2024</td><td class="c-mint">globenewswire.com/news-release/2024/08/28</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+</div>
+
+</body>
+</html>

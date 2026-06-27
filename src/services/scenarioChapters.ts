@@ -1,13 +1,10 @@
-// Service layer — Scenario chapters & versions
+// Service layer — Scenario chapters
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import type {
   ScenarioChapter,
   ScenarioChapterInsert,
   ScenarioChapterUpdate,
-  ScenarioVersion,
-  ScenarioVersionInsert,
-  ScenarioVersionUpdate,
   NarrativeCoherenceAlert,
   NarrativeAlertSeverity,
   NarrativeAlertAnchor,
@@ -341,105 +338,4 @@ export async function reorderScenarioChapters(
     .upsert(chapters, { onConflict: "id" });
 
   if (error) throw error;
-}
-
-// ── Scenario versions ────────────────────────────────────────
-
-/** Récupère les versions d'un projet (les plus récentes en premier) */
-export async function fetchScenarioVersions(
-  projectId: string
-): Promise<ScenarioVersion[]> {
-  const { data, error } = await supabase
-    .from("scenario_versions")
-    .select("*")
-    .eq("project_id", projectId)
-    .order("created_at", { ascending: false });
-
-  if (error) throw error;
-  return data ?? [];
-}
-
-/** Récupère les versions d'un chapitre de scénario spécifique */
-export async function fetchChapterVersions(
-  chapterId: string
-): Promise<ScenarioVersion[]> {
-  const { data, error } = await supabase
-    .from("scenario_versions")
-    .select("*")
-    .eq("scenario_chapter_id", chapterId)
-    .order("created_at", { ascending: false });
-
-  if (error) throw error;
-  return data ?? [];
-}
-
-/** Récupère la version en attente (pending) pour un chapitre ou le scénario complet */
-export async function fetchPendingVersion(
-  projectId: string,
-  chapterId?: string
-): Promise<ScenarioVersion | null> {
-  let query = supabase
-    .from("scenario_versions")
-    .select("*")
-    .eq("project_id", projectId)
-    .eq("status", "pending")
-    .order("created_at", { ascending: false })
-    .limit(1);
-
-  if (chapterId) {
-    query = query.eq("scenario_chapter_id", chapterId);
-  } else {
-    query = query.is("scenario_chapter_id", null);
-  }
-
-  const { data, error } = await query.maybeSingle();
-  if (error) throw error;
-  return data;
-}
-
-/** Crée une nouvelle version (générée par l'IA ou sauvegarde manuelle) */
-export async function createScenarioVersion(
-  version: Pick<
-    ScenarioVersionInsert,
-    "project_id" | "scenario_chapter_id" | "user_id" | "content" | "version_type"
-  >
-): Promise<ScenarioVersion> {
-  const { data, error } = await supabase
-    .from("scenario_versions")
-    .insert({ ...version, status: "pending" })
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data;
-}
-
-/** Accepte une version (status → 'accepted') */
-export async function acceptScenarioVersion(
-  versionId: string
-): Promise<ScenarioVersion> {
-  const { data, error } = await supabase
-    .from("scenario_versions")
-    .update({ status: "accepted" } as ScenarioVersionUpdate)
-    .eq("id", versionId)
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data;
-}
-
-/** Rejette une version (status → 'rejected') */
-export async function rejectScenarioVersion(
-  versionId: string
-): Promise<ScenarioVersion> {
-  const { data, error } = await supabase
-    .from("scenario_versions")
-    .update({ status: "rejected" } as ScenarioVersionUpdate)
-    .eq("id", versionId)
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data;
 }

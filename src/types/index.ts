@@ -72,7 +72,6 @@ export type Chapter = Tables<"chapters">;
 export type Panel = Tables<"chapter_canvases">;
 export type Profile = Tables<"profiles">;
 export type ScenarioChapter = Tables<"scenario_chapters">;
-export type ScenarioVersion = Tables<"scenario_versions">;
 
 // ── Insert types (création) ──────────────────────────────────────
 export type ProjectInsert = TablesInsert<"projects">;
@@ -80,7 +79,6 @@ export type AssetInsert = TablesInsert<"assets">;
 export type ChapterInsert = TablesInsert<"chapters">;
 export type PanelInsert = TablesInsert<"chapter_canvases">;
 export type ScenarioChapterInsert = TablesInsert<"scenario_chapters">;
-export type ScenarioVersionInsert = TablesInsert<"scenario_versions">;
 
 // ── Update types (mise à jour) ───────────────────────────────────
 export type ProjectUpdate = TablesUpdate<"projects">;
@@ -88,7 +86,6 @@ export type AssetUpdate = TablesUpdate<"assets">;
 export type ChapterUpdate = TablesUpdate<"chapters">;
 export type PanelUpdate = TablesUpdate<"chapter_canvases">;
 export type ScenarioChapterUpdate = TablesUpdate<"scenario_chapters">;
-export type ScenarioVersionUpdate = TablesUpdate<"scenario_versions">;
 
 // ── Curation des assets de chapitre (validation en 3 étapes) ──────
 
@@ -341,19 +338,6 @@ export interface SpeechBubble {
   hidden?: boolean;
 }
 
-/** Type d'élément dans le panneau Couches. */
-export type LayerElementType = "block" | "colorBlock" | "bubble";
-
-/** Représentation d'un élément dans le panneau Couches (blocs image, couleur, bulles). */
-export interface LayerItem {
-  id: string;
-  type: LayerElementType;
-  name: string;
-  zIndex: number;
-  hidden?: boolean;
-  preview?: string | null;
-}
-
 /** Libellés UI des types de bulles (alignés Edition-Oeuvre.md § 7.1). */
 export const SPEECH_BUBBLE_TYPE_LABELS: Record<SpeechBubbleType, string> = {
   text: "Texte libre",
@@ -459,15 +443,6 @@ export interface CompassProposal {
   created_at: string;
 }
 
-export interface ProjectEmbedding {
-  id: string;
-  project_id: string;
-  source_type: CompassSourceType;
-  source_id: string;
-  section_key: string | null;
-  content: string;
-  updated_at: string;
-}
 
 // ── Wiki Graphique Univers ────────────────────────────────────────
 

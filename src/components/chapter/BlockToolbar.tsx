@@ -349,7 +349,7 @@ function ColorBlockToolbar(props: ColorVariant) {
               <button
                 type="button"
                 className="relative shrink-0 flex items-center justify-center h-8 w-8 rounded-lg border border-border/80 shadow-sm ring-1 ring-black/[0.04] hover:bg-muted/40 transition-colors"
-                title="DreamWeave — choisir une couleur"
+                title="DreamWeave : choisir une couleur"
               >
                 <div
                   className="w-5 h-5 rounded-md border border-border/50 shrink-0 pointer-events-none"

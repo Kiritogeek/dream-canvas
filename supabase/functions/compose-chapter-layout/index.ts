@@ -11,6 +11,7 @@
 // puis upsert le résultat dans chapter_canvases.
 
 import { getCorsHeaders, makeJsonResponse, isAllowedOriginConfigured } from "../_shared/cors.ts";
+import { userOwnsChapter } from "../_shared/ownership.ts";
 import {
   COMPOSE_LAYOUT_SYSTEM_PROMPT,
   buildComposeLayoutPrompt,
@@ -740,6 +741,13 @@ Deno.serve(async (req: Request) => {
   if (!chapter_id) return json({ error: "chapter_id requis" }, 400);
   if (!Array.isArray(panels_outline) || panels_outline.length === 0) {
     return json({ error: "panels_outline non vide requis (lancer le Découpage IA d'abord)" }, 400);
+  }
+
+  // Ownership : getOrCreateCanvas/updateCanvas opèrent en service role (bypass RLS).
+  // Sans ce contrôle, un chapter_id d'autrui ferait écraser le canvas de la victime (IDOR).
+  const ownsChapter = await userOwnsChapter(supabaseUrl, serviceKey, chapter_id, userId);
+  if (!ownsChapter) {
+    return json({ error: "Chapitre introuvable ou accès refusé." }, 403);
   }
 
   // ── Appel IA ─────────────────────────────────────────────────

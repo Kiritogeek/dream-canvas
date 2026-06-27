@@ -15,6 +15,7 @@
 //   "extract_events"            → Extraction d'événements narratifs d'un chapitre (JSON)
 
 import { getCorsHeaders, makeJsonResponse, isAllowedOriginConfigured } from "../_shared/cors.ts";
+import { userOwnsProject } from "../_shared/ownership.ts";
 
 declare const Deno: {
   serve: (handler: (req: Request) => Promise<Response> | Response) => void;
@@ -499,6 +500,15 @@ Deno.serve(async (req) => {
         { error: "Le champ \"prompt\" est requis (votre instruction)." },
         400
       );
+    }
+
+    // 4b. Ownership : tout mode consommant project_id lit/écrit en service role
+    // (bypass RLS) → vérifier que le projet appartient à l'utilisateur, sinon IDOR.
+    if (body.project_id) {
+      const owns = await userOwnsProject(supabaseUrl, serviceKey, body.project_id, userId);
+      if (!owns) {
+        return jsonResponse({ error: "Projet introuvable ou accès refusé." }, 403);
+      }
     }
 
     // 5. Construire system + user prompt selon le mode

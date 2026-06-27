@@ -329,6 +329,7 @@ export function useArianeLoreProposals(projectId: string, { enableAutoScan = tru
 
       if (connectionInserts.length > 0) {
         let labelBlocked = false;
+        await supabase.auth.refreshSession();
         for (const ci of connectionInserts) {
           const pf = ci.prefill_data as LoreConnectionPrefill;
           if (labelBlocked) continue;
@@ -775,6 +776,7 @@ export function useArianeLoreProposals(projectId: string, { enableAutoScan = tru
     );
     let eventAiBlocked = false;
     const aiHandledChapterIds = new Set<string>();
+    await supabase.auth.refreshSession();
     for (const sc of validatedChapters) {
       if (!sc.content?.trim()) continue;
       if (!eventAiBlocked) try {
@@ -855,6 +857,7 @@ export function useArianeLoreProposals(projectId: string, { enableAutoScan = tru
     // Circuit breaker : dès la première erreur API (429 inclus), on arrête les appels labels
     const connectionForceInserts = forceInserts.filter(ci => ci.proposal_type === "lore_connection");
     let labelBlocked = false;
+    await supabase.auth.refreshSession();
     for (const ci of connectionForceInserts) {
       const pf = ci.prefill_data as LoreConnectionPrefill;
       const saved = savedConnectionLabels.get(ci.dedupe_key);

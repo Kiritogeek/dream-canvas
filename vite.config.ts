@@ -9,6 +9,21 @@ export default defineConfig(({ mode }) => ({
   optimizeDeps: {
     sourceMap: false,
   },
+  build: {
+    rollupOptions: {
+      output: {
+        // Isole les libs lourdes et rarement modifiées en chunks vendor stables
+        // (cache navigateur préservé entre déploiements applicatifs).
+        manualChunks: (id) => {
+          if (!id.includes("node_modules")) return;
+          if (id.includes("@xyflow")) return "reactflow";
+          if (id.includes("recharts") || id.includes("/d3-")) return "recharts";
+          if (id.includes("html2canvas") || id.includes("jszip")) return "export-vendor";
+          if (id.includes("@radix-ui")) return "radix";
+        },
+      },
+    },
+  },
   server: {
     host: "127.0.0.1",
     port: 8080,

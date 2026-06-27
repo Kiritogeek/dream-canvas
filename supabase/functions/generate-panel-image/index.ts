@@ -35,6 +35,7 @@ function snapToFluxDim(v: number): number {
 
 import { getCorsHeaders, makeJsonResponse, isAllowedOriginConfigured } from "../_shared/cors.ts";
 import { getTierLimits, type UserPlan } from "../_shared/tierConfig.ts";
+import { computeUsagePeriodStart } from "../_shared/usagePeriod.ts";
 
 function clip(value: string, max = 1200): string {
   if (value.length <= max) return value;
@@ -731,18 +732,9 @@ Deno.serve(async (req) => {
       userPlan = "libre";
     }
 
-    // Calcul de la période d'usage courante
-    const now = new Date();
-    let periodStart: Date;
-    if (billingPeriodStart) {
-      const billingDay = new Date(billingPeriodStart).getDate();
-      const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), billingDay);
-      periodStart = thisMonthStart <= now
-        ? thisMonthStart
-        : new Date(now.getFullYear(), now.getMonth() - 1, billingDay);
-    } else {
-      periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    }
+    // Calcul de la période d'usage courante (source de vérité unique partagée
+    // avec generate-asset-image + l'UI : _shared/usagePeriod.ts)
+    const periodStart = computeUsagePeriodStart(billingPeriodStart);
 
     // Vérification quota — bloque la génération si le quota mensuel est atteint
     const limits = getTierLimits(userPlan);

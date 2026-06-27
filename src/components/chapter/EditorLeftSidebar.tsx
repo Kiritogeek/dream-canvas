@@ -171,7 +171,7 @@ export function EditorLeftSidebar({
               ? unaddedCasesCount > 0
                 ? `${unaddedCasesCount} case${unaddedCasesCount > 1 ? "s" : ""} à ajouter au canvas · ${validatedCases.length} validée${validatedCases.length > 1 ? "s" : ""} au total`
                 : `Cases du scénario · ${validatedCases.length} validée${validatedCases.length > 1 ? "s" : ""}`
-              : "Réservé au plan Créateur — cliquez pour vous abonner"
+              : "Réservé au plan Créateur : cliquez pour vous abonner"
           }
           aria-pressed={activeSidebarTab === "cases-scenario"}
           onClick={() =>

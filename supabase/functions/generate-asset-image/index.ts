@@ -45,6 +45,7 @@ import {
   buildObjectPrompt,
 } from "./system-prompts/objects.ts";
 import { getCorsHeaders, makeJsonResponse, isAllowedOriginConfigured } from "../_shared/cors.ts";
+import { computeUsagePeriodStart } from "../_shared/usagePeriod.ts";
 
 function clip(value: string, max = 1200): string {
   if (value.length <= max) return value;
@@ -572,11 +573,12 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "JWT invalide ou expiré" }, 401);
     }
 
-    // 3b. Récupérer le plan de l'utilisateur
+    // 3b. Récupérer le plan de l'utilisateur + ancre de facturation
     let userPlan: UserPlan = "libre";
+    let billingPeriodStart: string | null = null;
     try {
       const profileRes = await fetch(
-        `${supabaseUrl}/rest/v1/profiles?user_id=eq.${userId}&select=plan`,
+        `${supabaseUrl}/rest/v1/profiles?user_id=eq.${encodeURIComponent(userId)}&select=plan,billing_period_start`,
         {
           headers: {
             apikey: serviceKey,
@@ -586,11 +588,12 @@ Deno.serve(async (req) => {
         }
       );
       if (profileRes.ok) {
-        const profiles = (await profileRes.json()) as { plan?: string }[];
+        const profiles = (await profileRes.json()) as { plan?: string; billing_period_start?: string | null }[];
         const p = profiles?.[0]?.plan;
         if (p === "createur" || p === "studio") {
           userPlan = p as UserPlan;
         }
+        billingPeriodStart = profiles?.[0]?.billing_period_start ?? null;
       }
     } catch {
       // En cas d'erreur, on reste sur "libre" par sécurité
@@ -600,11 +603,12 @@ Deno.serve(async (req) => {
     const limits = TIER_LIMITS[userPlan];
 
     // 3c. Vérifier le quota de générations mensuelles
+    // Fenêtre alignée sur generate-panel-image + l'UI (anniversaire de facturation),
+    // via la source de vérité unique _shared/usagePeriod.ts.
     try {
-      const now = new Date();
-      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+      const periodStart = computeUsagePeriodStart(billingPeriodStart).toISOString();
       const usageRes = await fetch(
-        `${supabaseUrl}/rest/v1/usage?user_id=eq.${userId}&action=eq.image_generation&created_at=gte.${startOfMonth}&select=id`,
+        `${supabaseUrl}/rest/v1/usage?user_id=eq.${encodeURIComponent(userId)}&action=eq.image_generation&created_at=gte.${periodStart}&select=id`,
         {
           headers: {
             apikey: serviceKey,

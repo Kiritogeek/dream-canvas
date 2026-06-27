@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, lazy, Suspense } from "react";
 import { QuotaReachedDialog } from "@/components/shared/QuotaReachedDialog";
 import { useParams, useSearchParams, Link, useNavigate } from "react-router-dom";
 import { Palette, Image as ImageIcon, BookOpen, Globe, Layers, FlaskConical } from "lucide-react";
@@ -20,9 +20,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { AssetLibrary } from "@/components/project/AssetLibrary";
 import { StyleManager } from "@/components/project/StyleManager";
 import { ScenarioSection } from "@/components/project/ScenarioSection";
-import { UniverseSection } from "@/components/project/UniverseSection";
 import { EditionSection } from "@/components/project/EditionSection";
-import { TestSection } from "@/components/project/TestSection";
 import {
   ArianeStyleOnboardingCard,
   ArianeJourneyCompleteCard,
@@ -50,6 +48,26 @@ import {
   isJourneyFinalDismissed,
   type ProgressiveMenuStep,
 } from "@/lib/progressiveOnboardingStorage";
+
+// Lazy : sort ReactFlow (~120 kB gzip via LoreGraphView) du chunk critique ProjectDetail.
+// L'onglet Univers n'est jamais l'onglet par défaut → aucun impact sur le chemin critique.
+const UniverseSection = lazy(() =>
+  import("@/components/project/UniverseSection").then((m) => ({ default: m.UniverseSection }))
+);
+// TestSection : outil de debug admin (un seul email) → hors bundle des utilisateurs normaux.
+const TestSection = lazy(() =>
+  import("@/components/project/TestSection").then((m) => ({ default: m.TestSection }))
+);
+
+function SectionLoader() {
+  return (
+    <div className="flex h-64 w-full items-center justify-center">
+      <div className="glass rounded-2xl px-6 py-4 text-sm text-muted-foreground animate-pulse">
+        Chargement…
+      </div>
+    </div>
+  );
+}
 
 const PROGRESSIVE_TOUR_TABS = ["assets", "universe", "scenario", "edition"] as const;
 
@@ -431,7 +449,9 @@ export default function ProjectDetail() {
                 </Button>
               </div>
             )}
-            <UniverseSection project={project} assets={assets} />
+            <Suspense fallback={<SectionLoader />}>
+              <UniverseSection project={project} assets={assets} />
+            </Suspense>
           </div>
         ) : undefined
       }
@@ -511,7 +531,9 @@ export default function ProjectDetail() {
 
             {isArianeOnboardingAdmin && (
               <TabsContent value="test">
-                <TestSection projectId={project.id} />
+                <Suspense fallback={<SectionLoader />}>
+                  <TestSection projectId={project.id} />
+                </Suspense>
               </TabsContent>
             )}
           </Tabs>

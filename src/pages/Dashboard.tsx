@@ -37,7 +37,7 @@ export default function Dashboard() {
   const { data: projects = [], isLoading } = useRecentProjects(6);
   const { data: projectCount = 0 } = useProjectCount();
   const { data: assetCount = 0 } = useAssetCount();
-  const { plan, usageInfo, limits } = useUserPlan();
+  const { plan, usageInfo } = useUserPlan();
   const createProject = useCreateProject();
 
   const [createOpen, setCreateOpen] = useState(false);
@@ -58,14 +58,6 @@ export default function Dashboard() {
     }
     if (!selectedGenre) {
       toast({ title: "Genre requis", description: "Choisis un genre pour que l'IA adapte ses suggestions à ton univers.", variant: "destructive" });
-      return;
-    }
-    if (limits.maxProjects !== null && projectCount >= limits.maxProjects) {
-      toast({
-        title: "Limite de projets atteinte",
-        description: `Le plan ${planDisplayName(plan)} est limité à ${limits.maxProjects} projet. Passez au plan Créateur pour des projets illimités.`,
-        variant: "destructive",
-      });
       return;
     }
     const parts: string[] = [];

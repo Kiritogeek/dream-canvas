@@ -20,7 +20,7 @@ const NO_BORDER_NEGATIVE_PROMPT =
   "border, frame, inner border, outer border, thin border, thick border, " +
   "letterbox, pillarbox, passe-partout, vignette, white vignette, " +
   "postcard, poster frame, image frame, canvas frame, image inside image, " +
-  "collage, grid, reference sheet, contact sheet, color chart" +
+  "collage, color chart, multi-panel layout, split panels" +
   ", speech bubble, dialogue bubble, thought bubble, text bubble, word balloon, caption box, " +
   "text overlay, comic text, manga text, speech cloud, onomatopoeia, sound effects text, " +
   "dialogue text, subtitle, annotation, watermark, written words, letters, typography";
@@ -291,7 +291,8 @@ function buildPolicySafePanelPrompt(params: {
     fullPrompt +=
       "\n\nRÈGLE ABSOLUE : chaque image de référence fournie représente un élément précis de la scène (voir correspondance ci-dessus). " +
       "Reproduire l'apparence exacte (visage, coiffure, costume, couleurs, style graphique, forme) de chaque élément à partir de son image de référence. " +
-      "Composer une scène unique et cohérente — pas de fiche, grille, collage, cadre ou montage.";
+      "IMPORTANT — certaines références de personnages sont des PLANCHES MODÈLE (model sheet) montrant le MÊME personnage sous plusieurs angles (face, profil, dos) : utilise-les pour (1) garder son identité et son design EXACTS, et (2) le représenter dans la POSE et l'ANGLE décrits par la scène (par ex. de dos, de profil, en plongée). " +
+      "Le rendu final est UNE seule image de scène intégrée et cohérente — surtout PAS une planche, une grille ou un montage de plusieurs vignettes.";
   }
 
   return clip(fullPrompt, 2800);
@@ -837,7 +838,7 @@ Deno.serve(async (req) => {
     }
 
     const projectStyleRes = await fetch(
-      `${supabaseUrl}/rest/v1/projects?id=eq.${encodeURIComponent(projectId)}&select=user_id,style_template`,
+      `${supabaseUrl}/rest/v1/projects?id=eq.${encodeURIComponent(projectId)}&select=user_id,style_template,style_image_urls`,
       {
         headers: {
           apikey: serviceKey,
@@ -852,6 +853,7 @@ Deno.serve(async (req) => {
     const projectRows = (await projectStyleRes.json()) as {
       user_id: string;
       style_template: string | null;
+      style_image_urls: unknown;
     }[];
     const projRow = projectRows?.[0];
     if (!projRow || projRow.user_id !== userId) {
@@ -871,18 +873,36 @@ Deno.serve(async (req) => {
 
     const effectiveStyleTemplate = summarizeStyleTemplateForPrompt(dbStyleText);
 
+    const FLUX_MAX_REFS = 5;
+
     const referenceImageUrls = Array.isArray(block_asset_image_urls)
       ? block_asset_image_urls.filter((u) => typeof u === "string" && u.trim().length > 0)
       : [];
-    const limitedReferenceImageUrls = referenceImageUrls.slice(0, 5);
 
     const previousImageUrl = typeof previous_image_url === "string" && previous_image_url.trim()
       ? previous_image_url.trim()
       : null;
 
-    // Combine asset refs + previous image pour la continuité visuelle
+    // C3 — images de style du projet appliquées aux CASES (comme aux assets).
+    // Droppées en preset manga (parité N&B avec generate-asset-image).
+    const projStyleKey = (dbStyleText.match(/style_key:\s*(.+)/i)?.[1] ?? "").trim().toLowerCase();
+    let styleRefUrls = Array.isArray(projRow.style_image_urls)
+      ? (projRow.style_image_urls as unknown[]).filter((u): u is string => typeof u === "string" && u.trim().length > 0)
+      : [];
+    if (projStyleKey === "manga") styleRefUrls = [];
+
+    // Budget FLUX (5) : assets nommés D'ABORD (indexés par nom dans le prompt),
+    // puis images de style, puis l'image de continuité EN DERNIER (le prompt de
+    // continuité la référence explicitement comme « la dernière image »).
+    const reservedForPrev = previousImageUrl ? 1 : 0;
+    const assetRefs = referenceImageUrls.slice(0, FLUX_MAX_REFS - reservedForPrev);
+    const styleSlots = Math.max(0, FLUX_MAX_REFS - assetRefs.length - reservedForPrev);
+    const styleRefsUsed = styleRefUrls.slice(0, styleSlots);
+    const hasStyleRefs = styleRefsUsed.length > 0;
+
     const allReferenceImageUrls = [
-      ...limitedReferenceImageUrls,
+      ...assetRefs,
+      ...styleRefsUsed,
       ...(previousImageUrl ? [previousImageUrl] : []),
     ];
     const useReferences = allReferenceImageUrls.length > 0;
@@ -906,6 +926,15 @@ Deno.serve(async (req) => {
         "Maintenir la cohérence : même espace narratif, même éclairage ambiant, même angle de caméra (relatif au personnage), " +
         "même position du personnage dans l'environnement. Ne PAS reproduire l'image précédente — générer la scène SUIVANTE " +
         "qui s'enchaîne naturellement. L'environnement et l'atmosphère doivent être visuellement continus.",
+        2800
+      );
+    }
+
+    if (hasStyleRefs) {
+      finalPrompt = clip(
+        finalPrompt +
+        `\n\nIMAGES DE RÉFÉRENCE DE STYLE (${styleRefsUsed.length}) : elles définissent UNIQUEMENT le style graphique du projet (trait, encrage, ombrage, palette, rendu des matières). ` +
+        "INTERDIT d'en copier les personnages, décors ou scènes — le contenu de la case reste exclusivement celui décrit ci-dessus.",
         2800
       );
     }

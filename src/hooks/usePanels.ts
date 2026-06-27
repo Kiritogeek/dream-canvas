@@ -95,6 +95,10 @@ export interface GeneratePanelImageVariables {
   blockAssetNames?: string[];
   /** URL de la dernière image générée dans le chapitre (continuité narrative). */
   previousImageUrl?: string;
+  /** Grammaire visuelle du bloc (cadrage / effets) — transmise aussi en régénération unitaire
+   *  pour que le rendu reste identique au mode "Tout générer". */
+  sceneType?: string;
+  effects?: string[];
   /** Layout courant du panel — si fourni, l'image_url est écrite en DB dans mutationFn
    *  (hors observer React Query) pour survivre à un démontage de composant. */
   currentLayout?: PanelLayout;
@@ -119,6 +123,8 @@ export function useGeneratePanelImage(chapterId: string) {
           blockAssetImageUrls: vars.blockAssetImageUrls,
           blockAssetNames: vars.blockAssetNames,
           previousImageUrl: vars.previousImageUrl,
+          sceneType: vars.sceneType,
+          effects: vars.effects,
         });
 
         // Write image_url to panel layout in DB — survit à l'unmount du composant

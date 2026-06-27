@@ -343,6 +343,7 @@ export default function ChapterDetail() {
   const exportCanvasRefByPanel = useRef<Record<string, HTMLDivElement | null>>({});
   /** Export du chapitre entier en cours */
   const [exportingChapter, setExportingChapter] = useState(false);
+  const [exportProgress, setExportProgress] = useState<{ done: number; total: number } | null>(null);
   /** Élément ghost pour le drag « nouveau bloc » (setDragImage) */
   const newBlockDragGhostRef = useRef<HTMLDivElement | null>(null);
   /** Drop move-block traité sur le canvas : ne pas nettoyer le preview dans onDragEnd pour éviter le saut visuel */
@@ -2461,13 +2462,15 @@ export default function ChapterDetail() {
                   return;
                 }
                 setExportingChapter(true);
+                setExportProgress({ done: 0, total: panelEls.length });
                 try {
                   const { exportChapterAsZip } = await import("@/services/exportPanel");
                   await exportChapterAsZip(
                     panelEls,
                     project.title ?? "Projet",
                     chapter?.chapter_number ?? 1,
-                    1280
+                    1280,
+                    (done, total) => setExportProgress({ done, total })
                   );
                   toast({ title: "ZIP téléchargé" });
                   setSliceModalOpen(false);
@@ -2475,11 +2478,12 @@ export default function ChapterDetail() {
                   toast({ title: "Erreur export", description: String(err), variant: "destructive" });
                 } finally {
                   setExportingChapter(false);
+                  setExportProgress(null);
                 }
               }}
             >
               {exportingChapter ? (
-                <><Loader2 className="h-4 w-4 animate-spin" /> Export en cours...</>
+                <><Loader2 className="h-4 w-4 animate-spin" /> {exportProgress ? `Rendu ${exportProgress.done}/${exportProgress.total}…` : "Export en cours..."}</>
               ) : (
                 <><Download className="h-4 w-4" /> Télécharger le ZIP</>
               )}

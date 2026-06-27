@@ -710,11 +710,11 @@ function renderPlainWithContext(
   fragIdx: number,
   fullText: string,
   fragOffset: number,
+  startLineIdx: number,
   allLines: string[],
   lineStyles: LineStyle[]
 ): React.ReactNode {
   const parts = fragText.split("\n");
-  const startLineIdx = fragOffset > 0 ? fullText.slice(0, fragOffset).split("\n").length - 1 : 0;
   const isLineStart = fragOffset === 0 || fullText[fragOffset - 1] === "\n";
   const result: React.ReactNode[] = [];
 
@@ -855,12 +855,15 @@ export function ScenarioTextHighlighter({
           const allLines = text.split("\n");
           const lineStyles = allLines.map(getLineStyle);
           let charOffset = 0;
+          let lineOffset = 0;
           return fragments.map((frag, i) => {
             const fragOffset = charOffset;
+            const fragLineStart = lineOffset;
             charOffset += frag.text.length;
+            lineOffset += frag.text.match(/\n/g)?.length ?? 0;
 
           if (frag.type === "plain") {
-            return renderPlainWithContext(frag.text, i, text, fragOffset, allLines, lineStyles);
+            return renderPlainWithContext(frag.text, i, text, fragOffset, fragLineStart, allLines, lineStyles);
           }
 
           if (frag.type === "missing") {

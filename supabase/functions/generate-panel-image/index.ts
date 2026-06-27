@@ -36,6 +36,7 @@ function snapToFluxDim(v: number): number {
 import { getCorsHeaders, makeJsonResponse, isAllowedOriginConfigured } from "../_shared/cors.ts";
 import { getTierLimits, type UserPlan } from "../_shared/tierConfig.ts";
 import { computeUsagePeriodStart } from "../_shared/usagePeriod.ts";
+import { reserveImageCredit, refundImageCredit } from "../_shared/quota.ts";
 
 function clip(value: string, max = 1200): string {
   if (value.length <= max) return value;
@@ -736,36 +737,9 @@ Deno.serve(async (req) => {
     // avec generate-asset-image + l'UI : _shared/usagePeriod.ts)
     const periodStart = computeUsagePeriodStart(billingPeriodStart);
 
-    // Vérification quota — bloque la génération si le quota mensuel est atteint
+    // Quota : vérifié + réservé ATOMIQUEMENT juste avant l'appel FAL (anti race
+    // condition par requêtes concurrentes) — cf. reserveImageCredit plus bas.
     const limits = getTierLimits(userPlan);
-    const usageRes = await fetch(
-      `${supabaseUrl}/rest/v1/usage?user_id=eq.${encodeURIComponent(userId)}&action=eq.image_generation&created_at=gte.${periodStart.toISOString()}&select=id`,
-      {
-        headers: {
-          apikey: serviceKey,
-          Authorization: `Bearer ${serviceKey}`,
-          "Content-Type": "application/json",
-          Prefer: "count=exact",
-        },
-      }
-    );
-    const usageCount = usageRes.ok
-      ? parseInt(usageRes.headers.get("content-range")?.split("/")[1] ?? "0", 10)
-      : 0;
-
-    if (usageCount >= limits.maxGenerationsPerMonth) {
-      return jsonResponse(
-        {
-          error: "Quota mensuel atteint",
-          details: `Vous avez utilisé ${usageCount}/${limits.maxGenerationsPerMonth} générations ce mois-ci.`,
-          quota_exceeded: true,
-          current_usage: usageCount,
-          max_usage: limits.maxGenerationsPerMonth,
-          plan: userPlan,
-        },
-        429
-      );
-    }
 
     let body: {
       panel_id?: string;
@@ -936,6 +910,28 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Réservation atomique du crédit AVANT l'appel FAL (anti race condition).
+    const reservation = await reserveImageCredit(
+      supabaseUrl,
+      serviceKey,
+      userId,
+      limits.maxGenerationsPerMonth,
+      periodStart.toISOString()
+    );
+    if (!reservation.allowed) {
+      return jsonResponse(
+        {
+          error: "Quota mensuel atteint",
+          details: `Vous avez utilisé ${reservation.count}/${limits.maxGenerationsPerMonth} générations sur la période en cours.`,
+          quota_exceeded: true,
+          current_usage: reservation.count,
+          max_usage: limits.maxGenerationsPerMonth,
+          plan: userPlan,
+        },
+        429
+      );
+    }
+
     const result = useReferences
       ? await generateImageWithReferences(
           finalPrompt,
@@ -948,27 +944,18 @@ Deno.serve(async (req) => {
         )
       : await generateImage(finalPrompt, falKey, width, height, dbStyleText, prompt.trim());
     if ("error" in result) {
+      await refundImageCredit(supabaseUrl, serviceKey, reservation.usageId);
       return jsonResponse({ error: result.error, request_id: requestId }, 502);
     }
 
     const storagePath = `${userId}/projects/${projectId}/panels/${panel_id}/blocks/${block_id}.png`;
     const publicUrl = await downloadAndUpload(result.url, storagePath, supabaseUrl, serviceKey);
     if (!publicUrl) {
+      await refundImageCredit(supabaseUrl, serviceKey, reservation.usageId);
       return jsonResponse({ error: "Échec transfert vers Storage" }, 502);
     }
 
-    // Log usage — fire-and-forget, n'échoue pas la génération si l'insert échoue.
-    fetch(`${supabaseUrl}/rest/v1/usage`, {
-      method: "POST",
-      headers: {
-        apikey: serviceKey,
-        Authorization: `Bearer ${serviceKey}`,
-        "Content-Type": "application/json",
-        Prefer: "return=minimal",
-      },
-      body: JSON.stringify({ user_id: userId, action: "image_generation" }),
-    }).catch(() => {});
-
+    // Crédit déjà décompté à la réservation (reserveImageCredit) — pas de double insert.
     return jsonResponse({ image_url: publicUrl, request_id: requestId }, 200);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);

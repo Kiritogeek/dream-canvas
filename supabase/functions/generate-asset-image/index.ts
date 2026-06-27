@@ -46,6 +46,7 @@ import {
 } from "./system-prompts/objects.ts";
 import { getCorsHeaders, makeJsonResponse, isAllowedOriginConfigured } from "../_shared/cors.ts";
 import { computeUsagePeriodStart } from "../_shared/usagePeriod.ts";
+import { reserveImageCredit, refundImageCredit } from "../_shared/quota.ts";
 
 function clip(value: string, max = 1200): string {
   if (value.length <= max) return value;
@@ -601,49 +602,8 @@ Deno.serve(async (req) => {
     }
 
     const limits = TIER_LIMITS[userPlan];
-
-    // 3c. Vérifier le quota de générations mensuelles
-    // Fenêtre alignée sur generate-panel-image + l'UI (anniversaire de facturation),
-    // via la source de vérité unique _shared/usagePeriod.ts.
-    try {
-      const periodStart = computeUsagePeriodStart(billingPeriodStart).toISOString();
-      const usageRes = await fetch(
-        `${supabaseUrl}/rest/v1/usage?user_id=eq.${encodeURIComponent(userId)}&action=eq.image_generation&created_at=gte.${periodStart}&select=id`,
-        {
-          headers: {
-            apikey: serviceKey,
-            Authorization: `Bearer ${serviceKey}`,
-            "Content-Type": "application/json",
-            Prefer: "count=exact",
-          },
-        }
-      );
-      if (usageRes.ok) {
-        const countHeader = usageRes.headers.get("content-range");
-        // Format: "0-9/42" ou "*/0"
-        let usageCount = 0;
-        if (countHeader) {
-          const match = countHeader.match(/\/(\d+)$/);
-          if (match) usageCount = parseInt(match[1], 10);
-        }
-
-        if (usageCount >= limits.maxGenerationsPerMonth) {
-          return jsonResponse(
-            {
-              error: "Limite de générations atteinte",
-              details: `Vous avez utilisé ${usageCount}/${limits.maxGenerationsPerMonth} générations ce mois-ci. ${userPlan === "libre" ? "Passez au plan Créateur pour plus de générations." : "Votre quota mensuel sera réinitialisé le 1er du mois prochain."}`,
-              quota_exceeded: true,
-              current_usage: usageCount,
-              max_usage: limits.maxGenerationsPerMonth,
-              plan: userPlan,
-            },
-            429
-          );
-        }
-      }
-    } catch {
-      console.warn("[generate-asset-image] Impossible de vérifier l'usage, on continue");
-    }
+    // Quota : vérifié + réservé ATOMIQUEMENT juste avant l'appel FAL (anti race
+    // condition par requêtes concurrentes) — cf. reserveImageCredit plus bas.
 
     // 4. Parse body JSON
     let body: {
@@ -899,9 +859,32 @@ Deno.serve(async (req) => {
 
     const shouldGenerateSheet = type_ === "character";
 
+    // Réservation atomique du crédit AVANT tout appel FAL (anti race condition).
+    const reservation = await reserveImageCredit(
+      supabaseUrl,
+      serviceKey,
+      userId,
+      limits.maxGenerationsPerMonth,
+      computeUsagePeriodStart(billingPeriodStart).toISOString()
+    );
+    if (!reservation.allowed) {
+      return jsonResponse(
+        {
+          error: "Limite de générations atteinte",
+          details: `Vous avez utilisé ${reservation.count}/${limits.maxGenerationsPerMonth} générations sur la période en cours.`,
+          quota_exceeded: true,
+          current_usage: reservation.count,
+          max_usage: limits.maxGenerationsPerMonth,
+          plan: userPlan,
+        },
+        429
+      );
+    }
+
     // --- Étape 1 : génération + upload de la face (bloquant) ---
     const faceResult = await generateFace();
     if ("error" in faceResult) {
+      await refundImageCredit(supabaseUrl, serviceKey, reservation.usageId);
       return jsonResponse(
         {
           error: "Échec génération image",
@@ -920,6 +903,7 @@ Deno.serve(async (req) => {
     );
 
     if (!publicUrl) {
+      await refundImageCredit(supabaseUrl, serviceKey, reservation.usageId);
       return jsonResponse(
         {
           error: "Vue générée par FAL.ai mais échec du transfert vers Storage",
@@ -1035,6 +1019,7 @@ Deno.serve(async (req) => {
     );
 
     if (!updateRes.ok) {
+      await refundImageCredit(supabaseUrl, serviceKey, reservation.usageId);
       const errT = await updateRes.text();
       return jsonResponse(
         {
@@ -1045,24 +1030,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 9. Enregistrer l'utilisation dans la table usage
-    try {
-      await fetch(`${supabaseUrl}/rest/v1/usage`, {
-        method: "POST",
-        headers: {
-          apikey: serviceKey,
-          Authorization: `Bearer ${serviceKey}`,
-          "Content-Type": "application/json",
-          Prefer: "return=minimal",
-        },
-        body: JSON.stringify({
-          user_id: userId,
-          action: "image_generation",
-        }),
-      });
-    } catch {
-      console.warn("[generate-asset-image] Impossible d'enregistrer l'usage");
-    }
+    // 9. Crédit déjà décompté à la réservation (reserveImageCredit) — pas de double insert.
 
     return jsonResponse(
       {

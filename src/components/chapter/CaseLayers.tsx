@@ -161,7 +161,7 @@ export function CaseLayers({
             speechBubbles.map((bubble) => {
               const isSelected = selectedSpeechBubbleId?.panelId === panel.id && selectedSpeechBubbleId.bubbleId === bubble.id;
               const typeLabel = SPEECH_BUBBLE_TYPE_LABELS[bubble.type as SpeechBubbleType] ?? bubble.type;
-              const textPreview = bubble.text?.trim() ? ` — ${bubble.text.slice(0, 20)}` : "";
+              const textPreview = bubble.text?.trim() ? ` · ${bubble.text.slice(0, 20)}` : "";
               return (
                 <button
                   key={bubble.id}

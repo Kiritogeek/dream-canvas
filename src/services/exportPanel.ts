@@ -221,9 +221,16 @@ export async function exportChapterAsZip(
   panelEls: HTMLDivElement[],
   projectName: string,
   chapterNumber: number,
-  cutHeight = 1280
+  cutHeight = 1280,
+  onProgress?: (done: number, total: number) => void
 ): Promise<void> {
-  const canvases = await Promise.all(panelEls.map(renderPanelToCanvas));
+  // Rendu SÉQUENTIEL (et non Promise.all) : évite de lancer N instances html2canvas
+  // simultanément → pic mémoire fortement réduit sur les chapitres longs (anti-crash).
+  const canvases: HTMLCanvasElement[] = [];
+  for (let i = 0; i < panelEls.length; i++) {
+    canvases.push(await renderPanelToCanvas(panelEls[i]));
+    onProgress?.(i + 1, panelEls.length);
+  }
 
   const totalWidth = canvases[0]?.width ?? 800;
   const totalHeight = canvases.reduce((sum, c) => sum + c.height, 0);

@@ -9,9 +9,9 @@
 **Tiers** (stratégie « tout gratuit » actée le 2026-05-30 — la différenciation se fait sur le **volume de crédits**, pas sur les features) :
 - **Libre** (`plan` BDD : `libre`) : 0 €/mois — 20 crédits
 - **Créateur** (`plan` BDD : `createur`) : 12,99 €/mois — 100 crédits
-- **Studio** (`plan` BDD : `studio`) : 29,99 €/mois — 250 crédits + mémoire narrative longue + priorité traitement FAL.ai
+- **Studio** (`plan` BDD : `studio`) : 29,99 €/mois — 250 crédits
 - **Toutes les features sont disponibles sur tous les plans, y compris Libre** : Scénario IA, découpage → cases, composition, export chapitre complet, fil d'Ariane complet, projets illimités, Sheet System. Source de vérité : `TIER_CONFIG` dans `src/types/index.ts`.
-- Seules exceptions Studio : `allowLongMemory` (mémoire narrative longue) + priorité FAL.ai.
+- **Différenciation = volume de crédits UNIQUEMENT** (20 / 100 / 250). La « mémoire narrative longue » et la « priorité FAL.ai » ne sont PAS implémentées — retirées de l'offre commerciale le 2026-06-27 (audit) pour ne pas vendre une feature non livrée. `allowLongMemory` reste dans `TIER_CONFIG` mais n'est consommé nulle part (à implémenter ou retirer ultérieurement).
 - 1 crédit = 1 génération (asset, sheet, bloc case — unifié). **FLUX.2 Pro pour tous les tiers** (logique Spotify)
 - Multi-vues remplacés par **Sheet System** : fiche composite 4 angles, disponible sur tous les plans
 

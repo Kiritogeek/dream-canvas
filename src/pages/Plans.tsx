@@ -104,20 +104,6 @@ const features: FeatureRow[] = [
     createur: "Complet",
     studio: "Complet",
   },
-  {
-    label: "Mémoire narrative longue",
-    icon: Brain,
-    libre: false,
-    createur: false,
-    studio: true,
-  },
-  {
-    label: "Priorité traitement FAL.ai",
-    icon: Zap,
-    libre: false,
-    createur: false,
-    studio: true,
-  },
 ];
 
 function FeatureValue({ value }: { value: string | boolean }) {

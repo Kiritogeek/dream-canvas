@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo, memo } from "react";
 import { useBackgroundJobs } from "@/contexts/BackgroundJobsContext";
 import { useParams, Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
@@ -208,7 +208,7 @@ interface FormatCEditorProps {
   placeholder?: string;
 }
 
-function FormatCEditor({
+const FormatCEditor = memo(function FormatCEditor({
   value,
   onChange,
   textareaRef,
@@ -242,7 +242,7 @@ function FormatCEditor({
       />
     </div>
   );
-}
+});
 
 // ─── DiffColumns ───────────────────────────────────────────────
 
@@ -541,16 +541,26 @@ export default function ScenarioChapterEditor() {
     return () => clearTimeout(t);
   }, [content, lockedBlocks.length, targetPanels]);
 
+  // Regex précompilées par asset (recompilées seulement si la liste d'assets change),
+  // au lieu d'une RegExp neuve par asset à chaque frappe.
+  const assetNameRegexes = useMemo(
+    () =>
+      assets
+        .map((a) => {
+          const name = a.name?.trim();
+          if (!name || name.length < 2) return null;
+          const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+          return { asset: a, regex: new RegExp(`\\b${escaped}\\b`, "i") };
+        })
+        .filter((x): x is NonNullable<typeof x> => x !== null),
+    [assets],
+  );
+
   // Assets mentionnés dans ce chapitre (par correspondance de nom)
   const assetsInChapter = useMemo(() => {
     if (!content || !assets.length) return assets;
-    return assets.filter((a) => {
-      const name = a.name?.trim();
-      if (!name || name.length < 2) return false;
-      const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      return new RegExp(`\\b${escaped}\\b`, "i").test(content);
-    });
-  }, [assets, content]);
+    return assetNameRegexes.filter((x) => x.regex.test(content)).map((x) => x.asset);
+  }, [assets, content, assetNameRegexes]);
 
   const canValidateText = useMemo(() => !!content.trim(), [content]);
 

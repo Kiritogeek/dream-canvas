@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, useMemo, type ReactNode } from "react";
 
 type JobStatus = "running" | "done";
 
@@ -40,8 +40,13 @@ export function BackgroundJobsProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const value = useMemo(
+    () => ({ jobs, startJob, completeJob, clearJob }),
+    [jobs, startJob, completeJob, clearJob],
+  );
+
   return (
-    <BackgroundJobsContext.Provider value={{ jobs, startJob, completeJob, clearJob }}>
+    <BackgroundJobsContext.Provider value={value}>
       {children}
     </BackgroundJobsContext.Provider>
   );

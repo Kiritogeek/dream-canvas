@@ -1413,10 +1413,14 @@ export function LoreGraphView({ project, assets }: Props) {
 
   // Clé de position quantifiée à 50px — change seulement après un layout/drag significatif,
   // pas à chaque frame. Permet de re-déclencher le sync edge sans dépendre de la BDD.
-  const rfNodesPosKey = rfNodes
-    .map((n) => `${n.id}:${Math.round(n.position.x / 50)}:${Math.round(n.position.y / 50)}`)
-    .sort()
-    .join("|");
+  const rfNodesPosKey = useMemo(
+    () =>
+      rfNodes
+        .map((n) => `${n.id}:${Math.round(n.position.x / 50)}:${Math.round(n.position.y / 50)}`)
+        .sort()
+        .join("|"),
+    [rfNodes],
+  );
 
   // Sync edges BDD → React Flow — offset par couloir physique.
   // Utilise rfNodes (positions visuelles actuelles) pour calculer les couloirs,

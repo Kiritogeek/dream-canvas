@@ -52,6 +52,9 @@ type ImageVariant = {
   canSuggest: boolean;
   canGenerate: boolean;
   assets: Asset[];
+  /** IDs des assets épinglés sur le bloc (asset_refs) — toujours envoyés en référence. */
+  pinnedAssetIds: string[];
+  onToggleAssetRef: (assetId: string) => void;
   onNameChange: (value: string) => void;
   onNameSave: () => void;
   onPromptChange: (value: string) => void;
@@ -83,6 +86,8 @@ function ImageBlockToolbar(props: ImageVariant) {
     canSuggest,
     canGenerate,
     assets,
+    pinnedAssetIds,
+    onToggleAssetRef,
     onNameChange,
     onNameSave,
     onPromptChange,
@@ -101,18 +106,12 @@ function ImageBlockToolbar(props: ImageVariant) {
     [promptDraft, assets],
   );
   const detectedIds = useMemo(() => new Set(detectedAssets.map((a) => a.id)), [detectedAssets]);
-
-  const handleInsertAsset = (asset: Asset) => {
-    const name = asset.name?.trim();
-    if (!name) return;
-    if (detectedIds.has(asset.id)) {
-      const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      const regex = new RegExp(`\\b${escaped}\\b`, "i");
-      onPromptChange(promptDraft.replace(regex, "").replace(/\s{2,}/g, " ").trim());
-    } else {
-      onPromptChange(promptDraft ? `${promptDraft.trimEnd()} ${name}` : name);
-    }
-  };
+  const pinnedSet = useMemo(() => new Set(pinnedAssetIds), [pinnedAssetIds]);
+  const effectiveRefCount = useMemo(() => {
+    const ids = new Set(pinnedAssetIds);
+    detectedAssets.forEach((a) => ids.add(a.id));
+    return ids.size;
+  }, [pinnedAssetIds, detectedAssets]);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -220,17 +219,22 @@ function ImageBlockToolbar(props: ImageVariant) {
               rows={4}
             />
 
-            {/* Chips assets détectés uniquement */}
-            {detectedAssets.length > 0 && (
+            {/* Sélecteur de références — assets envoyés à l'IA pour garder leur apparence.
+                Épingler (📌) découple la référence du texte du prompt : un asset non écrit
+                dans le prompt est quand même utilisé s'il est épinglé. */}
+            {assets.length > 0 && (
               <div className="flex flex-col gap-1.5">
                 <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                  Assets détectés
+                  Références de la case
                   <span className="ml-1.5 text-primary normal-case font-medium tracking-normal">
-                    · {detectedAssets.length} référence{detectedAssets.length > 1 ? "s" : ""}
+                    · {effectiveRefCount} envoyée{effectiveRefCount > 1 ? "s" : ""} à l'IA
                   </span>
                 </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {detectedAssets.map((asset) => {
+                <div className="flex flex-wrap gap-1.5 max-h-[116px] overflow-y-auto pr-0.5">
+                  {assets.map((asset) => {
+                    const pinned = pinnedSet.has(asset.id);
+                    const detected = detectedIds.has(asset.id);
+                    const active = pinned || detected;
                     const thumb =
                       asset.image_url_sheet ??
                       asset.image_url ??
@@ -240,9 +244,14 @@ function ImageBlockToolbar(props: ImageVariant) {
                       <button
                         key={asset.id}
                         type="button"
-                        onClick={() => handleInsertAsset(asset)}
-                        title={`Retirer "${asset.name}" du prompt`}
-                        className="inline-flex items-center gap-1.5 h-6 pl-1 pr-2 rounded-full text-[11px] font-medium border bg-primary/10 border-primary/40 text-primary hover:bg-primary/20 transition-all"
+                        onClick={() => onToggleAssetRef(asset.id)}
+                        title={pinned ? `Retirer "${asset.name}" des références` : `Épingler "${asset.name}" comme référence`}
+                        className={cn(
+                          "inline-flex items-center gap-1.5 h-6 pl-1 pr-2 rounded-full text-[11px] font-medium border transition-all",
+                          active
+                            ? "bg-primary/10 border-primary/40 text-primary"
+                            : "bg-muted/40 border-border/60 text-muted-foreground hover:bg-muted/70",
+                        )}
                       >
                         {thumb ? (
                           <img
@@ -256,11 +265,18 @@ function ImageBlockToolbar(props: ImageVariant) {
                           </span>
                         )}
                         <span className="truncate max-w-[80px]">{asset.name}</span>
-                        <span className="ml-0.5 text-primary/60 text-[10px] leading-none">✕</span>
+                        {pinned ? (
+                          <span className="ml-0.5 text-primary/70 text-[10px] leading-none" aria-hidden>📌</span>
+                        ) : detected ? (
+                          <span className="ml-0.5 text-[8px] uppercase tracking-wide opacity-60">auto</span>
+                        ) : null}
                       </button>
                     );
                   })}
                 </div>
+                <p className="text-[10px] text-muted-foreground/70 leading-snug">
+                  Style du projet appliqué automatiquement. Épingle (📌) les personnages et décors de cette case pour que l'IA réutilise leur apparence, même s'ils ne sont pas écrits dans le prompt.
+                </p>
               </div>
             )}
 

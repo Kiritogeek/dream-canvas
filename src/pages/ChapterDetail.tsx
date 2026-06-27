@@ -203,6 +203,18 @@ function getAssetReferenceImageUrl(asset: Asset): string | null {
   return asset.image_url ?? asset.image_url_sheet ?? null;
 }
 
+/** Références effectives d'un bloc = assets ÉPINGLÉS (asset_refs : drag-drop,
+ *  sélecteur, création depuis un asset) ∪ assets DÉTECTÉS par nom dans le prompt.
+ *  Les épinglés priment et sont toujours envoyés à FLUX même s'ils ne sont pas
+ *  écrits dans le prompt — c'est ce qui fait que la sélection de l'utilisateur
+ *  est réellement prise en compte (cf. analyse cohérence images 2026-06-27). */
+function mergeBlockRefAssets(block: PanelBlock, promptText: string, assets: Asset[]): Asset[] {
+  const pinnedIds = new Set(block.asset_refs ?? []);
+  const pinned = assets.filter((a) => pinnedIds.has(a.id));
+  const detected = getDetectedAssets(promptText, assets).filter((a) => !pinnedIds.has(a.id));
+  return [...pinned, ...detected];
+}
+
 function getAssetReferencePromptLabel(asset: Asset): string {
   const name = asset.name?.trim() || asset.id.slice(0, 8);
   if (asset.asset_type === "character") return `character named "${name}"`;
@@ -909,7 +921,7 @@ export default function ChapterDetail() {
       startBlockGeneration(panel.id, block.id);
       try {
         const prompt = block.prompt?.trim() ?? "";
-        const refAssets = getDetectedAssets(prompt, assets);
+        const refAssets = mergeBlockRefAssets(block, prompt, assets);
         const blockAssetImageUrls = refAssets.map(getAssetReferenceImageUrl).filter((u): u is string => !!u);
         const blockAssetNames = refAssets.map(getAssetReferencePromptLabel);
 
@@ -1257,6 +1269,20 @@ export default function ChapterDetail() {
       );
     };
 
+    const handleToggleBlockAssetRef = (block: PanelBlock, assetId: string) => {
+      const current = block.asset_refs ?? [];
+      const nextRefs = current.includes(assetId)
+        ? current.filter((id) => id !== assetId)
+        : [...current, assetId];
+      const nextBlocks = layout.blocks.map((b) => (b.id === block.id ? { ...b, asset_refs: nextRefs } : b));
+      const previousPanels = queryClient.getQueryData<Panel[]>(panelsQueryKey);
+      queryClient.setQueryData<Panel[]>(panelsQueryKey, (old) => (!old ? old : old.map((p) => (p.id === panel.id ? { ...p, layout: { ...layout, blocks: nextBlocks } as unknown as Json } : p))));
+      updatePanelMutation.mutate(
+        { id: panel.id, updates: { layout: { ...layout, blocks: nextBlocks } as unknown as Json } },
+        { onError: (err) => { if (previousPanels) queryClient.setQueryData(panelsQueryKey, previousPanels); toast({ title: "Erreur", description: err.message, variant: "destructive" }); } }
+      );
+    };
+
     const handleBlockShapeOffsetChange = (block: PanelBlock, offset: number) => {
       const nextBlocks = layout.blocks.map((b) => (b.id === block.id ? { ...b, shapeOffset: offset } : b));
       // Mise à jour optimiste immédiate (pas de toast — c'est temps-réel via slider)
@@ -1530,7 +1556,7 @@ export default function ChapterDetail() {
         toast({ title: "Prompt requis", description: "Saisissez un prompt pour ce bloc (ou une description au panel).", variant: "destructive" });
         return;
       }
-      const refAssets = getDetectedAssets(promptToUse, assets);
+      const refAssets = mergeBlockRefAssets(block, promptToUse, assets);
       const blockAssetImageUrls = refAssets
         .map(getAssetReferenceImageUrl)
         .filter((u): u is string => !!u);
@@ -1756,6 +1782,8 @@ export default function ChapterDetail() {
                       canSuggest={!!scenarioChapter?.content?.trim()}
                       canGenerate={!!(promptDraft.trim() && project?.style_template)}
                       assets={assets}
+                      pinnedAssetIds={selectedBlock.asset_refs ?? []}
+                      onToggleAssetRef={(assetId) => handleToggleBlockAssetRef(selectedBlock, assetId)}
                       onNameChange={(value) => setBlockNameDrafts((prev) => ({ ...prev, [blockKey]: value }))}
                       onNameSave={() => { if (nameDraft.trim() !== (selectedBlock.name ?? "")) handleSaveBlockName(selectedBlock, nameDraft); }}
                       onPromptChange={(value) => setBlockPromptDrafts((prev) => ({ ...prev, [blockKey]: value }))}

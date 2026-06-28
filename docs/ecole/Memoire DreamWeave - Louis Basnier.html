@@ -396,7 +396,7 @@
         <tr>
           <td>Interne</td>
           <td><span class="c-mint b">FORCES</span><ul><li>Sheet System cohérence unique</li><li>Workflow tout-en-un</li><li>Time to Value &lt; 10 min</li><li>Freemium FLUX.2 Pro</li><li>NarraMind mémoire narrative</li><li>Stack React + Supabase scalable</li></ul></td>
-          <td><span class="c-rose b">FAIBLESSES</span><ul><li>Export pas encore disponible</li><li>Pas de publication intégrée</li><li>Équipe solo</li><li>Résolution 1024×1024 actuelle</li></ul></td>
+          <td><span class="c-rose b">FAIBLESSES</span><ul><li>Export pas encore disponible</li><li>Pas de publication intégrée</li><li>Équipe solo</li><li>Résolutions actuelles : face 1280×1024, sheet 2560×768, blocs jusqu'à 1440px</li></ul></td>
         </tr>
         <tr>
           <td>Externe</td>
@@ -479,7 +479,7 @@
       <tbody>
         <tr><td>① STYLE</td><td>4 templates (Manga, Webtoon Coréen, Manhwa, Européen) + images de référence. <code>style_template</code> sauvegardé en BDD, injecté dans chaque génération.</td><td class="c-peach">StyleManager.tsx — Supabase Storage</td></tr>
         <tr><td>② SCÉNARIO</td><td>IA Scénario : Gemini Flash → découpage chapitres. Détection assets dans le texte (surbrillance + hover). NarraMind / Ariane : mémoire narrative, alertes incohérences.</td><td class="c-peach">Edge Function generate-scenario-ai — narramind-update</td></tr>
-        <tr><td>③ ASSETS</td><td>Création personnages/décors/objets. Sheet System : fiche composite 4 angles (face, profil G/D, dos) générée en 1 action. Stockée dans <code>assets.image_url_sheet</code>.</td><td class="c-peach">Edge Function generate-asset-image — FLUX.2 Pro Edit</td></tr>
+        <tr><td>③ ASSETS</td><td>Création personnages/décors/objets. Sheet System : fiche composite 4 angles (face, profil G/D, dos) générée séquentiellement (face 1280×1024 puis sheet 2560×768). Stockée dans <code>assets.image_url_sheet</code>.</td><td class="c-peach">Edge Function generate-asset-image — FLUX.2 Pro (face) + Edit (sheet)</td></tr>
         <tr><td>④ ÉDITION</td><td>Panels par blocs — layout JSONB dans <code>chapter_canvases</code>. Génération indépendante par bloc. FLUX.2 Pro Edit : sheet injectée → cohérence garantie.</td><td class="c-peach">Edge Function generate-panel-image</td></tr>
         <tr><td>⑤ EXPORT</td><td>Export PDF / PNG / ZIP (html2canvas + jszip). Publication directe Webtoon Canvas, Tapas.</td><td class="c-peach">html2canvas + jszip — API Webtoon</td></tr>
       </tbody>
@@ -493,7 +493,7 @@
         <tr><td>Frontend</td><td>React 18.3.1 + TypeScript 5.8.3 + Vite 7.3.1 + Tailwind CSS + shadcn/ui + Framer Motion 12.34.0 + TanStack React Query 5.83.0 — hébergé Vercel</td><td class="c-peach">SPA, UI, cache serveur intelligent</td></tr>
         <tr><td>Backend</td><td>Supabase Cloud — PostgreSQL (10 tables, RLS native) — Auth (email + Google OAuth PKCE) — Storage bucket dreamweave — Edge Functions Deno</td><td class="c-peach">BDD, authentification, stockage images, logique métier serverless</td></tr>
         <tr><td>IA Images</td><td>FAL.ai FLUX.2 Pro tous plans — coûts réels testés 10/05/2026 : ~0,065 €/crédit moyen pondéré (personnage $0,06 | décor $0,09 | objet $0,05)</td><td class="c-peach">Génération d'images IA — cohérence via Sheet System</td></tr>
-        <tr><td>IA Texte</td><td>Google Gemini Flash (primaire) — Groq Llama 3.3 70B (fallback si erreur 429). Vectorisation : Gemini text-embedding-004 (768 dim., pgvector)</td><td class="c-peach">Génération scénarios, découpage cases, NarraMind</td></tr>
+        <tr><td>IA Texte</td><td>Google Gemini 2.5 Flash (primaire) — fallback gemini-2.5-flash-lite (429/503) ; Groq Llama 3.3 70B en fallback du mode extract_events. Vectorisation : Gemini text-embedding-004 (768 dim., pgvector)</td><td class="c-peach">Génération scénarios, découpage cases, NarraMind</td></tr>
         <tr><td>Sécurité</td><td>RLS PostgreSQL sur 10 tables — JWT RS256 — Supabase Secrets — <code>profiles.plan</code> protégé (seul Stripe webhook peut modifier)</td><td class="c-peach">Multi-tenant, isolation données, protection upgrade frauduleux</td></tr>
         <tr><td>CI/CD</td><td>GitHub Actions : lint + TypeCheck + deploy Vercel automatique — Vitest + ESLint + husky lint-staged</td><td class="c-peach">Qualité code, déploiement continu</td></tr>
       </tbody>
@@ -816,7 +816,7 @@
       <tbody>
         <tr><td>Frontend SPA</td><td>React + TypeScript + Vite + Tailwind CSS + shadcn/ui (50+ composants Radix) + Framer Motion + TanStack React Query + React Router DOM + React Hook Form + Zod + recharts</td><td class="c-lav">Interface utilisateur, cache serveur intelligent, animations</td></tr>
         <tr><td>Backend</td><td>Supabase Cloud — PostgreSQL (10 tables, RLS native) — Auth (email + Google OAuth PKCE) — Storage bucket dreamweave (namespace user_id/projects/project_id/assets/) — Edge Functions Deno</td><td class="c-lav">BDD, auth, stockage images, logique métier serverless</td></tr>
-        <tr><td>Edge Functions (6)</td><td>generate-asset-image (Sheet System — FLUX.2 Pro Edit) | generate-panel-image (blocs JSONB — dimensions exactes) | generate-scenario-ai (Gemini Flash — découpage chapitres) | narramind-update (mémoire narrative — compression batch) | narramind-compass (vectorisation pgvector + suggestions Ariane) | stripe-webhook (upgrade plan — service_role)</td><td class="c-lav">Logique métier côté serveur — service_role uniquement pour les opérations sensibles</td></tr>
+        <tr><td>Edge Functions (14)</td><td>generate-asset-image (Sheet System — FLUX.2 Pro + Edit séquentiel) | generate-panel-image (blocs JSONB — dimensions exactes) | generate-scenario-ai (Gemini Flash — découpage chapitres) | narramind-update (mémoire narrative — compression batch) | narramind-compass (vectorisation pgvector + suggestions Ariane) | compose-chapter-layout (composition Auto) | generate-style-template-images | generate-landing-showcase | create-checkout-session | create-portal-session | stripe-webhook (upgrade plan — service_role) | admin-get-kpis | admin-set-plan | admin-user-action</td><td class="c-lav">Logique métier côté serveur — service_role uniquement pour les opérations sensibles</td></tr>
         <tr><td>IA Images</td><td>FAL.ai FLUX.2 Pro tous plans — coûts réels testés 10/05/2026 : personnage $0,06 | décor $0,09 | objet $0,05 | bloc 3 refs ~$0,025 | moy. pondérée ~$0,065/crédit</td><td class="c-lav">Génération d'images — cohérence via Sheet System</td></tr>
         <tr><td>IA Texte</td><td>Google Gemini Flash (primaire) — Groq Llama 3.3 70B (fallback si erreur 429). Vectorisation : Gemini text-embedding-004 (768 dim., pgvector). Modèles NarraMind : Gemini 2.0 Flash → 2.5 Flash → Groq.</td><td class="c-lav">Scénarios, découpage chapitres, NarraMind, Ariane support</td></tr>
         <tr><td>Sécurité</td><td>RLS PostgreSQL sur 10 tables — JWT RS256 — Supabase Secrets — profiles.plan protégé (seul service_role peut modifier)</td><td class="c-lav">Multi-tenant, isolation données par utilisateur, upgrade frauduleux impossible</td></tr>
@@ -831,7 +831,7 @@
       <thead><tr><th></th><th>Description</th><th class="c-lav">Implémentation</th><th class="c-mint">Résultat</th></tr></thead>
       <tbody>
         <tr><td>Problème</td><td>Sans mécanisme de référence, chaque appel FAL.ai produit un résultat visuellement différent même avec un prompt identique.</td><td class="c-lav">generate-asset-image — Migration SQL 20260416</td><td class="c-mint">Incohérence visuelle = perte du lecteur</td></tr>
-        <tr><td>Solution</td><td>Fiche composite 4 angles (face, profil G/D, dos) générée en 1 action FLUX.2 Pro (ratio 2560×768, fond blanc). Stockée dans assets.image_url_sheet, injectée dans chaque génération panel via FLUX.2 Pro Edit (multi-référence).</td><td class="c-lav">Edge Function generate-asset-image — Migration 20260416</td><td class="c-mint">Cohérence visuelle automatique — unique sur le marché webtoon IA</td></tr>
+        <tr><td>Solution</td><td>Fiche composite 4 angles (face, profil G/D, dos) générée en FLUX.2 Pro Edit à partir d'une face de référence (1280×1024) produite juste avant (sheet 2560×768, fond blanc). Stockée dans assets.image_url_sheet, injectée dans chaque génération panel via FLUX.2 Pro Edit (multi-référence).</td><td class="c-lav">Edge Function generate-asset-image — Migration 20260416</td><td class="c-mint">Cohérence visuelle automatique — unique sur le marché webtoon IA</td></tr>
         <tr><td>Itérations</td><td>20 itérations de prompt engineering pour stabiliser ratio, fond blanc, qualité des angles. Passage FLUX.2 Pro → FLUX.2 Pro Edit pour multi-référence.</td><td class="c-lav">Coût FAL ×3 avec 2 refs → absorbé dans 1 crédit</td><td class="c-mint">Feedback bêta : cohérence passable → très bonne</td></tr>
       </tbody>
     </table></div>
@@ -944,7 +944,7 @@
         <tr><td>Génération IA</td><td class="c-rose">Synchrone (timeout 120s)</td><td class="c-lav">Queue asynchrone (Supabase Realtime + worker)</td><td class="c-mint">P1</td></tr>
         <tr><td>Cohérence personnages</td><td class="c-rose">1 sheet = référence unique</td><td class="c-lav">Fine-tuning LoRA par personnage</td><td class="c-mint">P2</td></tr>
         <tr><td>NarraMind</td><td class="c-rose">Gemini Flash (32K tokens)</td><td class="c-lav">Gemini Pro ou Claude pour &gt; 20 chapitres</td><td class="c-mint">P2</td></tr>
-        <tr><td>Images</td><td class="c-rose">1024×1024 (FAL.ai standard)</td><td class="c-lav">Upscaling 4× post-génération (Real-ESRGAN via FAL.ai)</td><td class="c-mint">P1</td></tr>
+        <tr><td>Images</td><td class="c-rose">face 1280×1024 · sheet 2560×768 · blocs jusqu'à 1440px</td><td class="c-lav">Upscaling 4× post-génération (Real-ESRGAN via FAL.ai)</td><td class="c-mint">P1</td></tr>
         <tr><td>Multi-tenant</td><td class="c-rose">Supabase Cloud (connexions partagées)</td><td class="c-lav">Supabase Dedicated pour &gt; 10K MAU</td><td class="c-mint">P3</td></tr>
       </tbody>
     </table></div>

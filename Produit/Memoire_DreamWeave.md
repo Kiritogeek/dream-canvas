@@ -179,7 +179,7 @@ Positif
 Négatif
 Interne
 FORCES : Sheet System cohérence unique | Workflow tout-en-un | Time to Value < 10 min | Freemium FLUX.2 Pro | NarraMind mémoire narrative | Stack React + Supabase scalable
-FAIBLESSES : Export pas encore disponible | Pas de publication intégrée | Équipe solo | Résolution 1024×1024 actuelle
+FAIBLESSES : Export pas encore disponible | Pas de publication intégrée | Équipe solo | Résolutions actuelles : face asset 1280×1024, sheet 2560×768, blocs de panel jusqu'à 1440px (snap multiples de 32)
 Externe
 OPPORTUNITÉS : CAGR +35–40 % | IA en amélioration constante | Peu de concurrents spécialisés | Potentiel B2B studios fort | Nouvelles plateformes émergentes
 MENACES : Entrée Adobe / Canva sur le segment | Midjourney cohérence native en développement | Réglementations IA | Dépendance FAL.ai / modèles FLUX
@@ -310,8 +310,8 @@ Statut
 StyleManager.tsx — Supabase Storage
 ✅ Livré
 ② ASSETS
-Création personnages/décors/objets. Sheet System : fiche composite 4 angles (face, profil G/D, dos) générée en 1 action. Stockée dans assets.image_url_sheet.
-Edge Function generate-asset-image — FLUX.2 Pro Edit
+Création personnages/décors/objets. Sheet System : fiche composite 4 angles (face, profil G/D, dos) générée séquentiellement (face 1280×1024 puis sheet 2560×768). Stockée dans assets.image_url_sheet.
+Edge Function generate-asset-image — FLUX.2 Pro (face) + FLUX.2 Pro Edit (sheet)
 ✅ Livré
 ③ SCÉNARIO
 IA Scénario : Gemini Flash → découpage chapitres. Détection assets dans le texte (surbrillance + hover). NarraMind / Ariane : mémoire narrative, alertes incohérences.
@@ -421,7 +421,7 @@ Export chapitre PNG
 ✅
 ✅
 ✅
-Mémoire narrative longue
+Mémoire narrative longue (roadmap, non implémentée)
 ❌
 ❌
 ✅
@@ -763,7 +763,7 @@ Time to Value < 10 min | Activation > 60 %
 V2 — Export
 Q3 2026 (Jul–Sep)
 📅 PLANIFIÉ
-Export PDF / PNG / ZIP | Lecteur webtoon vertical (navigation entre chapitres) | Plan Studio (29,99 €) — mémoire narrative longue + priorité de traitement | Publication directe sur Webtoon Canvas et Tapas
+Export PDF / PNG / ZIP | Lecteur webtoon vertical (navigation entre chapitres) | Plan Studio (29,99 €) : volume de crédits supérieur (250) ; mémoire narrative longue + priorité FAL en roadmap (non implémentées) | Publication directe sur Webtoon Canvas et Tapas
 MRR > 3 400 € | Conversion > 5 %
 V3 — Scale
 Q4 2026 (Oct–Déc)
@@ -780,7 +780,7 @@ Description
 Problème
 Chaque génération FAL.ai avec le même prompt produit un personnage visuellement différent. Dans un webtoon, le lecteur doit reconnaître un personnage à chaque apparition sur 50+ chapitres.
 Solution
-Une 'sheet' est une fiche composite 4 angles (face, profil gauche, profil droit, dos) générée en une seule génération FLUX.2 Pro. Stockée dans assets.image_url_sheet, elle est injectée automatiquement comme image de référence dans tous les appels FLUX.2 Pro Edit ultérieurs via generate-panel-image.
+Une 'sheet' est une fiche composite 4 angles (face, profil gauche, profil droit, dos) au format 2560×768, générée en FLUX.2 Pro Edit à partir d'une face de référence (1280×1024) produite juste avant. Stockée dans assets.image_url_sheet, elle alimente la cohérence des générations de blocs via generate-panel-image (budget FLUX_MAX_REFS=5 : assets nommés d'abord, puis images de style, puis image de continuité).
 Fichier
 supabase/functions/generate-asset-image/index.ts
 Migration
@@ -947,7 +947,7 @@ Itérations clés
 Correctifs apportés
 Phase 0 — Scaffold
 Janvier 2026
-Squelette initial généré avec Lovable → architecture React + Supabase. Première migration : tables de base (profils, projets, assets, chapitres) avec RLS. Premier test de génération d'image (modèle rapide FLUX.1 Schnell).
+Squelette initial généré avec Lovable → architecture React + Supabase. Première migration : tables de base (profils, projets, assets, chapitres) avec RLS. Premier test de génération d'image (modèle rapide FLUX.1 Schnell, historique). NB : plus aucun chemin de code ne route vers schnell aujourd'hui ; TIER_CONFIG utilise FLUX.2 Pro pour les 3 plans.
 MVP fonctionnel en 2 semaines.
 Phase 1 — Monétisation
 Février 2026
@@ -975,8 +975,8 @@ Piste A — NarraMind Scénario (cohérence + directions narratives)
     • Itération A2 (vectorisation) : indexation des chapitres et résumés (source_type chapter/summary) dans project_embeddings, recherche cosinus pgvector top-5, génération de 3 directions narratives (proposal_type narrative_direction) en ~1 050 tokens injectés, latence recherche ~4 ms.
 
 Piste B — NarraMind Univers (cartographie + enrichissement du lore)
-    • Itération B1 (cartographie) : structuration du lore en 5 sections thématiques vectorisées indépendamment (v1 livrée), wiki graphique relationnel lore_categories/lore_entries/lore_links spécifié (v2, bascule planifiée V3). Défi : modéliser un graphe de connaissances multi-tenant injectable dans le prompt.
-    • Itération B2 (vectorisation) : indexation des sections lore et du LORE des assets (source_type lore_world_section/asset_lore), suggestions Ariane distinguant 🔍 extracted (tiré de l'histoire) et ✨ generated (inventé, cohérent) — proposal_type lore_world / lore_asset / lore_connection / asset_prefill.
+    • Itération B1 (cartographie) : structuration du lore en 5 sections thématiques vectorisées indépendamment (v1 livrée), wiki graphique relationnel basé sur lore_nodes / lore_edges (graphe @xyflow/react, déjà en place en v1 : lore_nodes {id, type, name, pos_x, pos_y...} + lore_edges {from_node_id, to_node_id, label}). Défi : modéliser un graphe de connaissances multi-tenant injectable dans le prompt.
+    • Itération B2 (vectorisation) : indexation des sections lore et du LORE des assets (source_type lore_world_section/asset_lore), suggestions Ariane distinguant 🔍 extracted (tiré de l'histoire) et ✨ generated (inventé, cohérent) — proposal_type lore_world / lore_asset / lore_chapter_update / lore_connection / lore_event / narrative_direction / asset_prefill (contrainte CHECK réelle de compass_proposals).
 
 Démonstration clé du POC : une infrastructure de vectorisation unique (project_embeddings + compass_proposals + Edge Function narramind-compass), deux usages produits distincts. Le source_type discrimine l'origine (Scénario vs Univers), le proposal_type discrimine l'usage. La vectorisation est le point de convergence technique des deux pistes — le défi le plus complexe, mutualisé. La distinction extracted/generated répond à l'enjeu de propriété intellectuelle : l'œuvre et le lore appartiennent à l'utilisateur, Ariane ne fait que suggérer en montrant la provenance.
 

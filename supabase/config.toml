@@ -1,4 +1,4 @@
-project_id = "lbiqsodnvrnxdprcucmb"
+project_id = "bczoajqahhlivchcxzpw"
 
 # Passerelle : avec les JWT ES256 (clés asymétriques / JWT Signing Keys), verify_jwt=true peut
 # renvoyer « Unsupported JWT algorithm ES256 » avant l'exécution du code. La vérification utilisateur
@@ -39,4 +39,22 @@ verify_jwt = false
 
 # NarraMind : même remarque ES256 — vérification utilisateur dans le handler.
 [functions.narramind-update]
+verify_jwt = false
+
+# NarraMind Compass (vectorisation / suggestions Ariane) : vérifie l'utilisateur en interne
+# (verifyUserFromToken, index.ts:451). Sans cette ligne, la passerelle rejette les JWT ES256
+# (« Unsupported JWT algorithm ») AVANT l'exécution, ce qui faisait échouer l'indexation en
+# silence (fire-and-forget) et laissait project_embeddings vide. Redéployer pour appliquer.
+[functions.narramind-compass]
+verify_jwt = false
+
+# Composition Auto : vérifie l'utilisateur + l'ownership du chapitre en interne (index.ts:718,748).
+[functions.compose-chapter-layout]
+verify_jwt = false
+
+# Admin KPIs / actions : vérification de l'email admin dans le handler.
+[functions.admin-get-kpis]
+verify_jwt = false
+
+[functions.admin-user-action]
 verify_jwt = false

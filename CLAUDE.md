@@ -30,7 +30,7 @@
 | Storage | Supabase Storage (bucket `dreamweave`) |
 | Edge Functions | Deno (Supabase Functions) |
 | IA Image | FAL.ai — FLUX.2 Pro / FLUX.2 Pro Edit (tous les tiers) |
-| IA Scénario | Groq — Llama 3.3 70B |
+| IA Scénario | Google Gemini 2.5 Flash (fallback gemini-2.5-flash-lite ; Groq Llama 3.3 70B en fallback `extract_events`) |
 | IA Vectorisation | Gemini `text-embedding-004` (768D) — NarraMind Compass |
 | Recherche vectorielle | pgvector (extension PostgreSQL Supabase) |
 | Animation | Framer Motion 12 |
@@ -71,7 +71,7 @@ Règle : ne jamais hardcoder des couleurs — utiliser les tokens HSL ou les cla
 |-------|--------------|
 | `profiles` | user_id, display_name, plan ('libre'/'createur'/'studio'), email, stripe_customer_id, billing_period_start, excluded_from_stats |
 | `projects` | user_id, title, description, style_template, style_image_urls (JSONB), cover_url, panels_target_per_chapter |
-| `assets` | project_id, name, asset_type, prompt, image_url, image_url_profile_left/right/back, image_url_sheet |
+| `assets` | project_id, name, asset_type, prompt, image_url, image_url_profile_left/right, image_url_back, image_url_sheet |
 | `chapters` | project_id, chapter_number, title, synopsis, linked_scenario_chapter_id |
 | `chapter_canvases` | chapter_id, panel_number, prompt, image_url, layout (JSONB `{blocks[], panelHeight}`), speech_bubbles (JSONB), color_blocks (JSONB) — **toujours 1 seule ligne par chapter** (le canvas = le chapitre entier en scroll vertical, 800px × jusqu'à 100 000px) |
 | `scenario_chapters` | project_id, chapter_number, title, content, panels_outline (JSONB), narramind_anomalies (vidé après chaque run NarraMind), narramind_checked_at |
@@ -123,10 +123,10 @@ src/
     useAssetGeneration.ts         # Logique génération asset (validation, FAL.ai, usage)
     useAssets.ts                  # CRUD assets (React Query)
     useProjects.ts                # CRUD projets (React Query)
-    useCases.ts                   # Cases + layout (React Query)
+    usePanels.ts                  # Cases + layout (React Query)
   services/
     assets.ts                     # Service assets + appel generate-asset-image
-    cases.ts                      # Constantes cases, blocs, helpers layout
+    panels.ts                     # Constantes cases, blocs, helpers layout
     scenarioAI.ts                 # Appel generate-scenario-ai
   components/project/
     AssetLibrary.tsx              # Bibliothèque d'assets du projet
@@ -195,7 +195,7 @@ Audits/                           # Audits techniques datés
 
 **Toujours challenger la demande avant d'implémenter.** Pour toute feature ou modification non triviale, poser au moins une question de clarification sur :
 - **L'intention** : pourquoi cet écran / ce flux existe-t-il ? Quel problème utilisateur résout-il ?
-- **Le cas limite** : que se passe-t-il si l'utilisateur n'a pas encore de données ? Si le quota est atteint ? Si c'est un utilisateur Amateur (`free`) ?
+- **Le cas limite** : que se passe-t-il si l'utilisateur n'a pas encore de données ? Si le quota est atteint ? Si c'est un utilisateur Libre (`libre`) ?
 - **La cohérence** : est-ce que ça s'aligne avec le reste du parcours (Style → Assets → Scénario → Éditeur) ?
 - **La priorisation** : est-ce que c'est P0 (bloquant) ou P2 (polish) ? Est-ce que ça vaut le coût d'implémentation maintenant ?
 
@@ -211,7 +211,7 @@ Ne pas poser toutes ces questions à la fois — choisir la plus pertinente selo
 
 ### Ne pas toucher sans demande explicite
 - Schéma Supabase (migrations) — impact production direct
-- Système de paiement / plans (pas encore implémenté — voir roadmap Q2 2026)
+- Système de paiement / plans (Stripe + plans Libre/Créateur/Studio livrés — toute modification touche la facturation en production)
 - Edge Functions (Deno, Supabase) — déploiement manuel requis
 - Variables d'environnement (`.env`, secrets Supabase)
 

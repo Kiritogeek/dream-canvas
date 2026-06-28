@@ -145,7 +145,7 @@
 | Bibliothèque d'assets réutilisables | ✅ | ⚠️ | ⚠️ | ❌ | ❌ | ✅ |
 | Images de référence | ✅ | ⚠️ | ⚠️ | ❌ | ✅ | N/A |
 | Éditeur canvas (blocs image + couleur) | ✅ | ❌ | ⚠️ | ❌ | ❌ | ✅ (manuel) |
-| Bulles de dialogue (12 types SVG + texte libre) | ✅ | ❌ | ⚠️ | ❌ | ❌ | ✅ (manuel) |
+| Bulles de dialogue (13 types SVG dont texte libre) | ✅ | ❌ | ⚠️ | ❌ | ❌ | ✅ (manuel) |
 | Section Scénario + IA Scénario | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Mémoire narrative (NarraMind) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Graphe Univers / Lore | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
@@ -164,7 +164,7 @@
 |---------|-------------|---------------------|-------------|
 | **DreamWeave Libre** | 0 € | ~0 € (20 crédits) | Découverte (toutes features) |
 | **DreamWeave Créateur** | 12,99 € | ~1-3 € | Créateurs indépendants (100 crédits) |
-| **DreamWeave Studio** | 29,99 € | ~1-3 € | Créateurs intensifs (250 crédits + mémoire longue) |
+| **DreamWeave Studio** | 29,99 € | ~1-3 € | Créateurs intensifs (250 crédits) |
 | **Dashtoon** | 10-30 $ | ~2-5 $ | Créateurs de comics |
 | **Midjourney** | 10-60 $ | ~5-20 $ (pas de workflow) | Artistes IA généraux |
 | **ChatGPT Plus** | 20 $ | Variable | Usage général |
@@ -214,8 +214,7 @@
 
 ### Faiblesses (Weaknesses)
 
-- Résolution d'image limitée (1024×1024) — upscaling non encore implémenté
-- Pas de génération de panels en mode Automatique (découpeur scénario → panels en backlog)
+- Résolution d'image plafonnée (assets 1280×1024, blocs de case jusqu'à 1440px de côté) — upscaling non encore implémenté
 - Export avancé (PDF, batch, haute résolution) non encore disponible
 - Pas de collaboration multi-utilisateurs
 - Équipe petite (capacité de développement limitée)
@@ -247,8 +246,8 @@
 
 **Focus** : Être l'outil le plus intégré du marché — de l'écriture à l'export, avec mémoire narrative.
 
-- ✅ Livré : pipeline scénario → éditeur canvas → export PNG, NarraMind, Ariane, Univers/Lore, Compass
-- À livrer : génération panels automatique (mode Auto), export haute résolution, import scénario .txt
+- ✅ Livré : pipeline scénario → éditeur canvas → export PNG, génération panels automatique (mode Auto), NarraMind, Ariane, Univers/Lore, Compass
+- À livrer : export haute résolution, import scénario .txt
 - Lancement public + communication produit
 
 ### 6.2 Moyen terme (6-18 mois) — "L'écosystème"
@@ -272,4 +271,4 @@
 
 ---
 
-*Dernière mise à jour : 13 juin 2026 — Ajout Jenova.ai (concurrent principal 2026), mise à jour matrice comparative (NarraMind, Ariane, Compass, Univers/Lore, Éditeur canvas, Bulles, Export PNG), mise à jour SWOT faiblesses, avantages compétitifs actuels enrichis avec NarraMind + Ariane + Compass + Canvas. Précédente : 7 juin 2026 — Sheet System, tiers.*
+*Dernière mise à jour : 28 juin 2026 — Vérification contre le code : 13 types de bulles (et non 12), résolutions réelles (assets 1280×1024, blocs jusqu'à 1440px), mode Auto (compose-chapter-layout) reclassé comme livré (retiré des faiblesses et de la liste « à livrer »), retrait de la « mémoire longue » du descriptif Studio (non implémentée). Précédente : 13 juin 2026 — Ajout Jenova.ai (concurrent principal 2026), mise à jour matrice comparative (NarraMind, Ariane, Compass, Univers/Lore, Éditeur canvas, Bulles, Export PNG), mise à jour SWOT faiblesses, avantages compétitifs actuels enrichis avec NarraMind + Ariane + Compass + Canvas. Précédente : 7 juin 2026 — Sheet System, tiers.*

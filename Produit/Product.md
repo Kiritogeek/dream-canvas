@@ -190,9 +190,9 @@ DreamWeave résout ces problèmes en :
 - **IA Chapitre** : réécriture ciblée d'un chapitre avec diff visuel (rouge = supprimé, vert = ajouté)
 - Détection des assets existants dans le texte (surbrillance + HoverCard image + Dialog agrandie)
 - Détection des éléments non créés (panneau « à créer », surbrillance ambre, option exclure)
-- **NarraMind** : mémoire narrative automatique (entités `memory_entities`, résumés glissants `memory_summaries`, contexte borné ~1 400 tokens)
+- **NarraMind** : mémoire narrative automatique (entités `memory_entities`, résumés glissants `memory_summaries`, contexte borné par budgets de tokens ; compression des plus anciens résumés au-delà de ~4 000 tokens)
 - Alertes d'incohérence Ariane en langage auteur (persistées dans `narramind_alerts`)
-- Déclenchement automatique après auto-save (≥ 80 mots, ≥ 12 min de garde-fou)
+- Déclenchement automatique après auto-save (≥ 80 mots, debounce 5 min)
 
 **Valeur** : Écrire et itérer sur son histoire sans perdre la cohérence narrative, avec une IA qui connaît tous ses personnages.
 
@@ -352,7 +352,7 @@ DreamWeave résout ces problèmes en :
 1. **Génération automatique de panels (Mode Auto)** :
    - Sélection des assets du chapitre → génération panel par panel à partir du scénario
    - Prompt = style + assets sélectionnés + description (jamais le scénario brut)
-   - **Moteur de composition déjà livré** : `generate-scenario-ai` mode `panels` produit le découpage (`scenario_chapters.panels_outline`), puis `compose-chapter-layout` (Gemini 2.5-flash) compose la mise en page du canvas (`chapter_canvases.layout`). Reste à enchaîner automatiquement la génération d'image de chaque bloc.
+   - **Moteur de composition déjà livré** : `generate-scenario-ai` mode `detect_blocks` produit le découpage (`scenario_chapters.panels_outline`), puis `compose-chapter-layout` (Gemini 2.5-flash) compose la mise en page du canvas (`chapter_canvases.layout`). Reste à enchaîner automatiquement la génération d'image de chaque bloc.
 
 2. **Import scénario** :
    - Import .txt ou copier-coller dans la section Scénario
@@ -448,4 +448,4 @@ Le produit est actuellement en phase de développement actif, avec les fonctionn
 
 ---
 
-*Dernière mise à jour : 13 juin 2026 (audit vérité 2) — bulles corrigées (12 types SVG + texte libre, ex « 6 types »), moteur de composition Mode Auto précisé (generate-scenario-ai mode panels → compose-chapter-layout Gemini 2.5-flash → chapter_canvases.layout). Précédente (13 juin) : ajout Section Scénario (IA Scénario + NarraMind), Éditeur Canvas, Univers/Lore (graphe + Compass), Ariane (5 composants). 7 juin : Sheet System, tiers, NarraMind Compass.*
+*Dernière mise à jour : 28 juin 2026 (vérité code) — corrigé le mode de découpage (generate-scenario-ai `detect_blocks`, ex « panels »), et les garde-fous NarraMind (debounce auto-save 5 min et compression résumés au-delà de ~4 000 tokens, ex « ~1 400 tokens / 12 min »). Précédente (13 juin, audit vérité 2) : bulles corrigées (12 types SVG + texte libre, ex « 6 types »), moteur de composition Mode Auto précisé (generate-scenario-ai mode panels → compose-chapter-layout Gemini 2.5-flash → chapter_canvases.layout). Précédente (13 juin) : ajout Section Scénario (IA Scénario + NarraMind), Éditeur Canvas, Univers/Lore (graphe + Compass), Ariane (5 composants). 7 juin : Sheet System, tiers, NarraMind Compass.*

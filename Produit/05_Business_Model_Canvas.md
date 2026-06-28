@@ -117,12 +117,10 @@
 | **Export chapitre complet** | ✓ | ✓ | ✓ |
 | **Fil d'Ariane complet** | ✓ | ✓ | ✓ |
 | **Projets illimités** | ✓ | ✓ | ✓ |
-| **Mémoire narrative longue** | ✗ | ✗ | **✓** |
-| **Priorité traitement FAL.ai** | Standard | Standard | **Prioritaire** |
 | **Support** | Communauté | Email | Email |
 
-> **Note** : Le multi-vues (profil G/D/dos séparés) est remplacé par le **Sheet System** — une fiche composite 4 angles générée en 1 action, disponible pour tous les plans. La sheet est injectée automatiquement comme référence dans la génération de cases pour garantir la cohérence visuelle.
-> **Seules exceptions Studio** : mémoire narrative longue (`allowLongMemory`) + priorité de traitement FAL.ai. Toutes les autres features sont accessibles dès le plan Libre.
+> **Note** : Le multi-vues (profil G/D/dos séparés) est remplacé par le **Sheet System** - une fiche composite 4 angles générée en 1 action, disponible pour tous les plans. La sheet est injectée automatiquement comme référence dans la génération de cases pour garantir la cohérence visuelle.
+> **Aucune exception de feature par plan** : toutes les fonctionnalités sont accessibles dès le plan Libre, la seule différence est le volume de crédits (20 / 100 / 250). La « mémoire narrative longue » (`allowLongMemory`) et la « priorité FAL.ai », jamais implémentées, ont été retirées de l'offre commerciale le 27/06/2026 pour ne pas vendre une feature non livrée. `allowLongMemory` reste présent dans `TIER_CONFIG` (studio uniquement) mais n'est consommé nulle part dans le code.
 
 > **⚠️ Stripe code implémenté — déploiement conditionné à la création de l'auto-entreprise.**
 
@@ -357,4 +355,5 @@
 
 ---
 
-*Dernière mise à jour : 7 juin 2026 — audit de cohérence (grille Libre/Créateur/Studio 0/12,99/29,99 €, crédits 20/100/250, FLUX.2 Pro pour tous, Sheet System, Enterprise B2B sur devis). Section 11 (Organisation & Équipe) inchangée.*
+*Dernière mise à jour : 28 juin 2026 - audit de cohérence (grille Libre/Créateur/Studio 0/12,99/29,99 €, crédits 20/100/250, FLUX.2 Pro pour tous, Sheet System, Enterprise B2B sur devis). Retrait des features « mémoire narrative longue » et « priorité FAL.ai » de la grille (non implémentées, retirées de l'offre le 27/06/2026). Section 11 (Organisation & Équipe) inchangée.*
+*Audit du 7 juin 2026 : grille tarifaire alignée sur TIER_CONFIG (Libre/Créateur/Studio).*

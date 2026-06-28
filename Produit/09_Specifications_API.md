@@ -201,7 +201,7 @@ Content-Type: application/json
 DELETE /rest/v1/projects?id=eq.{project_id}
 ```
 
-> Supprime en cascade les assets, chapitres et panels associés.
+> Supprime en cascade les assets, chapitres et canvas de chapitre (`chapter_canvases`) associés.
 
 ---
 
@@ -224,9 +224,11 @@ GET /rest/v1/assets?project_id=eq.{project_id}&select=*&order=created_at.desc
     "asset_type": "character",
     "prompt": "Jeune femme de 20 ans, cheveux violets longs...",
     "image_url": "https://...front.png",
-    "image_url_profile_left": "https://...profile_left.png",
+    "image_url_sheet": "https://...sheet.png",
+    "image_url_profile_left": null,
     "image_url_profile_right": null,
     "image_url_back": null,
+    "reference_image_url": null,
     "metadata": null,
     "created_at": "2026-02-10T15:00:00Z"
   }
@@ -318,7 +320,7 @@ DELETE /rest/v1/chapters?id=eq.{chapter_id}
 
 ### 2.6 Canvas de chapitre (`chapter_canvases`)
 
-> ⚠️ La table `panels` a été **renommée `chapter_canvases`** (migration 20260424) et son modèle a changé : **une seule ligne par chapitre** représentant le canvas vertical entier (800px × jusqu'à 100 000px). La mise en page n'est plus une liste de panels mais un **layout JSONB** (`{ blocks[], panelHeight }`), avec `speech_bubbles` et `color_blocks` en colonnes JSONB séparées.
+> ⚠️ La table `panels` a été **renommée `chapter_canvases`** (migration 20260424) et son modèle a changé : **une seule ligne par chapitre** représentant le canvas vertical entier (800px × jusqu'à 100 000px). L'invariant 1 canvas/chapitre est garanti par un index unique sur `chapter_id` (`idx_chapter_canvases_one_per_chapter`, migration 20260627140000). La mise en page n'est plus une liste de panels mais un **layout JSONB** (`{ blocks[], panelHeight }`), avec `speech_bubbles` et `color_blocks` en colonnes JSONB séparées (+ `background_style`).
 
 #### Récupérer le canvas d'un chapitre
 
@@ -347,7 +349,7 @@ GET /rest/v1/chapter_canvases?chapter_id=eq.{chapter_id}&select=*
         "character": "Luna", "position": { "x": 200, "y": 100 } }
     ],
     "color_blocks": [],
-    "image_history": []
+    "background_style": null
   }
 ]
 ```
@@ -387,8 +389,8 @@ DELETE /rest/v1/chapter_canvases?id=eq.{canvas_id}
 |----------|------|
 | `generate-asset-image` | Génère l'image d'un asset (FAL.ai FLUX.2 Pro / Edit), génère la sheet composite, upload Storage, log usage |
 | `generate-panel-image` | Génère l'image d'un bloc de chapitre (dimensions du bloc) |
-| `generate-scenario-ai` | Génère scénario / chapitre / découpage cases (Google Gemini Flash + fallback Groq Llama 3.3 70B) |
-| `compose-chapter-layout` | Composition automatique du layout d'un chapitre (lit `scene_type`) |
+| `generate-scenario-ai` | Multiplexeur scénario / chapitre / découpage cases (Gemini `gemini-2.5-flash`, fallback `gemini-2.5-flash-lite` sur 429/503 ; Groq `llama-3.3-70b-versatile` uniquement en secours du mode `extract_events`) |
+| `compose-chapter-layout` | Composition automatique du layout d'un chapitre (Gemini groupe les `panels_outline` en scènes ; le serveur calcule la géométrie) |
 | `narramind-update` | Mémoire narrative : entités, résumés, détection d'anomalies |
 | `narramind-compass` | NarraMind Compass : mode `index` (vectorise via Gemini `text-embedding-004` → `project_embeddings`) ; mode `propose` (recherche pgvector → Gemini Flash → `compass_proposals`) |
 | `generate-style-template-images` | Génère les images de prévisualisation du style |
@@ -397,6 +399,8 @@ DELETE /rest/v1/chapter_canvases?id=eq.{canvas_id}
 | `create-portal-session` | Crée un lien Stripe Customer Portal |
 | `stripe-webhook` | Traite les événements Stripe → met à jour `profiles.plan` (service_role) |
 | `admin-set-plan` / `admin-user-action` / `admin-get-kpis` | Endpoints d'administration (plan, actions utilisateur, KPIs) |
+
+**14 Edge Functions au total** (+ un dossier `_shared/` de helpers : `cors.ts`, `ownership.ts`, `quota.ts`, `usagePeriod.ts`, `tierConfig.ts`, `style-template-image-prompts.ts`).
 
 Toutes les Edge Functions reçoivent le JWT utilisateur (`Authorization: Bearer`) et utilisent le `service_role` côté serveur pour les lectures cross-user légitimes.
 
@@ -420,8 +424,7 @@ Authorization: Bearer {JWT_TOKEN}
 {
   "asset_id": "uuid",
   "prompt": "Jeune femme de 20 ans, cheveux violets longs, yeux dorés, tenue d'aventurière",
-  "asset_type": "character",
-  "image_view": "front"
+  "asset_type": "character"
 }
 ```
 
@@ -432,17 +435,18 @@ Authorization: Bearer {JWT_TOKEN}
 | `asset_id` | `string (UUID)` | Oui | ID de l'asset à mettre à jour |
 | `prompt` | `string` | Oui | Description de l'asset |
 | `asset_type` | `string` | Oui | `"character"`, `"background"`, ou `"object"` |
-| `image_view` | `string` | Non | Vue à générer : `"front"`, `"profile_left"`, `"profile_right"`, `"back"`. Défaut : `"front"` |
+
+> Le style (`style_template` + `style_image_urls`) est lu **uniquement** depuis la table `projects` côté serveur, jamais envoyé dans le body. Le Sheet System a remplacé les multi-vues : la fonction génère séquentiellement la face puis la sheet composite 4 angles, et n'accepte plus de paramètre de vue.
 
 **Réponse succès** (200) :
 ```json
 {
   "image_url": "https://xxx.supabase.co/storage/v1/object/public/dreamweave/.../asset.png",
   "image_url_sheet": "https://xxx.supabase.co/storage/v1/object/public/dreamweave/.../asset_sheet.png",
-  "image_view": "front",
   "update_field": "image_url",
   "model": "flux-2-pro-edit",
-  "plan": "createur"
+  "plan": "createur",
+  "request_id": "uuid"
 }
 ```
 
@@ -468,19 +472,16 @@ Authorization: Bearer {JWT_TOKEN}
 1. Vérifier FAL_API_KEY
 2. Extraire user_id du JWT
 3. Vérifier que l'asset appartient à l'utilisateur
-4. Construire le prompt enrichi :
+4. Réserver le crédit atomiquement (`reserveImageCredit`) avant tout appel FAL ; rembourser (`refundImageCredit`) en cas d'échec
+5. Construire le prompt enrichi :
    a. Prompt système (selon asset_type)
    b. + style_template (lu depuis `projects`) et/ou style images (si disponibles)
-   c. + instructions de vue (si image_view != "front")
-   d. + prompt utilisateur
-5. Générer et stocker la sheet composite :
-   - `character` : 2x2 vignettes (face + profils + dos)
-   - `background` / `object` : 1 tuile
-   - champ BDD : `assets.image_url_sheet`
-6. Générer la vue demandée (FLUX.2 Pro pour tous les tiers) :
-   - Avec références / sheet : édition à partir de `image_url_sheet` via FLUX.2 Pro Edit (image edit)
-   - Sans référence : FLUX.2 Pro text-to-image
-7. Mettre à jour l'asset en BDD (vue demandée + `image_url_sheet`)
+   c. + prompt utilisateur
+6. Générer **séquentiellement** :
+   - la face (1280×1024) — FLUX.2 Pro Edit (si références) ou text-to-image
+   - puis la sheet composite (strip horizontal 2560×768 = 4 panneaux verticaux 640×768), en utilisant la face comme référence d'identité — uniquement pour `asset_type = "character"`
+   - 3 niveaux de fallback prompt sur violation policy FAL (422), crop des bordures blanches (pngjs)
+7. Mettre à jour l'asset en BDD : `image_url` (face) + `image_url_sheet` ; réinitialiser `image_url_profile_left/right/back` à `null` (legacy Sheet System)
 8. Retourner l'URL publique (image_url + image_url_sheet)
 ```
 
@@ -507,12 +508,15 @@ Authorization: Bearer {JWT_TOKEN}
   "width": 500,
   "height": 500,
   "prompt": "Vue large de la ville sous l'orage, Luna debout sur un toit...",
-  "context_chapter": "Lieu : toit. Scène : nuit d'orage. Personnages : Luna.",
   "block_asset_names": ["Luna", "Forêt magique"],
   "block_asset_image_urls": [
     "https://xxx.supabase.co/storage/v1/object/public/dreamweave/.../luna_sheet.png",
     "https://xxx.supabase.co/storage/v1/object/public/dreamweave/.../foret_sheet.png"
-  ]
+  ],
+  "previous_image_url": "https://xxx.supabase.co/storage/v1/object/public/dreamweave/.../prev.png",
+  "scene_type": "establishing",
+  "effects": ["speed_lines"],
+  "shot_type": "wide"
 }
 ```
 
@@ -520,14 +524,17 @@ Authorization: Bearer {JWT_TOKEN}
 
 | Paramètre | Type | Requis | Description |
 |-----------|------|--------|-------------|
-| `panel_id` | `string (UUID)` | Oui | ID du panel |
+| `panel_id` | `string (UUID)` | Oui | ID du canvas de chapitre (`chapter_canvases.id`) |
 | `block_id` | `string (UUID)` | Oui | ID du bloc dans le layout |
-| `width` | `number` | Oui | Largeur du bloc (px) ; plafonnée à 1024 côté serveur |
-| `height` | `number` | Oui | Hauteur du bloc (px) ; plafonnée à 1024 côté serveur |
+| `width` | `number` | Oui | Largeur du bloc (px) ; snappée au multiple de 32, plafonnée à 1440 côté serveur |
+| `height` | `number` | Oui | Hauteur du bloc (px) ; snappée au multiple de 32, plafonnée à 1440 côté serveur |
 | `prompt` | `string` | Oui | Description de l'illustration pour ce bloc |
 | `block_asset_names` | `string[]` | Non | Noms des assets du bloc (utilisés dans le prompt pour guider les éléments à inclure) |
-| `block_asset_image_urls` | `string[]` | Non | URLs des “sheets” d’assets. Utilisées comme `image_urls` dans FLUX.2 Pro Edit pour conserver la cohérence identitaire (disponible sur tous les tiers). |
-| `context_chapter` | `string` | Non | Contexte du chapitre (lieu, scène, personnages) pour cohérence visuelle. Envoyé par le frontend depuis le découpage (`panels_outline[].context`) ou la description du panel. |
+| `block_asset_image_urls` | `string[]` | Non | URLs des « sheets » d'assets. Utilisées comme `image_urls` dans FLUX.2 Pro Edit pour conserver la cohérence identitaire (disponible sur tous les tiers). Budget `FLUX_MAX_REFS = 5` (assets nommés d'abord, puis images de style, puis continuité). |
+| `previous_image_url` | `string` | Non | Image du bloc précédent, ajoutée en dernière référence de continuité. |
+| `scene_type` | `string` | Non | Type de scène (grammaire visuelle webtoon, 12 types : `establishing`, `dialogue`, `action_impact`, etc.) mappé vers un préfixe FLUX. |
+| `effects` | `string[]` | Non | Effets visuels (`speed_lines`, `multiple_energy_effects`, etc.) injectés dans le prompt. |
+| `shot_type` | `string` | Non | Type de cadrage. |
 
 **Réponse succès** (200) :
 ```json
@@ -546,9 +553,9 @@ Authorization: Bearer {JWT_TOKEN}
 **Processus interne** :
 
 1. Vérifier FAL_API_KEY et JWT
-2. Vérifier que le panel appartient à l'utilisateur (table `panels`)
-3. Récupérer `project_id` via le chapitre du panel (pour le chemin Storage)
-4. Construire le prompt : template de style du projet (depuis `projects`) + contexte chapitre + noms des assets + instruction « remplir tout le cadre » + prompt du bloc
+2. Vérifier que le canvas appartient à l'utilisateur (`panel_id` = `chapter_canvases.id`) + réserver le crédit atomiquement (`reserveImageCredit`)
+3. Récupérer `project_id` via le chapitre du canvas (pour le chemin Storage)
+4. Construire le prompt : préfixe grammaire visuelle (`scene_type` + `effects`) + template de style du projet (depuis `projects`) + noms des assets + instruction « full-bleed, remplir tout le cadre » + prompt du bloc
 5. Génération image (FLUX.2 Pro pour tous les tiers) :
    - Avec `block_asset_image_urls` fournis : FLUX.2 Pro Edit avec `image_urls = block_asset_image_urls` (les sheets servent d'identité visuelle)
    - Sans référence : FLUX.2 Pro text-to-image
@@ -559,9 +566,14 @@ Authorization: Bearer {JWT_TOKEN}
 
 ---
 
-### 3.3 Edge Functions futures (planifiées)
+### 3.3 Anciennes fonctions planifiées (superseded)
 
-#### `generate-chapter-panels` (Phase 2)
+> ⚠️ **Section historique.** Les fonctions ci-dessous étaient envisagées en 2026 mais n'ont **pas** été implémentées sous cette forme. Leurs rôles sont aujourd'hui couverts autrement :
+> - `generate-chapter-panels` → remplacé par `compose-chapter-layout` (groupement Gemini des `panels_outline` → géométrie serveur) + `generate-panel-image` (image par bloc).
+> - `generate-dialogues` → les bulles de dialogue sont saisies dans l'éditeur (`chapter_canvases.speech_bubbles`) ; aucune Edge Function dédiée.
+> - `export-chapter` → l'export est réalisé **côté client** (`src/services/exportPanel.ts`, `html2canvas` + `jszip`), pas via une Edge Function.
+
+#### `generate-chapter-panels` (non implémentée)
 
 ```
 POST /functions/v1/generate-chapter-panels
@@ -589,7 +601,7 @@ POST /functions/v1/generate-chapter-panels
 }
 ```
 
-#### `generate-dialogues` (Phase 2)
+#### `generate-dialogues` (non implémentée)
 
 ```
 POST /functions/v1/generate-dialogues
@@ -602,7 +614,7 @@ POST /functions/v1/generate-dialogues
 }
 ```
 
-#### `export-chapter` (Phase 3)
+#### `export-chapter` (non implémentée — export client-side)
 
 ```
 POST /functions/v1/export-chapter
@@ -662,7 +674,7 @@ Body:
 
 | Paramètre | Valeur |
 |-----------|--------|
-| **Résolution** | Assets : 1280×1024 ; blocs de chapitre : dimensions du bloc (plafonnées à 1024 px) |
+| **Résolution** | Assets : face 1280×1024, sheet 2560×768 ; blocs de chapitre : dimensions du bloc (snappées au multiple de 32, plafonnées à 1440 px) |
 | **Rate limit** | Variable selon le plan FAL.ai |
 | **Temps de réponse** | 3-15 secondes |
 
@@ -686,7 +698,9 @@ Authorization: Bearer {JWT_TOKEN}
 GET /storage/v1/object/public/dreamweave/{path}
 ```
 
-**Format du path** : `{user_id}/projects/{project_id}/assets/{asset_id}_{view}.png`
+**Format des paths** :
+- Assets : `{user_id}/assets/{asset_id}.png` (face) et `{user_id}/assets/{asset_id}_sheet.png` (sheet composite)
+- Blocs de chapitre : `{user_id}/projects/{project_id}/panels/{panel_id}/blocks/{block_id}.png`
 
 ### 5.3 Supprimer un fichier
 
@@ -759,11 +773,9 @@ const { data, error } = await supabase.functions.invoke('generate-asset-image', 
   body: {
     asset_id: asset.id,
     prompt: asset.prompt,
-    style_template: project.style_template,
-    style_image_urls: project.style_image_urls,
-    asset_type: asset.asset_type,
-    image_view: 'front'
+    asset_type: asset.asset_type
   }
+  // Le style est lu côté serveur depuis `projects`, jamais envoyé dans le body.
 });
 
 // Upload d'image
@@ -774,4 +786,4 @@ const { data, error } = await supabase.storage
 
 ---
 
-*Dernière mise à jour : 13 juin 2026 (audit vérité 2) — §2.6 `panels` → `chapter_canvases` (1 ligne/chapitre, layout JSONB blocks + speech_bubbles + color_blocks, upsert), renvoi vers compose-chapter-layout. Précédente (7 juin) : liste réelle des Edge Functions (narramind-compass, compose-chapter-layout, Stripe, admin), FAL.ai FLUX.2 Pro / Edit pour tous les tiers (endpoint fal.run, header `Authorization: Key`, payload réel), plans libre/createur/studio, résolutions réelles.*
+*Dernière mise à jour : 28 juin 2026 (audit vérité code) — §3.0 : 14 Edge Functions confirmées (+ `_shared/`), correction `generate-scenario-ai` (Gemini 2.5-flash, fallback gemini-2.5-flash-lite ; Groq seulement pour `extract_events`) et `compose-chapter-layout` (groupement `panels_outline`, pas de lecture `scene_type`). §3.1 : suppression du paramètre fictif `image_view` (body réel `{asset_id, prompt, asset_type}`), sheet 2560×768, réservation crédit atomique, reset des vues legacy. §3.2 : ajout des vrais params (`scene_type`, `effects`, `shot_type`, `previous_image_url`), ownership sur `chapter_canvases`, plafond 1440px (snap 32), suppression de `context_chapter`. §3.3 : marquée superseded (compose-chapter-layout + generate-panel-image, export client-side). §2.4/§2.6/§5.2 : champs et paths alignés sur le schéma réel. Précédente (13 juin) : §2.6 `panels` → `chapter_canvases`. Antérieure (7 juin) : liste réelle des Edge Functions, FAL.ai FLUX.2 Pro / Edit, plans libre/createur/studio.*

@@ -48,6 +48,6 @@ npm run prepare   # généralement déjà après npm install si prepare est déf
 
 - Migrations SQL : `supabase/migrations/`
 - Fonctions : `supabase/functions/<nom>/`
-- Tableau synthétique des slugs et rôles : [`docs/EDGE_FUNCTIONS_INDEX.md`](./docs/EDGE_FUNCTIONS_INDEX.md)
+- Tableau synthétique des slugs et rôles : [`EDGE_FUNCTIONS_INDEX.md`](./EDGE_FUNCTIONS_INDEX.md)
 
-Pour le détail déploiement et secrets côté Supabase, voir `SUPABASE_SETUP.md` et le dossier `Produit/`.
+Pour le détail déploiement et secrets côté Supabase, voir [`SUPABASE_SETUP.md`](./SUPABASE_SETUP.md) et le dossier `Produit/`.

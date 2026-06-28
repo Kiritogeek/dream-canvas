@@ -1,6 +1,6 @@
 # NarraMind Compass — Spec
 ### Co-pilote créatif d'Ariane pour toute création dans DreamWeave
-*Porté par Ariane · Lore-first · Infrastructure de vectorisation livrée (EF `narramind-compass`, `project_embeddings`, `compass_proposals`, `text-embedding-004` 768D + pgvector) — voir §6. Phases produit en cours de déploiement (sections thématiques Univers v1 livrée).*
+*Porté par Ariane · Lore-first · Infrastructure de vectorisation livrée (EF `narramind-compass`, `project_embeddings`, `compass_proposals`, `text-embedding-004` 768D + pgvector) — voir §6. Phases produit UI en cours de déploiement. NB : Univers v1 a finalement été livré sous forme de cartographie (graph `LoreGraphView` + propositions Ariane), pas sous la forme des 5 sections thématiques décrite en §2.1 (voir l'« ADN du menu Univers » dans `CLAUDE.md`). Les colonnes `lore_magic/geography/factions/culture/timeline` existent en BDD mais ne sont pas exposées via l'UI à 5 champs.*
 
 ---
 
@@ -39,6 +39,8 @@ Stocké dans **Supabase pgvector** — même base de données, même RLS, zéro 
 L'utilisateur est dans l'onglet **Univers** de son projet. C'est ici qu'il définit les règles de son monde : magie, géographie, factions, chronologie.
 
 ### 2.1 Nouvelle structure de l'onglet Univers
+
+> **Statut (2026-06-28)** : cette structure à 5 sections thématiques n'a **pas** été retenue pour Univers v1. L'onglet Univers livré est une **cartographie** (graph `LoreGraphView`) + propositions Ariane (`LoreUniversProposalsSheet`). Cette section décrit une piste produit antérieure, conservée pour mémoire ; voir l'« ADN du menu Univers » dans `CLAUDE.md`.
 
 **⚠️ L'UI de l'onglet Univers doit être restructurée.** Aujourd'hui c'est un bloc texte libre. Compass a besoin de sections séparées pour vectoriser précisément.
 
@@ -283,9 +285,11 @@ Formulaire standard vide, sans bandeau Ariane. Un message discret en bas :
         ├── Génère son embedding
         ├── Semantic search pgvector → top-5 embeddings proches du projet
         ├── Récupère les textes correspondants
-        ├── Appel Gemini Flash → JSON { proposals: [...] }
+        ├── Appel Gemini Flash → JSON { proposals: [...] } (MAX 4 : 2 extracted + 2 generated)
         └── Upsert compass_proposals (dédoublonnage dedupe_key)
 ```
+
+> **État d'implémentation (2026-06-28)** : `narramind-compass` n'expose que deux modes (`index`, `propose`) ; le `proposal_type` (lore_world, lore_asset...) est passé dans le body de l'appel propose, pas un mode dédié. Le mode propose génère AU PLUS 4 propositions (2 `extracted` + 2 `generated`) et n'écrit que si au moins un fragment dépasse le seuil cosinus 0,65. La direction narrative (Scénario IA) ne passe **pas** par `narramind-compass` : elle est servie par `generate-scenario-ai` (mode `narrative_directions`), reste **éphémère** (réponse HTTP → state React) et n'est pas persistée dans `compass_proposals`.
 
 ### 6.2 Nouvelles tables BDD
 
@@ -306,13 +310,14 @@ updated_at      timestamptz
 id              uuid primary key
 project_id      uuid references projects
 source_id       uuid  -- contexte source (chapitre ou asset déclencheur)
-proposal_type   text  -- 'lore_world' | 'lore_asset' | 'lore_chapter_update' | 'lore_connection' | 'narrative_direction' | 'asset_prefill'
+proposal_type   text  -- 'lore_world' | 'lore_asset' | 'lore_chapter_update' | 'lore_connection' | 'lore_event' | 'narrative_direction' | 'asset_prefill'
 origin          text  -- 'extracted' (🔍) | 'generated' (✨)
 title           text  -- titre court affiché (langage auteur)
 content         text  -- corps de la suggestion
 prefill_data    jsonb -- données pré-remplissage formulaire (asset_prefill uniquement)
 status          text  -- 'active' | 'accepted' | 'dismissed'
-dedupe_key      text  -- évite doublons sur runs successifs
+dedupe_key      text  -- évite doublons sur runs successifs (sha256 project_id:proposal_type:title)
+source_fragments jsonb -- fragments pgvector source de la proposition
 created_at      timestamptz
 ```
 
@@ -320,7 +325,7 @@ created_at      timestamptz
 
 | Composant | Modification |
 |---|---|
-| `UniverseSection.tsx` | Restructuration en 5 sections thématiques + bouton "✦ Suggestions Ariane" par section |
+| `UniverseSection.tsx` | (Non retenu) la restructuration en 5 sections thématiques a été abandonnée ; le composant rend `LoreGraphView` (cartographie) + `LoreUniversProposalsSheet` (propositions Ariane) |
 | `AssetLibrary.tsx` | Bandeau "✦ Ariane a analysé N chapitres" sur fiches avec ≥ 2 mentions |
 | `ScenarioChapterEditor.tsx` | Composant "Proposition Ariane" au-dessus du bouton Générer |
 | `AssetCreationForm` (nouveau ou existant) | Bandeau pré-remplissage + états A/B selon LORE disponible |
@@ -347,13 +352,13 @@ created_at      timestamptz
 
 ## 8. Tier gate
 
-> **Stratégie « tout gratuit » (actée le 2026-05-30)** : toutes les features Compass sont disponibles sur **tous les plans, y compris Libre**. La différenciation se fait sur le **volume de crédits** (20 / 100 / 250), pas sur les features. Seules exceptions Studio : mémoire narrative longue (`allowLongMemory`) + priorité FAL.ai. Source de vérité : `TIER_CONFIG` dans `src/types/index.ts`.
+> **Stratégie « tout gratuit » (actée le 2026-05-30)** : toutes les features Compass sont disponibles sur **tous les plans, y compris Libre**. La différenciation se fait sur le **volume de crédits** (20 / 100 / 250), pas sur les features. La « mémoire narrative longue » (`allowLongMemory`) et la « priorité FAL.ai » ont été retirées de l'offre commerciale le 2026-06-27 (non implémentées) ; `allowLongMemory` reste dans `TIER_CONFIG` (studio=true) mais n'est consommé nulle part. Source de vérité : `TIER_CONFIG` dans `src/types/index.ts`.
 
 | Plan | Compass |
 |---|---|
 | **Libre** (0 €/20 crédits) | Compass complet — toutes zones |
 | **Créateur** (12,99 €/100 crédits) | Compass complet — toutes zones |
-| **Studio** (29,99 €/250 crédits) | Idem + mémoire narrative longue + priorité traitement FAL.ai |
+| **Studio** (29,99 €/250 crédits) | Compass complet — toutes zones (différence = volume de crédits uniquement) |
 
 ---
 
@@ -377,3 +382,5 @@ Cette spec constitue la base d'une **Itération 4** pour le dossier WSF5 :
 ---
 
 *Spec v2 — 21 mai 2026 · audit 7 juin 2026 : infrastructure de vectorisation livrée (EF `narramind-compass` mode index/propose, `project_embeddings`, `compass_proposals`, `text-embedding-004` 768D, pgvector), `CompassProposalType` étendu (`lore_chapter_update`, `lore_connection`), tier gate aligné « tout gratuit ». Les phases produit UI sont en cours de déploiement.*
+
+*Audit 28 juin 2026 : tier gate corrigé (« mémoire narrative longue » et « priorité FAL.ai » retirées de l'offre commerciale le 2026-06-27, non implémentées) ; `proposal_type` complété avec `lore_event` (+ colonne `source_fragments`) ; précision implémentation §6.1 (modes réels index/propose, MAX 4 propositions, seuil cosinus 0,65, direction narrative servie par `generate-scenario-ai` et éphémère, hors `compass_proposals`) ; correction Univers : v1 livré en cartographie (`LoreGraphView` + `LoreUniversProposalsSheet`), la structure à 5 sections thématiques de §2.1/§6.3 n'a pas été retenue.*

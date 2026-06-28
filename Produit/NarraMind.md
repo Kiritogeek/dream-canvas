@@ -36,7 +36,7 @@ NarraMind s’exécute **sans bloquer** l’utilisateur (pas de toast de succès
 
 | Source | Condition | Fréquence |
 |--------|-----------|-----------|
-| `ScenarioChapterEditor` | Auto-save réussi + **≥ 80 mots** | **≥ 12 min** entre deux appels **pour ce flux** (même chapitre en session) |
+| `ScenarioChapterEditor` | Auto-save réussi + **≥ 80 mots** | **Debounce 5 min** (`useNarraMindDebounce`, `DEBOUNCE_MS`) : chaque auto-save réarme le timer, l'appel ne part qu'après 5 min sans nouvelle frappe |
 | `UniverseSection` | Sauvegarde du lore monde ou LORE asset | Après sauvegarde (chapitre le plus récent du projet) — événement peu fréquent |
 
 ```ts
@@ -64,13 +64,14 @@ triggerNarraMindUpdate(projectId, chapterId)
 4. Entités existantes (memory_entities)
       │
       ▼
-5. Appel LLM → JSON { entities_to_update[], chapter_summary, anomalies[] }
+5. Appel LLM → JSON { entities_to_update[], chapter_summary, anomalies[], missing_assets[] }
       │
       ▼
 6. Upsert memory_entities, insert memory_summaries
 7. Upsert **narramind_alerts** (clé `dedupe_key` ; les alertes actives absentes du run courant passent en `resolved`)
-8. PATCH scenario_chapters : narramind_anomalies = snapshot, narramind_checked_at = now
-9. Insert narramind_metrics (dont anomalies_detected = length(anomalies))
+8. Upsert **narramind_missing_assets** (noms propres mentionnés sans fiche asset ; dédup par nom normalisé)
+9. PATCH scenario_chapters : narramind_anomalies = snapshot, narramind_checked_at = now
+10. Insert narramind_metrics (dont anomalies_detected = length(anomalies))
       │
       ▼
 [Réponse HTTP] { success, summary, entities_updated, anomalies, … }
@@ -88,7 +89,7 @@ Branche **dédiée au chantier NarraMind — phase 1 (persistance des alertes)**
 
 Voir migrations `20260423120000_add_narramind_tables.sql`, `20260423100000_add_narramind_metrics.sql`.
 
-Résumé : `memory_entities`, `memory_summaries`, `narramind_metrics` — RLS par utilisateur / projet.
+Résumé : `memory_entities`, `memory_summaries`, `narramind_metrics`, `narramind_missing_assets` (noms propres détectés sans fiche asset, migration `20260503100000_narramind_missing_assets.sql`) — RLS par utilisateur / projet.
 
 ### Table **`narramind_alerts`** (alertes cohérence)
 
@@ -174,7 +175,7 @@ Email `kiritogeek@gmail.com` : boutons *Relancer l’onboarding Ariane* ; *Simul
 | Persistance alertes (`narramind_alerts` + EF upsert) | ✅ (branche `feat/narramind-persist-alertes`) |
 | Snapshot `narramind_anomalies` sur le chapitre (technique / utilitaires) | ✅ |
 | Pas de persistance « produit » uniquement via JSON chapitre | ✅ |
-| Déclenchement auto uniquement + throttle 12 min / 80 mots (éditeur) | ✅ |
+| Déclenchement auto uniquement + debounce 5 min / 80 mots (éditeur) | ✅ |
 | UI alertes / **Continuité** + onboarding Ariane (layout, Style, fin parcours, menus progressifs) | ✅ |
 | Mémoire longue : `narra_summary` + fusion batch `memory_summaries` | ✅ (phase 3) |
 | Plafonds prompt assets + entités + lore monde (`narramind-update`) | ✅ (phase 2 — budgets + logs) |
@@ -250,4 +251,6 @@ Ordre d’implémentation suggéré : **1 (persistance alertes) ✅ → 4 (plafo
 
 ---
 
-*Dernière mise à jour : 7 juin 2026 (audit) — ajout de l’architecture d’ensemble « 1 tronc commun + 2 pistes » et du lien vers l’infrastructure de vectorisation NarraMind Compass. §7 onboarding (layout + progressif), alignement Gemini scénario.*
+*Dernière mise à jour : 28 juin 2026 (vérification vs code). Corrections : déclenchement (debounce 5 min, pas throttle 12 min), ajout de `missing_assets[]` à la sortie LLM et de l'upsert `narramind_missing_assets` dans le flux et le modèle de données.*
+
+*Historique : 7 juin 2026 (audit) — ajout de l’architecture d’ensemble « 1 tronc commun + 2 pistes » et du lien vers l’infrastructure de vectorisation NarraMind Compass. §7 onboarding (layout + progressif), alignement Gemini scénario.*

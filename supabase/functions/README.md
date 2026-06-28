@@ -29,7 +29,7 @@ Voir aussi le guide principal : [SUPABASE_SETUP.md](../../SUPABASE_SETUP.md) (se
 
 ## generate-scenario-ai
 
-IA Scénario, IA Chapitre et **découpage chapitre → panels** (mode `panels`). Moteur : **Google Gemini Flash (primaire)** avec **fallback Groq Llama 3.3 70B** en cas d'erreur 429 (quota).
+Multiplexeur IA scénario : IA Scénario, IA Chapitre et **découpage chapitre → blocs** (mode `detect_blocks`), plus les modes `ai_summary`, `suggest_block_prompt`, `baseline`, `narramind`, `narrative_directions`, `suggest_connection_label`, `extract_events`. Moteur : **Google Gemini `gemini-2.5-flash` (primaire)** avec **fallback `gemini-2.5-flash-lite`** en cas d'erreur 429 (quota) ou 503 (surcharge). **Groq Llama 3.3 70B** n'intervient qu'en fallback du mode `extract_events`.
 
 **Secrets requis (Dashboard Supabase → Edge Functions → Secrets) :**
 - `GEMINI_API_KEY` — clé API Google Gemini (modèle primaire)
@@ -37,7 +37,7 @@ IA Scénario, IA Chapitre et **découpage chapitre → panels** (mode `panels`).
 - `SUPABASE_ANON_KEY` — clé anon du projet (souvent déjà injectée ; nécessaire pour valider le JWT utilisateur dans la fonction)
 - `SUPABASE_URL` et `SUPABASE_SERVICE_ROLE_KEY` — en général déjà définis par Supabase
 
-**Config (config.toml) :** `verify_jwt = false` pour cette fonction afin d’éviter un 401 côté passerelle ; la fonction vérifie elle-même le JWT via l’API Auth.
+**Config (`supabase/config.toml`) :** `verify_jwt = false` pour cette fonction afin d’éviter un 401 côté passerelle ; la fonction vérifie elle-même le JWT via l’API Auth.
 
 **Redéploiement :**
 
@@ -52,11 +52,12 @@ Après déploiement, vérifier dans le Dashboard que les secrets ci-dessus sont 
 
 ## generate-style-template-images
 
-Genere les 9 images d'exemple de styles (manga, webtoon-coreen, manhwa-chinois x character/background/scene), puis les enregistre dans Storage:
+Genere les 12 images d'exemple de styles (manga, webtoon-coreen, manhwa-chinois, europeen x character/background/scene), puis les enregistre dans Storage:
 
 - `template-style-img/manga/*.png`
 - `template-style-img/webtoon-coreen/*.png`
 - `template-style-img/manhwa-chinois/*.png`
+- `template-style-img/europeen/*.png`
 
 **Secrets requis :**
 - `FAL_API_KEY`

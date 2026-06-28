@@ -26,7 +26,8 @@ Le modèle de données de DreamWeave est construit sur **PostgreSQL** via Supaba
                           ┌──────────────────┐
                           │    profiles       │
                           │──────────────────│
-                          │  id (UUID, PK/FK)│◄─── Même ID que auth.users
+                          │  id (UUID, PK)   │     gen_random_uuid() (≠ ID auth)
+                          │  user_id (UNIQUE)│◄─── → auth.users.id
                           │  display_name    │
                           │  avatar_url      │
                           │  plan            │     TEXT ('libre'|'createur'|'studio'), défaut 'libre'
@@ -34,13 +35,13 @@ Le modèle de données de DreamWeave est construit sur **PostgreSQL** via Supaba
                           │  updated_at      │
                           └────────┬─────────┘
                                    │
-                                   │ 1:N
+                                   │ 1:N (via user_id → auth.users)
                                    ▼
                           ┌──────────────────┐
                           │    projects       │
                           │──────────────────│
                           │  id (UUID, PK)    │
-                          │  user_id (FK)     │──── → profiles.id
+                          │  user_id (FK)     │──── → auth.users.id
                           │  title            │
                           │  description      │
                           │  style_template   │     TEXT — description du style
@@ -72,21 +73,16 @@ Le modèle de données de DreamWeave est construit sur **PostgreSQL** via Supaba
               │  metadata (JSONB)│           │ 1:N
               │  created_at      │           ▼
               └──────────────────┘  ┌──────────────────┐
-                                    │     panels       │
+                                    │ chapter_canvases │  ex-panels (20260424)
                                     │──────────────────│
                                     │  id (UUID, PK)   │
-                                    │  user_id (FK)    │
-                                    │  chapter_id (FK) │
+                                    │  user_id (FK)    │  → auth.users.id
+                                    │  chapter_id (FK) │  UNIQUE: 1/chapitre
                                     │  panel_number    │
-                                    │  prompt          │
-                                    │  image_url       │  (mode Auto) ou images dans layout.blocks
-                                    │  layout          │  JSONB — blocs (mode Structuré)
-                                    │  dialogue        │
-                                    │  narration       │
+                                    │  layout          │  JSONB {blocks[], panelHeight}
                                     │  speech_bubbles  │  JSONB
-                                    │  motion_lines    │  JSONB
-                                    │  transition_     │  JSONB
-                                    │   effects        │
+                                    │  color_blocks    │  JSONB
+                                    │  background_style │  JSONB
                                     │  created_at      │
                                     └──────────────────┘
 
@@ -115,7 +111,7 @@ Le modèle de données de DreamWeave est construit sur **PostgreSQL** via Supaba
                           │   chapter_id (FK) │──── → scenario_chapters.id (nullable)
                           │  user_id (FK)     │
                           │  content          │
-                          │  version_type     │  TEXT ('scenario'|'chapter')
+                          │  version_type     │  TEXT ('full_scenario'|'chapter')
                           │  status           │  TEXT ('pending'|'accepted'|'rejected')
                           │  created_at       │
                           └──────────────────┘
@@ -140,7 +136,8 @@ Le modèle de données de DreamWeave est construit sur **PostgreSQL** via Supaba
 
 | Colonne | Type | Contraintes | Description |
 |---------|------|------------|-------------|
-| `id` | `UUID` | PK, FK → auth.users.id | Identifiant unique (= ID auth) |
+| `id` | `UUID` | PK, DEFAULT gen_random_uuid() | Identifiant interne du profil (≠ ID auth) |
+| `user_id` | `UUID` | NOT NULL, UNIQUE, FK → auth.users.id | Lien vers le compte Auth (clé d'appartenance) |
 | `display_name` | `TEXT` | NULL | Nom d'affichage |
 | `avatar_url` | `TEXT` | NULL | URL de l'avatar |
 | `plan` | `TEXT` | NOT NULL, DEFAULT 'libre', CHECK ('libre', 'createur', 'studio') | Plan tarifaire actif (renommé free→libre, pro→createur + ajout studio, migration 20260503) |
@@ -155,23 +152,24 @@ Le modèle de données de DreamWeave est construit sur **PostgreSQL** via Supaba
 
 **Trigger** : `on_auth_user_created` → `handle_new_user()`
 ```sql
-CREATE OR REPLACE FUNCTION handle_new_user()
-RETURNS TRIGGER AS $$
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
 BEGIN
-  INSERT INTO public.profiles (id, display_name, avatar_url)
-  VALUES (
-    NEW.id,
-    COALESCE(NEW.raw_user_meta_data->>'display_name', NEW.raw_user_meta_data->>'full_name', 'Utilisateur'),
-    NEW.raw_user_meta_data->>'avatar_url'
-  );
+  INSERT INTO public.profiles (user_id, display_name)
+  VALUES (NEW.id, COALESCE(NEW.raw_user_meta_data->>'display_name', split_part(NEW.email, '@', 1)))
+  ON CONFLICT (user_id) DO NOTHING;
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 ```
 
 **RLS** :
-- SELECT : `auth.uid() = id`
-- UPDATE : `auth.uid() = id`
+- SELECT : `auth.uid() = user_id`
+- UPDATE : `auth.uid() = user_id`
 
 ---
 
@@ -182,7 +180,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 | Colonne | Type | Contraintes | Description |
 |---------|------|------------|-------------|
 | `id` | `UUID` | PK, DEFAULT gen_random_uuid() | Identifiant unique |
-| `user_id` | `UUID` | NOT NULL, FK → profiles.id | Propriétaire |
+| `user_id` | `UUID` | NOT NULL, FK → auth.users.id | Propriétaire |
 | `title` | `TEXT` | NOT NULL | Titre du projet |
 | `description` | `TEXT` | NULL | Description du projet |
 | `style_template` | `TEXT` | NULL | Template de style texte (prompt IA). Peut être généré depuis un système preset (style principal + sous-style + précisions) tout en restant une chaîne texte compatible. |
@@ -223,21 +221,23 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 |---------|------|------------|-------------|
 | `id` | `UUID` | PK, DEFAULT gen_random_uuid() | Identifiant unique |
 | `project_id` | `UUID` | NOT NULL, FK → projects.id | Projet parent |
-| `user_id` | `UUID` | NOT NULL, FK → profiles.id | Propriétaire |
+| `user_id` | `UUID` | NOT NULL, FK → auth.users.id | Propriétaire |
 | `chapter_number` | `INTEGER` | NOT NULL | Numéro du chapitre (ordonné) |
 | `title` | `TEXT` | NOT NULL | Titre du chapitre |
 | `content` | `TEXT` | NULL | Contenu textuel du chapitre (scénario) |
-| `panels_outline` | `JSONB` | NULL | Découpage en panels (liste + descriptions) — optionnel, à venir |
+| `panels_outline` | `JSONB` | NULL | Découpage en panels (liste + descriptions). Alimente le mode Auto (`compose-chapter-layout`). |
 | `created_at` | `TIMESTAMPTZ` | NOT NULL, DEFAULT now() | Date de création |
 | `updated_at` | `TIMESTAMPTZ` | NOT NULL, DEFAULT now() | Date de mise à jour |
 
 **Index** :
-- `idx_scenario_chapters_project_id` sur `project_id`
+- `idx_scenario_chapters_project` sur `(project_id, chapter_number)`
+
+**Colonnes ajoutées depuis** : `panels_outline`, `ai_summary`, `locked_blocks` (JSONB), `word_mappings` (JSONB, 20260421), `narramind_anomalies` (JSONB, toujours `[]` après run NarraMind), `narramind_checked_at` (20260430), `validated` / `validated_at` (20260524), `chapter_assets` (JSONB, 20260531).
 
 **RLS** :
 - SELECT : `auth.uid() = user_id`
 - INSERT : `auth.uid() = user_id`
-- UPDATE : `auth.uid() = user_id`
+- UPDATE : `auth.uid() = user_id` (durci en 20260627 avec `WITH CHECK (auth.uid() = user_id)` — empêche la réassignation de `user_id`)
 - DELETE : `auth.uid() = user_id`
 
 **Note** : La section Scénario permet à l'utilisateur d'écrire ou d'importer un scénario (texte) et de créer des **chapitres** qui **correspondent** aux chapitres webtoon (un chapitre écrit = un chapitre webtoon). **IA Scénario** : un prompt = un chapitre généré ; l'utilisateur construit son histoire **chapitre par chapitre**. **IA Chapitre** : sur chaque chapitre, réécriture avec diff visuel. **Détection assets** : surbrillance des noms d'assets existants dans le texte, hover (HoverCard), clic (Dialog). **Éléments non créés** : détection IA, panneau dédié, création depuis scénario. Voir `Plan_Action_Developpement_Scénario.md` et `07_Roadmap_Produit.md` Phase 2.
@@ -252,10 +252,10 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 |---------|------|------------|-------------|
 | `id` | `UUID` | PK, DEFAULT gen_random_uuid() | Identifiant unique |
 | `project_id` | `UUID` | NOT NULL, FK → projects.id | Projet parent |
-| `scenario_chapter_id` | `UUID` | NULL, FK → scenario_chapters.id | Chapitre concerné (NULL si version scénario entier) |
-| `user_id` | `UUID` | NOT NULL, FK → profiles.id | Propriétaire |
+| `scenario_chapter_id` | `UUID` | NULL, FK → scenario_chapters.id (ON DELETE CASCADE) | Chapitre concerné (NULL si version scénario entier) |
+| `user_id` | `UUID` | NOT NULL, FK → auth.users.id | Propriétaire |
 | `content` | `TEXT` | NOT NULL | Contenu de la version |
-| `version_type` | `TEXT` | NOT NULL | Type : `'scenario'` (IA Scénario) ou `'chapter'` (IA Chapitre) |
+| `version_type` | `TEXT` | NOT NULL, CHECK ('full_scenario', 'chapter') | Type : `'full_scenario'` (IA Scénario) ou `'chapter'` (IA Chapitre) |
 | `status` | `TEXT` | NOT NULL, DEFAULT 'pending' | Statut : `'pending'` (en attente), `'accepted'` (acceptée), `'rejected'` (rejetée) |
 | `created_at` | `TIMESTAMPTZ` | NOT NULL, DEFAULT now() | Date de création |
 
@@ -266,6 +266,8 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 - DELETE : `auth.uid() = user_id`
 
 **Note** : Persistance des versions pour le flux accepter/rejeter. **IA Chapitre** : comparaison ancienne vs nouvelle version avec diff visuel (texte supprimé en rouge, ajouté en vert). **IA Scénario** : texte proposé affiché tel quel, pas de diff.
+
+> ⚠️ **Couche applicative retirée** : la table `scenario_versions` existe toujours en BDD (types auto-générés), mais le slice applicatif (hooks / services) a été supprimé lors du nettoyage code mort (commit 298507e, 2026-06). Le flux de versions n'est plus câblé côté client à ce jour.
 
 ---
 
@@ -280,7 +282,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 | Colonne | Type | Contraintes | Description |
 |---------|------|------------|-------------|
 | `id` | `UUID` | PK, DEFAULT gen_random_uuid() | Identifiant unique |
-| `user_id` | `UUID` | NOT NULL, FK → profiles.id | Propriétaire |
+| `user_id` | `UUID` | NOT NULL, FK → auth.users.id | Propriétaire |
 | `project_id` | `UUID` | NOT NULL, FK → projects.id | Projet parent |
 | `name` | `TEXT` | NOT NULL | Nom de l'asset |
 | `asset_type` | `asset_type` | NOT NULL | Type : 'character', 'background', 'object' |
@@ -299,8 +301,7 @@ CREATE TYPE asset_type AS ENUM ('character', 'background', 'object');
 ```
 
 **Index** :
-- `idx_assets_project_id` sur `project_id`
-- `idx_assets_user_id` sur `user_id`
+- `idx_assets_project` sur `project_id` (migration 20260627)
 
 **RLS** :
 - SELECT : `auth.uid() = user_id`
@@ -317,7 +318,7 @@ CREATE TYPE asset_type AS ENUM ('character', 'background', 'object');
 | Colonne | Type | Contraintes | Description |
 |---------|------|------------|-------------|
 | `id` | `UUID` | PK, DEFAULT gen_random_uuid() | Identifiant unique |
-| `user_id` | `UUID` | NOT NULL, FK → profiles.id | Propriétaire |
+| `user_id` | `UUID` | NOT NULL, FK → auth.users.id | Propriétaire |
 | `project_id` | `UUID` | NOT NULL, FK → projects.id | Projet parent |
 | `title` | `TEXT` | NOT NULL | Titre du chapitre |
 | `synopsis` | `TEXT` | NULL | Résumé court du chapitre (référence). **Non utilisé dans les prompts d'image.** |
@@ -327,7 +328,7 @@ CREATE TYPE asset_type AS ENUM ('character', 'background', 'object');
 | `updated_at` | `TIMESTAMPTZ` | NOT NULL, DEFAULT now() | Date de mise à jour |
 
 **Index** :
-- `idx_chapters_project_id` sur `project_id`
+- `idx_chapters_project` sur `project_id` (migration 20260627)
 - `idx_chapters_linked_scenario` sur `linked_scenario_chapter_id` (WHERE NOT NULL), voir migration Phase 2.
 
 **RLS** :
@@ -340,14 +341,16 @@ CREATE TYPE asset_type AS ENUM ('character', 'background', 'object');
 
 ### 2.5 `panels` → renommée `chapter_canvases`
 
-> ⚠️ **Renommage (migration 20260424)** : la table `panels` a été renommée en **`chapter_canvases`**. Le canvas représente désormais **le chapitre entier en scroll vertical** (800 px de large, jusqu'à ~100 000 px de haut) : il y a **toujours une seule ligne par chapitre**, le `layout` JSONB contenant tous les blocs (`{blocks[], panelHeight}`), ainsi que `speech_bubbles` (JSONB) et `color_blocks` (JSONB). La description ci-dessous décrit l'ancien modèle « un panel = une ligne » conservé pour référence historique.
+> ⚠️ **Renommage (migration 20260424)** : la table `panels` a été renommée en **`chapter_canvases`**. Le canvas représente désormais **le chapitre entier en scroll vertical** (800 px de large, jusqu'à ~100 000 px de haut) : il y a **toujours une seule ligne par chapitre** (invariant garanti par l'`UNIQUE INDEX idx_chapter_canvases_one_per_chapter`, migration 20260627140000). La description ci-dessous décrit l'ancien modèle « un panel = une ligne » conservé pour référence historique.
+
+> **Colonnes actuelles de `chapter_canvases`** : `id`, `user_id`, `chapter_id`, `panel_number`, `layout` (JSONB `{blocks[], panelHeight}`), `speech_bubbles` (JSONB, bulles **implémentées**), `color_blocks` (JSONB, blocs de couleur — migration 20260221), `background_style` (JSONB, migration 20260218), `created_at`. La migration de renommage (20260424) a **supprimé** les colonnes mortes `dialogue`, `narration`, `prompt`, `image_url`, `transition_effects`, `motion_lines` (jamais lues/écrites par l'UI). Les colonnes `effects`, `motion_lines` et `transition_effects` listées dans le tableau historique ci-dessous **n'existent plus** (ou n'ont jamais existé pour `effects`).
 
 > Panels composant un chapitre. En **mode Automatique** : un panel = une **image pleine** (illustration, pas de cases dans l’image). En **mode Structuré** : un panel contient des **blocs** (layout) ; chaque bloc a sa propre image pleine, affichée dans le bloc.
 
 | Colonne | Type | Contraintes | Description |
 |---------|------|------------|-------------|
 | `id` | `UUID` | PK, DEFAULT gen_random_uuid() | Identifiant unique |
-| `user_id` | `UUID` | NOT NULL, FK → profiles.id | Propriétaire |
+| `user_id` | `UUID` | NOT NULL, FK → auth.users.id | Propriétaire |
 | `chapter_id` | `UUID` | NOT NULL, FK → chapters.id | Chapitre parent |
 | `panel_number` | `INTEGER` | NOT NULL | Numéro du panel (ordre d'affichage) |
 | `prompt` | `TEXT` | NULL | Description / prompt pour la génération (mode Auto : 1 prompt par panel) |
@@ -405,7 +408,7 @@ CREATE TYPE asset_type AS ENUM ('character', 'background', 'object');
 
 **Types** : `"speech"` (parole), `"thought"` (pensée), `"shout"` (cri), `"whisper"` (chuchotement), `"narration"` (narration). Pour l’éditeur avancé, les types sont aussi exposés comme **dialogue** (= speech), **caption** (= narration).
 
-**Format étendu** (éditeur avancé — `SpeechBubbleEditor`) : en plus des champs ci-dessus, chaque bulle peut comporter :
+**Format étendu** (champs additionnels possibles sur une bulle) : en plus des champs ci-dessus, chaque bulle peut comporter :
 - `borderRadius` (0–50, en %)
 - `tailX`, `tailY`, `tailBaseWidth` (queue : pointe et largeur de base)
 - `bgFill` ("solid" | "gradient"), `bgColor`, `bgColor2`, `gradientDir` ("to bottom" | "to right" | "to bottom right" | "to bottom left")
@@ -453,12 +456,13 @@ Exemple (bulle dialogue avec sous-bulle connectée) :
 ```
 
 **Index** :
-- `idx_panels_chapter_id` sur `chapter_id`
+- `idx_chapter_canvases_chapter` sur `chapter_id` (migration 20260627)
+- `idx_chapter_canvases_one_per_chapter` — **UNIQUE** sur `chapter_id` (migration 20260627140000, garantit l'invariant 1 canvas/chapitre)
 
 **RLS** :
 - SELECT : `auth.uid() = user_id`
 - INSERT : `auth.uid() = user_id`
-- UPDATE : `auth.uid() = user_id`
+- UPDATE : `auth.uid() = user_id` (durci en 20260627 avec `WITH CHECK (auth.uid() = user_id)`)
 - DELETE : `auth.uid() = user_id`
 
 ---
@@ -475,19 +479,22 @@ Exemple (bulle dialogue avec sous-bulle connectée) :
 | `created_at` | `TIMESTAMPTZ` | NOT NULL, DEFAULT now() | Date de la génération |
 
 **Index** :
-- `idx_usage_user_id` sur `user_id`
-- `idx_usage_created_at` sur `created_at`
+- `idx_usage_user_action_created` sur `(user_id, action, created_at DESC)` — index composite pour les comptages mensuels (migration 20260515, remplace l'ancien `idx_usage_user_created`)
+
+**Nettoyage automatique** : un cron `pg_cron` (`cleanup-old-usage`, le 2 du mois à 03h UTC) supprime les entrées de plus de 13 mois (migration 20260515).
 
 **RLS** :
 - SELECT : `auth.uid() = user_id`
 - INSERT : via service_role (Edge Function uniquement)
 
-**Requête de comptage mensuel** :
+**Comptage atomique** : la réservation de crédit passe par la RPC `consume_image_credit(p_user_id, p_limit, p_period_start)` (migration 20260627) — check + insert atomiques sous `pg_advisory_xact_lock`, anti race condition quota. La fenêtre mensuelle est ancrée sur `billing_period_start` (payant) ou le 1er du mois calendaire (libre/null).
+
+**Requête de comptage mensuel** (logique simplifiée) :
 ```sql
 SELECT COUNT(*) FROM usage
 WHERE user_id = $1
   AND action = 'image_generation'
-  AND created_at >= date_trunc('month', now());
+  AND created_at >= $period_start;
 ```
 
 ---
@@ -498,22 +505,21 @@ WHERE user_id = $1
 
 | Table | Rôle | Colonnes clés | Migration |
 |-------|------|---------------|-----------|
-| `memory_entities` | Entités narratives (personnages, lieux, objets) | project_id, user_id, asset_id, name, entity_type, traits (JSONB), relations (JSONB), lore_summary, last_seen_chapter | 20260423 |
+| `memory_entities` | Entités narratives (personnages, lieux, objets) | project_id, user_id, asset_id, name, entity_type, traits (JSONB), relations (JSONB), lore_summary, first_seen_chapter, last_seen_chapter, token_estimate | 20260423 |
 | `memory_summaries` | Résumés compacts par chapitre (mémoire longue) | project_id, user_id, chapter_id, chapter_number, summary, token_estimate | 20260423 |
-| `narramind_alerts` | Alertes / anomalies narratives (fil d'Ariane) | project_id, user_id, type, message, chapter_number, status | 20260430 |
-| `narramind_metrics` | Métriques de la mémoire (tokens, compression) | project_id, user_id, … | 20260423 |
-| `narramind_missing_assets` | Assets mentionnés dans le scénario mais non créés (suggestions) | project_id, chapter_id, name, suggested_type, mention_count, status ('pending'/'dismissed') | 20260503 |
-| `lore_world_sections` | Sections de lore monde (univers) | project_id, user_id, section_key, content | 20260522 |
+| `narramind_alerts` | Alertes / anomalies narratives (fil d'Ariane) | project_id, user_id, chapter_id, severity, title, explanation, anchor (JSONB), status ('active'/'dismissed'/'resolved'), dedupe_key | 20260430 |
+| `narramind_metrics` | Métriques de la mémoire (tokens, compression) + observabilité Compass (colonnes compass_mode, fragments_retrieved, cos_sim_min/max, proposals_count ajoutées en 20260610) | project_id, mode, chapter_number, context_tokens, response_tokens, anomalies_detected, duration_ms | 20260423, 20260610 |
+| `narramind_missing_assets` | Assets mentionnés dans le scénario mais non créés (suggestions) | project_id, chapter_id, name, suggested_type, mention_count, status (défaut 'pending') | 20260503 |
 | `lore_nodes` | Nœuds du graphe Univers (personnage / lieu / objet / événement) | project_id, user_id, type, name, description, image_url, asset_id, chapter_id, pos_x, pos_y | 20260522, 20260523 |
 | `lore_edges` | Relations (arêtes) du graphe Univers | project_id, user_id, from_node_id, to_node_id, label | 20260522 |
-| `word_mappings` | Mappings pour la détection d'assets dans le scénario | project_id, … | 20260421 |
 | `project_embeddings` | Index vectoriel Compass | project_id, user_id, source_type ('chapter'/'lore_world_section'/'asset_lore'/'summary'), source_id, section_key, content, **embedding vector(768)** | 20260522 |
-| `compass_proposals` | Propositions Compass (Ariane) | project_id, user_id, proposal_type ('lore_world'/'lore_asset'/'lore_chapter_update'/'lore_connection'/'narrative_direction'/'asset_prefill'), origin ('extracted'/'generated'), title, content, prefill_data (JSONB), status ('active'/'accepted'/'dismissed'), dedupe_key | 20260522, 20260524 |
-| `compass_metrics` | Observabilité Compass / LM-Ops (latence, tokens, coût par run) | project_id, … | 20260610 |
-| `compass_proposals_source_fragments` | Fragments sources (RAG) rattachés à une proposition Compass | proposal_id, source_type, source_id, content | 20260610 |
-| `chapter_assets` | Liaison assets ↔ chapitres (curation 3 états : auto/added/removed/skipped) | chapter_id, asset_id, … (aussi JSONB `scenario_chapters.chapter_assets`) | 20260531 |
+| `compass_proposals` | Propositions Compass (Ariane) | project_id, user_id, proposal_type ('lore_world'/'lore_asset'/'lore_chapter_update'/'lore_connection'/'lore_event'/'narrative_direction'/'asset_prefill'), origin ('extracted'/'generated'), title, content, prefill_data (JSONB), source_fragments (JSONB, ajoutée 20260610), status ('active'/'accepted'/'dismissed'), dedupe_key | 20260522, 20260524, 20260610 |
 
-> **Infra vectorielle Compass** : extension `pgvector` activée (migration 20260522), fonction SQL `match_embeddings` pour la recherche par similarité cosinus, vectorisation via Gemini `text-embedding-004` (768 dimensions). RLS `auth.uid() = user_id` sur `project_embeddings` et `compass_proposals`.
+> **Infra vectorielle Compass** : extension `pgvector` activée (migration 20260522), fonction SQL `match_embeddings(query_embedding vector(768), match_project_id, match_user_id, match_count)` pour la recherche par similarité cosinus, vectorisation via Gemini `text-embedding-004` (768 dimensions). RLS `auth.uid() = user_id` sur `project_embeddings` et `compass_proposals`.
+
+> **Colonnes, pas des tables** : `compass_metrics`, `compass_proposals_source_fragments`, `lore_world_sections` et `word_mappings` ne sont PAS des tables. L'observabilité Compass est portée par des colonnes ajoutées à `narramind_metrics` (`compass_mode`, `fragments_retrieved`, `cos_sim_min/max`, `proposals_count` — migration 20260610) ; les fragments sources sont une colonne `source_fragments` (JSONB) sur `compass_proposals` (20260610) ; le lore monde est stocké dans le graphe (`lore_nodes`/`lore_edges`) plus `projects.world_rules` et `projects.universe_lore` (les colonnes `projects.lore_*` ajoutées en 20260522 ont été supprimées par la migration 20260522150000) ; `word_mappings` est une colonne JSONB sur `scenario_chapters` (20260421).
+
+> **`chapter_assets`** : il n'existe pas de table `chapter_assets`. La curation des assets de chapitre est une colonne JSONB `scenario_chapters.chapter_assets` (`{validated, items[]}`, migration 20260531) — décisions utilisateur (overrides) ; la détection auto reste calculée à la volée.
 
 > **Note `scenario_chapters` (évolutions)** : la table a reçu `narramind_anomalies` (JSONB, vidé après chaque run NarraMind) et `narramind_checked_at` (migration 20260430). `projects` a reçu `narra_summary` (mémoire longue, migration 20260430) et `panels_target_per_chapter`. `assets` a reçu `image_url_sheet` (Sheet System, 20260416) et `lore` (20260423).
 
@@ -585,32 +591,34 @@ USING (
 
 | Table source | Colonne | Table cible | Action ON DELETE |
 |-------------|---------|------------|-----------------|
-| `profiles` | `id` | `auth.users` | CASCADE |
-| `projects` | `user_id` | `profiles` | CASCADE |
-| `assets` | `user_id` | `profiles` | CASCADE |
+| `profiles` | `user_id` | `auth.users` | CASCADE |
+| `projects` | `user_id` | `auth.users` | CASCADE |
+| `assets` | `user_id` | `auth.users` | CASCADE |
 | `assets` | `project_id` | `projects` | CASCADE |
-| `chapters` | `user_id` | `profiles` | CASCADE |
+| `chapters` | `user_id` | `auth.users` | CASCADE |
 | `chapters` | `project_id` | `projects` | CASCADE |
-| `panels` | `user_id` | `profiles` | CASCADE |
-| `panels` | `chapter_id` | `chapters` | CASCADE |
+| `chapter_canvases` (ex-`panels`) | `user_id` | `auth.users` | CASCADE |
+| `chapter_canvases` (ex-`panels`) | `chapter_id` | `chapters` | CASCADE |
+
+> **Note appartenance** : `projects` / `assets` / `chapters` / `chapter_canvases` portent un `user_id` qui pointe vers `auth.users(id)` directement. Les tables mémoire (`memory_entities`, `memory_summaries`) pointent en revanche vers `profiles(id)`. Comme `profiles.id` ≠ `auth.users.id` (lien via `profiles.user_id UNIQUE`), ces deux familles de FK ne ciblent pas la même table — à garder en tête lors des jointures.
 
 ### 4.2 Cascade de suppression
 
 ```
-Suppression d'un utilisateur (auth.users)
-    └── Supprime profile
-        └── Supprime tous les projects
+Suppression d'un utilisateur (auth.users)   ← toutes les tables métier FK directement auth.users
+    ├── Supprime le profile (profiles.user_id)
+    └── Supprime tous les projects (projects.user_id)
             ├── Supprime tous les assets du projet
             └── Supprime tous les chapters du projet
-                └── Supprime tous les panels du chapitre
+                └── Supprime le chapter_canvas du chapitre
 
 Suppression d'un projet
     ├── Supprime tous les assets
     └── Supprime tous les chapters
-        └── Supprime tous les panels
+        └── Supprime le chapter_canvas
 
 Suppression d'un chapitre
-    └── Supprime tous les panels
+    └── Supprime le chapter_canvas (1 ligne)
 ```
 
 > **Note** : La suppression des fichiers Storage n'est pas automatique (pas de trigger). Il faudra implémenter un nettoyage côté application ou via une Edge Function de cleanup.
@@ -625,7 +633,7 @@ Suppression d'un chapitre
 |-------------|-------|-------------|
 | Ajout `status` sur `assets` | `assets` | `enum ('pending', 'generating', 'ready', 'error')` |
 | Ajout `generation_count` sur `assets` | `assets` | Compteur de régénérations |
-| Ajout `status` sur `panels` | `panels` | `enum ('pending', 'generating', 'ready', 'error')` |
+| Ajout `status` sur `chapter_canvases` | `chapter_canvases` (ex-`panels`) | `enum ('pending', 'generating', 'ready', 'error')` |
 
 ### 5.2 Moyen terme
 
@@ -647,4 +655,6 @@ Suppression d'un chapitre
 
 ---
 
-*Dernière mise à jour : 13 juin 2026 (audit vérité 2) — ajout des tables manquantes : `narramind_missing_assets`, `lore_world_sections`, `lore_nodes`, `lore_edges` (détaillées), `compass_metrics` + `compass_proposals_source_fragments` (observabilité Compass / RAG, migrations 20260610), types `compass_proposals` complétés (lore_chapter_update, lore_connection). Précédente (7 juin) : plans renommés libre/createur/studio + colonnes profiles, renommage panels → chapter_canvases, tables mémoire/lore/Compass (project_embeddings, compass_proposals, pgvector, text-embedding-004 768D), chapter_assets.*
+*Dernière mise à jour : 28 juin 2026 (audit vérité code) — corrections de cohérence schéma : `profiles` (id = PK interne ≠ ID auth, ajout `user_id UNIQUE → auth.users`), FK d'appartenance (`projects`/`assets`/`chapters`/`chapter_canvases` → `auth.users`, pas `profiles`), `handle_new_user()` réaligné sur le code réel. Section 2.7 corrigée : `compass_metrics`, `compass_proposals_source_fragments`, `lore_world_sections`, `word_mappings` et `chapter_assets` ne sont PAS des tables (colonnes sur `narramind_metrics` / `compass_proposals` / `projects` / `scenario_chapters`). `narramind_alerts` (severity/title/explanation/anchor/status/dedupe_key). `scenario_versions.version_type` = ('full_scenario'/'chapter') et couche applicative retirée (commit 298507e). Index `usage` composite `idx_usage_user_action_created` + RPC atomique `consume_image_credit` + cron de purge. `chapter_canvases` : invariant 1/chapitre via index unique (20260627), colonnes mortes supprimées au renommage.*
+
+*Précédente : 13 juin 2026 (audit vérité 2) — ajout des tables manquantes : `narramind_missing_assets`, `lore_world_sections`, `lore_nodes`, `lore_edges` (détaillées), `compass_metrics` + `compass_proposals_source_fragments` (observabilité Compass / RAG, migrations 20260610), types `compass_proposals` complétés (lore_chapter_update, lore_connection). Précédente (7 juin) : plans renommés libre/createur/studio + colonnes profiles, renommage panels → chapter_canvases, tables mémoire/lore/Compass (project_embeddings, compass_proposals, pgvector, text-embedding-004 768D), chapter_assets.*

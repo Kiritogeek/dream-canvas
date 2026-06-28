@@ -109,8 +109,8 @@ Row Level Security (RLS) est activé sur **toutes les tables**. Chaque ligne est
 
 | Opération | Politique | Condition |
 |-----------|----------|-----------|
-| SELECT | Lecture de son propre profil | `auth.uid() = id` |
-| UPDATE | Mise à jour de son propre profil | `auth.uid() = id` |
+| SELECT | Lecture de son propre profil | `auth.uid() = user_id` |
+| UPDATE | Mise à jour de son propre profil | `auth.uid() = user_id` |
 | INSERT | Via trigger uniquement | `handle_new_user()` (SECURITY DEFINER) |
 
 #### `projects`
@@ -218,7 +218,8 @@ panels           CRUD            CRUD        R           ✗
 | `GROQ_API_KEY` | Clé API Groq (fallback) | Serveur UNIQUEMENT | Supabase Edge Function Secrets |
 | `STRIPE_SECRET_KEY` | Clé secrète Stripe | Serveur UNIQUEMENT | Supabase Edge Function Secrets |
 | `STRIPE_WEBHOOK_SECRET` | Secret signature webhook Stripe | Serveur UNIQUEMENT | Supabase Edge Function Secrets |
-| `STRIPE_PRO_PRICE_ID` | ID prix Stripe abonnement | Serveur UNIQUEMENT | Supabase Edge Function Secrets |
+| `STRIPE_CREATEUR_PRICE_ID` | ID prix Stripe abonnement Créateur | Serveur UNIQUEMENT | Supabase Edge Function Secrets |
+| `STRIPE_STUDIO_PRICE_ID` | ID prix Stripe abonnement Studio | Serveur UNIQUEMENT | Supabase Edge Function Secrets |
 | `APP_URL` | URL app (redirect Stripe) | Serveur UNIQUEMENT | Supabase Edge Function Secrets |
 | `ALLOWED_ORIGIN` | Domaine autorisé CORS | Serveur UNIQUEMENT | Supabase Edge Function Secrets |
 | `JWT_SECRET` | Secret de signature JWT | Serveur UNIQUEMENT | Supabase interne |
@@ -250,24 +251,24 @@ panels           CRUD            CRUD        R           ✗
 
 | Contrôle | Implémentation |
 |---------|---------------|
-| **Vérification JWT** | Vérifié via `supabase.auth.getUser()` (pas de décodage manuel) |
-| **Vérification ownership** | L'asset doit appartenir à l'utilisateur (query BDD) |
-| **Vérification quota** | Comptage usage mensuel vs. limite du plan (HTTP 429 si dépassé) |
+| **Vérification JWT** | Vérifié via un appel GoTrue `GET /auth/v1/user` (apikey = `SUPABASE_ANON_KEY`, fallback service role) — pas de décodage manuel du token |
+| **Vérification ownership** | L'asset doit appartenir à l'utilisateur (query BDD filtrée `id` + `user_id` en service role) |
+| **Vérification quota** | Réservation atomique du crédit AVANT l'appel FAL via `reserveImageCredit` (RPC `consume_image_credit`, check + insert sous `pg_advisory_xact_lock`) ; comptage usage mensuel vs. limite du plan (HTTP 429 si dépassé) |
 | **Validation des entrées** | Vérification de `asset_id`, `prompt`, `asset_type`, et `style_image_urls.length ≤ 2` (lus depuis `projects`, si présents) |
 | **Sélection de modèle** | FLUX.2 Pro pour tous les tiers (logique « Spotify ») : FLUX.2 Pro Edit dès qu'il y a des références (sheet `assets.image_url_sheet` / images de style), sinon FLUX.2 Pro text-to-image |
 | **Limitation de prompt** | Prompt tronqué à ~1900 caractères |
 | **CORS** | Headers CORS dynamiques (`ALLOWED_ORIGIN` ou `*` en dev) |
 | **Clé API serveur** | `FAL_API_KEY` lue depuis les Secrets |
-| **Timeout** | `fetchWithTimeout(120s)` pour les appels FAL.ai |
-| **Retry** | `fetchWithRetry(2 tentatives, backoff exponentiel)` |
-| **Enregistrement usage** | INSERT dans `usage` après chaque génération réussie |
+| **Timeout** | `fetchWithTimeout(100s)` pour les appels FAL.ai |
+| **Retry** | `fetchWithRetry(2 tentatives au total, backoff linéaire)` sur les 5xx |
+| **Enregistrement usage** | Crédit décompté à la réservation (`reserveImageCredit`, avant l'appel FAL) ; `refundImageCredit` rembourse la ligne `usage` si la génération, l'upload ou la mise à jour BDD échoue |
 
 ### 5.2 `generate-panel-image`
 
 | Contrôle | Implémentation |
 |---------|-------------------|
-| **Vérification JWT** | Vérifié (via Supabase Auth) |
-| **Vérification ownership** | Le panel doit appartenir à l'utilisateur (table `panels`) |
+| **Vérification JWT** | Vérifié via un appel GoTrue `GET /auth/v1/user` |
+| **Vérification ownership** | Le canvas doit appartenir à l'utilisateur (table `chapter_canvases`, query filtrée `id` + `user_id`) |
 | **Utilisation des références images** | `block_asset_image_urls` passées à FAL `flux-2-pro/edit` (cohérence via sheets) sur tous les tiers ; sans référence, FLUX.2 Pro text-to-image |
 | **Limitation de références** | Slice côté serveur (réduction du volume d’entrées) pour éviter des prompts trop longs |
 | **Limitation de prompt** | Instruction serveur pour remplir tout le cadre et respecter la taille px |
@@ -531,10 +532,10 @@ jobs:
 - [x] Vérifier toutes les politiques RLS (profiles, projects, assets, chapters, panels, usage)
 - [x] S'assurer que `service_role` n'est jamais exposé côté client
 - [x] Clé API FAL.ai dans Supabase Secrets uniquement
-- [x] JWT vérifié via `supabase.auth.getUser()` dans l'Edge Function
+- [x] JWT vérifié via un appel GoTrue `GET /auth/v1/user` dans l'Edge Function
 - [x] Quotas de génération côté serveur (rate limiting applicatif)
 - [x] Validation des entrées (style_image_urls.length ≤ 2, prompt, asset_id)
-- [x] fetchWithTimeout (120s) et fetchWithRetry (2x backoff) pour résilience
+- [x] fetchWithTimeout (100s) et fetchWithRetry (2 tentatives, backoff) pour résilience
 - [ ] Restreindre CORS au domaine de production (`ALLOWED_ORIGIN`)
 - [ ] Activer la confirmation par email
 - [ ] Configurer les URL de redirection autorisées
@@ -549,3 +550,5 @@ jobs:
 ---
 
 *Dernière mise à jour : 7 juin 2026 (audit) — FLUX.2 Pro pour tous les tiers (suppression des références FLUX.1 Schnell / Free-Pro), RLS infra vectorielle Compass (project_embeddings, compass_proposals, pgvector, Gemini text-embedding-004 768D), RLS nouvelles tables (memory_entities/summaries/narramind_alerts/metrics), durcissement profiles.plan, CI/CD réel (GitHub Actions ci.yml), secrets complets.*
+
+*Vérification 28 juin 2026 (alignement code) — secrets Stripe corrigés (`STRIPE_CREATEUR_PRICE_ID` + `STRIPE_STUDIO_PRICE_ID` au lieu de `STRIPE_PRO_PRICE_ID`), conditions RLS `profiles` rectifiées (`auth.uid() = user_id`), JWT Edge Functions vérifié via appel GoTrue `GET /auth/v1/user` (et non le SDK `getUser()`), quota = réservation atomique `reserveImageCredit` / RPC `consume_image_credit` avant l'appel FAL avec remboursement sur échec, timeout FAL ramené à 100s, ownership `generate-panel-image` sur `chapter_canvases`.*

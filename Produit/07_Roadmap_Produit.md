@@ -15,12 +15,12 @@
   │  MVP +      │        │  Panels &   │       │  Export &   │      │  Marketplace│
   │  Fondations │        │  Dialogues  │       │  Publication│      │  & Scale    │
   │             │        │             │       │             │      │             │
-  │ ✅ Assets   │        │ 🔜 Panels  │       │ 📋 Export   │      │ 📋 Marketplace│
-  │ ✅ Style    │       │    auto     │       │    PDF/PNG  │      │    de styles│
-  │ ✅ Chapitres│       │ 🔜 Dialogues│       │ 📋 Publish  │      │ 📋 App mobile│
+  │ ✅ Assets   │        │ ✅ Panels  │       │ 📋 Export   │      │ 📋 Marketplace│
+  │ ✅ Style    │       │    auto     │       │    PDF      │      │    de styles│
+  │ ✅ Chapitres│       │ ✅ Dialogues│       │ 📋 Publish  │      │ 📋 App mobile│
   │ ✅ Auth     │       │ 🔜 Lecture  │       │ 📋 Collab   │      │ 📋 Analytics│
   └─────────────┘        └─────────────┘       └─────────────┘      └─────────────┘
-       ACTUEL                 NEXT                PLANNED              FUTURE
+       ACTUEL              EN COURS              PLANNED              FUTURE
 ```
 
 ---
@@ -104,11 +104,11 @@ Voir `Plan_Action_Developpement_Scénario.md` pour le détail des phases A à G.
 | **Écrire le scénario (prose libre)** | ~~Format Lieu/Scène/Dialogue~~ → **prose narrative libre** avec marqueurs `=== Scène ===` optionnels. | P0 | M | 🔄 Refonte 18/04 |
 | **Compteur temps de lecture live** | Formule : (mots ÷ 200) + (blocs × 20s). Debounce 800ms. Affiché dans Scénario + badge dans éditeur. | P0 | S | 📋 À faire |
 | **Cible panels modifiable dans Scénario** | `projects.panels_target_per_chapter` éditable inline depuis la page Scénario. | P0 | S | 📋 À faire |
-| **Détection blocs visuels + verrouillage** | IA détecte zones avec assez de matière pour 1 panel → propose `📌 Panel suggéré` → bouton Verrouiller. Fond coloré + numéro. Toujours modifiable. | P0 | L | 📋 À faire |
+| **Détection blocs visuels + verrouillage** | IA détecte zones avec assez de matière pour 1 panel → propose `📌 Panel suggéré` → bouton Verrouiller. Fond coloré + numéro. Toujours modifiable. | P0 | L | ✅ Livré — mode `detect_blocks` + `panels_outline.locked` (ScenarioChapterEditor.tsx) |
 | **✏️ Modifier ce passage** (IA) | Sélection de texte → IA propose réécriture du passage. | P0 | M | 📋 À faire |
-| **Résumés IA compacts** (`ai_summary`) | Après sauvegarde : génère un résumé 80 mots du chapitre. Utilisé comme contexte IA au lieu du texte complet. Migration : `ADD COLUMN ai_summary TEXT`. | P0 | M | 📋 À faire |
-| **`✨ Suggérer un prompt` dans l'éditeur** | Bouton sur chaque bloc vide → IA propose prompt court basé sur chapitre + blocs précédents + historique. Injecté directement dans le champ prompt. | P0 | L | 📋 À faire |
-| **Découpage Chapitre → Panels** | IA découpe le chapitre en liste de panels avec description, lieu, personnages, ambiance. Disponible sur tous les tiers (stratégie tout-gratuit). | P1 | L | 📋 À faire |
+| **Résumés IA compacts** (`ai_summary`) | Après sauvegarde : génère un résumé 80 mots du chapitre. Utilisé comme contexte IA au lieu du texte complet. Colonne `scenario_chapters.ai_summary` présente. | P0 | M | ✅ Livré — mode `ai_summary` (callGenerateAiSummary, throttle 2 min) |
+| **`✨ Suggérer un prompt` dans l'éditeur** | Bouton sur chaque bloc vide → IA propose prompt court basé sur chapitre + blocs précédents + historique. Injecté directement dans le champ prompt. | P0 | L | ✅ Livré — mode `suggest_block_prompt` (callSuggestBlockPrompt, ChapterDetail.tsx) |
+| **Découpage Chapitre → Panels** | IA découpe le chapitre en liste de panels avec description, lieu, personnages, ambiance. Disponible sur tous les tiers (stratégie tout-gratuit). | P1 | L | ✅ Livré — `detect_blocks` + `compose-chapter-layout` (mode Auto) |
 | **Limites caractères champs prompt** | Bloc panel : 400 chars · Asset : 300 chars · Style : 500 chars. | P1 | S | 📋 À faire |
 | **Import scénario** | Import .txt / copier-coller. | P1 | S | 📋 À faire |
 | **Renommage assets → mise à jour scénario** | Au renommage : modale confirmation + remplacement dans les chapitres. | P1 | M | 📋 À faire |
@@ -130,7 +130,7 @@ Voir `Plan_Action_Developpement_Scénario.md` pour le détail des phases A à G.
 
 | Tâche | Description | Priorité | Effort | Statut |
 |-------|------------|----------|--------|--------|
-| **Modèle `panels.layout`** | JSONB blocs (x, y, width, height, prompt, asset_refs, image_url) | P0 | M | ✅ Livré |
+| **Modèle `chapter_canvases.layout`** | JSONB blocs (x, y, width, height, prompt, asset_refs, image_url) — table `panels` renommée `chapter_canvases` (migration 20260424100000) | P0 | M | ✅ Livré |
 | **UI structure chapitre** | Chapitre vide → ajout panels → ajout blocs (rectangles) par panel | P0 | L | ✅ Livré |
 | **Remplissage des blocs** | Texte (prompt) + sélection d’assets par bloc | P0 | M | ✅ Livré |
 | **Génération 1 image par bloc** | Image pleine par bloc à partir du prompt et des assets sélectionnés | P0 | L | ✅ Livré |
@@ -199,7 +199,7 @@ Voir `Plan_Action_Developpement_Scénario.md` pour le détail des phases A à G.
 
 ### 2.3 Monétisation — Stripe (✅ LIVRÉ)
 
-> **Situation actuelle** : Stripe est intégré. Plans payants Créateur (12,99 €/mois) et Studio (29,99 €/mois) ; le plan Libre (0 €) reste l'entrée par défaut. La différenciation se fait sur le **volume de crédits** (20 / 100 / 250) et la mémoire narrative longue (Studio), pas sur le gating de features.
+> **Situation actuelle** : Stripe est intégré. Plans payants Créateur (12,99 €/mois) et Studio (29,99 €/mois) ; le plan Libre (0 €) reste l'entrée par défaut. La différenciation se fait UNIQUEMENT sur le **volume de crédits** (20 / 100 / 250), pas sur le gating de features. (La « mémoire narrative longue » a été retirée de l'offre commerciale le 2026-06-27 car non implémentée — `allowLongMemory` reste dans `TIER_CONFIG` mais n'est consommé nulle part.)
 
 | Tâche | Description | Priorité | Effort | Statut |
 |-------|------------|----------|--------|--------|
@@ -251,7 +251,7 @@ Voir `Plan_Action_Developpement_Scénario.md` pour le détail des phases A à G.
 | **Modèles multiples** | Support de Flux Pro, SDXL, etc. | P1 | L |
 | **Inpainting** | Modifier une partie d'une image existante | P2 | L |
 | **Character consistency** | IA améliorée pour la cohérence des personnages entre panels | P1 | XL |
-| **IA — Rédaction des prompts panels** | Réutilisation de l’IA LLM (ou agent dérivé) pour **suggérer les descriptions/prompts des panels** à partir du scénario + assets sélectionnés. Règle inchangée : prompt d’image = style + assets + description (jamais le scénario brut). | P1 | L |
+| **IA — Rédaction des prompts panels** | Réutilisation de l’IA LLM (ou agent dérivé) pour **suggérer les descriptions/prompts des panels** à partir du scénario + assets sélectionnés. Règle inchangée : prompt d’image = style + assets + description (jamais le scénario brut). ✅ Livré en avance via le mode `suggest_block_prompt` (Phase 2). | P1 | L |
 
 ### 3.4 Monétisation
 
@@ -345,7 +345,7 @@ Jan     Fév     Mar     Avr     Mai     Juin    Jul     Aoû     Sep     Oct   
  │  MVP +        │       │       │       │       │       │       │       │       │       │
  │  Fondations   │       │       │       │       │       │       │       │       │       │
  ├───────────────┼───────┴───────┴───────┤       │       │       │       │       │       │
-                 │     PHASE 2 🔜        │       │       │       │       │       │       │
+                 │     PHASE 2 🔄        │       │       │       │       │       │       │
                  │  Panels & Dialogues   │       │       │       │       │       │       │
                  ├───────────────────────┼───────┴───────┴───────┤       │       │       │
                                         │     PHASE 3 📋        │       │       │       │
@@ -457,4 +457,4 @@ Aucun commentaire `TODO` ou `FIXME` trouvé dans `/src/` (grep négatif — code
 
 ---
 
-*Dernière mise à jour : 7 juin 2026 (v6 — audit vérité) — Tiers Libre/Créateur/Studio (20/100/250 crédits), FLUX.2 Pro pour tous les tiers (suppression FLUX.1 Schnell + gating modèle), Sheet System (ex multi-vues), Stripe livré, NarraMind Compass (vectorisation pgvector). v5 — Annexe "État réel du code" : pages manquantes, composants manquants, features implémentées, git log -30.*
+*Dernière mise à jour : 28 juin 2026 (v7 — vérité code) — Différenciation = crédits UNIQUEMENT (mémoire narrative longue retirée de l'offre commerciale, non implémentée) ; passage en ✅ Livré des modes IA scénario désormais câblés (`suggest_block_prompt`, `detect_blocks` + verrouillage, découpage chapitre → panels via `compose-chapter-layout` mode Auto, `ai_summary`) ; statut Phase 2 = partiellement livré dans les schémas. v6 (7 juin) — Tiers Libre/Créateur/Studio (20/100/250 crédits), FLUX.2 Pro pour tous les tiers (suppression FLUX.1 Schnell + gating modèle), Sheet System (ex multi-vues), Stripe livré, NarraMind Compass (vectorisation pgvector). v5 — Annexe "État réel du code" : pages manquantes, composants manquants, features implémentées, git log -30.*

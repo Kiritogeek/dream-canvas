@@ -52,7 +52,7 @@ Des **millions de créateurs potentiels** (auteurs, scénaristes, conteurs, fans
 1. **Système de cohérence stylistique** : Template texte + images de référence appliqués à toutes les générations
 2. **Sheet System** : fiche composite 4 angles (face, profil gauche, profil droit, dos) générée en 1 action — unique sur le marché (tous les plans)
 3. **Pipeline scénario → éditeur complet** : Section Scénario (IA Scénario + IA Chapitre) → Éditeur Canvas (blocs image + couleur + bulles SVG) → Export PNG
-4. **NarraMind** : Mémoire narrative compressée (entités + résumés glissants, ~1 400 tokens), détection d'incohérences en arrière-plan — aucun concurrent ne propose cela
+4. **NarraMind** : Mémoire narrative compressée (entités + résumés glissants à budget de tokens borné, fusion automatique des plus anciens au-delà du seuil), détection d'incohérences en arrière-plan ; aucun concurrent ne propose cela
 5. **Ariane** : IA de continuité intégrée à tout le workflow — onboarding, fil d'Ariane, alertes narratives, analyse, lore
 6. **NarraMind Compass** : Vectorisation RAG du contenu narratif (Gemini 768D + pgvector) → propositions Ariane contextualisées
 7. **Graphe Univers / Lore** : Cartographie relationnelle des entités narratives
@@ -239,7 +239,7 @@ Des **millions de créateurs potentiels** (auteurs, scénaristes, conteurs, fans
 
 ### 8.6 Génération IA
 - **Tous les plans** : FLUX.2 Pro / Pro Edit (refs), coût FAL.ai réel ~0,065 $/génération en moyenne (~0,03 $ sans référence, ~0,09 $ avec références Sheet System).
-- Edge Function Supabase, FAL.ai, format 1024×1024, crédits mensuels (20 Libre / 100 Créateur / 250 Studio). 1 crédit = 1 génération (asset, sheet, bloc de case — unifié).
+- Edge Function Supabase, FAL.ai, dimensions selon le type (face asset 1280×1024, fiche Sheet System 2560×768, bloc de case dimensionné au bloc et snappé en multiples de 32), crédits mensuels (20 Libre / 100 Créateur / 250 Studio). 1 crédit = 1 génération (asset, sheet, bloc de case, unifié).
 
 ### 8.7 Lecture, auth, UI, dashboard, profil, plans
 - Lecture verticale type webtoon ; auth Supabase (email + Google) ; interface glassmorphism, thème clair/sombre ; dashboard (stats, usage, projets récents) ; plans Libre (0 €) / Créateur (12,99 €/mois) / Studio (29,99 €/mois).
@@ -292,7 +292,7 @@ Des **millions de créateurs potentiels** (auteurs, scénaristes, conteurs, fans
 - **UI** : shadcn/ui + Tailwind CSS 3 + Framer Motion
 - **Backend** : Supabase (PostgreSQL + Auth + Storage + Edge Functions Deno)
 - **IA** : FAL.ai (FLUX.2 Pro / FLUX.2 Pro Edit) ; texte : Google Gemini Flash (primaire) + Groq Llama 3.3 70B (fallback)
-- **Routing** : React Router DOM 7 (lazy loading)
+- **Routing** : React Router DOM 6 (lazy loading)
 - **State** : TanStack React Query 5
 - **Déploiement** : Vercel / Netlify
 
@@ -308,8 +308,8 @@ Le product-market fit est solide car :
 - ✅ La solution est techniquement viable (IA générative mature)
 - ✅ La valeur est immédiate (résultats visuels rapides, cohérence garantie)
 
-**État actuel** : Phases 1 et 2 complètes. Livré : projets, assets, Sheet System, style, plans Libre/Créateur/Studio, FLUX.2 Pro pour tous, Stripe, Section Scénario (IA Scénario + IA Chapitre + NarraMind + Ariane), Éditeur Canvas complet (blocs image + couleur + bulles 12 types SVG + texte libre + undo/redo + export PNG), Univers/Lore (graphe relationnel), NarraMind Compass (vectorisation RAG). Phase 3 : génération panels Mode Auto, export haute résolution, import scénario, lancement public.
+**État actuel** : Phases 1 et 2 complètes. Livré : projets, assets, Sheet System, style, plans Libre/Créateur/Studio, FLUX.2 Pro pour tous, Stripe, Section Scénario (IA Scénario + IA Chapitre + NarraMind + Ariane), Éditeur Canvas complet (blocs image + couleur + bulles SVG, 4 types exposés + texte libre + undo/redo + export PNG), Univers/Lore (graphe relationnel), NarraMind Compass (vectorisation RAG). Phase 3 : génération panels Mode Auto, export haute résolution, import scénario, lancement public.
 
 ---
 
-*Dernière mise à jour : 13 juin 2026 — Mise à jour majeure : avantages compétitifs enrichis (NarraMind, Ariane, Compass, Univers/Lore, Éditeur Canvas, Export), différenciateurs mis à jour (11 points), conclusion état actuel corrigé (Phases 1+2 livrées). Précédente : 7 juin 2026 — tiers, Sheet System.*
+*Dernière mise à jour : 28 juin 2026 (vérification code) : Routing corrigé (React Router DOM 6), dimensions de génération précisées (face 1280×1024, sheet 2560×768, bloc snappé), bulles SVG (4 types exposés), description NarraMind alignée sur le budget de tokens réel. Précédente : 13 juin 2026 — avantages compétitifs enrichis (NarraMind, Ariane, Compass, Univers/Lore, Éditeur Canvas, Export), différenciateurs (11 points), conclusion (Phases 1+2 livrées). 7 juin 2026 — tiers, Sheet System.*

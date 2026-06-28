@@ -157,13 +157,13 @@ Les personnages, décors et objets sont générés par l'IA via **FAL.ai**, avec
 ### 3. Déployer l'Edge Function
 
 ```bash
-cd dream-canvas
+cd DreamWeave
 npx supabase login
 npx supabase link --project-ref <TON_PROJECT_REF>
 npx supabase functions deploy generate-asset-image
 ```
 
-La fonction est configurée avec `verify_jwt = false` au niveau de la passerelle : elle vérifie elle-même le JWT via `supabase.auth.getUser()`. Pense à **redéployer** après toute modification.
+La fonction est configurée avec `verify_jwt = false` au niveau de la passerelle : elle vérifie elle-même le JWT en interne (appel `GET /auth/v1/user` avec le token utilisateur). Pense à **redéployer** après toute modification.
 
 Quand tu crées un asset avec un **prompt**, l'image est générée automatiquement en FLUX.2 Pro (ou FLUX.2 Pro Edit si une sheet / des images de référence sont présentes), quel que soit le plan.
 

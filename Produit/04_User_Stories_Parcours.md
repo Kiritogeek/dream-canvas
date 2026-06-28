@@ -141,7 +141,7 @@
 | ID | User Story | Critères d'acceptation | Statut |
 |----|-----------|----------------------|--------|
 | US-8.1 | En tant qu'utilisateur, je veux ajouter des bulles de dialogue à un panel | - Clic pour ajouter une bulle (centrée sur le panel)<br>- Texte éditable inline<br>- Drag & drop libre pour repositionner<br>- Redimensionnement par 8 poignées | ✅ Fait |
-| US-8.1b | En tant qu'utilisateur, je veux choisir le type de bulle | - Types disponibles : Parole, Pensée, Cri, Chuchotement, Narration, Radio + texte brut sans bulle<br>- Formes SVG manga/webtoon distinctes par type | ✅ Fait |
+| US-8.1b | En tant qu'utilisateur, je veux choisir le type de bulle | - Types exposés : Dialogue, Cri, Dramatique, Narration + Texte libre / Onomatopée<br>- Formes SVG manga/webtoon distinctes par type (les variantes stylisées supplémentaires restent masquées tant qu'elles ne sont pas validées) | ✅ Fait |
 | US-8.1c | En tant qu'utilisateur, je veux personnaliser l'apparence d'une bulle | - Texte, type, fond, contour, police, taille, couleur éditables dans la sidebar<br>- Édition inline sans éditeur plein écran séparé | ✅ Fait |
 | US-8.2 | En tant qu'utilisateur, je veux ajouter de la narration à un panel | - Type « Narration » (rectangle) ou texte brut sans fond<br>- Positionnement libre par drag | ✅ Fait |
 | US-8.3 | En tant qu'utilisateur, je veux personnaliser les polices des dialogues | - Choix de police, taille, couleur dans la sidebar | ✅ Fait |
@@ -177,15 +177,15 @@
 | US-13.3 | En tant qu'auteur, je veux être guidé par Ariane dès mon premier projet | - Fil d'Ariane progressif (ArianeBubble, ArianeTabTourOverlay)<br>- Menus débloqués étape par étape (useProgressiveMenuGate)<br>- Onboarding différent au 2e projet | ✅ Fait |
 | US-13.4 | En tant qu'auteur, je veux qu'Ariane m'aide à maintenir la continuité narrative | - ArianeContinuityPanel : fil d'Ariane doré animé, alertes continuité<br>- ArianeNarrativeSheet : fiche narrative de l'asset (lore) | ✅ Fait |
 | US-13.5 | En tant qu'auteur, je veux accéder à une analyse narrative approfondie via Ariane | - ArianeAnalysisModal : analyse complète du projet/chapitre | ✅ Fait |
-| US-13.6 | En tant qu'auteur, je veux une mémoire narrative longue (Studio) | - Contexte narratif étendu pour projets longs<br>- `allowLongMemory` activé sur plan Studio uniquement | ✅ Fait |
+| US-13.6 | En tant qu'auteur, je veux une mémoire narrative longue (Studio) | - Contexte narratif étendu pour projets longs<br>- `allowLongMemory` présent dans `TIER_CONFIG` (Studio uniquement) mais non consommé : feature non implémentée | 📋 Backlog |
 
 ### E14 — Univers / Lore
 
 | ID | User Story | Critères d'acceptation | Statut |
 |----|-----------|----------------------|--------|
 | US-14.1 | En tant qu'auteur, je veux cartographier les éléments de mon univers narratif | - Graphe relationnel des entités (personnages, lieux, objets, événements)<br>- Vue interactive avec @xyflow/react (ReactFlow) | ✅ Fait |
-| US-14.2 | En tant qu'auteur, je veux créer et lier des fiches lore | - Création de nœuds lore dans le graphe<br>- Connexions entre entités (relations narratives)<br>- Table `universe_lore` en BDD | ✅ Fait |
-| US-14.3 | En tant qu'auteur, je veux qu'Ariane propose des enrichissements de lore à partir de mon scénario | - Ariane scanne le scénario et propose d'enrichir/créer des fiches lore<br>- `compass_proposals` avec statuts (accepted/rejected/pending) | ✅ Fait |
+| US-14.2 | En tant qu'auteur, je veux créer et lier des fiches lore | - Création de nœuds lore dans le graphe<br>- Connexions entre entités (relations narratives)<br>- Tables `lore_nodes` et `lore_edges` en BDD | ✅ Fait |
+| US-14.3 | En tant qu'auteur, je veux qu'Ariane propose des enrichissements de lore à partir de mon scénario | - Ariane scanne le scénario et propose d'enrichir/créer des fiches lore<br>- `compass_proposals` avec statuts (active/accepted/dismissed) | ✅ Fait |
 
 ### E15 — NarraMind Compass (vectorisation narrative)
 
@@ -273,7 +273,7 @@
                     ┌─────────────┐
                     │  ÉDITEUR    │ ← Blocs image (drag/resize/génération)
                     │  Canvas     │ ← Blocs couleur (ambiance)
-                    │  (visuel)   │ ← Bulles SVG (12 types + texte libre)
+                    │  (visuel)   │ ← Bulles SVG (4 types exposés + texte libre)
                     └──────┬──────┘ ← Undo/Redo + raccourcis clavier
                            │
                            ▼
@@ -330,7 +330,7 @@ Asset existant ──► Résultat insatisfaisant
 | **Scénario** | Écrit avec IA Scénario | Créatif | Parfois hésitant sur la direction narrative | Ariane + Compass propose des directions |
 | **Éditeur** | Compose les cases visuellement | Engagé | Positionnement précis des blocs | Snap-to-grid futur |
 | **Bulles** | Ajoute dialogues et narration | Satisfait | Sélection de la police parfois lente | Éditeur inline sidebar optimisé |
-| **Export** | Télécharge son chapitre en PNG | **Fier** | Résolution limitée à 1024px | Export haute résolution futur |
+| **Export** | Télécharge son chapitre en PNG | **Fier** | Résolution limitée à 800px de large | Export haute résolution futur |
 
 ---
 
@@ -349,4 +349,4 @@ Asset existant ──► Résultat insatisfaisant
 
 ---
 
-*Dernière mise à jour : 13 juin 2026 — Mise à jour majeure statuts : E5b (Section Scénario), E7 (Éditeur canvas mode Structuré), E8 (Dialogues/Bulles), E9 (Export PNG) tous ✅ Fait. Ajout E13 (NarraMind & Ariane), E14 (Univers/Lore), E15 (Compass). Diagramme parcours mis à jour avec workflow réel complet. Précédente : 7 juin 2026 — Sheet System, tiers.*
+*Dernière mise à jour : 28 juin 2026 — Correctifs de cohérence avec le code : types de bulles exposés (Dialogue/Cri/Dramatique/Narration + texte libre, les variantes stylisées restent masquées), US-13.6 mémoire longue repassée en Backlog (`allowLongMemory` non consommé), tables lore `lore_nodes`/`lore_edges`, statuts `compass_proposals` (active/accepted/dismissed), résolution export 800px. Précédente : 13 juin 2026 — Mise à jour majeure statuts : E5b (Section Scénario), E7 (Éditeur canvas mode Structuré), E8 (Dialogues/Bulles), E9 (Export PNG) tous ✅ Fait. Ajout E13 (NarraMind & Ariane), E14 (Univers/Lore), E15 (Compass). Diagramme parcours mis à jour avec workflow réel complet. Précédente : 7 juin 2026 — Sheet System, tiers.*

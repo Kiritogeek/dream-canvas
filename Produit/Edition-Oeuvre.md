@@ -11,7 +11,7 @@
 | **Flux** | **Automatique** : génération **panel par panel**, assets du chapitre **obligatoires**, prompt = style + assets + courte description (**pas** le scénario brut). **Structuré** : blocs sur la case → prompt + assets par bloc → **1 image par bloc** (generate-panel-image). |
 | **Scénario** | Section dédiée ; découpage chapitre → panels **optionnel** ; **jamais** injecter le texte complet du scénario dans le prompt image. |
 | **Case** | Surface **800×H** ; images **dans les blocs** ; dimensions bloc → API. |
-| **Refonte UX** | **Option B** livrée (23/04/2026) : pas d’onglets Architecture/Perso/Couleurs/Dialogue séquentiels ; accordéon + raccourcis **B / C / D / Esc** ; sidebar assets permanente. **Option A** : cible type Figma (refactor ChapterDetail) — voir Partie V. |
+| **Refonte UX** | **Option B** livrée (23/04/2026) : pas d’onglets Architecture/Perso/Couleurs/Dialogue séquentiels ; accordéon + raccourcis **B / C / D / Esc** ; sidebar assets permanente. **Option A** (cible type Figma) : architecture livrée — couches `ImageBlockLayer` / `ColorBlockLayer` / `BubbleLayer`, sidebars `EditorLeftSidebar` / `EditorRightPanel`, hooks `useDragBlock` / `useResizeBlock` / `useKeyboardShortcuts` extraits dans `src/components/chapter/` et `src/hooks/` (ChapterDetail pas encore réduit < 400 lignes, ~2535). Voir Partie V. |
 | **Étape 7 (plan)** | Bulles avancées partiellement ; blocs couleur ; effets ; lecteur webtoon ; export PDF — voir Partie I § Étape 7. |
 
 ---
@@ -714,7 +714,7 @@ L'ordre de travail est le suivant :
 
 ### 7.2 Éditeur avancé (référence)
 
-Le composant **SpeechBubbleEditor** (`src/components/project/SpeechBubbleEditor.tsx`) fournit une édition complète des bulles :
+L'édition des bulles est désormais répartie dans `src/components/chapter/` (`BubbleLayer.tsx`, `SpeechBubbleShape.tsx`, `BubbleToolbar.tsx`) + le panneau de propriétés `EditorRightPanel.tsx` (l'ancien composant monolithique `SpeechBubbleEditor.tsx` a été supprimé). L'édition complète des bulles couvre :
 
 - **Ajout** : boutons par type (Dialogue, Pensée, Cri, Narrative).
 - **Position et taille** : glisser-déposer pour déplacer ; **poignées de redimensionnement** (8 points : N, S, E, W, coins).
@@ -769,7 +769,7 @@ Rendu final : composition blocs (images) + blocs de couleurs (arrière-plan) + o
 ## 10. Références
 
 - **Sous-menus d'édition** : `Edition-Oeuvre.md` (Partie IV) — organisation actuelle par Personnalisation / Couleurs / Dialogue.
-- **Éditeur avancé bulles** : composant `src/components/project/SpeechBubbleEditor.tsx` — types dialogue, pensée, cri, narrative ; bulles connectées ; queue ; style texte complet (police, taille, gras, italique, alignement, ombre) ; forme (arrondi, bordure, remplissage uni/dégradé) ; calques.
+- **Éditeur avancé bulles** : composants `src/components/chapter/BubbleLayer.tsx`, `SpeechBubbleShape.tsx`, `BubbleToolbar.tsx` + `EditorRightPanel.tsx` (ex-`SpeechBubbleEditor.tsx`, supprimé) — types dialogue, pensée, cri, narrative ; bulles connectées ; queue ; style texte complet (police, taille, gras, italique, alignement, ombre) ; forme (arrondi, bordure, remplissage uni/dégradé) ; calques.
 - **Plan Phase 2** : `Edition-Oeuvre.md` (Partie I) — Étapes 5 (blocs + génération) ✅ livrée, 6 (mode Structuré), 7 (blocs de couleurs, bulles, texte brut, effets, fond, lecture).
 - **API génération par bloc** : `09_Specifications_API.md` § 3.2 — Edge Function `generate-panel-image`.
 - **Modèle de données** : `08_Modele_de_Donnees.md` — `panels.layout`, `panels.speech_bubbles` (format minimal et étendu).
@@ -899,7 +899,7 @@ Rédigé le 23/04/2026. Approche validée : **Option B court terme → Option A 
 
 ## Contexte & Problème
 
-L'éditeur actuel (`ChapterDetail.tsx`, 2611 lignes) impose un workflow en 4 sous-menus séquentiels :
+L'éditeur actuel (`ChapterDetail.tsx`, ~2535 lignes) impose un workflow en 4 sous-menus séquentiels :
 Architecture → Personnalisation → Couleurs → Dialogue.
 
 Pour chaque action, l'utilisateur doit savoir dans quel "mode" il se trouve. Ajouter une bulle alors qu'on est en mode Architecture = switch de mode, chercher le bon onglet, revenir. Ce workflow brise le flow créatif et génère de la friction inutile.
@@ -921,7 +921,7 @@ Conserver l'architecture existante (blocs image, couleur, bulles). Rendre l'inte
 |-------|-------|
 | 4 onglets PANEL_EDITOR_STEPS en sidebar | Supprimés |
 | Propriétés dans la sidebar selon le mode actif | Panel droit accordéon — toujours visible |
-| Aucun raccourci documenté | Raccourcis `B/C/T/D/Esc` affichés dans un tooltip |
+| Aucun raccourci documenté | Raccourcis `B/C/D/Esc` (+ Suppr, Ctrl+Z/Ctrl+Maj+Z) affichés dans un tooltip |
 | Assets visibles seulement en mode Architecture | Sidebar gauche assets permanente |
 
 ### Détail des changements
@@ -980,6 +980,8 @@ Quand un objet est sélectionné → petit menu flottant au-dessus avec : Dupliq
 
 ## Option A — Cible Figma-like · 2-3 sessions · Moyen terme
 
+> **État (mise à jour 28/06/2026)** : l'architecture cible est **largement livrée**. Couches `ImageBlockLayer` / `ColorBlockLayer` / `BubbleLayer`, sidebars `EditorLeftSidebar` / `EditorRightPanel` et hooks `useDragBlock` / `useResizeBlock` / `useKeyboardShortcuts` extraits et utilisés dans `ChapterDetail.tsx`. Restent : réduction de `ChapterDetail.tsx` < 400 lignes (toujours ~2535) et `useCanvasSelection` (multi-sélection) non implémenté. Le plan ci-dessous est conservé comme référence d'origine.
+
 ### Principe
 Refactoriser `ChapterDetail.tsx` en composants indépendants. Canvas centré plein écran, UI composée.
 
@@ -1006,7 +1008,7 @@ ChapterDetail (< 400 lignes après refacto)
 ```
 useDragBlock(canvasRef)       — logique drag commune blocs + bulles
 useResizeBlock(blockRef)      — 8 poignées
-useKeyboardShortcuts()        — B/C/T/D/Esc/Delete/Ctrl+Z
+useKeyboardShortcuts()        — B/C/D/Esc/Delete/Ctrl+Z
 useCanvasSelection()          — sélection simple + multi
 ```
 
@@ -1041,8 +1043,8 @@ useCanvasSelection()          — sélection simple + multi
 
 ## Référence
 
-- `src/pages/ChapterDetail.tsx` — fichier principal (2611 lignes)
-- `src/components/project/SpeechBubbleEditor.tsx` — éditeur bulles (1541 lignes)
+- `src/pages/ChapterDetail.tsx` — fichier principal (~2535 lignes)
+- `src/components/chapter/` — couches et édition bulles : `BubbleLayer.tsx`, `SpeechBubbleShape.tsx`, `BubbleToolbar.tsx` (l'ancien `SpeechBubbleEditor.tsx` a été supprimé)
 - `src/services/panels.ts` — BLOCK_PRESETS, generatePanelBlockImage()
 - `src/hooks/usePanels.ts` — mutations React Query
 - Wiki : voir `wiki/RefontEditeur.md` (Obsidian) ou `Produit/Edition-Oeuvre.md` (Partie V).

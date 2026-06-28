@@ -16,7 +16,7 @@ Plateforme web de création de webtoons assistée par intelligence artificielle.
 ## CI & contribution
 
 - Workflow GitHub Actions : [`.github/workflows/ci.yml`](./.github/workflows/ci.yml) — lint, TypeScript, tests, build sur `main` et les pull requests.
-- Guide contributeur : [`CONTRIBUTING.md`](./CONTRIBUTING.md)
+- Guide contributeur : [`docs/CONTRIBUTING.md`](./docs/CONTRIBUTING.md)
 - Index des Edge Functions Supabase : [`docs/EDGE_FUNCTIONS_INDEX.md`](./docs/EDGE_FUNCTIONS_INDEX.md)
 
 ## Démarrage rapide
@@ -24,7 +24,7 @@ Plateforme web de création de webtoons assistée par intelligence artificielle.
 ```sh
 # 1. Cloner le repo
 git clone <URL_DU_REPO>
-cd dream-canvas
+cd DreamWeave
 
 # 2. Installer les dépendances
 npm install
@@ -39,7 +39,7 @@ npm run dev
 
 ## Configuration Supabase
 
-Voir [SUPABASE_SETUP.md](./SUPABASE_SETUP.md) pour les instructions complètes (tables, Auth, Storage, Edge Functions, Google OAuth).
+Voir [docs/SUPABASE_SETUP.md](./docs/SUPABASE_SETUP.md) pour les instructions complètes (tables, Auth, Storage, Edge Functions, Google OAuth).
 
 ## Déploiement
 

@@ -74,7 +74,7 @@
 
 | Étape | Écran / action | Détail |
 |-------|----------------|--------|
-| 1 | **4 templates prédéfinis** | Manga (N&B, screentone), Webtoon Coréen (couleur, digital), Manhwa Chinois (épique), **Européen** (trait lisible, BD). Grille 2×2, carousel. |
+| 1 | **4 templates prédéfinis** | Manga (N&B, screentone), Webtoon Coréen (couleur, digital), Manhwa Chinois (épique), **Bande dessinée** (BD franco-belge, trait lisible, aplats de couleur). Grille 2×2, carousel. |
 | 2 | **Sélection + validation** | Clic sur une carte → état `isPending` (ring mint). Bouton **"Valider ce style"** (première fois) ou **"Appliquer — [Nom]"** (changement). États : `isSavedIdle` (border primary/40), `isLocked` (ring primary + ✓). Badge "Style actif" supprimé. |
 | 3 | **Vue détail** | Grille 3×1 : images personnage / décor / scène générées par le style + description. |
 | 4 | **Style System V1** | `style_template` = bloc STYLE_SYSTEM_V1 structuré (metadata + prompts de référence + règles visuelles). Jamais envoyé depuis un draft — toujours depuis `project.style_template` en BDD. |
@@ -126,6 +126,8 @@
 ---
 
 ## 3. Parcours UX à venir
+
+> **Note de statut (28/06/2026)** : une grande partie de l'Édition de l'œuvre décrite ci-dessous (§3.2 et §3.3) est désormais **livrée**. L'éditeur visuel de chapitre est en production : blocs image, blocs couleur, bulles de dialogue (dont type Narration), Mode Automatique (compose layout IA) et Mode Structuré, génération panel par panel, lecture verticale et export PNG du chapitre. Le comportement du Canvas Éditeur est freezé. Les lignes restées en « À venir » dans les tableaux ci-dessous (ex. estimation de panels, répartition N/N+1, import scénario) ne sont pas encore implémentées.
 
 ### 3.1 Section Scénario (compléments)
 
@@ -260,4 +262,4 @@ Onglet Assets : Renommage d’un asset
 
 ---
 
-*Dernière mise à jour : 7 juin 2026 (audit vérité) — Tiers Libre/Créateur/Studio (20/100/250 crédits), FLUX.2 Pro pour tous les tiers (suppression gating Free/Pro + FLUX.1 Schnell), Sheet System (ex multi-vues), ordre sidebar Style → Assets → Univers → Scénario → Édition, Plans via Stripe. 30 avril 2026 — §2.2bis parcours premier projet ; §2.3 onglets Univers + progressif.*
+*Dernière mise à jour : 28 juin 2026 (audit vérité) — Template « Bande dessinée » (clé `europeen`) au lieu de « Européen » ; note de statut §3 (éditeur visuel livré : blocs, bulles, Mode Auto/Structuré, export PNG, lecture verticale, Canvas freezé). 7 juin 2026 — Tiers Libre/Créateur/Studio (20/100/250 crédits), FLUX.2 Pro pour tous les tiers (suppression gating Free/Pro + FLUX.1 Schnell), Sheet System (ex multi-vues), ordre sidebar Style → Assets → Univers → Scénario → Édition, Plans via Stripe. 30 avril 2026 — §2.2bis parcours premier projet ; §2.3 onglets Univers + progressif.*

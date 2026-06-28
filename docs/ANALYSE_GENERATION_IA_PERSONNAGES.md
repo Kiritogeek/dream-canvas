@@ -1,24 +1,27 @@
 # Analyse : génération IA des personnages (et assets)
 
+> Mis à jour le 28/06/2026 — la génération IA d'assets est livrée et opérationnelle. Ce document décrit désormais le pipeline réel.
+
 ## État actuel
 
 ### 1. Ce qui existe
 
 | Élément | Fichier | Comportement |
 |--------|---------|--------------|
-| **UI « Nouvel asset »** | `src/pages/ProjectDetail.tsx` | Formulaire avec type (Personnages / Décors / Objets), nom et champ **Description / Prompt** (placeholder : « Décrivez l'asset pour la génération IA... »). |
-| **Création d’asset** | `createAsset()` dans `ProjectDetail.tsx` (l.95–119) | Envoie uniquement à Supabase : `name`, `asset_type`, `prompt`. **Aucun appel à une API d’IA**, aucun téléchargement d’image. |
-| **Affichage des assets** | Même page | Si `asset.image_url` est renseigné → affichage de l’image. Sinon → placeholder avec icône Sparkles. Comme `image_url` n’est jamais rempli par le code, tous les assets restent en placeholder. |
-| **Table `assets`** | Supabase | Colonnes : `id`, `user_id`, `project_id`, `name`, `asset_type`, `prompt`, `image_url`, `created_at`. Pas de trigger ni de fonction qui génère une image. |
-| **Template de style** | Onglet Style du projet | Champ texte sauvegardé dans `projects.style_template`. Prévu pour « appliquer à toutes les générations » mais **non utilisé** pour l’instant (aucune génération n’est faite). |
+| **UI « Nouvel asset »** | `src/components/project/AssetLibrary.tsx` | Formulaire avec type (Personnages / Décors / Objets), nom et champ **Description / Prompt**. La création passe par `useCreateAsset()` (React Query). |
+| **Création d’asset** | `createAsset()` dans `src/services/assets.ts` | Insère dans Supabase : `name`, `asset_type`, `prompt`. La ligne est créée avec `image_url = null` ; l'image est générée dans un second temps (bouton « Générer »). |
+| **Génération d’image** | `useAssetGeneration` (`src/hooks/useAssetGeneration.ts`) → `generateAssetImage()` (`src/services/assets.ts`) → Edge Function `generate-asset-image` | Vérifie le quota (`canGenerate()`), exige un style défini sur le projet, `refreshSession()` puis appelle l'Edge Function. Au retour, met à jour le cache React Query (`assets`, `monthlyUsage`). |
+| **Affichage des assets** | `AssetLibrary.tsx` | Si `asset.image_url` est renseigné → affichage de l’image. Sinon → placeholder avec icône Sparkles, en attendant la génération. |
+| **Table `assets`** | Supabase | Colonnes clés : `id`, `user_id`, `project_id`, `name`, `asset_type`, `prompt`, `image_url`, `image_url_sheet`, `reference_image_url`, `lore`, `metadata`, `created_at`. L'Edge Function remplit `image_url` (vue de face) et `image_url_sheet` (sheet 4 angles) après génération. |
+| **Template de style** | Onglet Style du projet | Texte sauvegardé dans `projects.style_template` + images dans `projects.style_image_urls`. **Effectivement utilisé** : l'Edge Function lit le style **uniquement** depuis la BDD (jamais depuis le body) pour cadrer chaque génération. |
 
-### 2. Ce qui n’existe pas
+### 2. Comment ça marche (résumé)
 
-- **Aucun appel à un service d’IA** (OpenAI, Fal.ai, Replicate, Stable Diffusion, etc.).
-- **Aucune génération d’image** à partir du prompt.
-- **Aucun upload** vers Supabase Storage pour remplir `assets.image_url`.
-- Aucune Edge Function Supabase dédiée à la génération.
-- La génération de **panels** dans `ChapterDetail.tsx` est annoncée comme « bientôt disponible » (bouton désactivé, pas de logique).
+- **Service d’IA image** : FAL.ai — FLUX.2 Pro (text-to-image) et FLUX.2 Pro Edit (avec images de référence), pour **tous les tiers** (libre / créateur / studio).
+- **Génération d’image** déclenchée depuis le prompt + le style du projet, via l'Edge Function `generate-asset-image`.
+- **Upload** vers Supabase Storage (bucket `dreamweave`) puis mise à jour de `assets.image_url` (et `image_url_sheet` pour les personnages).
+- **Edge Function dédiée** : `generate-asset-image` (Deno, Supabase Functions).
+- La génération des **panels** (blocs de case) est elle aussi livrée : `ChapterDetail.tsx` utilise `useGeneratePanelImage` (Edge Function `generate-panel-image`) et `useComposeChapterLayout` (mode Auto, Edge Function `compose-chapter-layout`).
 
 ---
 
@@ -29,50 +32,56 @@ Utilisateur remplit : Type + Nom + Description (prompt)
         ↓
 createAsset() → supabase.from("assets").insert({ name, asset_type, prompt })
         ↓
-Ligne en base avec image_url = null
+Ligne en base avec image_url = null (placeholder affiché)
         ↓
-Affichage : carte avec placeholder (pas d’image)
+Clic « Générer » → useAssetGeneration.generate(asset)
+   • canGenerate() : quota OK + style défini sur le projet
+   • generateAssetImage() : refreshSession() puis invoke "generate-asset-image"
+        ↓
+Edge Function generate-asset-image
+   • réserve un crédit (atomique) avant l'appel FAL, refund si échec
+   • lit style_template + style_image_urls EN BDD (jamais le body)
+   • FLUX.2 Pro : face (1280x1024), puis sheet 4 angles (2560x768) pour les personnages
+   • crop des bordures blanches, upload Storage (bucket dreamweave)
+   • update assets.image_url (+ image_url_sheet), log usage
+        ↓
+Front : invalidation React Query → l'image s'affiche
 ```
 
-Le prompt est donc **stocké** mais jamais envoyé à un modèle pour produire une image.
+Le prompt est **stocké à la création**, puis **envoyé au modèle FLUX.2 Pro** lors de la génération.
 
 ---
 
-## Pour implémenter la génération IA des personnages
+## Détails du pipeline de génération
 
-Il faudrait enchaîner :
+1. **Fournisseur d’images par IA**  
+   FAL.ai — FLUX.2 Pro (text-to-image, `https://fal.run/fal-ai/flux-2-pro`) et FLUX.2 Pro Edit (`/edit`, avec images de référence). Identique pour tous les tiers (logique « tout gratuit » : la différenciation se fait sur le volume de crédits 20 / 100 / 250, pas sur le modèle).
 
-1. **Choisir un fournisseur d’images par IA**  
-   Exemples : Fal.ai (flux/image), Replicate (SDXL, etc.), OpenAI DALL·E, ou API maison.
+2. **Où l’API est appelée**  
+   Côté serveur, dans l'Edge Function Supabase `generate-asset-image` (Deno). La clé FAL reste côté serveur. Le front n'appelle jamais FAL directement : il passe par `supabase.functions.invoke("generate-asset-image")` avec le JWT utilisateur en `Authorization: Bearer`.
 
-2. **Où appeler l’API**  
-   - **Option A** : depuis le front (appel direct depuis `ProjectDetail` avec une clé API côté client ou via proxy).  
-   - **Option B** : Supabase Edge Function qui reçoit le prompt (et éventuellement `style_template`), appelle le fournisseur, reçoit l’image (ou une URL), upload dans Storage, met à jour `assets.image_url`. Plus propre et plus sécurisé (clé API côté serveur).
+3. **Sécurité & quota**  
+   - Vérification JWT via `${supabaseUrl}/auth/v1/user`, puis opérations en service role.
+   - Réservation de crédit **atomique** via la RPC `consume_image_credit` (anti race-condition quota), `refundImageCredit` si la génération/upload/BDD échoue.
+   - 3 niveaux de fallback de prompt en cas de violation de la politique de contenu FAL (422).
 
-3. **Flux cible suggéré**  
-   - L’utilisateur valide le formulaire « Nouvel asset » (nom + type + prompt).  
-   - Création de la ligne `assets` avec `image_url = null` (comme aujourd’hui) + statut « en cours » si tu ajoutes un champ (ou simple loading UI).  
-   - Appel backend/Edge Function avec `prompt` + éventuellement `projects.style_template`.  
-   - Le backend : appel IA → récupération image → upload Storage → mise à jour de l’asset avec l’URL publique dans `image_url`.  
-   - Le front affiche l’image dès que `image_url` est renseigné (polling ou Realtime Supabase).
-
-4. **Données déjà prêtes**  
-   - `assets.prompt` et `assets.image_url` sont déjà en base.  
-   - `projects.style_template` peut être passé en contexte pour toutes les générations du projet.
+4. **Cohérence personnages (Sheet System)**  
+   Pour un `asset_type = 'character'`, la génération produit **séquentiellement** : la vue de face (affichée dans `image_url`), puis une **sheet 4 angles** (`image_url_sheet`) en utilisant la face comme référence d'identité. Les colonnes legacy `image_url_profile_left/right/back` sont réinitialisées à `null`.
 
 ---
 
-## Fichiers à modifier pour ajouter la génération
+## Fichiers impliqués dans la génération
 
 | Fichier | Rôle |
 |---------|------|
-| `src/pages/ProjectDetail.tsx` | Après `insert` asset : lancer l’appel de génération (ou afficher « Génération en cours » et laisser un backend mettre à jour `image_url`). Gérer loading / erreur / affichage de l’image une fois l’URL reçue. |
-| Nouveau : Edge Function ou route API | Recevoir prompt (+ style), appeler le fournisseur IA, upload Storage, mettre à jour `assets.image_url`. |
-| Éventuel : `src/hooks/useGenerateAsset.ts` (ou similaire) | Centraliser l’appel « générer image pour cet asset » et la mise à jour de l’état / de la ligne en base. |
+| `src/components/project/AssetLibrary.tsx` | Formulaire « Nouvel asset » (création) + déclenchement de la génération. |
+| `src/hooks/useAssetGeneration.ts` | Centralise `canGenerate()` (quota + style) et `generate(asset)` (toasts, état de génération, invalidation React Query). |
+| `src/services/assets.ts` | `createAsset()`, `generateAssetImage()` (invoke de l'Edge Function), CRUD assets. |
+| `supabase/functions/generate-asset-image/index.ts` | Edge Function : réservation crédit, lecture du style en BDD, appel FAL.ai, crop, upload Storage, update `assets`. |
 
 ---
 
 ## Résumé
 
-- **Aujourd’hui** : la « génération IA » des personnages (et autres assets) est **uniquement une saisie de métadonnées** (nom + prompt) en base. Aucune image n’est générée, aucun service IA n’est appelé.
-- **Pour avoir une vraie génération** : brancher un service d’images par IA (de préférence via une Edge Function ou une API backend), utiliser le prompt (et le style du projet), puis remplir `assets.image_url` après upload du résultat dans Storage.
+- **Aujourd’hui** : la génération IA des personnages (et autres assets) est **opérationnelle**. La création d'un asset insère les métadonnées (nom + prompt), puis la génération appelle FLUX.2 Pro via l'Edge Function `generate-asset-image`, qui upload l'image dans Storage et remplit `assets.image_url` (+ `image_url_sheet` pour les personnages).
+- **Garde-fous** : quota vérifié avant tout appel FAL (crédit réservé de façon atomique), style lu uniquement depuis la BDD du projet, clé FAL côté serveur uniquement.

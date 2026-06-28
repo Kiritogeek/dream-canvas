@@ -1,5 +1,5 @@
 # NarraMind Compass — Spec Onglet Univers (Wiki Graphique)
-*Décision session 22/05/2026 — wiki graphique relationnel v2 **spécifié, non livré**. État actuel (juin 2026) : les **sections thématiques v1** de l’onglet Univers (Règles du monde, Lieux, Peuples, Cultures, Chronologie) sont **livrées** et vectorisées sous `source_type = "lore_world_section"`. Les tables `lore_categories` / `lore_entries` / `lore_links` et `source_type = "lore_entry"` décrites ci-dessous sont la cible v2, pas encore implémentée. Valider étape par étape avant de coder.*
+*Décision session 22/05/2026. État actuel (mis à jour le 28/06/2026) : l'onglet Univers est livré sous forme de **vue graphe** (React Flow / `@xyflow/react`), adossée aux tables `lore_nodes` / `lore_edges` (composant `LoreGraphView.tsx`, hooks `useLoreNodes` / `useLoreEdges`). Ce modèle livré diffère du modèle `lore_categories` / `lore_entries` / `lore_links` proposé ci-dessous (jamais implémenté) : il n'y a PAS de catégories custom ni de vue liste, et les liens relient des nœuds entre eux (`lore_edges`), pas des entrées vers des assets. La vectorisation du lore monde se fait sous `source_type = "lore_world_section"` ; `source_type = "lore_entry"` n'existe pas. La spec ci-dessous reste l'ambition v2 de référence ; valider étape par étape avant de coder.*
 
 ---
 
@@ -59,9 +59,9 @@ CREATE TABLE lore_links (
 
 **RLS** : toutes les tables → `auth.uid() = user_id`
 
-**Migration à faire en début de prochaine session :**
-1. DROP les colonnes `lore_magic`, `lore_geography`, `lore_factions`, `lore_culture`, `lore_timeline` (ajoutées par erreur en Phase 2)
-2. Créer les 3 nouvelles tables
+**Migration (cible v2 — état au 28/06/2026) :**
+1. ~~DROP les colonnes `lore_magic`, `lore_geography`, `lore_factions`, `lore_culture`, `lore_timeline`~~ → déjà fait : ces colonnes ont été supprimées de `projects` par la migration `20260522150000_lore_graph.sql` (qui a aussi créé `lore_nodes` / `lore_edges`, le modèle graphe réellement livré).
+2. Reste à faire pour cette spec : créer les 3 nouvelles tables `lore_categories` / `lore_entries` / `lore_links` (non implémentées).
 
 ---
 
@@ -172,3 +172,4 @@ Les liens sont injectés dans le contexte lors des propositions :
 | **C** | Vue graphe React Flow (nœuds/arêtes, layout dagre, clic → fiche) | Étape B terminée |
 
 *Spec v1 — 22/05/2026 · audit 7 juin 2026 : wiki graphique v2 toujours spécifié/non livré ; clarification que `source_type` implémenté = `"lore_world_section"` (sections thématiques v1 livrée), `"lore_entry"` reste la cible v2.*
+*Mise à jour 28/06/2026 : l'onglet Univers est désormais livré comme **vue graphe** via `lore_nodes` / `lore_edges` + React Flow (`LoreGraphView.tsx`), un modèle distinct de cette spec (`lore_categories` / `lore_entries` / `lore_links` jamais créées). Les colonnes `lore_*` de la Phase 2 ont été supprimées par la migration `20260522150000_lore_graph.sql`. `source_type` réel = `"chapter" | "lore_world_section" | "asset_lore" | "summary"` ; `"lore_entry"` non implémenté.*

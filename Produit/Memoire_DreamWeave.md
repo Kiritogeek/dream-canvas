@@ -56,7 +56,7 @@ LUNA
 Étudiante en communication
 • Motivation : raconter ses histoires originales de romance fantasy
 • Douleur : "Je passe plus de temps à chercher comment faire qu'à créer."
-• 89 % des créateurs amateurs abandonnent dans les 3 premiers mois (entretiens internes, nov. 2025)
+• La quasi-totalité des créateurs interrogés abandonnent dans les 3 premiers mois (n = 12 créateurs amateurs + 3 responsables de studio, entretiens qualitatifs exploratoires, nov. 2025)
 • Besoin fonctionnel : visuels cohérents en quelques clics, interface mobile-first
 • WTP : 8–15 €/mois pour des résultats professionnels en moins de 15 min
 • Canaux : TikTok (FYP webtoon), Discord créateurs, YouTube tutoriels manga
@@ -113,12 +113,12 @@ Description
 Taille estimée
 TAM
 Créateurs potentiels mondiaux — auteurs webfiction (10M) + créateurs contenu (50M) + amateurs webtoons (100M)
-~165 millions
+~160 millions
 SAM
 Créateurs frustrés par la barrière artistique, avec WTP 10–30 €/mois — segment adressable prioritaire
 ~5–10 millions
 SOM
-Objectif M12 : 25 000 inscrits — 600 payants — ARR ~150 000 €
+Objectif M12 : 25 000 inscrits — 600 payants — ARR ~137 000 € (600 × 19 € × 12 = 136 800 €)
 ~25 000 à M12
 
 Marchés prioritaires : France, USA, Europe de l'Ouest, Asie du Sud-Est.
@@ -228,7 +228,7 @@ Photoshop + Clip Studio Paint + export manuel — pas de solution tout-en-un
 Moyen
 Plateforme tout-en-un : assets → scénario → panels → export
 
-Résultat concret : 89 % des créateurs amateurs abandonnent leur projet webtoon dans les 3 premiers mois. Pas par manque d'idées ou de motivation, mais parce qu'ils ne savent pas comment passer de l'histoire dans leur tête à une image à l'écran. (Entretiens internes, nov. 2025)
+Résultat concret : la quasi-totalité des créateurs interrogés abandonnent leur projet webtoon dans les 3 premiers mois. Pas par manque d'idées ou de motivation, mais parce qu'ils ne savent pas comment passer de l'histoire dans leur tête à une image à l'écran. (n = 12 créateurs amateurs + 3 responsables de studio, entretiens qualitatifs exploratoires, nov. 2025)
 
 Validation du Product-Market Fit
 Pour qu'un produit ait un vrai product-market fit, il faut que les utilisateurs en aient vraiment besoin, pas juste qu'ils trouvent ça sympa. On mesure ça avec trois types d'indicateurs.
@@ -255,13 +255,18 @@ Métriques produit
 Rétention à 30 jours
 > 25 %
 Métriques produit
-Conversion plan Libre → payant
+Conversion plan Libre → payant (taux calculé sur les MAU)
 > 5 %
 Test Sean Ellis
 % utilisateurs actifs "très déçus" si DreamWeave disparaissait
 > 40 %
 
 Le test Sean Ellis sera mis en place 6 mois après le lancement de la solution.
+
+État de validation au 25/08/2026 : mesuré vs projeté
+MESURÉ (preuves) : MVP déployé et fonctionnel (auth Google/email, génération d'assets, éditeur de panels, code Stripe branché) ; coûts FAL.ai réels testés ~0,065 $/génération (10/05/2026) ; métriques POC instrumentées en base (table narramind_metrics) : contexte 850→~50 tokens/chapitre, compression ~9×, latence de recherche vectorielle mesurée ; feedback bêta qualitatif (n = 12 créateurs + 3 studios, nov. 2025) : cohérence « passable → très bonne ».
+PROJETÉ (cibles non encore mesurées) : Time-to-Value < 10 min, activation > 60 %, rétention J30 > 25 %, conversion > 5 %, test Sean Ellis > 40 % (prévu 6 mois post-lancement), et l'ensemble des projections financières.
+Le mémoire démontre la faisabilité technique (POC) et la cohérence économique (coûts réels), pas encore la traction marché.
 
 2.2 — Principaux Parcours Utilisateurs
 Le parcours principal correspond à la création d'un premier webtoon, de l'inscription à la première image générée. Il est optimisé pour un Time to Value inférieur à 10 minutes.
@@ -376,7 +381,7 @@ B2C : créateurs individuels (auteurs, YouTubers, amateurs passionnés) — B2B 
 Flux de revenus
 Abonnements freemium SaaS (Libre/Créateur/Studio/Enterprise) — Packs de crédits supplémentaires (6 mois) — Marketplace de styles commission 30 % (12 mois) — API B2B (12 mois)
 Structure de coûts
-Fixes : ~60 €/mois (Supabase Pro 25 € + Vercel Pro 20 € + domaine + outils) — Variables : FAL.ai ~0,065 $/crédit (moyenne pondérée avec marge sécurité) — Gemini Flash ~0,005 $/appel scénario — Croissance : marketing 10–20 % du CA
+Fixes : ~100 €/mois (Supabase Pro 25 € + Vercel Pro 20 € + domaine + outils dev GitHub/Sentry) — Variables : FAL.ai ~0,065 $/crédit (moyenne pondérée avec marge sécurité) — Gemini Flash ~0,005 $/appel scénario — Croissance : marketing 10–20 % du CA
 
 3.2 — Pricing Argumenté
 Le modèle de tarification repose sur une logique Spotify : même qualité FLUX.2 Pro pour tous les plans, seule la quantité de générations mensuelles diffère. L'utilisateur Libre accède à la pleine valeur du produit, se convainc de son utilité, puis upgrade pour disposer de plus de volume.
@@ -436,10 +441,10 @@ Communauté
 Email
 Prioritaire
 Dédié
-Marge brute estimée (100 % utilisation)
-–$1,30/mois
+Marge brute estimée (usage mixte réaliste, coûts convertis en EUR)
+≈ -1,20 €/mois
 ~54 %
-~51 %
+~50 %
 Sur devis
 
 Note : 1 crédit = 1 génération (asset, sheet ou bloc de panel). Grille tarifaire révisée le 10/05/2026 sur base des coûts FAL réels testés (~0,065 $/crédit en usage mixte). Break-even : 10–15 Créateurs couvrent l'ensemble des coûts fixes mensuels. Le code Stripe est implémenté — déploiement conditionné à la création de l'auto-entreprise (étape préalable obligatoire).
@@ -462,7 +467,7 @@ MAU
 1 200
 4 000
 10 000
-Taux conversion Libre → payant
+Taux conversion Libre → payant (taux calculé sur les MAU)
 2 %
 4 %
 5 %
@@ -486,7 +491,7 @@ ARR projeté
 —
 —
 —
-~150 000 €
+~137 000 €
 
 KPI Business
 Cible
@@ -494,6 +499,7 @@ CAC (Coût d'acquisition client)
 < 30 €
 LTV (Lifetime Value)
 > 150 €
+LTV en marge brute ≈ ARPU × marge × (1/churn) ≈ 19 × 0,54 × 12,5 ≈ 128 € ; LTV brut ≈ 237 €. Cible > 150 € visée par réduction du churn (< 6 %) et hausse de l'ARPU.
 Ratio LTV / CAC
 > 3:1
 Churn mensuel
@@ -510,7 +516,7 @@ Organisation
 Objectif : présenter l'équipe opérationnelle et la structure juridique recommandée.
 
 4.1 — Équipe Opérationnelle (Build / Run)
-Le projet DreamWeave a été développé avec 435 commits sur la branche main depuis janvier 2026 (au 07/06/2026). La répartition des contributions est la suivante :
+Le projet DreamWeave a été développé avec plus de 450 commits au total (dont ~424 de Louis sous ses identités GitHub Kiritogeek + Louis Basnier) sur la branche main depuis janvier 2026 (au 07/06/2026). La maîtrise se lit dans les décisions d'architecture (partie 6.4), pas dans le volume de commits. La répartition des contributions est la suivante :
 
 Rôle
 Personne
@@ -519,7 +525,7 @@ Contributions réelles
 Fondateur & Lead Dev
 Louis Basnier
 Senior
-Product Owner, architecture full-stack (React + Supabase + Edge Functions), vision produit — ~407 commits équivalents
+Product Owner, architecture full-stack (React + Supabase + Edge Functions), vision produit — ~424 commits (identités GitHub Kiritogeek + Louis Basnier)
 Prompt Engineering
 Schiffear
 Contributeur
@@ -602,7 +608,7 @@ Rétention J+30 > 25 %
 ④ CONVERSION
 Upgrade quand quota Libre épuisé (20 générations) — CTA contextuel sur fonctions Créateur bloquées — Logique Spotify : l'utilisateur a vu la valeur
 In-app CTA
-Conversion > 5 %
+Conversion > 5 % (taux calculé sur les MAU)
 ⑤ RÉFÉRENCEMENT
 Partage organique créations TikTok/Instagram — Discord ambassadeurs — Effet viral fort (profil Luna)
 Réseaux sociaux, Discord
@@ -610,33 +616,33 @@ Viral coefficient
 ⑥ B2B
 LinkedIn outreach studios/éditeurs — Salons édition numérique — Korea Webtoon Industry Association
 LinkedIn, Événements, KWIA
-ARPU B2B > 49 €/mois (offres Studio + Enterprise sur devis)
+ARPU Entreprise > 49 €/mois (offre sur devis)
 
 5.2 — Stratégie de Lancement — 4 Phases
 Phase
 Description
 Objectif
 KPIs
-Phase 0 — Bêta fermée
+Phase 0 — Bêta fermée (Q2 2026)
 100 early adopters recrutés sur Discord et Reddit. Profil idéal : auteur/scénariste avec histoire écrite, frustré par la barrière artistique, actif Wattpad/AO3.
 Feedback intensif → itérations rapides
 NPS > 50, 10+ témoignages
-Phase 1 — Product Hunt
+Phase 1 — Product Hunt (sept. 2026, sortie export V2)
 Lancement avec démo workflow complet en live — créations générées en temps réel — vidéo de transformation idée → panels.
 Top 5 du jour → viralité organique
 500 inscrits J+1, 50 upvotes
-Phase 2 — Content Marketing
+Phase 2 — Content Marketing (Q4 2026)
 Tutoriels YouTube 'Comment créer un webtoon avec l'IA' — SEO long tail — Articles Medium/blog — Newsletter creators.
 Acquisition organique durable
 1 000 visites/mois organiques
-Phase 3 — Influence
+Phase 3 — Influence (Q4 2026-Q1 2027)
 Partenariats TikTok creators webtoon/manga — Unboxing workflow vidéo — Montrer transformation idée → panels en live.
 Viralité TikTok / Instagram
 Taux de conversion lead > 3 %
-Phase 4 — B2B
+Phase 4 — B2B (à partir du T3 2026)
 Démo personnalisée studios et éditeurs — offre B2B/Enterprise pilote 3 mois — ROI immédiat si coûts de production divisés par 3.
 10 clients B2B signés
-ARPU B2B > 50 €/mois (offres Studio + Enterprise sur devis)
+ARPU Entreprise > 49 €/mois (offre sur devis)
 
 5.3 — KPIs Marketing
 KPI
@@ -657,7 +663,7 @@ Taux de désabonnement mensuel
 DAU / MAU
 Ratio engagement quotidien / mensuel
 > 30 %
-Taux de conversion
+Taux de conversion (taux calculé sur les MAU)
 Libre → Créateur
 > 5 % à M12
 Viral coefficient
@@ -704,7 +710,7 @@ Même clé API que Gemini Flash (zéro intégration supplémentaire), free tier 
 Recherche vectorielle (NarraMind Compass)
 pgvector (extension PostgreSQL native Supabase)
 Pinecone (~70 $/mois), Chroma (self-hosted)
-Native PostgreSQL/Supabase, RLS multi-tenant gratuite, requêtes hybrides SQL + vecteur, index ivfflat, latence ~4 ms sur 50 vecteurs — zéro infrastructure externe, score pondéré 4,8/5
+Native PostgreSQL/Supabase, RLS multi-tenant gratuite, requêtes hybrides SQL + vecteur, scan exact (brute-force) sur 50-200 vecteurs par projet ; un index ANN (ivfflat/hnsw) serait contre-productif à ce volume, prévu comme optimisation au-delà de ~1000 vecteurs/projet, latence ~4 ms sur 50 vecteurs (mesurée via duration_ms, table narramind_metrics) — zéro infrastructure externe, score pondéré 4,8/5
 Runtime Edge Functions
 Deno (natif Supabase)
 Node.js Lambda, Cloudflare Workers
@@ -721,6 +727,24 @@ Tests & qualité
 Vitest + vérification des types + ESLint
 Jest, Cypress
 Suffisant au stade MVP — pas de tests de bout en bout pour l'instant (assumé)
+
+Matrice de décision pondérée (choix structurants)
+Critères et pondération : Coût d'usage (25 %), Performance/latence (15 %), Qualité du résultat (25 %), Quota gratuit pour le développement (15 %), Intégration dans la stack (20 %). Score /5, total pondéré.
+
+Brique
+Solution retenue (score)
+Alternatives (score)
+Backend (BaaS)
+Supabase 4,7 (PostgreSQL + Auth + Storage + Edge + RLS natifs)
+Firebase 3,2 (NoSQL inadapté au relationnel projet/asset/chapitre) | PlanetScale + auth maison 3,0 (auth/stockage à construire)
+IA Image
+FAL.ai FLUX.2 Pro 4,6 (multi-référence native = condition du Sheet System, indemnisation copyright)
+Replicate 3,8 (coûts/latence moins maîtrisés) | Stability AI 3,5 (multi-réf limitée) | OpenAI DALL-E 3,0 (pas de multi-réf native)
+IA Texte
+Gemini Flash 4,5 (quotas généreux, latence < 3 s, coût minime)
+Claude 3,9 (qualité, coût plus élevé) | GPT-4o 3,8 (pas de filet quota) | Groq seul 3,5 (rapide mais quotas contraints, retenu en fallback)
+
+Note : scores = évaluation experte sur les 5 axes définis ; les briques non structurantes (build, cache, animations) sont retenues qualitativement.
 
 6.2 — Architecture Technique Détaillée
 Stack technique complète
@@ -752,7 +776,7 @@ Fonctionnalités clés
 Métriques cibles
 Beta / MVP
 Q1 2026 (Jan–Mars)
-✅ LIVRÉ (435 commits cumulés au 07/06/2026)
+✅ LIVRÉ (plus de 450 commits cumulés au 07/06/2026, dont ~424 de Louis)
 Connexion (email + Google) | Gestion des projets | Génération d'assets IA | Style (4 templates) | Plans Libre/Créateur + paiement Stripe | Tableau de bord avec graphiques | Page d'accueil | NarraMind v1 | Onboarding Ariane
 MVP fonctionnel en 2 semaines | Paiement Stripe branché mi-avril
 V1 — Panels
@@ -763,13 +787,13 @@ Time to Value < 10 min | Activation > 60 %
 V2 — Export
 Q3 2026 (Jul–Sep)
 📅 PLANIFIÉ
-Export PDF / PNG / ZIP | Lecteur webtoon vertical (navigation entre chapitres) | Plan Studio (29,99 €) : volume de crédits supérieur (250) ; mémoire narrative longue + priorité FAL en roadmap (non implémentées) | Publication directe sur Webtoon Canvas et Tapas
+Export PDF / PNG / ZIP | Lecteur webtoon vertical (navigation entre chapitres) | Mémoire narrative longue + priorité FAL en roadmap (non implémentées) | Durcissement qualité : tests E2E (Playwright) sur les parcours critiques (paiement Stripe, génération, RLS) avant le scale > 10K MAU | Publication directe sur Webtoon Canvas et Tapas
 MRR > 3 400 € | Conversion > 5 %
 V3 — Scale
 Q4 2026 (Oct–Déc)
 🔮 FUTUR
 Marketplace de styles — commission 30 % | App mobile PWA (iOS/Android) | Analytics créateurs et lecteurs | API B2B pour intégration studios | Fine-tuning modèles IA spécialisés webtoon | Character consistency parfaite
-ARR > 150 000 € | 600 payants
+ARR > 137 000 € | 600 payants
 
 6.4 — POC & Défis Techniques Résolus
 DreamWeave s'attaque à 5 problèmes techniques fondamentaux. Voici les défis résolus et leurs solutions implémentées dans le code :
@@ -806,7 +830,7 @@ Description
 Problème
 Un LLM a une fenêtre de contexte limitée. Après 5 à 10 chapitres, le modèle 'oublie' les personnages, les lieux et les événements passés → incohérences narratives (personnage mort qui réapparaît, lieu qui change de description).
 Solution
-Résumés compacts (moins de 100 mots par chapitre). Quand la mémoire grossit trop, les plus vieux résumés sont automatiquement fusionnés en un méga-résumé (compression). Le contexte envoyé à l'IA reste ainsi borné (~1 400 mots) quel que soit le nombre de chapitres. Les incohérences détectées remontent dans le fil Ariane.
+Résumés compacts (moins de 100 mots par chapitre). Quand la mémoire grossit trop, les plus vieux résumés sont automatiquement fusionnés en un méga-résumé (compression). Le contexte envoyé à l'IA reste ainsi borné (~1 100 tokens à 20 chapitres) quel que soit le nombre de chapitres. Les incohérences détectées remontent dans le fil Ariane.
 Tables
 memory_entities, memory_summaries, narramind_alerts, narra_summary (projets)
 Fichier
@@ -832,13 +856,17 @@ Description
 Problème
 Pour qu'Ariane propose une suite de scénario ou un enrichissement de l'univers vraiment cohérents, il faudrait lui donner tout le projet en contexte — impossible (trop long, trop cher) au-delà de quelques chapitres. Comment retrouver, parmi 50 à 200 éléments (chapitres, lore, fiches), les 5 plus pertinents pour ce que l'auteur travaille à l'instant ?
 Solution
-Chaque élément du projet est transformé en « empreinte de sens » numérique (un vecteur, via Gemini text-embedding-004) rangée dans la base grâce à l'extension pgvector. Au moment d'une suggestion, on calcule l'empreinte du contexte courant et la base renvoie en ~4 ms les 5 éléments les plus proches. Seuls ces 5 fragments (~1 050 tokens, soit quelques paragraphes) sont envoyés à l'IA — pas tout le projet.
+Chaque élément du projet est transformé en « empreinte de sens » numérique (un vecteur, via Gemini text-embedding-004) rangée dans la base grâce à l'extension pgvector. Au moment d'une suggestion, on calcule l'empreinte du contexte courant et la base renvoie en ~4 ms (mesurée via duration_ms, table narramind_metrics) les 5 éléments les plus proches. Seuls ces 5 fragments (~1 050 tokens, soit quelques paragraphes) sont envoyés à l'IA — pas tout le projet.
 Tables
 project_embeddings (les empreintes) et compass_proposals (les suggestions générées)
 Fichier
 supabase/functions/narramind-compass/index.ts
 Résultat
 Suggestions ancrées dans l'univers réel du projet, à coût et latence constants quel que soit le nombre de chapitres. Une seule brique technique (la vectorisation) sert deux usages : prolonger le scénario (Piste Scénario) et enrichir l'univers (Piste Univers). C'est le défi technique central du Projet Innovant.
+
+Réversibilité IA image & fossé concurrentiel
+Réversibilité FAL.ai (assumée, réversible) : tout le produit repose sur FLUX.2 Pro via FAL.ai. Alternatives identifiées : Replicate, Stability AI, Black Forest Labs (BFL) en direct. Le Sheet System (multi-référence) est portable sur tout fournisseur offrant l'image-to-image multi-référence ; veille tarifaire active. Risque surveillé, pas structurel.
+Fossé concurrentiel réel : le Sheet System est réplicable ; le moat défendable est (1) la couche NarraMind/Compass (données narratives propriétaires par projet qui s'enrichissent à chaque chapitre = data moat), (2) la vitesse d'itération solo + IA, (3) les prompts système propriétaires et la communauté early adopters.
 
 6.5 — Besoins Techniques
 Catégorie
@@ -864,7 +892,7 @@ Variable par token
 Paiement
 Abonnements SaaS, gestion plans
 Stripe (webhooks, portail client)
-0,014 % des transactions
+~1,5 % + 0,25 € par transaction (frais Stripe EU standard)
 Monitoring erreurs
 Suivi erreurs production
 Sentry (free tier)
@@ -908,25 +936,25 @@ Total fixe mensuel
 Fixe
 Hors salaires
 Génération d'image — FLUX.2 Pro (tous les plans)
-~0,065 $/génération (moyenne)
+~0,06 €/génération (moyenne ; taux 1 USD ≈ 0,92 EUR)
 Variable
-~0,03 $ sans référence, ~0,09 $ avec les références du Sheet System (facturé au mégapixel)
+~0,03 € sans référence, ~0,08 € avec les références du Sheet System (facturé au mégapixel)
 Plan Libre — 20 générations
-~1,30 $/mois max
+~1,20 €/mois max
 Variable
-Coût d'acquisition assumé : même qualité FLUX.2 Pro pour tous (logique Spotify)
+Coût d'acquisition assumé : même qualité FLUX.2 Pro pour tous (logique Spotify) — marge brute ≈ -1,20 €/mois
 IA Texte — Gemini Flash + vectorisation Compass
 Quelques centimes/projet
 Variable
 Coût faible par appel NarraMind / Compass (offre gratuite Gemini généreuse)
 Coût Créateur worst case (usage 100 %, tout avec références)
-~9 $/mois
+~8 €/mois
 Variable
-100 générations × 0,09 $ = 9 $ — marge brute ~36 %
+100 générations × 0,08 € = 8 € — marge brute ~38 %
 Coût Créateur réaliste (usage mixte)
-~6,5 $/mois
+~6 €/mois
 Variable
-100 générations × 0,065 $ ≈ 6,5 $ — marge brute ~54 %
+100 générations × 0,06 € ≈ 6 € — marge brute ~54 %
 Supabase scale (>10K MAU)
 100–500 €/mois
 Croissance
@@ -968,11 +996,11 @@ Le défi technique central du Projet Innovant (cf. docs/ecole/ProjetInnovant.md)
 
 Tronc commun — mesure du problème et mémoire compressée
     • Itération 1 (baseline) : l'injection brute du scénario croît de ~850 tokens/chapitre et double la latence dès le 6e chapitre (7,4 s → 14 s). Approche intenable à 20+ chapitres.
-    • Itération 2 (mémoire compressée) : fiches entités upsertées + résumés glissants + méga-résumé projet. Contexte stabilisé à 557 tokens au chapitre 6, soit 7× plus compact, croissance ramenée à ~50 tokens/chapitre. Ce socle (memory_entities, memory_summaries, narra_summary) alimente les deux pistes.
+    • Itération 2 (mémoire compressée) : fiches entités upsertées + résumés glissants + méga-résumé projet. Contexte stabilisé à 557 tokens au chapitre 6, soit ~9× plus compact que l'injection brute cumulée au chapitre 6 (5 100 tokens), pente ramenée de 850 à ~50 tokens/chapitre. Ce socle (memory_entities, memory_summaries, narra_summary) alimente les deux pistes.
 
 Piste A — NarraMind Scénario (cohérence + directions narratives)
     • Itération A1 : persistance idempotente des anomalies (narramind_alerts, dedupe_key, statuts active/dismissed/resolved) + panneau Continuité Ariane en langage auteur + compression batch pour les projets > 10 chapitres.
-    • Itération A2 (vectorisation) : indexation des chapitres et résumés (source_type chapter/summary) dans project_embeddings, recherche cosinus pgvector top-5, génération de 3 directions narratives (proposal_type narrative_direction) en ~1 050 tokens injectés, latence recherche ~4 ms.
+    • Itération A2 (vectorisation) : indexation des chapitres et résumés (source_type chapter/summary) dans project_embeddings, recherche cosinus pgvector top-5, génération de 3 directions narratives (proposal_type narrative_direction) en ~1 050 tokens injectés, latence recherche ~4 ms (mesurée via duration_ms, table narramind_metrics).
 
 Piste B — NarraMind Univers (cartographie + enrichissement du lore)
     • Itération B1 (cartographie) : structuration du lore en 5 sections thématiques vectorisées indépendamment (v1 livrée), wiki graphique relationnel basé sur lore_nodes / lore_edges (graphe @xyflow/react, déjà en place en v1 : lore_nodes {id, type, name, pos_x, pos_y...} + lore_edges {from_node_id, to_node_id, label}). Défi : modéliser un graphe de connaissances multi-tenant injectable dans le prompt.
@@ -989,12 +1017,12 @@ Méthodologie générale
 
 CONCLUSION & VISION
 
-DreamWeave supprime les 5 barrières qui empêchent 89 % des créateurs de publier leur webtoon — pas par manque d'idées, mais par manque d'outils accessibles.
+DreamWeave supprime les 5 barrières qui empêchent la quasi-totalité des créateurs interrogés de publier leur webtoon — pas par manque d'idées, mais par manque d'outils accessibles.
 
 Dimension
 Résultat
 MVP livré
-En 5 mois — ~435 commits — stack React + Supabase + FLUX.2 Pro — plans Libre/Créateur/Studio + Stripe
+En 5 mois — plus de 450 commits (dont ~424 de Louis) — stack React + Supabase + FLUX.2 Pro — plans Libre/Créateur/Studio + Stripe
 Différenciateur #1
 Sheet System — cohérence visuelle automatique inter-panels — unique sur le marché
 Différenciateur #2
@@ -1002,7 +1030,7 @@ NarraMind / Ariane — mémoire narrative sur 50+ chapitres sans saturer le cont
 Marché
 5 milliards USD — CAGR 35–40 % — aucun leader dominant sur le segment IA + workflow webtoon
 Objectif 2026
-25 000 inscrits — 600 payants — ARR ~150 000 € — Q3 export, Q4 marketplace + app mobile
+25 000 inscrits — 600 payants — ARR ~137 000 € — Q3 export, Q4 marketplace + app mobile
 Vision long terme
 Devenir la plateforme de référence mondiale pour la création de webtoons par IA
 

@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DreamWeave — Fiche de révision soutenance</title>
+<style>
+  :root{
+    --ink:#1c1b22; --soft:#55525e; --line:#e3e0ea;
+    --lav:#6d5ae6; --lav-bg:#efecfb;
+    --peach:#d9713f; --peach-bg:#fbeee6;
+    --mint:#1f9d6b; --mint-bg:#e6f5ee;
+    --rose:#cc3f55; --rose-bg:#fbe9ec;
+    --amber:#b7791f; --amber-bg:#fbf3e0;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-print-color-adjust:exact; print-color-adjust:exact}
+  body{
+    font-family:"Segoe UI",system-ui,-apple-system,Roboto,Helvetica,Arial,sans-serif;
+    color:var(--ink); line-height:1.5; margin:0; background:#fff;
+    font-size:13px;
+  }
+  .wrap{max-width:900px; margin:0 auto; padding:28px 26px}
+  h1{font-size:26px; margin:0 0 2px; letter-spacing:.3px}
+  h2{font-size:18px; margin:26px 0 10px; padding-bottom:6px; border-bottom:2px solid var(--lav); color:var(--lav)}
+  h3{font-size:14px; margin:14px 0 6px}
+  .sub{color:var(--soft); font-size:12px; margin:0 0 4px}
+  .lede{color:var(--soft); font-size:12.5px; margin:6px 0 0}
+  .pill{display:inline-block; font-size:11px; font-weight:700; padding:2px 9px; border-radius:999px; background:var(--lav-bg); color:var(--lav)}
+  .grid{display:grid; gap:10px}
+  .cover{border:1px solid var(--line); border-radius:14px; padding:20px 22px; background:linear-gradient(135deg,#f6f4fe,#fdf1ec)}
+  .meta{display:flex; gap:18px; flex-wrap:wrap; margin-top:10px; font-size:12px; color:var(--soft)}
+  .meta b{color:var(--ink)}
+  /* timeline */
+  .seg{border:1px solid var(--line); border-left:4px solid var(--lav); border-radius:10px; padding:11px 13px; margin:9px 0; break-inside:avoid}
+  .seg .top{display:flex; align-items:baseline; gap:10px; flex-wrap:wrap}
+  .time{font-variant-numeric:tabular-nums; font-weight:800; color:var(--lav); font-size:12.5px; white-space:nowrap}
+  .dur{font-size:10.5px; color:var(--soft); font-weight:600}
+  .seg h3{margin:0; font-size:13.5px}
+  .seg.tech{border-left-color:var(--peach)} .seg.tech .time{color:var(--peach)}
+  .seg.demo{border-left-color:var(--mint)} .seg.demo .time{color:var(--mint)}
+  .msg{margin-top:6px; font-size:11.5px; background:var(--lav-bg); border-radius:7px; padding:5px 9px}
+  .seg.tech .msg{background:var(--peach-bg)} .seg.demo .msg{background:var(--mint-bg)}
+  ul{margin:6px 0 0; padding-left:18px} li{margin:2px 0}
+  .show{font-size:11px; color:var(--mint); font-weight:700}
+  /* cheat sheet */
+  table{width:100%; border-collapse:collapse; font-size:11.5px; margin-top:6px}
+  th,td{border:1px solid var(--line); padding:5px 8px; text-align:left; vertical-align:top}
+  th{background:var(--lav-bg); color:var(--lav); font-size:10.5px; text-transform:uppercase; letter-spacing:.4px}
+  td b{color:var(--ink)}
+  .num{font-variant-numeric:tabular-nums; font-weight:700; color:var(--peach)}
+  /* Q&A */
+  .qa{border:1px solid var(--line); border-radius:10px; padding:11px 13px; margin:9px 0; break-inside:avoid}
+  .qa .q{font-weight:800; color:var(--rose)}
+  .qa .a{margin-top:5px; font-size:12px}
+  .qa .a b{color:var(--mint)}
+  .danger{font-size:10.5px; color:var(--amber); background:var(--amber-bg); border-radius:6px; padding:3px 8px; display:inline-block; margin-top:5px}
+  .two{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+  .do{border:1px solid var(--line); border-top:3px solid var(--mint); border-radius:10px; padding:11px 13px}
+  .dont{border:1px solid var(--line); border-top:3px solid var(--rose); border-radius:10px; padding:11px 13px}
+  .do h3{color:var(--mint)} .dont h3{color:var(--rose)}
+  .foot{margin-top:24px; padding-top:10px; border-top:1px solid var(--line); color:var(--soft); font-size:10.5px; text-align:center}
+  @media print{
+    .wrap{max-width:none; padding:0}
+    h2{break-before:page; break-after:avoid}
+    h2.nobreak{break-before:auto}
+    .cover{break-inside:avoid}
+    a{color:inherit; text-decoration:none}
+  }
+  @page{size:A4; margin:14mm}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="cover">
+    <span class="pill">Fiche de révision — à imprimer</span>
+    <h1>DreamWeave — Soutenance</h1>
+    <p class="sub">Business Project [TECH] · RNCP 40601 · Louis Basnier · Promotion 2026</p>
+    <p class="lede">Format : <b>20 min de présentation</b> + <b>10 min de questions</b>. Jury : 2 professionnels + responsable de majeure. La partie 6 [TECH] est la plus scrutée : c'est ta force, mets-la au centre.</p>
+    <div class="meta">
+      <span><b>Fil rouge :</b> ne pas présenter des features, mais une <b>suite de décisions</b> (problème → options → choix → justification).</span>
+    </div>
+  </div>
+
+  <h2 class="nobreak">1 · Plan de présentation minuté (20 min)</h2>
+
+  <div class="seg">
+    <div class="top"><span class="time">0:00 → 1:30</span><span class="dur">90 s</span><h3>Accroche &amp; problème</h3></div>
+    <div class="msg">Message unique : « Le marché du webtoon explose, mais la quasi-totalité des créateurs amateurs interrogés abandonnent faute de savoir transformer une histoire en images. »</div>
+    <ul>
+      <li>Ouvre par le paradoxe : demande +35-40 %/an, offre de créateurs qui ne suit pas.</li>
+      <li>Le chiffre d'accroche : signal qualitatif (n = 12 créateurs + 3 studios, nov. 2025) — <b>assume le caractère exploratoire</b>, ne le présente pas comme une statistique de marché.</li>
+    </ul>
+  </div>
+
+  <div class="seg">
+    <div class="top"><span class="time">1:30 → 3:30</span><span class="dur">2 min</span><h3>Marché &amp; positionnement</h3></div>
+    <div class="msg">Message unique : « Un marché à 5 Mds$ qui croît de 35-40 %/an, sans leader sur le quadrant IA + workflow webtoon. »</div>
+    <ul>
+      <li>TAM ~160 M · SAM 5-10 M · SOM 25 000 inscrits à M12. Dis la méthode de dérivation, pas juste les nombres.</li>
+      <li>Benchmark : Midjourney (qualité, pas de workflow) vs Dashtoon (workflow, cohérence faible). DreamWeave = le seul à combiner les deux.</li>
+    </ul>
+  </div>
+
+  <div class="seg demo">
+    <div class="top"><span class="time">3:30 → 7:30</span><span class="dur">4 min</span><h3>Produit &amp; démo live</h3></div>
+    <div class="msg">Message unique : « Un pipeline complet idée → webtoon publiable, où l'IA prend en charge la barrière artistique. »</div>
+    <ul>
+      <li>Déroule le parcours : Style → Assets (Sheet System) → Scénario IA → Édition par blocs.</li>
+      <li><span class="show">▶ À MONTRER :</span> génère un personnage + sa Sheet 4 angles, puis une case qui réutilise la Sheet → cohérence visible à l'écran. C'est ton « wow moment » devant le jury.</li>
+      <li>Le différenciateur n°1 raconté en une phrase : la <b>cohérence visuelle automatique</b> sur 50+ chapitres.</li>
+    </ul>
+  </div>
+
+  <div class="seg">
+    <div class="top"><span class="time">7:30 → 10:30</span><span class="dur">3 min</span><h3>Business model</h3></div>
+    <div class="msg">Message unique : « Logique Spotify : mêmes fonctions et même qualité pour tous, on paie pour le volume, pas pour débloquer une feature. »</div>
+    <ul>
+      <li>Pricing : Libre 0 € (20 cr) · Créateur 12,99 € (100) · Studio 29,99 € (250) · Entreprise sur devis.</li>
+      <li>Justifie le choix : feature-gating casserait la démonstration de valeur. Conversion par satisfaction, pas par frustration.</li>
+      <li>Solidité éco : coût d'un gratuit ~1,2 €/mois absorbable ; <b>break-even à 10-15 abonnés Créateur</b>.</li>
+    </ul>
+  </div>
+
+  <div class="seg tech">
+    <div class="top"><span class="time">10:30 → 16:30</span><span class="dur">6 min — LE CŒUR</span><h3>Posture CTO [TECH]</h3></div>
+    <div class="msg">Message unique : « Chaque choix technique est une décision tracée, et les défis les plus durs ont un POC chiffré, mesuré dans le code. »</div>
+    <ul>
+      <li><b>Architecture</b> (30 s) : JAMstack + Supabase serverless + RLS multi-tenant native dès le 1er user.</li>
+      <li><b>Défi 1 Sheet System</b> : cohérence par image de référence injectée (vs LoRA trop coûteux, vs seed insuffisant). FAL.ai choisi car multi-référence native = condition d'existence du Sheet System.</li>
+      <li><b>Défi 3 NarraMind/Compass</b> (le morceau fort) : mémoire bornée + RAG vectoriel. <span class="num">850 → ~50 tokens/chapitre</span>, compression <span class="num">~9×</span>, recherche ~4 ms. <b>Insiste : ces chiffres sont mesurés en base (table narramind_metrics), pas estimés.</b></li>
+      <li>La phrase qui marque : « <b>Une seule infrastructure de vectorisation, deux usages produit</b> (scénario + univers). »</li>
+      <li><b>Sécurité</b> : bug B3 (upgrade gratuit côté client) trouvé et corrigé par durcissement RLS — montre la démarche d'audit.</li>
+    </ul>
+  </div>
+
+  <div class="seg">
+    <div class="top"><span class="time">16:30 → 18:30</span><span class="dur">2 min</span><h3>Go-to-market &amp; organisation</h3></div>
+    <div class="msg">Message unique : « Construire la preuve avant de dépenser : B2C organique d'abord, B2B ensuite ; structure juridique déclenchée par des seuils. »</div>
+    <ul>
+      <li>Frise : Bêta Q2 → Product Hunt sept. 2026 → content Q4 → B2B à partir du T3 2026.</li>
+      <li>Orga : équipe solo outillée par l'IA, recrutements déclenchés par seuils de revenus. Auto-entrepreneur → SASU → SAS.</li>
+    </ul>
+  </div>
+
+  <div class="seg">
+    <div class="top"><span class="time">18:30 → 20:00</span><span class="dur">90 s</span><h3>Vision &amp; conclusion</h3></div>
+    <div class="msg">Message unique : « DreamWeave supprime les 5 barrières qui empêchent les créateurs de publier — devenir la référence mondiale du webtoon par IA. »</div>
+    <ul>
+      <li>Rappelle les 2 différenciateurs : Sheet System (cohérence) + NarraMind/Compass (mémoire + suggestions).</li>
+      <li>Objectif 2026 : 25 000 inscrits, 600 payants, ARR ~137 000 €. Termine sur la vision, pas sur un chiffre.</li>
+    </ul>
+  </div>
+
+  <h2>2 · Chiffres à connaître par cœur (valeurs corrigées)</h2>
+  <table>
+    <thead><tr><th style="width:34%">Sujet</th><th>Valeur exacte à dire</th></tr></thead>
+    <tbody>
+      <tr><td><b>Marché</b></td><td>~5 Mds$ en 2025, CAGR <span class="num">35-40 %</span>/an. Recherches « AI webtoon maker » +200 % (2023→2025).</td></tr>
+      <tr><td><b>TAM / SAM / SOM</b></td><td>~160 M / 5-10 M / 25 000 inscrits à M12.</td></tr>
+      <tr><td><b>Chiffre d'accroche</b></td><td>« Quasi-totalité » des créateurs interrogés abandonnent en 3 mois — <b>n = 12 + 3, qualitatif</b>.</td></tr>
+      <tr><td><b>Pricing</b></td><td>0 € · 12,99 € · 29,99 € · Entreprise sur devis. Crédits : <span class="num">20 / 100 / 250</span>.</td></tr>
+      <tr><td><b>Coûts &amp; marge</b></td><td>FAL ~0,065 $/génération (~0,06 €). Marge Créateur ~54 %, Studio ~50 %. Coût d'un gratuit ~1,2 €/mois.</td></tr>
+      <tr><td><b>Break-even</b></td><td><span class="num">10-15</span> abonnés Créateur couvrent les ~100 €/mois de coûts fixes.</td></tr>
+      <tr><td><b>Projections M12</b></td><td>MRR <span class="num">11 400 €</span> → ARR <span class="num">~137 000 €</span> (= 600 × 19 € × 12). 600 payants, conversion 6 % des MAU.</td></tr>
+      <tr><td><b>POC NarraMind</b></td><td>850 → ~50 tokens/chapitre, compression <span class="num">~9×</span>, recherche ~4 ms — <b>mesuré (narramind_metrics)</b>.</td></tr>
+      <tr><td><b>Technique</b></td><td>14 Edge Functions, FLUX.2 Pro (tous plans), Gemini Flash + fallback. ~450 commits.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>3 · Préparer les 10 minutes de questions</h2>
+  <p class="lede">Le jury attaquera sur les chiffres, la traction et la défensabilité. Réponses préparées, courtes, honnêtes.</p>
+
+  <div class="qa">
+    <div class="q">Q1. Votre ARR de 150 000 € ne correspond pas à vos propres projections.</div>
+    <div class="a"><b>Réponse :</b> Exact, je l'ai corrigé : l'ARR abonnements est de <b>~137 000 €</b> (600 × 19 € × 12). Les 150 000 € incluaient les packs de crédits et la marketplace, je l'ai désormais explicité.</div>
+    <span class="danger">Piège : ne jamais laisser deux chiffres se contredire dans le dossier.</span>
+  </div>
+
+  <div class="qa">
+    <div class="q">Q2. « 89 % d'abandon », sur combien de personnes ?</div>
+    <div class="a"><b>Réponse :</b> C'est un <b>signal qualitatif</b>, issu de 12 entretiens créateurs + 3 studios en nov. 2025. Je l'assume comme exploratoire, pas comme une statistique de marché ; il oriente l'hypothèse, il ne la prouve pas seul.</div>
+  </div>
+
+  <div class="qa">
+    <div class="q">Q3. Quelle traction réelle avez-vous aujourd'hui ?</div>
+    <div class="a"><b>Réponse :</b> Je distingue le <b>mesuré</b> du <b>projeté</b>. Mesuré : MVP déployé et fonctionnel, coûts FAL réels, métriques POC instrumentées, feedback bêta qualitatif. Projeté : tous les KPI PMF (activation, rétention, conversion). Le mémoire prouve la <b>faisabilité technique et la cohérence économique</b>, pas encore la traction marché.</div>
+    <span class="danger">Danger maximal — ne survends pas. L'honnêteté gagne des points ici.</span>
+  </div>
+
+  <div class="qa">
+    <div class="q">Q4. Adobe ou Canva peuvent copier le Sheet System. Quel est votre moat ?</div>
+    <div class="a"><b>Réponse :</b> Le Sheet System est réplicable, je l'assume. Le vrai fossé est la couche <b>NarraMind/Compass</b> : des données narratives propriétaires par projet qui s'enrichissent à chaque chapitre (data moat), plus la vitesse d'itération solo + IA et la communauté early adopters.</div>
+  </div>
+
+  <div class="qa">
+    <div class="q">Q5. Tout repose sur FAL.ai. Et s'ils augmentent leurs prix ou ferment ?</div>
+    <div class="a"><b>Réponse :</b> Dépendance assumée mais <b>réversible</b>. Alternatives identifiées (Replicate, Stability, Black Forest Labs en direct) ; le Sheet System (multi-référence) est portable sur tout fournisseur image-to-image multi-ref. Veille tarifaire active.</div>
+  </div>
+
+  <div class="qa">
+    <div class="q">Q6. Une équipe solo peut-elle vraiment scaler ce produit ?</div>
+    <div class="a"><b>Réponse :</b> C'est le pari assumé : une équipe minimale outillée par l'IA délivre la complexité d'une équipe de 3-5 devs. L'architecture serverless (Supabase + Edge) supprime l'ops. Les recrutements (Growth, CS, Front junior) sont déclenchés par des <b>seuils de revenus</b>, jamais par anticipation.</div>
+    <span class="danger">Si on insiste sur le « bus factor 1 », reconnais-le comme risque et cite ton plan (documentation, recrutement P0).</span>
+  </div>
+
+  <div class="qa">
+    <div class="q">Q7. C'est un POC ou un produit ? Des utilisateurs l'ont-ils testé ?</div>
+    <div class="a"><b>Réponse :</b> Le MVP est live et fonctionnel. Le Projet Innovant exigeait un POC sur un défi technique réel : c'est NarraMind/Compass, dont la faisabilité est prouvée et mesurée. La validation utilisateur est qualitative (bêta) ; la validation quantitative est la prochaine étape.</div>
+  </div>
+
+  <div class="qa">
+    <div class="q">Q8. Pas de tests end-to-end ?</div>
+    <div class="a"><b>Réponse :</b> Choix assumé au stade MVP (Vitest + TypeCheck pour la rapidité de cycle). Roadmap V2 : tests E2E Playwright sur les parcours critiques (paiement Stripe, génération, RLS) avant le scale &gt; 10K MAU.</div>
+  </div>
+
+  <div class="qa">
+    <div class="q">Q9. (Si le jury ouvre le repo) Vous parlez d'index ivfflat, je ne le vois pas.</div>
+    <div class="a"><b>Réponse :</b> Corrigé : à 50-200 vecteurs par projet, un scan exact est <b>plus rapide qu'un index ANN</b> (qui a un coût de structure injustifié à ce volume). L'index ivfflat/hnsw est prévu au-delà de ~1000 vecteurs/projet. C'est un choix d'ingénieur adapté à l'échelle réelle.</div>
+  </div>
+
+  <div class="qa">
+    <div class="q">Q10. Pourquoi tout gratuit ? Vous perdez de l'argent sur le plan Libre.</div>
+    <div class="a"><b>Réponse :</b> Le coût d'un utilisateur Libre (~1,2 €/mois) est un <b>coût d'acquisition assumé</b>. Brider une feature casserait la démonstration de valeur qui convertit. L'utilisateur upgrade parce qu'il manque de volume, pas parce qu'on lui refuse une fonction — modèle éprouvé par Spotify et Canva.</div>
+  </div>
+
+  <h2>4 · Réflexes de soutenance</h2>
+  <div class="two">
+    <div class="do">
+      <h3>À faire</h3>
+      <ul>
+        <li>Raconter des <b>décisions</b> (genèse → options → choix), pas une liste de features.</li>
+        <li>Montrer le <b>produit live</b> + les <b>métriques POC</b> en base.</li>
+        <li>Avoir le <b>repo ouvert</b> prêt à montrer (le jury TECH peut demander).</li>
+        <li>Désamorcer les faiblesses <b>avant</b> qu'on les pointe (traction, solo, FAL.ai).</li>
+        <li>Connaître les 9 chiffres clés par cœur.</li>
+      </ul>
+    </div>
+    <div class="dont">
+      <h3>À éviter</h3>
+      <ul>
+        <li>Survendre la traction ou présenter des cibles comme des résultats.</li>
+        <li>Laisser un chiffre contredire un autre (ARR, marges, ARPU).</li>
+        <li>Annoncer une rigueur absente (« 5 critères pondérés » sans la matrice).</li>
+        <li>Présenter le Sheet System comme un moat imprenable.</li>
+        <li>Rester bloqué sur une question : reconnaître, recadrer, avancer.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="foot">
+    DreamWeave · Fiche de révision soutenance · Business Project [TECH] · RNCP 40601 · Louis Basnier — Promotion 2026
+  </div>
+
+</div>
+</body>
+</html>

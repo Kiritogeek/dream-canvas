@@ -88,7 +88,7 @@ Règle : ne jamais hardcoder des couleurs — utiliser les tokens HSL ou les cla
 | Fonction | Rôle |
 |----------|------|
 | `generate-asset-image` | Génère image asset via FAL.ai, upload Storage, update asset, log usage |
-| `generate-panel-image` | Génère image case/bloc, dimensions = bloc (800px max width) |
+| `generate-panel-image` | Génère image case/bloc, dimensions = bloc (snap multiples de 32, min 256px, max 1440px) |
 | `generate-scenario-ai` | Génère scénario / chapitre / découpage cases via Google Gemini Flash (+ fallback Groq) |
 | `narramind-update` | Mémoire narrative (entités, résumés, détection anomalies) ; réponse HTTP contient les anomalies ; `scenario_chapters.narramind_anomalies` toujours `[]` après run (pas de stockage liste pour l’UI) |
 | `compose-chapter-layout` | Mode Auto : reçoit `panels_outline`, Gemini 2.5-flash groupe/compose les scènes (serveur calcule la géométrie), upsert `chapter_canvases.layout` |

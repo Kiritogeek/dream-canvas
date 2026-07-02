@@ -1,55 +1,71 @@
 # Plan d'action — Suite de l'audit 2026-07-02
 
-> Session du 2026-07-02 (machine lbasnier, sans accès Supabase CLI/Dashboard) : audit complet multi-agents du projet, merge `pre-production` → `main` (fast-forward `f79b80d`, poussé), et migration RLS `profiles` commitée sur `pre-production` (`ca6c9ef`).
+> Session du 2026-07-02 (machine lbasnier, sans accès Supabase CLI/Dashboard) : audit complet multi-agents, merge `pre-production` → `main`, puis 7 commits de correctifs sur `pre-production`.
 > Convention : 🟣 = action Claude (code), 🔵 = action Louis (deploy/décision).
 
 ---
 
-## ✅ Fait cette session
-- `pre-production` mergée dans `main` et poussée (les correctifs sécurité du 27/06 sont maintenant sur la branche par défaut).
-- Toolchain re-validée après merge : `tsc` 0 erreur, 61/61 tests, `npm audit` 0 vulnérabilité (le lockfile pre-production avait purgé les 9 CVE de l'ancien main).
-- 🟣 Nouvelle migration `supabase/migrations/20260702120000_profiles_lock_sensitive_columns.sql` : la policy UPDATE de `profiles` verrouille désormais `billing_period_start`, `stripe_customer_id`, `excluded_from_stats` et `email` (en plus de `plan`). Fermait le contournement de quota par repositionnement de `billing_period_start` (fenêtre de quota de `generate-panel-image`). QA adversariale : PASS.
+## 🌙 CHECKLIST CE SOIR (Louis, PC principal) — dans cet ordre
+
+### A. Déploiement (~15 min)
+
+- [ ] **1. Appliquer les 2 migrations du 02/07** — Dashboard SQL Editor (ou `supabase db push`) :
+  - `supabase/migrations/20260702120000_profiles_lock_sensitive_columns.sql` (verrou UPDATE — ferme le contournement de quota)
+  - `supabase/migrations/20260702130000_profiles_lock_plan_on_insert.sql` (verrou INSERT — défense en profondeur)
+  - Idempotentes, re-jouables sans risque.
+- [ ] **2. Vérifier les migrations du 27/06** : `20260627120000` est confirmée appliquée, mais vérifier `20260627130000` (RPC `consume_image_credit` — sans elle le quota atomique est fail-open) et `20260627140000` (contrainte unique `chapter_canvases`). Test rapide dans SQL Editor : `SELECT proname FROM pg_proc WHERE proname = 'consume_image_credit';` → 1 ligne attendue.
+- [ ] **3. Redéployer `stripe-webhook`** : `supabase functions deploy stripe-webhook --use-api` (AVG Web Shield coupé). Le fix « plan irrésoluble = erreur + retry » n'est actif qu'après.
+
+### B. Validations (~10 min)
+
+- [ ] **4. Valider le verrou RLS** : connecté en user normal (console navigateur), `supabase.from('profiles').update({ billing_period_start: new Date().toISOString() }).eq('user_id', '<ton-user-id>')` → doit échouer ; changer son pseudo dans /profile → doit marcher (tester aussi avec un compte Libre sans abonnement).
+- [ ] **5. Valider le webhook** : dashboard Stripe → renvoyer un `customer.subscription.updated` d'un abonné réel → le plan reste correct. (Un événement avec price ID + metadata inconnus doit finir en échec 500 visible dans Stripe, jamais écrire `createur`.)
+
+### C. Git (~2 min)
+
+- [ ] **6. Dire à Claude « pousse sur main »** (ou le faire toi-même : `git checkout main && git merge pre-production && git push origin main` — fast-forward, 7 commits). Vercel redéploiera le front avec le fix quotas client/serveur unifié.
+- [ ] **7. (Si tu repasses sur le PC bureau lbasnier)** : `git config --global user.email "louis.basnier@naxos.fr"` — les commits du 02/07 sont partis avec `lbasnier@naxos.loc`.
+
+### D. Session de test A→Z (le gros morceau)
+
+- [ ] **8. Itérer sur le produit de bout en bout** : inscription → projet → style → assets → scénario → chapitre → édition → export.
+- [ ] **9. Consigner CHAQUE friction** dans `docs/feedback/` (même format que `12_Retour_Utilisateur_Jeremy.md`) — ça alimentera le chantier onboarding/UI (`docs/specs/onboarding-progressif-et-fluidite-ui.md`) avec du réel.
+- [ ] **10. Garder un œil sur** : le parcours des onglets (quel ordre tu suivrais naturellement ? où hésites-tu ?) — c'est la matière première de l'onboarding par actions débloquantes que tu veux.
 
 ---
 
-## 🔴 Phase 1 — À faire en priorité (prochaine session, PC avec accès Supabase)
+## ✅ Fait le 02/07 (7 commits sur `pre-production`)
 
-- 🔵 **Appliquer les migrations `20260702120000_profiles_lock_sensitive_columns.sql` ET `20260702130000_profiles_lock_plan_on_insert.sql`** (Dashboard SQL Editor, ou `supabase db push`). Idempotentes et re-jouables. Tant que la première n'est pas appliquée, le contournement de quota reste possible en prod.
-  - **Validation** : connecté en user normal, `supabase.from('profiles').update({ billing_period_start: new Date().toISOString() })` doit échouer (RLS) ; la modification du pseudo dans /profile doit continuer de fonctionner (y compris pour un compte Libre sans abonnement).
-- 🔵 **Vérifier que les migrations du 27/06 sont toutes appliquées** en prod : `20260627120000` est confirmée appliquée (PLAN-ACTION-2026-06-27 Phase 0), mais confirmer aussi `20260627130000` (RPC `consume_image_credit` — sans elle le quota atomique est fail-open) et `20260627140000` (contrainte unique `chapter_canvases`).
-- 🔵 **Redéployer l'Edge Function `stripe-webhook`** (`supabase functions deploy stripe-webhook --use-api`, AVG Web Shield coupé) — le fix du fallback plan inconnu (commit du 02/07) n'est actif qu'après redéploiement.
-  - **Validation** : depuis le dashboard Stripe, renvoyer un événement `customer.subscription.updated` d'un abonné réel → le plan reste correct ; un événement avec price ID + metadata inconnus doit apparaître en échec (500) dans le dashboard Stripe, pas écrire `createur`.
-- 🔵 **Autoriser le merge de `pre-production` dans `main`** (commits d'avance : migration RLS + fix stripe-webhook + plan d'action) — Claude peut le faire, push `main` = accord explicite requis.
-- 🔵 Corriger l'identité git sur la machine lbasnier : `git config --global user.email` (le commit `ca6c9ef` est parti avec `lbasnier@naxos.loc`).
+1. `ca6c9ef` — Migration verrou UPDATE `profiles` (P1 sécurité : billing_period_start/stripe_customer_id/excluded_from_stats/email). QA PASS.
+2. `835d840` — Ce plan d'action.
+3. `e874e9d` — `stripe-webhook` : plan irrésoluble → throw → 500 → retry Stripe (fini le fallback silencieux `createur`) ; `planFromMetaOrPrice` extraite en `_shared/stripePlan.ts` + 9 tests ; code mort `line_items` supprimé. QA PASS 7/7.
+4. `4b2a54b` — Vision onboarding/UI consignée (`docs/specs/onboarding-progressif-et-fluidite-ui.md`) ; CLAUDE.md plafond panel 1440px ; package.json → `dreamweave` 1.0.0.
+5. `bd46224` — CLAUDE.md : note vault Obsidian = PC principal uniquement (les autres machines sautent les protocoles wiki proprement).
+6. `44a6b42` — Quotas source unique : `useUserPlan` importe `computeUsagePeriodStart`/`computeNextResetDate` depuis `@fn-shared/usagePeriod` (fin structurelle de la divergence client/serveur) + 5 tests ; migration verrou INSERT `profiles`.
+
+Et en amont : merge `pre-production` → `main` poussé (`f79b80d`), toolchain re-validée (75/75 tests, tsc 0 erreur, npm audit 0 vulnérabilité, build OK).
 
 ---
 
-## 🟠 Phase 2 — Backlog issu de l'audit 2026-07-02 (confirmé par vérification adversariale)
+## 🟠 Backlog restant (sessions suivantes, avec plus de crédits)
 
 ### Sécurité / robustesse
-- ✅ ~~`stripe-webhook` : fallback plan inconnu → `'createur'`~~ — **fait le 02/07** : plan irrésoluble → throw → 500 → retry Stripe (décision Louis) ; `planFromMetaOrPrice` extraite en `_shared/stripePlan.ts` + 9 tests vitest ; code mort `line_items` supprimé. QA PASS. **Redéploiement EF requis (Phase 1).**
-- ✅ ~~Policy INSERT de `profiles`~~ — **fait le 02/07** : migration `20260702130000` (plan='libre' + colonnes facturation NULL imposés à l'INSERT client). **Application en prod requise (Phase 1).**
 - 🟣 `replacePanelsFromOutline` (`src/services/panels.ts`) : delete-then-insert non transactionnel — code mort aujourd'hui, à passer en RPC Postgres AVANT tout câblage du hook `useReplacePanelsFromOutline`.
 - 🟣 Remplacer `sanitizeBubbleHtml` (regex maison) par DOMPurify avant toute feature de partage/publication de chapitre.
 - 🔵 Purger `.env` de l'historique git (`git filter-repo`) si le repo doit devenir public — clés publiques uniquement, non urgent.
 
 ### Tests (priorité argent > quotas > perte de données)
-- 🟡 Tests quotas — **partiellement fait le 02/07** : `useUserPlan` importe désormais `computeUsagePeriodStart`/`computeNextResetDate` depuis `@fn-shared/usagePeriod` (source unique client = serveur, fin de la divergence) + 5 tests `computeNextResetDate`. **Reste** : tests `canGenerate()` (nécessite renderHook + mocks).
-- 🟣 Tests Deno `stripe-webhook` (transitions active/past_due/deleted, price ID vs metadata).
+- 🟣 Tests `canGenerate()` (renderHook + mocks) — le reste du chantier quotas.
+- 🟣 Tests `stripe-webhook` transitions (active/past_due/deleted) — `planFromMetaOrPrice` déjà couvert.
 - 🟣 Extraire + tester les classificateurs d'erreurs de `useAuth.tsx` (~150 l. de string-matching qui gardent l'inscription/connexion).
 - 🟣 Extraire `extractJsonObject`/`tryClosePanelsJson` de `generate-scenario-ai` vers `_shared/llmJson.ts` + tests (dupliqué non testé dans `narramind-compass`).
-
-### Documentation
-- 🟣 CLAUDE.md : 4 chemins Obsidian `C:/Users/kirit/...` morts (machine lbasnier) — rapatrier la roadmap dans le repo ou centraliser le chemin ; `.claude/Session.md` et `Fin-de-session.md` référencés mais absents du repo.
-- 🟣 README : liens morts `./SUPABASE_SETUP.md` et `./CONTRIBUTING.md` (fichiers dans `docs/`).
-- 🟣 EDGE_FUNCTIONS_INDEX : mode `panels` → `detect_blocks` ; plafond image 800/1024px → 1440px réel.
-- 🟣 package.json : renommer `vite_react_shadcn_ts` 0.0.0 → `dreamweave`.
 
 ### Refactoring (non urgent)
 - 🟣 Helper unique `invokeEdgeFunction()` côté client (boilerplate refreshSession+fetch copié ~12 fois, 3 call sites sans header `apikey`).
 - 🟣 Poursuivre le découpage de `ChapterDetail.tsx` (2 501 l.) et `LoreGraphView.tsx` (2 244 l.).
 
 ### Produit (rappel roadmap)
+- **Chantier UX/UI prioritaire de Louis** : onboarding par actions débloquantes + fluidité — spec dans `docs/specs/onboarding-progressif-et-fluidite-ui.md`, à affiner avec le feedback de la session de test de ce soir.
 - Mode Auto : chaîner la génération d'images bloc par bloc après `compose-chapter-layout` (dernier maillon P0).
 - Clore officiellement Univers v1 (réconcilier spec `lore_entries` vs code `lore_nodes`) et déclarer la priorité suivante.
 - CGU + politique de confidentialité (obligatoire avec Stripe) — item P0 disparu des checklists depuis le 13/06.

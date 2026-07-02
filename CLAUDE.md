@@ -299,6 +299,8 @@ Ce que ce n'est **PAS** : timeline, frise, visualisation temporelle, planificati
 ## Roadmap
 
 > Source de vérité : `C:/Users/kirit/OneDrive/Documents/Obsidian Vault/wiki/Roadmap-2026.md`
+>
+> ⚠️ **Vault Obsidian = PC principal de Louis uniquement** (utilisateur `kirit`). Sur toute autre machine (ex. `lbasnier`), ce chemin et tous les protocoles wiki/log ci-dessous (Initialisation, mise à jour .md post-session) sont **indisponibles** : les sauter sans erreur et le signaler à Louis, ne jamais recréer le vault ailleurs. Repli local : `Audits/PLAN-ACTION-*.md` et `docs/specs/` dans le repo.
 
 Ordre strict : Scénario IA ✅ → Sheet System ✅ → Audit nav ✅ → Refonte Éditeur (Option B ✅, Option A ✅) → Plans Libre/Créateur/Studio ✅ → Stripe ✅ → **Univers v1 (cartographie + Ariane)** 🔴.
 

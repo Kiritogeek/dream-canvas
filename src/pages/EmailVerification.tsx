@@ -45,7 +45,7 @@ export default function EmailVerification() {
     // Supabase peut automatiquement créer une session quand l'utilisateur clique sur le lien
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (import.meta.env.DEV && event !== "INITIAL_SESSION") {
-        console.debug("Changement d'état auth:", event, session?.user?.email);
+        console.debug("Changement d'état auth:", event);
       }
 
       if (event === "SIGNED_IN" && session?.user) {

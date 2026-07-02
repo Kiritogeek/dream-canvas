@@ -2,7 +2,6 @@ import type { SpeechBubble, SpeechBubbleType } from "@/types";
 import { SPEECH_BUBBLE_DEFAULT_STYLE, SPEECH_BUBBLE_NO_TAIL_TYPES } from "@/types";
 import { buildUnifiedTailPath, buildTailOnlyPath, buildBodyArcPath, TAIL_ELLIPSE } from "./speechBubbleTail";
 
-export const SPEECH_BUBBLE_TAIL_H = 14;
 export const SPEECH_BUBBLE_VIEWBOX_WITH_TAIL = "0 0 100 120";
 export const SPEECH_BUBBLE_VIEWBOX_NARRATION = "0 0 100 100";
 

@@ -2,7 +2,7 @@
  * Zone de texte des bulles « avec queue » — alignée sur BubbleLayer.tsx.
  * Source de vérité partagée avec le canva pour éviter un décalage onboarding / édition.
  */
-import { SPEECH_BUBBLE_VIEWBOX_WITH_TAIL, SPEECH_BUBBLE_VIEWBOX_NARRATION } from "./SpeechBubbleShape";
+import { SPEECH_BUBBLE_VIEWBOX_NARRATION } from "./SpeechBubbleShape";
 import { TAIL_ELLIPSE } from "./speechBubbleTail";
 
 export const SPEECH_TEXT_BODY_BOUNDS = {
@@ -13,29 +13,6 @@ export const SPEECH_TEXT_BODY_BOUNDS = {
 } as const;
 
 export type BubbleGeom = { width: number; height: number };
-
-export function layoutSpeechBubbleWithTailTextRect(geom: BubbleGeom): {
-  svgTopOffset: number;
-  svgH: number;
-  textTop: number;
-  textMinHeight: number;
-  textLeft: number;
-  textWidth: number;
-} {
-  const vbParts = SPEECH_BUBBLE_VIEWBOX_WITH_TAIL.split(/\s+/).map(Number);
-  const vbY = vbParts[1] ?? 0;
-  const vbH = vbParts[3] ?? 120;
-  const bodyCY = TAIL_ELLIPSE.speech.cy;
-  const svgH = geom.height * 1.2;
-  const svgTopOffset = geom.height / 2 - (bodyCY / vbH) * svgH;
-  const b = SPEECH_TEXT_BODY_BOUNDS;
-  const textAreaTopRaw = ((b.topFrac * 120 - vbY) / vbH) * svgH;
-  const textTop = textAreaTopRaw + svgTopOffset;
-  const textMinHeight = (b.heightFrac * 120 / vbH) * svgH;
-  const textLeft = b.leftFrac * geom.width;
-  const textWidth = b.widthFrac * geom.width;
-  return { svgTopOffset, svgH, textTop, textMinHeight, textLeft, textWidth };
-}
 
 /** Bulle dialogue sans queue — onboarding Ariane (`viewBox` 100×100, pas d’espace réservé à la queue). */
 export function layoutSpeechBubbleNoTailTextRect(geom: BubbleGeom): {

@@ -135,8 +135,6 @@ export interface NarrativeCoherenceAlert {
 
 export type NarraMindAlertStatus = "active" | "dismissed" | "resolved";
 
-export type NarraMindAlertRow = Tables<"narramind_alerts">;
-
 export type NarraMindAlertView = NarrativeCoherenceAlert & {
   dedupeKey: string;
   status: NarraMindAlertStatus;

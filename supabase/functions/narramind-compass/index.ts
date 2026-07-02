@@ -1,4 +1,5 @@
 import { getCorsHeaders, makeJsonResponse, isAllowedOriginConfigured } from "../_shared/cors.ts";
+import { extractJsonObject } from "../_shared/llmJson.ts";
 
 declare const Deno: {
   serve: (handler: (req: Request) => Promise<Response> | Response) => void;
@@ -70,29 +71,6 @@ async function getEmbedding(
     console.error("[narramind-compass] getEmbedding error", err);
     return null;
   }
-}
-
-function extractJsonObject(text: string): unknown | null {
-  const start = text.indexOf("{");
-  if (start < 0) return null;
-  let depth = 0;
-  let inString = false;
-  let escape = false;
-  for (let i = start; i < text.length; i++) {
-    const ch = text[i];
-    if (escape) { escape = false; continue; }
-    if (ch === "\\" && inString) { escape = true; continue; }
-    if (ch === '"') { inString = !inString; continue; }
-    if (inString) continue;
-    if (ch === "{") depth++;
-    else if (ch === "}") {
-      depth--;
-      if (depth === 0) {
-        try { return JSON.parse(text.slice(start, i + 1)); } catch { return null; }
-      }
-    }
-  }
-  return null;
 }
 
 async function handleIndex(
@@ -367,7 +345,8 @@ ${contextBlock}`;
     return jsonResponse({ success: false, error: "Gemini Flash n'a retourné aucun texte." }, 200);
   }
 
-  const parsed = extractJsonObject(rawText);
+  let parsed: unknown = null;
+  try { parsed = JSON.parse(extractJsonObject(rawText)); } catch { parsed = null; }
   const rawProposals = (parsed as Record<string, unknown> | null)?.proposals;
   const proposals = Array.isArray(rawProposals)
     ? (rawProposals as Array<{ origin?: string; title?: string; content?: string }>).filter(

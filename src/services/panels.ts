@@ -19,13 +19,6 @@ export function getPanelHeight(panel: Panel | null | undefined): number {
   return Math.max(PANEL_HEIGHT_MIN, Math.min(PANEL_HEIGHT_MAX, h));
 }
 
-/** Référence affichée : nombre de panels par chapitre (indicatif). */
-export const PANELS_REFERENCE_PER_CHAPTER = 10;
-
-/** Plage typique de panels par chapitre (indicatif). */
-export const PANELS_REFERENCE_MIN = 8;
-export const PANELS_REFERENCE_MAX = 14;
-
 /** Dimensions par défaut d'un nouveau bloc (500×500). */
 export const DEFAULT_BLOCK_WIDTH = 500;
 export const DEFAULT_BLOCK_HEIGHT = 500;
@@ -45,8 +38,6 @@ export const BLOCK_PRESETS = [
   { label: "350×500", width: 350, height: 500 },
   { label: "600×400", width: 600, height: 400 },
 ] as const;
-
-export const COLOR_BLOCK_PRESETS = BLOCK_PRESETS;
 
 /** Couleur par défaut d'un nouveau bloc de couleur. */
 export const DEFAULT_COLOR_BLOCK_FILL = { type: "solid" as const, color: "#1e293b" };

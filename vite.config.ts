@@ -9,6 +9,10 @@ export default defineConfig(({ mode }) => ({
   optimizeDeps: {
     sourceMap: false,
   },
+  // Retire les logs de debug du bundle prod ; console.warn/error conservés pour le diagnostic.
+  esbuild: {
+    pure: mode === "production" ? ["console.log", "console.debug", "console.info"] : [],
+  },
   build: {
     rollupOptions: {
       output: {

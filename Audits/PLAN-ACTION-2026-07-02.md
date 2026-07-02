@@ -42,6 +42,7 @@
 4. `4b2a54b` — Vision onboarding/UI consignée (`docs/specs/onboarding-progressif-et-fluidite-ui.md`) ; CLAUDE.md plafond panel 1440px ; package.json → `dreamweave` 1.0.0.
 5. `bd46224` — CLAUDE.md : note vault Obsidian = PC principal uniquement (les autres machines sautent les protocoles wiki proprement).
 6. `44a6b42` — Quotas source unique : `useUserPlan` importe `computeUsagePeriodStart`/`computeNextResetDate` depuis `@fn-shared/usagePeriod` (fin structurelle de la divergence client/serveur) + 5 tests ; migration verrou INSERT `profiles`.
+7. **Blitz couverture (10 agents + QA)** : 75 → **503 tests** (28 fichiers). Couverture branches 37 % → 80 %, fonctions 12 % → 45 %, `src/lib` 71 % lignes. Extractions comportement-identique : `authErrors.ts` (classificateurs auth, 43 tests matrice complète), `_shared/llmJson.ts` (parsing JSON LLM dédoublonné de `generate-scenario-ai` + `narramind-compass`, 21 tests). **Bug P1 réel trouvé ET corrigé : bypass XSS de `sanitizeBubbleHtml`** (balise non terminée traversait intacte → `&lt;` inerte, 3 tests). Clean invisible : console.debug gardés (fuite email en prod supprimée), 0 warning ESLint, `pure: console.log/debug/info` au build prod, ~9 morceaux de code mort supprimés (composant, fonctions, types, constantes). QA finale : PASS, tsc 0, lint 0, build OK.
 
 Et en amont : merge `pre-production` → `main` poussé (`f79b80d`), toolchain re-validée (75/75 tests, tsc 0 erreur, npm audit 0 vulnérabilité, build OK).
 
@@ -50,15 +51,21 @@ Et en amont : merge `pre-production` → `main` poussé (`f79b80d`), toolchain r
 ## 🟠 Backlog restant (sessions suivantes, avec plus de crédits)
 
 ### Sécurité / robustesse
-- 🟣 `replacePanelsFromOutline` (`src/services/panels.ts`) : delete-then-insert non transactionnel — code mort aujourd'hui, à passer en RPC Postgres AVANT tout câblage du hook `useReplacePanelsFromOutline`.
-- 🟣 Remplacer `sanitizeBubbleHtml` (regex maison) par DOMPurify avant toute feature de partage/publication de chapitre.
+- 🟣 `replacePanelsFromOutline` (`src/services/panels.ts`) : delete-then-insert non transactionnel — code mort (hooks orphelins re-confirmés), défaut désormais PROUVÉ par test ; à passer en RPC Postgres AVANT tout câblage Mode Auto.
+- 🟣 DOMPurify optionnel : `sanitizeBubbleHtml` est maintenant durci (bypass P1 corrigé) et verrouillé par 24 tests adversariaux — DOMPurify reste la reco si le partage public de chapitres arrive.
 - 🔵 Purger `.env` de l'historique git (`git filter-repo`) si le repo doit devenir public — clés publiques uniquement, non urgent.
 
-### Tests (priorité argent > quotas > perte de données)
-- 🟣 Tests `canGenerate()` (renderHook + mocks) — le reste du chantier quotas.
-- 🟣 Tests `stripe-webhook` transitions (active/past_due/deleted) — `planFromMetaOrPrice` déjà couvert.
-- 🟣 Extraire + tester les classificateurs d'erreurs de `useAuth.tsx` (~150 l. de string-matching qui gardent l'inscription/connexion).
-- 🟣 Extraire `extractJsonObject`/`tryClosePanelsJson` de `generate-scenario-ai` vers `_shared/llmJson.ts` + tests (dupliqué non testé dans `narramind-compass`).
+### Tests restants
+- 🟣 Tests `stripe-webhook` transitions du handler (active/past_due/deleted) — `planFromMetaOrPrice`, quota, ownership, cors, llmJson désormais couverts.
+- ✅ ~~canGenerate~~, ~~classificateurs useAuth~~, ~~extraction llmJson~~ — faits le 02/07 (blitz).
+
+### Bugs P2 signalés par le blitz (à trancher, aucun urgent)
+- `authErrors` : tout 422 au signUp est classé USER_ALREADY_EXISTS (y compris weak_password) — comportement historique conservé, à affiner.
+- `scenarioChapters` : sévérité d'alerte NarraMind perdue quand l'alerte n'a qu'une explication (documenté par `it.fails`) ; `parseChapterAssets` partage le tableau de `EMPTY_CHAPTER_ASSETS` (copie superficielle).
+- `scenarioAI` : réponse 200 non-JSON → objet vide silencieux ; message 5xx avec espace en tête si `request_id` seul.
+- `assets` : extension de fichier mal dérivée pour un nom sans point (fallback mort).
+- `TestSection` toujours routé en prod (garde email admin en dur) — décision Louis.
+- `deleteStyleImage` jamais appelé → images de style orphelines dans le bucket Storage (fuite lente).
 
 ### Refactoring (non urgent)
 - 🟣 Helper unique `invokeEdgeFunction()` côté client (boilerplate refreshSession+fetch copié ~12 fois, 3 call sites sans header `apikey`).

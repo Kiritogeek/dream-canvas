@@ -1,21 +1,10 @@
 /* eslint-disable react-refresh/only-export-components -- Provider + hook dans un seul module (pattern Auth classique). */
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { classifySignInError, classifySignUpError } from "@/lib/authErrors";
 import type { User, Session } from "@supabase/supabase-js";
 
-type AuthErrorCode =
-  | "USER_ALREADY_EXISTS"
-  | "EMAIL_CONFIRMATION_REQUIRED"
-  | "EMAIL_NOT_CONFIRMED";
-
 const EMAIL_REGEX = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
-
-type AuthErrorWithMeta = Error & {
-  code?: string | number;
-  status?: number;
-  user?: User;
-  name?: string;
-};
 
 interface AuthContextType {
   user: User | null;
@@ -80,74 +69,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         email: data.user?.email,
       });
     }
-    if (error) {
-      // Détecter l'erreur user_already_exists (code d'erreur Supabase)
-      // Supabase peut retourner cette erreur de différentes manières :
-      // - Dans error.status (422)
-      // - Dans error.message
-      // - Dans les headers HTTP (x-sb-error-code: user_already_exists)
-      const authError = error as AuthErrorWithMeta;
-      const errorCode = authError.code ?? authError.status;
-      const errorStatus = authError.status;
-      const errorMessage = (error.message || "").toLowerCase();
-      
-      // Vérifier si c'est une erreur 422 (Unprocessable Entity) qui indique souvent user_already_exists
-      // Le header x-sb-error-code contient "user_already_exists" pour cette erreur
-      const is422Error = errorStatus === 422 || errorCode === 422;
-      
-      // Vérifier les différents formats de message d'erreur et codes
-      // Note: Supabase retourne souvent error.status = 422 avec le header x-sb-error-code: user_already_exists
-      const isUserExistsError = 
-        errorCode === "user_already_exists" ||
-        authError.name === "AuthApiError" && is422Error ||
-        errorMessage.includes("already registered") ||
-        errorMessage.includes("already exists") ||
-        errorMessage.includes("user_already_exists") ||
-        errorMessage.includes("email already in use") ||
-        errorMessage.includes("user already registered") ||
-        (is422Error && (errorMessage.includes("user") || errorMessage.includes("email")));
-      
-      if (isUserExistsError || is422Error) {
-        // Créer une erreur personnalisée avec un flag pour indiquer qu'on peut basculer vers la connexion
-        const customError = new Error(
-          "Cet email est déjà utilisé. Connectez-vous ou utilisez un autre email."
-        ) as AuthErrorWithMeta;
-        customError.code = "USER_ALREADY_EXISTS" satisfies AuthErrorCode;
-        customError.status = 422;
-        throw customError;
-      }
-      throw error;
-    }
-    
-    // Vérifier que l'utilisateur a bien été créé
-    if (!data.user) {
-      throw new Error("Erreur lors de la création du compte. Veuillez réessayer.");
-    }
-    
-    // Anti-énumération Supabase : email déjà enregistré → pas d'erreur HTTP,
-    // mais identities = [] et aucun mail de confirmation n'est envoyé.
-    // Ne pas utiliser identities ?? [] : si le champ est absent, ce n'est pas un doublon.
-    // https://github.com/supabase/auth-js/issues/513
-    const identitiesList = data.user.identities;
-    if (!data.session && Array.isArray(identitiesList) && identitiesList.length === 0) {
-      const customError = new Error(
-        "Cet email est déjà utilisé : Supabase ne renvoie pas d’erreur et n’envoie aucun nouveau mail dans ce cas. Connectez-vous ou utilisez « Mot de passe oublié »."
-      ) as AuthErrorWithMeta;
-      customError.code = "USER_ALREADY_EXISTS" satisfies AuthErrorCode;
-      customError.status = 422;
-      throw customError;
-    }
-
-    // Si l'email n'est pas confirmé, retourner une information spéciale
-    // data.session sera null si l'email doit être confirmé
-    if (!data.session && data.user) {
-      const customError = new Error(
-        "Un email de vérification a été envoyé. Veuillez vérifier votre boîte de réception."
-      ) as AuthErrorWithMeta;
-      customError.code = "EMAIL_CONFIRMATION_REQUIRED" satisfies AuthErrorCode;
-      customError.user = data.user;
-      throw customError;
-    }
+    const classified = classifySignUpError(error, data);
+    if (classified) throw classified;
   };
 
   const signIn = async (email: string, password: string) => {
@@ -164,48 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     
     if (error) {
-      // Détecter l'erreur invalid_credentials (code d'erreur Supabase)
-      // Supabase peut retourner cette erreur de différentes manières :
-      // - Dans error.status (400)
-      // - Dans error.message
-      // - Dans les headers HTTP (x-sb-error-code: invalid_credentials)
-      const authError = error as AuthErrorWithMeta;
-      const errorCode = authError.code ?? authError.status;
-      const errorStatus = authError.status;
-      const errorMessage = (error.message || "").toLowerCase();
-      
-      // Vérifier si c'est une erreur 400 (Bad Request) qui peut indiquer invalid_credentials
-      const is400Error = errorStatus === 400 || errorCode === 400;
-      
-      // Vérifier les différents formats de message d'erreur et codes
-      const isInvalidCredentials = 
-        errorCode === "invalid_credentials" ||
-        authError.name === "AuthApiError" && errorMessage.includes("invalid") ||
-        errorMessage.includes("invalid login credentials") ||
-        errorMessage.includes("invalid credentials") ||
-        errorMessage.includes("email or password") ||
-        errorMessage.includes("incorrect password") ||
-        errorMessage.includes("wrong password") ||
-        (is400Error && (errorMessage.includes("password") || errorMessage.includes("credentials")));
-      
-      if (isInvalidCredentials) {
-        throw new Error("Email ou mot de passe incorrect. Vérifiez vos identifiants et réessayez.");
-      }
-      
-      if (
-        errorMessage.includes("email not confirmed") || 
-        errorMessage.includes("email_not_confirmed") ||
-        errorMessage.includes("email not verified") ||
-        errorCode === "email_not_confirmed"
-      ) {
-        const customError = new Error(
-          "Veuillez confirmer votre email avant de vous connecter. Vérifiez votre boîte de réception."
-        ) as AuthErrorWithMeta;
-        customError.code = "EMAIL_NOT_CONFIRMED" satisfies AuthErrorCode;
-        throw customError;
-      }
-      
-      throw error;
+      throw classifySignInError(error);
     }
     
     // Vérifier que la session a bien été créée

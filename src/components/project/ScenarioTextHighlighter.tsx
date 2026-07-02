@@ -5,7 +5,7 @@
 // ═══════════════════════════════════════════════════════════════
 
 import { useMemo, useState, useCallback, useRef, useEffect, Fragment } from "react";
-import { Plus, UserRound, Image, Package, Ban, Link2, X, Sparkles, Loader2 } from "lucide-react";
+import { UserRound, Image, Package, Ban, Link2, X, Sparkles, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   HoverCard,
@@ -513,66 +513,6 @@ function CreateAssetHover({
         </div>
       </HoverCardContent>
     </HoverCard>
-  );
-}
-
-// ── Panneau « Éléments non créés » (affiché hors du chapitre) ─
-
-interface MissingAssetsPanelProps {
-  text: string;
-  assets: Asset[];
-  onCreateAsset?: (name: string, type: AssetType) => void;
-  /** Noms exclus de la liste (ex. après « Ne pas créer ») */
-  dismissedMissingNames?: Set<string>;
-  /** Appelé quand l'utilisateur clique « Ne pas créer » */
-  onDismiss?: (name: string) => void;
-}
-
-export function MissingAssetsPanel({
-  text,
-  assets,
-  onCreateAsset,
-  dismissedMissingNames,
-  onDismiss,
-}: MissingAssetsPanelProps) {
-  const allMissing = useMemo(
-    () => detectMissingNames(text, assets),
-    [text, assets]
-  );
-  const missing = useMemo(
-    () =>
-      dismissedMissingNames?.size
-        ? allMissing.filter((n) => !dismissedMissingNames.has(n.toLowerCase()))
-        : allMissing,
-    [allMissing, dismissedMissingNames]
-  );
-
-  if (missing.length === 0) return null;
-
-  return (
-    <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 space-y-1.5">
-      <p className="text-sm font-medium text-amber-600 dark:text-amber-400">
-        Personnages / éléments mentionnés non créés comme assets :
-      </p>
-      <div className="flex flex-wrap gap-1.5">
-        {missing.map((name) => (
-          <CreateAssetHover
-            key={name}
-            name={name}
-            onCreateAsset={onCreateAsset}
-            onDismiss={onDismiss}
-          >
-            <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/20 font-medium cursor-pointer hover:bg-amber-500/25 transition-colors">
-              {name}
-              {onCreateAsset && <Plus className="h-2.5 w-2.5 opacity-60" />}
-            </span>
-          </CreateAssetHover>
-        ))}
-      </div>
-      <p className="text-xs text-muted-foreground">
-        Survolez un nom pour le créer comme asset.
-      </p>
-    </div>
   );
 }
 

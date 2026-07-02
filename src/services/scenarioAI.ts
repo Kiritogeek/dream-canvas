@@ -216,11 +216,6 @@ export async function generateNarrativeDirections(
 
 // ── NarraMind Update ──────────────────────────────────────────
 
-export interface NarraMindUpdateRequest {
-  project_id: string;
-  chapter_id: string;
-}
-
 export interface NarraMindUpdateResponse {
   success: boolean;
   summary: string;

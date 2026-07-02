@@ -60,8 +60,6 @@ export const CHAPTER_EDITOR_RAIL_BTN_ACTIVE =
   "border-primary/70 bg-primary/15 text-primary shadow-sm ring-1 ring-primary/10";
 export const CHAPTER_EDITOR_RAIL_BTN_IDLE =
   "border-border/70 bg-background text-muted-foreground hover:text-foreground hover:bg-muted/50";
-export const CHAPTER_EDITOR_RAIL_BTN_DISABLED =
-  "border-border/70 bg-background text-muted-foreground/60 hover:text-muted-foreground hover:bg-muted/30";
 
 /** Pastille de compte sur une icône du rail — chiffres lisibles au touch et sur petit DPI. */
 export const CHAPTER_EDITOR_RAIL_COUNT_BADGE_CLASS =

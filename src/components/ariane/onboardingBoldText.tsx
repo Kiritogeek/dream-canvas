@@ -18,11 +18,3 @@ export function onboardingParagraphLine(text: string): ReactNode {
     return chunk;
   });
 }
-
-export function onboardingParagraphBlocks(lines: readonly string[]): ReactNode {
-  return lines.map((line, i) => (
-    <p key={i} className="w-full text-pretty text-muted-foreground">
-      {onboardingParagraphLine(line)}
-    </p>
-  ));
-}

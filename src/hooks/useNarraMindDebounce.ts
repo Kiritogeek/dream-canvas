@@ -13,14 +13,14 @@ export function useNarraMindDebounce() {
       const existing = pendingTimers.get(projectId);
       if (existing) clearTimeout(existing);
 
-      console.debug(`[NarraMind] Timer démarré — fire dans ${DEBOUNCE_MS / 1000}s (project=${projectId})`);
+      if (import.meta.env.DEV) console.debug(`[NarraMind] Timer démarré — fire dans ${DEBOUNCE_MS / 1000}s (project=${projectId})`);
 
       const timer = setTimeout(() => {
         pendingTimers.delete(projectId);
-        console.debug(`[NarraMind] Appel Edge Function narramind-update (project=${projectId}, chapter=${chapterId})`);
+        if (import.meta.env.DEV) console.debug(`[NarraMind] Appel Edge Function narramind-update (project=${projectId}, chapter=${chapterId})`);
         void triggerNarraMindUpdate(projectId, chapterId)
           .then((res) => {
-            console.debug("[NarraMind] Succès →", res);
+            if (import.meta.env.DEV) console.debug("[NarraMind] Succès →", res);
             void qc.invalidateQueries({ queryKey: ["narramind-alerts", projectId] });
           })
           .catch((err: unknown) => {

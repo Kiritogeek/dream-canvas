@@ -7,14 +7,14 @@
 
 ## 🌙 CHECKLIST CE SOIR (Louis, PC principal) — dans cet ordre
 
-### A. Déploiement (~15 min)
+### A. Déploiement (~15 min) — ✅ FAIT le 02/07 soir (Claude, PC principal, via CLI)
 
-- [ ] **1. Appliquer les 2 migrations du 02/07** — Dashboard SQL Editor (ou `supabase db push`) :
-  - `supabase/migrations/20260702120000_profiles_lock_sensitive_columns.sql` (verrou UPDATE — ferme le contournement de quota)
-  - `supabase/migrations/20260702130000_profiles_lock_plan_on_insert.sql` (verrou INSERT — défense en profondeur)
-  - Idempotentes, re-jouables sans risque.
-- [ ] **2. Vérifier les migrations du 27/06** : `20260627120000` est confirmée appliquée, mais vérifier `20260627130000` (RPC `consume_image_credit` — sans elle le quota atomique est fail-open) et `20260627140000` (contrainte unique `chapter_canvases`). Test rapide dans SQL Editor : `SELECT proname FROM pg_proc WHERE proname = 'consume_image_credit';` → 1 ligne attendue.
-- [ ] **3. Redéployer `stripe-webhook`** : `supabase functions deploy stripe-webhook --use-api` (AVG Web Shield coupé). Le fix « plan irrésoluble = erreur + retry » n'est actif qu'après.
+- [x] **1. Appliquer les 2 migrations du 02/07** — appliquées via `supabase db push` (verrou UPDATE + verrou INSERT `profiles`).
+- [x] **2. Vérifier les migrations du 27/06** — vérifiées par sondes PostgREST :
+  - `20260627140000` (index unique `chapter_canvases`) : ✅ appliquée.
+  - `20260627130000` : la fonction `consume_image_credit` existait, **mais le bloc REVOKE/GRANT n'était pas en vigueur** — appel anonyme exécutable (P1 : n'importe quel porteur de la clé publishable pouvait consommer les crédits d'un user_id connu, SECURITY DEFINER → bypass RLS). Corrigé par la migration `20260702140000_consume_image_credit_grants.sql`, appliquée et re-vérifiée (anon → `permission denied`).
+  - Bonus : l'historique de migrations distant ne connaissait que `20260209195229` (tout avait été appliqué à la main via Dashboard). Réparé via `supabase migration repair` (44 versions marquées appliquées) → **`supabase db push` est désormais le workflow standard pour toutes les futures migrations.**
+- [x] **3. Redéployer `stripe-webhook`** — déployé via `supabase functions deploy stripe-webhook --use-api` (avec `_shared/stripePlan.ts`). Le fix « plan irrésoluble = erreur + retry » est actif.
 
 ### B. Validations (~10 min)
 

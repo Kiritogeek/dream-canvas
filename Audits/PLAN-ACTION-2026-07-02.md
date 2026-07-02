@@ -14,7 +14,7 @@
 
 ## 🔴 Phase 1 — À faire en priorité (prochaine session, PC avec accès Supabase)
 
-- 🔵 **Appliquer la migration `20260702120000_profiles_lock_sensitive_columns.sql`** (Dashboard SQL Editor, ou `supabase db push`). Idempotente et re-jouable. Tant qu'elle n'est pas appliquée, le contournement de quota reste possible en prod.
+- 🔵 **Appliquer les migrations `20260702120000_profiles_lock_sensitive_columns.sql` ET `20260702130000_profiles_lock_plan_on_insert.sql`** (Dashboard SQL Editor, ou `supabase db push`). Idempotentes et re-jouables. Tant que la première n'est pas appliquée, le contournement de quota reste possible en prod.
   - **Validation** : connecté en user normal, `supabase.from('profiles').update({ billing_period_start: new Date().toISOString() })` doit échouer (RLS) ; la modification du pseudo dans /profile doit continuer de fonctionner (y compris pour un compte Libre sans abonnement).
 - 🔵 **Vérifier que les migrations du 27/06 sont toutes appliquées** en prod : `20260627120000` est confirmée appliquée (PLAN-ACTION-2026-06-27 Phase 0), mais confirmer aussi `20260627130000` (RPC `consume_image_credit` — sans elle le quota atomique est fail-open) et `20260627140000` (contrainte unique `chapter_canvases`).
 - 🔵 **Redéployer l'Edge Function `stripe-webhook`** (`supabase functions deploy stripe-webhook --use-api`, AVG Web Shield coupé) — le fix du fallback plan inconnu (commit du 02/07) n'est actif qu'après redéploiement.
@@ -28,13 +28,13 @@
 
 ### Sécurité / robustesse
 - ✅ ~~`stripe-webhook` : fallback plan inconnu → `'createur'`~~ — **fait le 02/07** : plan irrésoluble → throw → 500 → retry Stripe (décision Louis) ; `planFromMetaOrPrice` extraite en `_shared/stripePlan.ts` + 9 tests vitest ; code mort `line_items` supprimé. QA PASS. **Redéploiement EF requis (Phase 1).**
-- 🟣 Policy INSERT de `profiles` : verrouiller `plan` aussi à l'INSERT (théorique — chemin inatteignable tant qu'aucune policy DELETE client n'existe, noté par la QA du 02/07).
+- ✅ ~~Policy INSERT de `profiles`~~ — **fait le 02/07** : migration `20260702130000` (plan='libre' + colonnes facturation NULL imposés à l'INSERT client). **Application en prod requise (Phase 1).**
 - 🟣 `replacePanelsFromOutline` (`src/services/panels.ts`) : delete-then-insert non transactionnel — code mort aujourd'hui, à passer en RPC Postgres AVANT tout câblage du hook `useReplacePanelsFromOutline`.
 - 🟣 Remplacer `sanitizeBubbleHtml` (regex maison) par DOMPurify avant toute feature de partage/publication de chapitre.
 - 🔵 Purger `.env` de l'historique git (`git filter-repo`) si le repo doit devenir public — clés publiques uniquement, non urgent.
 
 ### Tests (priorité argent > quotas > perte de données)
-- 🟣 Tests `canGenerate()` + export/test de `computeUsagePeriodStart`/`computeNextResetDate` (cas jours 29-31, année, null).
+- 🟡 Tests quotas — **partiellement fait le 02/07** : `useUserPlan` importe désormais `computeUsagePeriodStart`/`computeNextResetDate` depuis `@fn-shared/usagePeriod` (source unique client = serveur, fin de la divergence) + 5 tests `computeNextResetDate`. **Reste** : tests `canGenerate()` (nécessite renderHook + mocks).
 - 🟣 Tests Deno `stripe-webhook` (transitions active/past_due/deleted, price ID vs metadata).
 - 🟣 Extraire + tester les classificateurs d'erreurs de `useAuth.tsx` (~150 l. de string-matching qui gardent l'inscription/connexion).
 - 🟣 Extraire `extractJsonObject`/`tryClosePanelsJson` de `generate-scenario-ai` vers `_shared/llmJson.ts` + tests (dupliqué non testé dans `narramind-compass`).

@@ -22,3 +22,19 @@ export function computeUsagePeriodStart(
   }
   return new Date(now.getFullYear(), now.getMonth(), 1);
 }
+
+// Prochaine date de renouvellement / reset de quota — miroir de
+// computeUsagePeriodStart (consommé par le client, src/hooks/useUserPlan.ts).
+export function computeNextResetDate(
+  billingPeriodStart: string | null,
+  now: Date = new Date(),
+): Date {
+  if (billingPeriodStart) {
+    const billingDay = new Date(billingPeriodStart).getDate();
+    const thisMonthReset = new Date(now.getFullYear(), now.getMonth(), billingDay);
+    return thisMonthReset > now
+      ? thisMonthReset
+      : new Date(now.getFullYear(), now.getMonth() + 1, billingDay);
+  }
+  return new Date(now.getFullYear(), now.getMonth() + 1, 1);
+}

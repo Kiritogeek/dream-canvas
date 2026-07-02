@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import type { UserPlan, UsageInfo, TierLimits } from "@/types";
 import { TIER_CONFIG } from "@/types";
+import { computeUsagePeriodStart, computeNextResetDate } from "@fn-shared/usagePeriod";
 
 interface ProfileData {
   plan: UserPlan;
@@ -33,35 +34,9 @@ async function fetchUserPlan(userId: string): Promise<ProfileData> {
   return { plan, billingPeriodStart: data?.billing_period_start ?? null };
 }
 
-/**
- * Calcule le début de la période d'usage courante.
- * Plans payants : jour d'abonnement du mois courant (ou précédent si pas encore passé).
- * Libre : 1er du mois calendaire.
- */
-function computeUsagePeriodStart(billingPeriodStart: string | null): Date {
-  const now = new Date();
-  if (!billingPeriodStart) {
-    return new Date(now.getFullYear(), now.getMonth(), 1);
-  }
-  const billingDay = new Date(billingPeriodStart).getDate();
-  const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), billingDay);
-  if (thisMonthStart <= now) return thisMonthStart;
-  return new Date(now.getFullYear(), now.getMonth() - 1, billingDay);
-}
-
-/**
- * Calcule la prochaine date de renouvellement / reset de quota.
- */
-function computeNextResetDate(billingPeriodStart: string | null): Date {
-  const now = new Date();
-  if (!billingPeriodStart) {
-    return new Date(now.getFullYear(), now.getMonth() + 1, 1);
-  }
-  const billingDay = new Date(billingPeriodStart).getDate();
-  const thisMonthReset = new Date(now.getFullYear(), now.getMonth(), billingDay);
-  if (thisMonthReset > now) return thisMonthReset;
-  return new Date(now.getFullYear(), now.getMonth() + 1, billingDay);
-}
+// computeUsagePeriodStart / computeNextResetDate : importées de
+// @fn-shared/usagePeriod — même source que les Edge Functions de génération,
+// pour que le quota affiché soit toujours celui que le serveur applique.
 
 /** Compte les générations depuis le début de la période d'usage */
 async function fetchMonthlyUsage(userId: string, periodStart: Date): Promise<number> {

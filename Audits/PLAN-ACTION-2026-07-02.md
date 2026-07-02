@@ -17,7 +17,9 @@
 - 🔵 **Appliquer la migration `20260702120000_profiles_lock_sensitive_columns.sql`** (Dashboard SQL Editor, ou `supabase db push`). Idempotente et re-jouable. Tant qu'elle n'est pas appliquée, le contournement de quota reste possible en prod.
   - **Validation** : connecté en user normal, `supabase.from('profiles').update({ billing_period_start: new Date().toISOString() })` doit échouer (RLS) ; la modification du pseudo dans /profile doit continuer de fonctionner (y compris pour un compte Libre sans abonnement).
 - 🔵 **Vérifier que les migrations du 27/06 sont toutes appliquées** en prod : `20260627120000` est confirmée appliquée (PLAN-ACTION-2026-06-27 Phase 0), mais confirmer aussi `20260627130000` (RPC `consume_image_credit` — sans elle le quota atomique est fail-open) et `20260627140000` (contrainte unique `chapter_canvases`).
-- 🔵 **Autoriser le merge de `pre-production` dans `main`** (1 commit d'avance : la migration RLS) — Claude peut le faire, push `main` = accord explicite requis.
+- 🔵 **Redéployer l'Edge Function `stripe-webhook`** (`supabase functions deploy stripe-webhook --use-api`, AVG Web Shield coupé) — le fix du fallback plan inconnu (commit du 02/07) n'est actif qu'après redéploiement.
+  - **Validation** : depuis le dashboard Stripe, renvoyer un événement `customer.subscription.updated` d'un abonné réel → le plan reste correct ; un événement avec price ID + metadata inconnus doit apparaître en échec (500) dans le dashboard Stripe, pas écrire `createur`.
+- 🔵 **Autoriser le merge de `pre-production` dans `main`** (commits d'avance : migration RLS + fix stripe-webhook + plan d'action) — Claude peut le faire, push `main` = accord explicite requis.
 - 🔵 Corriger l'identité git sur la machine lbasnier : `git config --global user.email` (le commit `ca6c9ef` est parti avec `lbasnier@naxos.loc`).
 
 ---
@@ -25,7 +27,7 @@
 ## 🟠 Phase 2 — Backlog issu de l'audit 2026-07-02 (confirmé par vérification adversariale)
 
 ### Sécurité / robustesse
-- 🟣 `stripe-webhook` : fallback plan inconnu → `'createur'` (index.ts:73) à passer à `'libre'` ou erreur ; supprimer le code mort `line_items` (jamais présent dans un payload webhook). Extraire `planFromMetaOrPrice` en `_shared` + tests Deno.
+- ✅ ~~`stripe-webhook` : fallback plan inconnu → `'createur'`~~ — **fait le 02/07** : plan irrésoluble → throw → 500 → retry Stripe (décision Louis) ; `planFromMetaOrPrice` extraite en `_shared/stripePlan.ts` + 9 tests vitest ; code mort `line_items` supprimé. QA PASS. **Redéploiement EF requis (Phase 1).**
 - 🟣 Policy INSERT de `profiles` : verrouiller `plan` aussi à l'INSERT (théorique — chemin inatteignable tant qu'aucune policy DELETE client n'existe, noté par la QA du 02/07).
 - 🟣 `replacePanelsFromOutline` (`src/services/panels.ts`) : delete-then-insert non transactionnel — code mort aujourd'hui, à passer en RPC Postgres AVANT tout câblage du hook `useReplacePanelsFromOutline`.
 - 🟣 Remplacer `sanitizeBubbleHtml` (regex maison) par DOMPurify avant toute feature de partage/publication de chapitre.

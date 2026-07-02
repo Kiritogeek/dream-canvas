@@ -12,22 +12,27 @@
 //   - La signature Stripe est la SEULE source d'authenticité : elle DOIT être vérifiée
 //
 // Events gérés :
-//   - checkout.session.completed           → active Créateur (plan='createur')
-//   - customer.subscription.created        → active Créateur si status=active
+//   - checkout.session.completed           → active le plan payé (createur/studio)
+//   - customer.subscription.created        → active le plan payé si status=active
 //   - customer.subscription.updated        → active ou désactive selon status
 //   - customer.subscription.deleted        → désactive (plan='libre')
+//
+// Plan irrésoluble (ni price ID ni métadonnées reconnus) → throw → 500 → retry
+// Stripe (~3 jours) : on n'écrit JAMAIS un plan deviné, le profil reste intact
+// le temps de corriger la config (décision Louis, audit 2026-07-02).
 //
 // La modification de profiles.plan est faite en service_role (bypass RLS).
 
 import Stripe from "npm:stripe@14";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { planFromMetaOrPrice, type StripePlan } from "../_shared/stripePlan.ts";
 
 declare const Deno: {
   serve: (handler: (req: Request) => Promise<Response> | Response) => void;
   env: { get: (key: string) => string | undefined };
 };
 
-type Plan = "libre" | "createur" | "studio";
+type Plan = StripePlan;
 
 function textResponse(body: string, status: number) {
   return new Response(body, {
@@ -59,18 +64,18 @@ Deno.serve(async (req) => {
     return textResponse("Configuration incomplete", 500);
   }
 
-  function planFromMetaOrPrice(
+  function resolvePlanOrThrow(
     metaPlan: string | undefined,
     priceId: string
   ): Plan {
-    // Price ID = source de vérité (ce qui a réellement été facturé)
-    if (priceId && priceId === studioPriceId) return "studio";
-    if (priceId && priceId === createurPriceId) return "createur";
-    // Fallback métadonnées pour abonnements anciens sans Price ID reconnu
-    if (metaPlan === "studio") return "studio";
-    if (metaPlan === "createur") return "createur";
-    console.warn(`[stripe-webhook] Plan inconnu — priceId=${priceId}, meta=${metaPlan}`);
-    return "createur";
+    const plan = planFromMetaOrPrice(metaPlan, priceId, createurPriceId, studioPriceId);
+    if (plan === null) {
+      throw new Error(
+        `Plan irrésoluble — priceId=${priceId || "(absent)"}, meta=${metaPlan ?? "(absent)"} : ` +
+          `ni Price ID ni métadonnées reconnus. Réponse 500 → Stripe retentera la livraison.`
+      );
+    }
+    return plan;
   }
 
   const signature = req.headers.get("stripe-signature");
@@ -153,10 +158,12 @@ Deno.serve(async (req) => {
           );
           break;
         }
-        const sessionPriceId = (session as unknown as { line_items?: { data?: Array<{ price?: { id?: string } }> } })?.line_items?.data?.[0]?.price?.id ?? "";
-        const activePlan = planFromMetaOrPrice(
+        // line_items n'est jamais présent dans un payload webhook (propriété
+        // expandable) : le plan repose sur session.metadata.plan, toujours posé
+        // par create-checkout-session.
+        const activePlan = resolvePlanOrThrow(
           session.metadata?.plan as string | undefined,
-          sessionPriceId
+          ""
         );
         await updatePlan(userId, activePlan, new Date().toISOString());
         break;
@@ -183,7 +190,7 @@ Deno.serve(async (req) => {
         const isActive = activeStatuses.includes(sub.status);
         const subPriceId = sub.items?.data?.[0]?.price?.id ?? "";
         const plan: Plan = isActive
-          ? planFromMetaOrPrice(sub.metadata?.plan as string | undefined, subPriceId)
+          ? resolvePlanOrThrow(sub.metadata?.plan as string | undefined, subPriceId)
           : "libre";
         const billingPeriodStart = isActive
           ? new Date(sub.current_period_start * 1000).toISOString()

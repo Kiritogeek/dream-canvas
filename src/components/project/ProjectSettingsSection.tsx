@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { Loader2, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -29,18 +28,17 @@ export function ProjectSettingsSection({ project }: { project: Project }) {
   const initial = parseProjectMeta(project.description);
   const [genre, setGenre] = useState(initial.genre);
   const [tone, setTone] = useState(initial.tone);
-  const [synopsis, setSynopsis] = useState(initial.synopsis);
+  // Synopsis : défini à la création, non modifiable ici — mais préservé au save.
+  const synopsis = initial.synopsis;
 
   // Resync si le projet change (navigation entre projets sans démontage).
   useEffect(() => {
     const m = parseProjectMeta(project.description);
     setGenre(m.genre);
     setTone(m.tone);
-    setSynopsis(m.synopsis);
   }, [project.id, project.description]);
 
-  const dirty =
-    genre !== initial.genre || tone !== initial.tone || synopsis.trim() !== initial.synopsis;
+  const dirty = genre !== initial.genre || tone !== initial.tone;
 
   const handleSave = () => {
     const description = buildProjectDescription({ genre, tone, synopsis });
@@ -95,16 +93,14 @@ export function ProjectSettingsSection({ project }: { project: Project }) {
           </div>
         </div>
 
-        <div className="space-y-2">
-          <Label>Synopsis</Label>
-          <Textarea
-            value={synopsis}
-            onChange={(e) => setSynopsis(e.target.value)}
-            placeholder="Le pitch de ton histoire. Ariane s'en sert pour peupler ton Univers et contextualiser l'IA."
-            rows={5}
-            className="resize-none"
-          />
-        </div>
+        {synopsis && (
+          <div className="space-y-2">
+            <Label className="text-muted-foreground">Synopsis <span className="font-normal text-xs">(défini à la création)</span></Label>
+            <p className="text-sm text-muted-foreground leading-relaxed rounded-lg bg-muted/40 border border-border/60 px-3 py-2.5 whitespace-pre-wrap">
+              {synopsis}
+            </p>
+          </div>
+        )}
 
         <div className="flex justify-end">
           <Button

@@ -127,6 +127,33 @@ export function EditorSettingsPopover({ settings, onUpdateSettings }: EditorSett
               onChange={(v) => onUpdateSettings({ defaultBubbleFont: v })}
             />
           </div>
+
+          <div className="space-y-2 pt-3">
+            <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+              Guides du canvas
+            </span>
+            <button
+              type="button"
+              onClick={() => onUpdateSettings({ showMobileGuide: !settings.showMobileGuide })}
+              className="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg bg-muted/40 border border-border hover:bg-muted/60 transition-colors text-sm text-left"
+            >
+              <span className="min-w-0">
+                Guide écran mobile
+                <span className="block text-[11px] text-muted-foreground leading-snug">
+                  Lignes d'écran ≈ 1500px + zone header ≈ 300px
+                </span>
+              </span>
+              <span
+                className={`shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
+                  settings.showMobileGuide
+                    ? "border-primary/60 bg-primary/15 text-primary"
+                    : "border-border/70 text-muted-foreground"
+                }`}
+              >
+                {settings.showMobileGuide ? "Activé" : "Désactivé"}
+              </span>
+            </button>
+          </div>
         </DialogContent>
       </Dialog>
     </>

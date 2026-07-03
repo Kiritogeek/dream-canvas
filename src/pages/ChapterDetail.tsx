@@ -80,6 +80,7 @@ import {
   getPanelSystemBlocks,
   makeSfxBlockFromPreset,
   makeSystemBlock,
+  insertVerticalBreathing,
   generatePanelBlockImage,
   DEFAULT_BLOCK_WIDTH,
   DEFAULT_BLOCK_HEIGHT,
@@ -1283,6 +1284,41 @@ export default function ChapterDetail() {
     };
 
     /**
+     * Respiration verticale : décale tout ce qui est sous la ligne d'insertion de `gap` px
+     * (le vide encode le temps narratif — 120/250/500/700px). Écrit les 3 colonnes en un
+     * seul update, comme applyCanvasSnapshot ; l'undo restaure tout d'un coup.
+     */
+    const handleInsertBreathing = (gap: number, atY?: number) => {
+      const y = atY ?? canvasPlacementFromViewportCenter(
+        canvasRefByPanel.current[panel.id] ?? null,
+        panelEditorCanvasScrollRef.current,
+        PANEL_WIDTH,
+        panelHeight,
+        PANEL_WIDTH,
+        10,
+      ).y;
+      const currentPanels = queryClient.getQueryData<Panel[]>(panelsQueryKey) ?? [];
+      const row = currentPanels.find((p) => p.id === panel.id) ?? panel;
+      recordCanvasUndoBeforeChange(panel.id);
+      const next = insertVerticalBreathing(
+        { layout: getPanelLayout(row), colorBlocks: getPanelColorBlocks(row), speechBubbles: getPanelSpeechBubbles(row) },
+        y,
+        gap,
+      );
+      const previousPanels = queryClient.getQueryData<Panel[]>(panelsQueryKey);
+      queryClient.setQueryData<Panel[]>(panelsQueryKey, (old) => (!old ? old : old.map((p) => (p.id === panel.id
+        ? { ...p, layout: next.layout as unknown as Json, color_blocks: next.colorBlocks as unknown as Json, speech_bubbles: next.speechBubbles as unknown as Json }
+        : p))));
+      updatePanelMutation.mutate(
+        { id: panel.id, updates: { layout: next.layout as unknown as Json, color_blocks: next.colorBlocks as unknown as Json, speech_bubbles: next.speechBubbles as unknown as Json } },
+        {
+          onSuccess: () => toast({ title: `Respiration insérée (+${gap}px)`, description: "Tout ce qui suit a été décalé. Ctrl+Z pour annuler." }),
+          onError: (err) => { if (previousPanels) queryClient.setQueryData(panelsQueryKey, previousPanels); toast({ title: "Erreur", description: err.message, variant: "destructive" }); },
+        }
+      );
+    };
+
+    /**
      * Fond de page narratif : bloc couleur pleine largeur inséré SOUS tous les éléments
      * (zIndex = min - 10). Création directe dans color_blocks — ne passe pas par
      * handleAddColorBlock pour ne pas modifier son comportement (zone protégée).
@@ -1537,6 +1573,14 @@ export default function ChapterDetail() {
           const color = typeof (data as { color?: string }).color === "string" ? (data as { color: string }).color : "#0a0a12";
           const { y } = getCanvasDropPosition(e, canvasEl, PANEL_WIDTH, 1200);
           handleAddPageBackground(color, y);
+          setDraggingBlock(null);
+          setDragPreview(null);
+          return;
+        }
+        if (data.type === "breathing") {
+          const gap = typeof (data as { gap?: number }).gap === "number" ? (data as { gap: number }).gap : 250;
+          const { y } = getCanvasDropPosition(e, canvasEl, PANEL_WIDTH, 10);
+          handleInsertBreathing(gap, y);
           setDraggingBlock(null);
           setDragPreview(null);
           return;
@@ -1961,6 +2005,7 @@ export default function ChapterDetail() {
           onAddSfxBlock={handleAddSfxBlock}
           onAddSystemBlock={handleAddSystemBlock}
           onAddPageBackground={handleAddPageBackground}
+          onInsertBreathing={handleInsertBreathing}
           selectedBlockId={selectedBlockIdInModal}
           selectedColorBlockId={selectedColorBlockIdInModal}
           selectedSpeechBubbleId={selectedSpeechBubbleIdInModal}
@@ -2357,6 +2402,35 @@ export default function ChapterDetail() {
                         }}
                         onBubbleUpdate={handleUpdateSpeechBubbles}
                       />
+                      {/* Guide écran mobile — lignes d'écran ≈1500px + zone header ≈300px.
+                          Overlay statique (gradients), pointer-events none, jamais exporté. */}
+                      {settings.showMobileGuide && (
+                        <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 90000 }} aria-hidden>
+                          <div
+                            style={{
+                              position: "absolute", left: 0, right: 0, top: 0, height: 300,
+                              background: "repeating-linear-gradient(45deg, hsl(var(--destructive) / 0.08) 0 12px, transparent 12px 24px)",
+                              borderBottom: "1px dashed hsl(var(--destructive) / 0.5)",
+                            }}
+                          >
+                            <span className="absolute right-2 top-2 text-[10px] font-medium px-1.5 py-0.5 rounded bg-background/85 border border-destructive/40 text-destructive">
+                              Header plateforme ≈ 300px
+                            </span>
+                          </div>
+                          <div
+                            style={{
+                              position: "absolute", inset: 0,
+                              backgroundImage: "repeating-linear-gradient(to bottom, transparent 0 1498px, hsl(var(--primary) / 0.45) 1498px 1500px)",
+                            }}
+                          />
+                          <span
+                            className="absolute left-2 text-[10px] font-medium px-1.5 py-0.5 rounded bg-background/85 border border-primary/40 text-primary"
+                            style={{ top: 1506 }}
+                          >
+                            1 écran mobile ≈ 1500px : une info liée ne doit pas traverser plus d'un écran
+                          </span>
+                        </div>
+                      )}
                       </div>
                     </div>
                     </div>

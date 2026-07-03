@@ -4,10 +4,13 @@ const STORAGE_KEY = "dreamweave_editor_settings";
 
 export interface EditorSettings {
   defaultBubbleFont: string;
+  /** Guide de lecture mobile sur le canvas : lignes d'écran ~1500px + zone header ~300px. */
+  showMobileGuide: boolean;
 }
 
 const DEFAULT_SETTINGS: EditorSettings = {
   defaultBubbleFont: "inherit",
+  showMobileGuide: false,
 };
 
 export function useEditorSettings() {

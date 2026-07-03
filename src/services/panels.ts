@@ -68,6 +68,48 @@ export const NARRATIVE_COLOR_PRESETS = [
   { label: "Flashback",  description: "Souvenir, sépia",        color: "#e8d9c0" },
 ] as const;
 
+// ── Respirations verticales (le vide = le temps) ─────────────────
+
+/**
+ * Presets d'espacement sémantique — en scroll vertical, la gouttière encode le temps
+ * narratif (mesures croisées : Comistitch, McCloud, références SL/YTIM).
+ */
+export const BREATHING_PRESETS = [
+  { label: "Enchaînement",        description: "Action continue",        gap: 120 },
+  { label: "Battement",           description: "Pause émotionnelle",     gap: 250 },
+  { label: "Changement de scène", description: "Transition lieu/temps",  gap: 500 },
+  { label: "Cliffhanger",         description: "Révélation, choc",       gap: 700 },
+] as const;
+
+export interface PanelContentSnapshot {
+  layout: PanelLayout;
+  colorBlocks: ColorBlock[];
+  speechBubbles: SpeechBubble[];
+}
+
+/**
+ * Insère une respiration verticale : décale de `gap` px tout élément dont le bord haut
+ * est ≥ y (les éléments à cheval sur la ligne restent en place) et agrandit le canvas.
+ */
+export function insertVerticalBreathing(snapshot: PanelContentSnapshot, y: number, gap: number): PanelContentSnapshot {
+  const shiftRect = <T extends { y: number }>(el: T): T => (el.y >= y ? { ...el, y: el.y + gap } : el);
+  const layout = snapshot.layout;
+  const panelHeight = Math.min(PANEL_HEIGHT_MAX, (layout.panelHeight ?? PANEL_HEIGHT_DEFAULT) + gap);
+  return {
+    layout: {
+      ...layout,
+      panelHeight,
+      blocks: layout.blocks.map(shiftRect),
+      ...(Array.isArray(layout.sfxBlocks) ? { sfxBlocks: layout.sfxBlocks.map(shiftRect) } : {}),
+      ...(Array.isArray(layout.systemBlocks) ? { systemBlocks: layout.systemBlocks.map(shiftRect) } : {}),
+    },
+    colorBlocks: snapshot.colorBlocks.map(shiftRect),
+    speechBubbles: snapshot.speechBubbles.map((b) =>
+      (b.position?.y ?? 0) >= y ? { ...b, position: { ...b.position, y: b.position.y + gap } } : b
+    ),
+  };
+}
+
 // ── Blocs SFX (onomatopées) ──────────────────────────────────────
 
 export const DEFAULT_SFX_WIDTH = 320;

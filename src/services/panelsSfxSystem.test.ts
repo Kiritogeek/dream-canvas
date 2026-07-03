@@ -4,12 +4,15 @@ import {
   getPanelSystemBlocks,
   makeSfxBlockFromPreset,
   makeSystemBlock,
+  insertVerticalBreathing,
   SFX_PRESETS,
   WEBTOON_CASE_PRESETS,
   NARRATIVE_COLOR_PRESETS,
+  BREATHING_PRESETS,
+  PANEL_HEIGHT_MAX,
 } from "@/services/panels";
 import { SYSTEM_BLOCK_VARIANT_CONFIG } from "@/types";
-import type { Panel } from "@/types";
+import type { Panel, PanelLayout, ColorBlock, SpeechBubble } from "@/types";
 
 const panelWith = (layout: unknown): Panel => ({ layout } as unknown as Panel);
 
@@ -107,5 +110,56 @@ describe("presets webtoon", () => {
 
   it("les fonds narratifs sont des hex valides", () => {
     NARRATIVE_COLOR_PRESETS.forEach((p) => expect(p.color).toMatch(/^#[0-9a-f]{6}$/i));
+  });
+
+  it("les respirations couvrent la gamme 120→700px en croissant", () => {
+    const gaps = BREATHING_PRESETS.map((p) => p.gap);
+    expect(gaps).toEqual([...gaps].sort((a, b) => a - b));
+    expect(gaps[0]).toBe(120);
+    expect(gaps[gaps.length - 1]).toBe(700);
+  });
+});
+
+describe("insertVerticalBreathing", () => {
+  const layout: PanelLayout = {
+    panelHeight: 5000,
+    blocks: [
+      { id: "b1", x: 0, y: 100, width: 800, height: 400, prompt: null },
+      { id: "b2", x: 0, y: 1000, width: 800, height: 400, prompt: null },
+    ],
+    sfxBlocks: [{ id: "s1", x: 10, y: 1200, width: 300, height: 140, text: "BAM", fontFamily: "x", fontSize: 40, color: "#fff", strokeColor: "#000", strokeWidth: 4, rotation: 0 }],
+    systemBlocks: [{ id: "w1", x: 0, y: 300, width: 400, height: 200, variant: "quest", title: "Q", body: "x", accentColor: "#fbbf24" }],
+  };
+  const colorBlocks: ColorBlock[] = [{ id: "c1", x: 0, y: 900, width: 800, height: 300, fill: { type: "solid", color: "#000000" } }];
+  const speechBubbles: SpeechBubble[] = [
+    { id: "sp1", type: "speech", text: "hey", position: { x: 10, y: 950 } },
+    { id: "sp2", type: "speech", text: "ho", position: { x: 10, y: 200 } },
+  ];
+
+  it("décale uniquement les éléments dont le bord haut est sous la ligne", () => {
+    const next = insertVerticalBreathing({ layout, colorBlocks, speechBubbles }, 800, 250);
+    expect(next.layout.blocks.find((b) => b.id === "b1")!.y).toBe(100);
+    expect(next.layout.blocks.find((b) => b.id === "b2")!.y).toBe(1250);
+    expect(next.layout.sfxBlocks![0].y).toBe(1450);
+    expect(next.layout.systemBlocks![0].y).toBe(300);
+    expect(next.colorBlocks[0].y).toBe(1150);
+    expect(next.speechBubbles.find((b) => b.id === "sp1")!.position.y).toBe(1200);
+    expect(next.speechBubbles.find((b) => b.id === "sp2")!.position.y).toBe(200);
+  });
+
+  it("agrandit la hauteur du canvas du même écart, clampée au max", () => {
+    const next = insertVerticalBreathing({ layout, colorBlocks, speechBubbles }, 800, 250);
+    expect(next.layout.panelHeight).toBe(5250);
+    const nearMax = insertVerticalBreathing({ layout: { ...layout, panelHeight: PANEL_HEIGHT_MAX - 100 }, colorBlocks, speechBubbles }, 800, 700);
+    expect(nearMax.layout.panelHeight).toBe(PANEL_HEIGHT_MAX);
+  });
+
+  it("ne mute pas le snapshot d'entrée et gère un layout sans clés SFX/système", () => {
+    const bare: PanelLayout = { blocks: [{ id: "b1", x: 0, y: 500, width: 800, height: 400, prompt: null }] };
+    const next = insertVerticalBreathing({ layout: bare, colorBlocks: [], speechBubbles: [] }, 0, 120);
+    expect(next.layout.blocks[0].y).toBe(620);
+    expect(bare.blocks[0].y).toBe(500);
+    expect(next.layout.sfxBlocks).toBeUndefined();
+    expect(next.layout.systemBlocks).toBeUndefined();
   });
 });

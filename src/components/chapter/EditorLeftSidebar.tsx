@@ -6,7 +6,7 @@ import { getPanelBlocks, getPanelColorBlocks, getPanelSpeechBubbles, getPanelSfx
 import type { ChapterCanvasImageHistoryRow } from "@/services/chapterCanvasImageHistory";
 import { ChapterImageHistoryList } from "@/components/chapter/ChapterImageHistoryList";
 import { BubblePreview } from "@/components/chapter/SpeechBubbleShape";
-import { BLOCK_PRESETS, WEBTOON_CASE_PRESETS, NARRATIVE_COLOR_PRESETS, SFX_PRESETS } from "@/services/panels";
+import { BLOCK_PRESETS, WEBTOON_CASE_PRESETS, NARRATIVE_COLOR_PRESETS, SFX_PRESETS, BREATHING_PRESETS } from "@/services/panels";
 import { buildSfxTextShadow, hexToRgba } from "@/components/chapter/sfxSystemStyle";
 import { SPEECH_BUBBLE_TYPE_LABELS, SYSTEM_BLOCK_VARIANT_CONFIG } from "@/types";
 import type { Panel, ColorBlockFill, SpeechBubbleType, PanelBlockShape, SystemBlockVariant } from "@/types";
@@ -71,6 +71,7 @@ interface EditorLeftSidebarProps {
   onAddSfxBlock: (presetId?: string, x?: number, y?: number) => void;
   onAddSystemBlock: (variant: SystemBlockVariant, x?: number, y?: number) => void;
   onAddPageBackground: (color: string, y?: number) => void;
+  onInsertBreathing: (gap: number, y?: number) => void;
   selectedBlockId: { panelId: string; blockId: string } | null;
   selectedColorBlockId: { panelId: string; colorBlockId: string } | null;
   selectedSpeechBubbleId: { panelId: string; bubbleId: string } | null;
@@ -121,6 +122,7 @@ export function EditorLeftSidebar({
   onAddSfxBlock,
   onAddSystemBlock,
   onAddPageBackground,
+  onInsertBreathing,
   selectedBlockId,
   selectedColorBlockId,
   selectedSpeechBubbleId,
@@ -579,6 +581,53 @@ export function EditorLeftSidebar({
                             className="rounded-sm border-2 border-dashed border-muted-foreground/25 bg-muted/50 w-full"
                             style={{ height: thumbH }}
                           />
+                        </div>
+                        <div className="flex flex-col min-w-0 gap-1">
+                          <span className="text-sm font-semibold text-foreground leading-snug">{preset.label}</span>
+                          <span className="text-xs text-muted-foreground leading-snug">{preset.description}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Respirations — le vide vertical encode le temps narratif */}
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Respirations (rythme)</p>
+                <p className="text-xs text-muted-foreground leading-snug">
+                  Insère un espace vertical : tout ce qui suit est décalé vers le bas. Le vide avant une révélation, c'est le suspense.
+                </p>
+                <div className="flex flex-col gap-2.5">
+                  {BREATHING_PRESETS.map((preset) => {
+                    const key = `breath-${preset.gap}`;
+                    const thumbH = Math.max(6, Math.round((preset.gap / 700) * 40));
+                    return (
+                      <div
+                        key={key}
+                        draggable
+                        onDragStart={(e) => {
+                          setDraggingKey(key);
+                          e.dataTransfer.setData("application/json", JSON.stringify({ type: "breathing", gap: preset.gap }));
+                          e.dataTransfer.effectAllowed = "copy";
+                          const ghost = newBlockDragGhostRef.current;
+                          if (ghost) {
+                            ghost.style.width = "104px";
+                            ghost.style.height = "28px";
+                            ghost.textContent = `↕ ${preset.gap}px`;
+                            e.dataTransfer.setDragImage(ghost, 52, 14);
+                          }
+                        }}
+                        onDragEnd={() => setDraggingKey(null)}
+                        onClick={() => onInsertBreathing(preset.gap)}
+                        className={`cursor-grab active:cursor-grabbing active:scale-[0.98] rounded-xl border bg-card px-4 py-3 transition-all duration-150 flex items-center gap-3.5 select-none hover:-translate-y-0.5 hover:shadow-md hover:border-border ${draggingKey === key ? "opacity-50 scale-[0.98] border-border" : "border-border/60"}`}
+                      >
+                        <div className="shrink-0 flex flex-col items-center justify-center gap-0.5" style={{ width: 72, height: 56 }}>
+                          <div className="w-10 rounded-sm bg-muted-foreground/25" style={{ height: 5 }} />
+                          <div className="w-full flex items-center justify-center" style={{ height: thumbH }}>
+                            <span className="text-[9px] font-mono text-primary/70 leading-none">↕ {preset.gap}</span>
+                          </div>
+                          <div className="w-10 rounded-sm bg-muted-foreground/25" style={{ height: 5 }} />
                         </div>
                         <div className="flex flex-col min-w-0 gap-1">
                           <span className="text-sm font-semibold text-foreground leading-snug">{preset.label}</span>

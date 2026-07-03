@@ -207,13 +207,16 @@ type CanvasElementDeleteIntent =
   | { panelId: string; kind: "system"; systemBlockId: string };
 
 function getAssetReferenceImageUrl(asset: Asset): string | null {
+  // Face nette en priorité, sheet 4 angles en dernier recours : envoyer le strip
+  // composite comme référence d'identité fait reproduire à FLUX une grille multi-poses
+  // (anatomies aberrantes) — cause C1, Audits/ANALYSE-COHERENCE-IMAGES-2026-06-27.md.
   if (asset.asset_type === "character") {
     return (
-      asset.image_url_sheet ??
       asset.image_url ??
       asset.image_url_profile_left ??
       asset.image_url_profile_right ??
       asset.image_url_back ??
+      asset.image_url_sheet ??
       null
     );
   }

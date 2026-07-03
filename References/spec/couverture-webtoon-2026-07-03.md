@@ -1,7 +1,8 @@
 # Mini-spec — Couverture de webtoon — 2026-07-03
 
-> Statut : **SPEC, pas encore implémentée**. Rédigée avant implémentation à la demande de Louis.
-> La couverture = la vitrine du webtoon : première image que voit le lecteur, sur laquelle il clique pour entrer.
+> Statut : **PHASE 1 IMPLÉMENTÉE** (2026-07-03). La couverture = la vitrine du webtoon.
+> Décisions actées par Louis : cover_url seul (pas de migration) ; titre stylisé inclus ; fonction dédiée `generate-cover-image` ; ratio 800×1200 ; **titre DU PROJET rééditable dans Paramètres** (le titre stylisé de la couverture se refait via l'éditeur). Validation après génération → l'image devient l'affiche du projet au Tableau de bord.
+> Livré : EF `generate-cover-image` (déploiement manuel requis), `src/services/cover.ts`, `src/pages/CoverEditor.tsx` (route `/dashboard/projects/:id/cover`), carte « Couverture » en tête d'Édition, affichage `cover_url` sur cartes Dashboard + Projects, helpers storage. Flatten via Canvas 2D (illustration cover-fit + titre strokeText/fillText). Reste Phase 2 : mode lecteur/galerie publique.
 
 ## 1. Décisions actées (Louis)
 

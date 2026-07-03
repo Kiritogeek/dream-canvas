@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Loader2, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -26,6 +27,7 @@ export function ProjectSettingsSection({ project }: { project: Project }) {
   const { toast } = useToast();
 
   const initial = parseProjectMeta(project.description);
+  const [title, setTitle] = useState(project.title);
   const [genre, setGenre] = useState(initial.genre);
   const [tone, setTone] = useState(initial.tone);
   // Synopsis : défini à la création, non modifiable ici — mais préservé au save.
@@ -34,16 +36,22 @@ export function ProjectSettingsSection({ project }: { project: Project }) {
   // Resync si le projet change (navigation entre projets sans démontage).
   useEffect(() => {
     const m = parseProjectMeta(project.description);
+    setTitle(project.title);
     setGenre(m.genre);
     setTone(m.tone);
-  }, [project.id, project.description]);
+  }, [project.id, project.title, project.description]);
 
-  const dirty = genre !== initial.genre || tone !== initial.tone;
+  const trimmedTitle = title.trim();
+  const dirty =
+    (trimmedTitle !== "" && trimmedTitle !== project.title) ||
+    genre !== initial.genre ||
+    tone !== initial.tone;
 
   const handleSave = () => {
+    if (!trimmedTitle) return;
     const description = buildProjectDescription({ genre, tone, synopsis });
     updateProject.mutate(
-      { id: project.id, updates: { description } },
+      { id: project.id, updates: { title: trimmedTitle, description } },
       {
         onSuccess: () => toast({ title: "Paramètres enregistrés", description: "La tonalité et le genre guident désormais la génération." }),
         onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }),
@@ -57,8 +65,13 @@ export function ProjectSettingsSection({ project }: { project: Project }) {
         <div>
           <h2 className="font-display font-semibold text-base">Identité narrative</h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Le genre et la tonalité orientent la génération de scénario, le découpage en cases et l'ambiance des images.
+            Le titre, le genre et la tonalité orientent la génération de scénario, le découpage en cases et l'ambiance des images.
           </p>
+        </div>
+
+        <div className="space-y-2">
+          <Label>Titre</Label>
+          <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Titre du projet" />
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

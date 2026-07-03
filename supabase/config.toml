@@ -12,6 +12,10 @@ verify_jwt = false
 [functions.generate-panel-image]
 verify_jwt = false
 
+# Couverture de projet : JWT utilisateur vérifié en interne (verifyUserFromToken).
+[functions.generate-cover-image]
+verify_jwt = false
+
 # Endpoint admin/script (token technique dédié), pas de JWT utilisateur attendu.
 [functions.generate-style-template-images]
 verify_jwt = false

@@ -31,6 +31,7 @@ const Profile = lazyWithReload(() => import("./pages/Profile"));
 const Plans = lazyWithReload(() => import("./pages/Plans"));
 const ChapterDetail = lazyWithReload(() => import("./pages/ChapterDetail"));
 const ScenarioChapterEditor = lazyWithReload(() => import("./pages/ScenarioChapterEditor"));
+const CoverEditor = lazyWithReload(() => import("./pages/CoverEditor"));
 const Pilotage = lazyWithReload(() => import("./pages/Pilotage"));
 const NotFound = lazyWithReload(() => import("./pages/NotFound"));
 
@@ -99,6 +100,14 @@ const App = () => (
                 element={
                   <ProtectedRoute>
                     <ChapterDetail />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/dashboard/projects/:id/cover"
+                element={
+                  <ProtectedRoute>
+                    <CoverEditor />
                   </ProtectedRoute>
                 }
               />

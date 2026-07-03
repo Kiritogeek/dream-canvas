@@ -29,6 +29,7 @@ import {
 } from "@/constants/ariane";
 import { useAuth } from "@/hooks/useAuth";
 import { resetProgressiveOnboardingSimulation, bindForcedProgressiveProjectAfterCreate } from "@/lib/progressiveOnboardingStorage";
+import { buildProjectDescription, parseProjectMeta } from "@/lib/projectMeta";
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -60,14 +61,7 @@ export default function Dashboard() {
       toast({ title: "Genre requis", description: "Choisis un genre pour que l'IA adapte ses suggestions à ton univers.", variant: "destructive" });
       return;
     }
-    const parts: string[] = [];
-    if (selectedGenre) parts.push(`[Tags: ${selectedGenre}]`);
-    if (selectedTone) parts.push(`[Tone: ${selectedTone}]`);
-    const prefix = parts.join("");
-    const body = newSynopsis.trim();
-    const finalDescription = prefix || body
-      ? `${prefix}${body ? (prefix ? " " + body : body) : ""}`
-      : null;
+    const finalDescription = buildProjectDescription({ genre: selectedGenre, tone: selectedTone, synopsis: newSynopsis });
     const isFirstProject = projectCount === 0;
     createProject.mutate(
       { title: newTitle.trim(), description: finalDescription },
@@ -260,16 +254,17 @@ export default function Dashboard() {
                     to={`/dashboard/projects/${p.id}`}
                     className="block glass rounded-lg sm:rounded-xl p-4 sm:p-6 hover:shadow-dream transition-shadow duration-300 group"
                   >
+                    {p.cover_url && (
+                      <img src={p.cover_url} alt="" className="w-full h-28 object-cover rounded-lg mb-2.5 border border-border/50" />
+                    )}
                     <h3 className="font-display font-semibold text-sm sm:text-base mb-1 group-hover:text-primary transition-colors">
                       {p.title}
                     </h3>
                     {(() => {
-                      const tags = p.description?.match(/^\[Tags: ([^\]]+)\]/)?.[1]?.split(", ") ?? [];
-                      const tones = p.description?.match(/\[Tone: ([^\]]+)\]/)?.[1]?.split(", ") ?? [];
-                      const synopsisText = p.description
-                        ?.replace(/\[Tags: [^\]]*\]/g, "")
-                        .replace(/\[Tone: [^\]]*\]/g, "")
-                        .trim() || null;
+                      const meta = parseProjectMeta(p.description);
+                      const tags = meta.genre ? meta.genre.split(", ") : [];
+                      const tones = meta.tone ? meta.tone.split(", ") : [];
+                      const synopsisText = meta.synopsis || null;
                       return (
                         <>
                           {(tags.length > 0 || tones.length > 0) && (

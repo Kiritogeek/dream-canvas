@@ -45,6 +45,7 @@ import {
 } from "@/hooks/useChapters";
 import { useScenarioChapters } from "@/hooks/useScenarioChapters";
 import { useUserPlan } from "@/hooks/useUserPlan";
+import { useProject } from "@/hooks/useProjects";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchPanels } from "@/services/panels";
 import { useBlockNotifsForProject } from "@/lib/generationPending";
@@ -261,6 +262,7 @@ export function EditionSection({ projectId }: EditionSectionProps) {
     void import("@/pages/ChapterDetail");
   }, []);
   const { plan } = useUserPlan();
+  const { data: project } = useProject(projectId);
   const { data: chapters = [], isLoading } = useChapters(projectId);
   const blockNotifs = useBlockNotifsForProject(projectId);
   const { data: scenarioChapters = [] } = useScenarioChapters(projectId);
@@ -476,6 +478,33 @@ export function EditionSection({ projectId }: EditionSectionProps) {
           </div>
         )}
       </div>
+
+      {/* Couverture du webtoon — l'affiche du projet, distincte des chapitres */}
+      <button
+        type="button"
+        onClick={() => navigate(`/dashboard/projects/${projectId}/cover`)}
+        className="group flex items-center gap-4 rounded-2xl border border-border/70 bg-card p-3 sm:p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-md hover:border-primary/50"
+      >
+        <div className="shrink-0 rounded-lg overflow-hidden border border-border/60 bg-muted flex items-center justify-center" style={{ width: 56, height: 84 }}>
+          {project?.cover_url ? (
+            <img src={project.cover_url} alt="Couverture" className="w-full h-full object-cover" />
+          ) : (
+            <ImageIcon className="h-6 w-6 text-muted-foreground/40" />
+          )}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <span className="font-display font-semibold text-sm sm:text-base">Couverture</span>
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-[hsl(var(--lavender)/0.15)] text-[hsl(var(--lavender))] font-medium">
+              {project?.cover_url ? "Définie" : "À générer"}
+            </span>
+          </div>
+          <p className="text-xs text-muted-foreground mt-0.5 leading-snug">
+            L'affiche que verra le lecteur, générée depuis tout le projet + titre stylisé.
+          </p>
+        </div>
+        <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0 group-hover:translate-x-0.5 transition-transform" />
+      </button>
 
       {/* État vide */}
       {!isLoading && chapters.length === 0 && (

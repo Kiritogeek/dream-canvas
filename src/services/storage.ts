@@ -60,6 +60,31 @@ export async function deleteAssetImages(asset: Asset): Promise<void> {
   }
 }
 
+/** Upload la couverture finale (composée) et retourne l'URL publique. Écrase la précédente. */
+export async function uploadCoverImage(
+  userId: string,
+  projectId: string,
+  blob: Blob
+): Promise<string> {
+  // Chemin fixe (upsert) : une seule couverture par projet, la nouvelle remplace l'ancienne.
+  const path = `${userId}/projects/${projectId}/cover.png`;
+  const { data, error } = await supabase.storage
+    .from(BUCKET)
+    .upload(path, blob, { contentType: "image/png", upsert: true });
+  if (error) throw error;
+  // Cache-buster : le chemin est fixe (upsert) donc l'URL publique ne change pas.
+  const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(data.path);
+  return `${urlData.publicUrl}?v=${Date.now()}`;
+}
+
+/** Supprime la couverture d'un projet du Storage (best-effort). */
+export async function deleteCoverImage(url: string): Promise<void> {
+  const path = extractStoragePath(url.split("?")[0]);
+  if (!path) return;
+  const { error } = await supabase.storage.from(BUCKET).remove([path]);
+  if (error) console.warn("[Storage] Échec suppression couverture:", error.message);
+}
+
 /** Supprime une image de référence de style du Storage */
 export async function deleteStyleImage(url: string): Promise<void> {
   const path = extractStoragePath(url);

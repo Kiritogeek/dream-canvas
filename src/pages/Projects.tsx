@@ -280,6 +280,9 @@ export default function Projects() {
                   to={`/dashboard/projects/${p.id}`}
                   className="block"
                 >
+                  {p.cover_url && (
+                    <img src={p.cover_url} alt="" className="w-full h-28 object-cover rounded-lg mb-2.5 border border-border/50" />
+                  )}
                   <h3 className="font-display font-semibold text-sm sm:text-base mb-1 group-hover:text-primary transition-colors pr-6">
                     {p.title}
                   </h3>

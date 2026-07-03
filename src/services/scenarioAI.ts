@@ -23,6 +23,12 @@ export interface ChapterAIRequest {
   project_id?: string;
 }
 
+/** Densité de texte du découpage — module les plafonds de bulles par case. */
+export type DetectBlocksDensity = "aere" | "standard" | "dense";
+
+/** Profils de genre — calibrent cases/chapitre, SFX et fenêtres système. */
+export type DetectBlocksGenre = "action" | "fantasy" | "drame" | "romance" | "comedie";
+
 export interface DetectBlocksRequest {
   mode: "detect_blocks";
   chapter_content: string;
@@ -33,6 +39,10 @@ export interface DetectBlocksRequest {
   assets_context?: string;
   /** Lore de l'univers pour la cohérence narrative */
   universe_lore?: string;
+  text_density?: DetectBlocksDensity;
+  genre?: DetectBlocksGenre;
+  /** false = le type revelation_system est retiré de la grammaire (genres non-RPG). */
+  allow_system_windows?: boolean;
 }
 
 export interface AiSummaryRequest {

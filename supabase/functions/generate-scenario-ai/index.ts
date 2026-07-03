@@ -405,6 +405,9 @@ Deno.serve(async (req) => {
       chapter_number?: number;
       project_id?: string;
       target_panel_count?: number;
+      text_density?: string;
+      genre?: string;
+      allow_system_windows?: boolean;
       previous_summaries?: string;
       previous_prompts?: string[];
       from_name?: string;
@@ -507,6 +510,9 @@ Deno.serve(async (req) => {
         targetPanelCount: body.target_panel_count,
         assetsContext: typeof body.assets_context === "string" ? body.assets_context : undefined,
         universeLore: typeof body.universe_lore === "string" ? body.universe_lore : undefined,
+        textDensity: body.text_density === "aere" || body.text_density === "dense" || body.text_density === "standard" ? body.text_density : undefined,
+        genre: typeof body.genre === "string" && body.genre.trim() ? body.genre : undefined,
+        allowSystemWindows: typeof body.allow_system_windows === "boolean" ? body.allow_system_windows : undefined,
       });
     } else if (mode === "ai_summary") {
       if (!body.chapter_content?.trim()) {

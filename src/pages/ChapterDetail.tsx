@@ -1112,8 +1112,8 @@ export default function ChapterDetail() {
       try {
         const prompt = block.prompt?.trim() ?? "";
         const refAssets = mergeBlockRefAssets(block, prompt, assets);
-        const blockAssetImageUrls = refAssets.map(getAssetReferenceImageUrl).filter((u): u is string => !!u);
-        const blockAssetNames = refAssets.map(getAssetReferencePromptLabel);
+        // Paires nom↔image alignées (C6) : un asset sans image reste mentionné en texte (url null).
+        const blockAssets = refAssets.map((a) => ({ name: getAssetReferencePromptLabel(a), url: getAssetReferenceImageUrl(a) }));
 
         // Continuité : utiliser l'image précédente seulement si lien visuel détecté
         const visuallyLinked = lastGeneratedImageUrl && lastGeneratedPrompt
@@ -1127,11 +1127,11 @@ export default function ChapterDetail() {
           height: block.height,
           prompt,
           project,
-          blockAssetImageUrls: blockAssetImageUrls.length ? blockAssetImageUrls : undefined,
-          blockAssetNames: blockAssetNames.length ? blockAssetNames : undefined,
+          blockAssets: blockAssets.length ? blockAssets : undefined,
           previousImageUrl: visuallyLinked ? (lastGeneratedImageUrl ?? undefined) : undefined,
           sceneType: block.scene_type ?? undefined,
           effects: block.effects ?? undefined,
+          shotType: block.shot_type ?? undefined,
         });
 
         currentLayout = {
@@ -1922,17 +1922,20 @@ export default function ChapterDetail() {
         return;
       }
       const refAssets = mergeBlockRefAssets(block, promptToUse, assets);
-      const blockAssetImageUrls = refAssets
-        .map(getAssetReferenceImageUrl)
-        .filter((u): u is string => !!u);
-      const blockAssetNames = refAssets.map(getAssetReferencePromptLabel);
+      // Paires nom↔image alignées (C6).
+      const blockAssets = refAssets.map((a) => ({ name: getAssetReferencePromptLabel(a), url: getAssetReferenceImageUrl(a) }));
 
-      // Bloc généré le plus proche au-dessus (par Y) avec lien visuel détecté
+      // Bloc généré le plus proche au-dessus (par Y) avec lien visuel détecté.
+      // Continuité par LIEU quand le découpage v2 l'a renseigné (lieux différents =
+      // pas de continuité, évite la contamination inter-scènes) ; sinon fallback lexical.
       const closestAbove = layout.blocks
         .filter((b) => b.id !== block.id && !!b.image_url && b.y < block.y)
         .sort((a, b) => b.y - a.y)[0];
+      const sameLocation = block.location && closestAbove?.location
+        ? block.location.trim().toLowerCase() === closestAbove.location.trim().toLowerCase()
+        : null;
       const previousImageUrl =
-        closestAbove?.image_url && hasVisualLink(promptToUse, closestAbove.prompt ?? "")
+        closestAbove?.image_url && (sameLocation === true || (sameLocation === null && hasVisualLink(promptToUse, closestAbove.prompt ?? "")))
           ? closestAbove.image_url
           : undefined;
 
@@ -1941,11 +1944,11 @@ export default function ChapterDetail() {
           panel: { id: panel.id, prompt: promptToUse },
           block: { id: block.id, width: block.width, height: block.height },
           project,
-          blockAssetImageUrls: blockAssetImageUrls.length ? blockAssetImageUrls : undefined,
-          blockAssetNames: blockAssetNames.length ? blockAssetNames : undefined,
+          blockAssets: blockAssets.length ? blockAssets : undefined,
           previousImageUrl,
           sceneType: block.scene_type ?? undefined,
           effects: block.effects ?? undefined,
+          shotType: block.shot_type ?? undefined,
           currentLayout: layout,
         },
         {
@@ -2062,10 +2065,12 @@ export default function ChapterDetail() {
                   .map((b) => ({ prompt: b.prompt, image_url: b.image_url ?? null, name: b.name ?? null }))
               : undefined;
 
-            // SFX et fenêtres système — l'Edge Function réécrit le layout sans ces clés :
-            // on les capture avant compose et on les re-fusionne après le refetch.
-            const sfxToPreserve = getPanelSfxBlocks(panel);
-            const systemToPreserve = getPanelSystemBlocks(panel);
+            // SFX et fenêtres système AJOUTÉS À LA MAIN (origin !== "compose") : la
+            // compose régénère ses propres SFX/système (origin "compose"), on ne
+            // re-fusionne donc QUE les éléments manuels de l'utilisateur, jamais les
+            // anciens compose (sinon les nouveaux seraient écrasés par des stales).
+            const sfxToPreserve = getPanelSfxBlocks(panel).filter((s) => s.origin !== "compose");
+            const systemToPreserve = getPanelSystemBlocks(panel).filter((s) => s.origin !== "compose");
 
             composeLayout.mutate(
               {
@@ -2075,6 +2080,7 @@ export default function ChapterDetail() {
                 characters: assets
                   .filter((a) => a.asset_type === "character")
                   .map((a) => a.name),
+                assets: assets.map((a) => ({ id: a.id, name: a.name })),
                 chapterTitle: chapter?.title ?? undefined,
                 chapterSynopsis: linkedScenarioChapter?.synopsis ?? undefined,
                 chapterScenarioContent: linkedScenarioChapter?.content ?? undefined,
@@ -2095,7 +2101,12 @@ export default function ChapterDetail() {
                         ?? (queryClient.getQueryData<Panel[]>(panelsQueryKey) ?? []).find((p) => p.id === panel.id);
                       if (freshRow) {
                         const freshLayout = getPanelLayout(freshRow);
-                        const mergedLayout: PanelLayout = { ...freshLayout, sfxBlocks: sfxToPreserve, systemBlocks: systemToPreserve };
+                        // Compose-generated (freshLayout) d'abord, éléments manuels ajoutés par-dessus.
+                        const mergedLayout: PanelLayout = {
+                          ...freshLayout,
+                          sfxBlocks: [...(freshLayout.sfxBlocks ?? []), ...sfxToPreserve],
+                          systemBlocks: [...(freshLayout.systemBlocks ?? []), ...systemToPreserve],
+                        };
                         queryClient.setQueryData<Panel[]>(panelsQueryKey, (old) => (!old ? old : old.map((p) => (p.id === freshRow.id ? { ...p, layout: mergedLayout as unknown as Json } : p))));
                         updatePanelMutation.mutate(
                           { id: freshRow.id, updates: { layout: mergedLayout as unknown as Json } },

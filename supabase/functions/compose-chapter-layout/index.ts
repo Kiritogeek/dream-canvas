@@ -500,6 +500,160 @@ function normalizeScenes(
 }
 
 // ═══════════════════════════════════════════════════════════════
+// CONSOMMATION DES CHAMPS DÉCOUPAGE v2 (dialogue, sfx, système…)
+// Miroir de src/services/panels.ts (SFX_PRESETS) et src/types
+// (SYSTEM_BLOCK_VARIANT_CONFIG). Doit rester aligné.
+// ═══════════════════════════════════════════════════════════════
+
+interface AbsRect { x: number; y: number; width: number; height: number }
+
+interface SfxPresetStyle {
+  fontFamily: string;
+  fontSize: number;
+  color: string;
+  strokeColor: string;
+  strokeWidth: number;
+  rotation: number;
+  glowColor?: string;
+  glowBlur?: number;
+}
+
+const SFX_PRESET_STYLE: Record<string, SfxPresetStyle> = {
+  boom:   { fontFamily: "'Bangers', cursive",         fontSize: 72, color: "#ef4444", strokeColor: "#1a0a0a", strokeWidth: 6, rotation: -6, glowColor: "#f97316", glowBlur: 18 },
+  slash:  { fontFamily: "'Bangers', cursive",         fontSize: 64, color: "#fbbf24", strokeColor: "#111111", strokeWidth: 6, rotation: 8 },
+  crack:  { fontFamily: "'Black Ops One', cursive",   fontSize: 60, color: "#ffffff", strokeColor: "#111111", strokeWidth: 5, rotation: -3 },
+  whoosh: { fontFamily: "'Luckiest Guy', cursive",    fontSize: 54, color: "#7dd3fc", strokeColor: "#0c1c3d", strokeWidth: 5, rotation: -14 },
+  rumble: { fontFamily: "'Rock Salt', cursive",       fontSize: 42, color: "#c4b5fd", strokeColor: "#17102e", strokeWidth: 4, rotation: 0, glowColor: "#7c3aed", glowBlur: 14 },
+  tap:    { fontFamily: "'Permanent Marker', cursive", fontSize: 36, color: "#e2e8f0", strokeColor: "#1e293b", strokeWidth: 3, rotation: 4 },
+};
+
+const SYSTEM_ACCENT: Record<string, { accent: string; defaultTitle: string }> = {
+  notification: { accent: "#22d3ee", defaultTitle: "NOTIFICATION" },
+  quest:        { accent: "#fbbf24", defaultTitle: "QUÊTE" },
+  alert:        { accent: "#f87171", defaultTitle: "ALERTE" },
+  levelup:      { accent: "#a78bfa", defaultTitle: "LEVEL UP !" },
+  status:       { accent: "#60a5fa", defaultTitle: "STATUT" },
+};
+
+const VALID_BUBBLE_TYPES = new Set(["speech", "shout", "whisper", "thought", "narration"]);
+
+const PANEL_W = 800;
+
+function normName(s: string): string {
+  return s.trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+}
+
+/** Personnages de la case (v2) ↔ assets du projet → ids pour asset_refs (pré-liaison). */
+function matchAssetRefs(
+  characters: string[] | undefined,
+  description: string,
+  assets: Array<{ id: string; name: string }>
+): string[] {
+  if (assets.length === 0) return [];
+  const byNorm = new Map(assets.map((a) => [normName(a.name), a.id]));
+  const ids = new Set<string>();
+  for (const c of characters ?? []) {
+    if (typeof c !== "string") continue;
+    const id = byNorm.get(normName(c));
+    if (id) ids.add(id);
+  }
+  // Fallback : scanner la description quand la case ne liste pas ses personnages.
+  if (ids.size === 0 && description) {
+    const dl = normName(description);
+    for (const a of assets) {
+      const n = normName(a.name);
+      if (n.length >= 3 && dl.includes(n)) ids.add(a.id);
+    }
+  }
+  return [...ids];
+}
+
+/** Bulles depuis dialogue[]/narration, positions ABSOLUES dans le rect du bloc. */
+function buildBubblesForBlock(rect: AbsRect, source: PanelOutlineBlock): object[] {
+  const out: object[] = [];
+  const BW = 300, BH = 150, NW = 360, NH = 90, PAD = 16, STEP = 160;
+  let cy = rect.y + PAD;
+
+  if (typeof source.narration === "string" && source.narration.trim()) {
+    out.push({
+      id: crypto.randomUUID(),
+      type: "narration",
+      text: source.narration.trim(),
+      position: { x: Math.max(0, Math.min(PANEL_W - NW, rect.x + PAD)), y: cy },
+      width: NW, height: NH, character: null, origin: "compose",
+    });
+    cy += NH + 14;
+  }
+
+  const dialogue = Array.isArray(source.dialogue) ? source.dialogue : [];
+  let side = 0;
+  let prevChar: string | undefined;
+  for (const d of dialogue) {
+    if (!d || typeof d.text !== "string" || !d.text.trim()) continue;
+    if (prevChar !== undefined && d.character && d.character !== prevChar) side = 1 - side;
+    prevChar = d.character;
+    const type = VALID_BUBBLE_TYPES.has(d.type ?? "") ? (d.type as string) : "speech";
+    const rawX = side === 0 ? rect.x + PAD : rect.x + rect.width - BW - PAD;
+    out.push({
+      id: crypto.randomUUID(),
+      type,
+      text: d.text.trim(),
+      position: { x: Math.max(0, Math.min(PANEL_W - BW, rawX)), y: cy },
+      width: BW, height: BH, character: d.character ?? null, origin: "compose",
+    });
+    cy += STEP;
+  }
+  return out;
+}
+
+/** Bloc SFX posé sur le tiers supérieur du bloc image, alterné gauche/droite. */
+function buildSfxForBlock(rect: AbsRect, sfx: { text?: string; preset?: string }, altRight: boolean): object | null {
+  const text = (sfx.text ?? "").trim();
+  if (!text) return null;
+  const style = SFX_PRESET_STYLE[sfx.preset ?? "boom"] ?? SFX_PRESET_STYLE.boom;
+  const W = 320, H = 140;
+  const rawX = altRight ? rect.x + rect.width - W - 20 : rect.x + 20;
+  return {
+    id: crypto.randomUUID(),
+    x: Math.max(0, Math.min(PANEL_W - W, rawX)),
+    y: rect.y + Math.min(40, Math.round(rect.height * 0.12)),
+    width: W, height: H,
+    text,
+    fontFamily: style.fontFamily,
+    fontSize: style.fontSize,
+    color: style.color,
+    strokeColor: style.strokeColor,
+    strokeWidth: style.strokeWidth,
+    rotation: style.rotation,
+    ...(style.glowColor ? { glowColor: style.glowColor, glowBlur: style.glowBlur ?? 12 } : {}),
+    zIndex: 10,
+    origin: "compose",
+  };
+}
+
+/** Fenêtre système native, centrée dans le rect réservé (bandeau pleine largeur si body vide). */
+function buildSystemForBlock(rect: AbsRect, sw: { variant?: string; title?: string; body?: string }): object {
+  const variant = SYSTEM_ACCENT[sw.variant ?? ""] ? (sw.variant as string) : "notification";
+  const cfg = SYSTEM_ACCENT[variant];
+  const bodyEmpty = !sw.body || !sw.body.trim();
+  const W = bodyEmpty ? 800 : 460;
+  const H = bodyEmpty ? 90 : 240;
+  const x = bodyEmpty ? 0 : Math.max(0, Math.min(PANEL_W - W, rect.x + Math.round((rect.width - W) / 2)));
+  const y = rect.y + Math.max(0, Math.round((rect.height - H) / 2));
+  return {
+    id: crypto.randomUUID(),
+    x, y, width: W, height: H,
+    variant,
+    title: (sw.title && sw.title.trim()) ? sw.title.trim() : cfg.defaultTitle,
+    body: sw.body ?? "",
+    accentColor: cfg.accent,
+    showIcon: true,
+    zIndex: 10,
+    origin: "compose",
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════
 // COMPOSITION : le serveur place tous les blocs
 // L'IA fournit uniquement groupement + type + gap + height_hint
 // ═══════════════════════════════════════════════════════════════
@@ -507,8 +661,9 @@ function normalizeScenes(
 function processComposition(
   scenes: AISimpleScene[],
   panelsOutline: PanelOutlineBlock[],
-  existingBlocks?: Array<{ prompt?: string | null; image_url?: string | null; name?: string | null }>
-): { blocks: object[]; speechBubbles: object[]; panelHeight: number } {
+  existingBlocks?: Array<{ prompt?: string | null; image_url?: string | null; name?: string | null }>,
+  assets: Array<{ id: string; name: string }> = []
+): { blocks: object[]; speechBubbles: object[]; sfxBlocks: object[]; systemBlocks: object[]; panelHeight: number } {
   // Index des images existantes par prompt (recomposition) — préserve le travail déjà généré
   const existingImageByPrompt = new Map<string, string>();
   for (const eb of existingBlocks ?? []) {
@@ -517,8 +672,57 @@ function processComposition(
     }
   }
   const blocks: object[] = [];
+  const speechBubbles: object[] = [];
+  const sfxBlocks: object[] = [];
+  const systemBlocks: object[] = [];
   const usedSourceIndices = new Set<number>();
   let yOffset = 0;
+  let sfxCount = 0;
+
+  const blockNameFor = (b: PanelOutlineBlock | undefined): string | null =>
+    b ? ((b.block_number && b.block_number > 1) ? `Case ${b.panel_number}.${b.block_number}` : `Case ${b.panel_number}`) : null;
+
+  // Émet UNE source à sa position absolue : bloc système natif OU bloc image
+  // (+ bulles depuis dialogue[]/narration + SFX). Partagé par la boucle
+  // principale et la réparation.
+  const emitSource = (source: PanelOutlineBlock | undefined, rect: AbsRect, shape: string | undefined) => {
+    if (!source) return;
+    // system_window → fenêtre native, pas d'image ni de crédit descriptif.
+    if (source.system_window && (source.system_window.title || source.system_window.body || source.system_window.variant)) {
+      systemBlocks.push(buildSystemForBlock(rect, source.system_window));
+      return;
+    }
+    const promptText = source.description ?? "";
+    const restoredImage = existingImageByPrompt.get(promptText.trim()) ?? null;
+    const hasDialogue = Array.isArray(source.dialogue) &&
+      source.dialogue.some((d) => d && typeof d.text === "string" && d.text.trim());
+    blocks.push({
+      id: crypto.randomUUID(),
+      x: rect.x,
+      y: rect.y,
+      width: rect.width,
+      height: rect.height,
+      shape: shape ?? undefined,
+      name: blockNameFor(source),
+      prompt: promptText,
+      // Bulles créées ici → ne pas dupliquer via la génération post-image (dialogue_text).
+      dialogue_text: hasDialogue ? null : (source.text_excerpt?.trim() || null),
+      asset_refs: matchAssetRefs(source.characters, promptText, assets),
+      image_url: restoredImage,
+      scene_type: source.scene_type ?? null,
+      effects: source.effects ?? null,
+      shot_type: source.shot_type ?? null,
+      location: source.location ?? null,
+      ...(Array.isArray(source.characters) ? { characters: source.characters } : {}),
+    });
+    for (const b of buildBubblesForBlock(rect, source)) speechBubbles.push(b);
+    if (source.sfx && typeof source.sfx.text === "string" && source.sfx.text.trim()) {
+      const s = buildSfxForBlock(rect, source.sfx, sfxCount % 2 === 1);
+      if (s) { sfxBlocks.push(s); sfxCount++; }
+    }
+  };
+
+  const clampGap = (v: number) => Math.max(GAP_MIN_PX, Math.min(GAP_MAX_PX, v));
 
   for (const scene of scenes) {
     // Filtrer les source_indices invalides ou déjà utilisés
@@ -546,73 +750,38 @@ function processComposition(
     for (const pb of positioned) {
       if (usedSourceIndices.has(pb.source_index)) continue;
       usedSourceIndices.add(pb.source_index);
-
-      const sourceBlock = panelsOutline[pb.source_index];
-      const promptText = sourceBlock?.description ?? "";
-      const blockName = sourceBlock
-        ? (sourceBlock.block_number && sourceBlock.block_number > 1)
-          ? `Case ${sourceBlock.panel_number}.${sourceBlock.block_number}`
-          : `Case ${sourceBlock.panel_number}`
-        : null;
-      const restoredImage = existingImageByPrompt.get(promptText.trim()) ?? null;
-
-      blocks.push({
-        id: crypto.randomUUID(),
-        x: pb.x,
-        y: yOffset + pb.y,
-        width: pb.width,
-        height: pb.height,
-        shape: pb.shape ?? undefined,
-        name: blockName,
-        prompt: promptText,
-        dialogue_text: sourceBlock?.text_excerpt?.trim() || null,
-        asset_refs: [],
-        image_url: restoredImage,
-        scene_type: (sourceBlock as { scene_type?: string })?.scene_type ?? null,
-        effects: (sourceBlock as { effects?: string[] })?.effects ?? null,
-        shot_type: (sourceBlock as { shot_type?: string })?.shot_type ?? null,
-      });
+      emitSource(
+        panelsOutline[pb.source_index],
+        { x: pb.x, y: yOffset + pb.y, width: pb.width, height: pb.height },
+        pb.shape,
+      );
     }
 
-    const rawGap = scene.gap_after;
-    const gapAfter = rawGap != null
-      ? Math.max(GAP_MIN_PX, Math.min(GAP_MAX_PX, rawGap))
-      : GAP_FALLBACK_PX;
+    // Respiration v2 : celle du dernier bloc narratif de la scène prime sur le gap IA.
+    const sceneMaxIdx = positioned.length > 0 ? Math.max(...positioned.map((p) => p.source_index)) : -1;
+    const breathing = sceneMaxIdx >= 0 ? panelsOutline[sceneMaxIdx]?.breathing_after : undefined;
+    const gapAfter = (typeof breathing === "number" && breathing > 0)
+      ? clampGap(breathing)
+      : (scene.gap_after != null ? clampGap(scene.gap_after) : GAP_FALLBACK_PX);
     yOffset += sectionHeight + gapAfter;
   }
 
   // Réparation : source_index non couverts → ajout en fin de canvas
   for (let i = 0; i < panelsOutline.length; i++) {
     if (!usedSourceIndices.has(i)) {
-      const sourceBlock = panelsOutline[i];
       console.warn(`[compose] source_index ${i} manquant — bloc par défaut ajouté`);
-      const promptText = sourceBlock?.description ?? "";
-      const blockName = sourceBlock
-        ? (sourceBlock.block_number && sourceBlock.block_number > 1)
-          ? `Case ${sourceBlock.panel_number}.${sourceBlock.block_number}`
-          : `Case ${sourceBlock.panel_number}`
-        : null;
-      const restoredImage = existingImageByPrompt.get(promptText.trim()) ?? null;
-      blocks.push({
-        id: crypto.randomUUID(),
-        x: 0, y: yOffset,
-        width: 800, height: 850,
-        shape: undefined,
-        name: blockName,
-        prompt: promptText,
-        dialogue_text: sourceBlock?.text_excerpt?.trim() || null,
-        asset_refs: [], image_url: restoredImage,
-        scene_type: (sourceBlock as { scene_type?: string })?.scene_type ?? null,
-        effects: (sourceBlock as { effects?: string[] })?.effects ?? null,
-        shot_type: (sourceBlock as { shot_type?: string })?.shot_type ?? null,
-      });
-      yOffset += 850 + GAP_FALLBACK_PX;
+      usedSourceIndices.add(i);
+      emitSource(panelsOutline[i], { x: 0, y: yOffset, width: 800, height: 850 }, undefined);
+      const breathing = panelsOutline[i]?.breathing_after;
+      yOffset += 850 + ((typeof breathing === "number" && breathing > 0) ? clampGap(breathing) : GAP_FALLBACK_PX);
     }
   }
 
   return {
     blocks,
-    speechBubbles: [],
+    speechBubbles,
+    sfxBlocks,
+    systemBlocks,
     panelHeight: Math.max(MIN_CANVAS_HEIGHT, yOffset),
   };
 }
@@ -723,6 +892,8 @@ Deno.serve(async (req: Request) => {
     panels_outline?: PanelOutlineBlock[];
     project_style?: string;
     characters?: string[];
+    /** Assets du projet (id + nom) — pré-liaison des blocs composés à leurs personnages. */
+    assets?: Array<{ id?: unknown; name?: unknown }>;
     chapter_title?: string;
     chapter_synopsis?: string;
     chapter_scenario_content?: string;
@@ -737,6 +908,14 @@ Deno.serve(async (req: Request) => {
   }
 
   const { chapter_id, panels_outline, project_style, characters, chapter_title, chapter_synopsis, chapter_scenario_content, existing_blocks } = body;
+
+  // Assets (id + nom) pour la pré-liaison des personnages aux blocs composés.
+  const assetPairs = Array.isArray(body.assets)
+    ? body.assets
+        .filter((a): a is { id: string; name: string } =>
+          !!a && typeof a.id === "string" && typeof a.name === "string" && a.name.trim().length > 0)
+        .map((a) => ({ id: a.id, name: a.name }))
+    : [];
 
   if (!chapter_id) return json({ error: "chapter_id requis" }, 400);
   if (!Array.isArray(panels_outline) || panels_outline.length === 0) {
@@ -790,13 +969,18 @@ Deno.serve(async (req: Request) => {
   const normalizedScenes = normalizeScenes(aiComposition.scenes, panels_outline.length);
 
   // ── Placement serveur ─────────────────────────────────────────
-  const { blocks, speechBubbles, panelHeight } = processComposition(
+  const { blocks, speechBubbles, sfxBlocks, systemBlocks, panelHeight } = processComposition(
     normalizedScenes,
     panels_outline,
-    Array.isArray(existing_blocks) ? existing_blocks : undefined
+    Array.isArray(existing_blocks) ? existing_blocks : undefined,
+    assetPairs
   );
 
-  const layout = { blocks, panelHeight };
+  // sfxBlocks / systemBlocks : clés additives du layout, seulement si non vides
+  // (un chapitre sans découpage v2 garde exactement le layout d'avant).
+  const layout: Record<string, unknown> = { blocks, panelHeight };
+  if (sfxBlocks.length > 0) layout.sfxBlocks = sfxBlocks;
+  if (systemBlocks.length > 0) layout.systemBlocks = systemBlocks;
 
   // ── Persistance ──────────────────────────────────────────────
   const canvasId = await getOrCreateCanvas(chapter_id, userId, supabaseUrl, serviceKey);
@@ -815,6 +999,8 @@ Deno.serve(async (req: Request) => {
       canvas_id: canvasId,
       blocks_count: blocks.length,
       bubbles_count: speechBubbles.length,
+      sfx_count: sfxBlocks.length,
+      system_count: systemBlocks.length,
       panel_height: panelHeight,
       model_used: aiResult.modelUsed,
     },

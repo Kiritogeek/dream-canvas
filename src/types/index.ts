@@ -228,6 +228,10 @@ export interface PanelBlock {
   effects?: string[] | null;
   /** Type de cadrage (ex: extreme_close_up, wide_shot, over_the_shoulder). */
   shot_type?: string | null;
+  /** Lieu de la scène (découpage v2) — sert la continuité visuelle par lieu plutôt que par matching lexical. */
+  location?: string | null;
+  /** Personnages présents dans la case (découpage v2) — noms d'assets. */
+  characters?: string[];
 }
 
 /**
@@ -259,6 +263,8 @@ export interface SfxBlock {
   letterSpacing?: number;
   /** Opacité 0–1 (échos mentaux : instances multiples à opacités dégressives). */
   opacity?: number;
+  /** Origine du bloc : "compose" = posé par la composition Auto. */
+  origin?: "compose";
   zIndex?: number;
   hidden?: boolean;
 }
@@ -288,6 +294,8 @@ export interface SystemBlock {
   showIcon?: boolean;
   /** Affiche le bouton ✕ en haut à droite (signature RPG — Solo Leveling). */
   showClose?: boolean;
+  /** Origine du bloc : "compose" = posé par la composition Auto. */
+  origin?: "compose";
   zIndex?: number;
   hidden?: boolean;
 }

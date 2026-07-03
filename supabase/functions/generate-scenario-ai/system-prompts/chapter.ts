@@ -38,7 +38,22 @@ export const CHAPTER_SYSTEM_PROMPT =
   "- Prose rythmée : chaque paragraphe = une seule idée (action, émotion, dialogue ou description), ~40 mots max.\n" +
   "- Retourne le chapitre COMPLET, format ### Scène / > Lieu / > Personnages / prose / --- conservé.\n" +
   "- Aucun méta-commentaire. Écris directement le texte.\n" +
-  "- Français sauf indication contraire.";
+  "- Français sauf indication contraire.\n\n" +
+
+  // Règles mesurées sur des chapitres réels (Royal Road) + ratios d'adaptation pro :
+  // References/spec/recherche-web-2026-07-03.md §D. Objectif : une prose nativement
+  // découpable en cases par detect_blocks, sans mur de texte.
+  "PROSE ADAPTATION-READY (le chapitre sera découpé en cases de webtoon) :\n" +
+  "- Hook d'ouverture SENSORIEL en première phrase, ≤ 25 mots (douleur, son, goût, choc). " +
+  "JAMAIS une description de lieu ou de météo en ouverture.\n" +
+  "- 3 à 5 scènes par chapitre. Chaque scène ouvre sur une phrase d'établissement lieu/temps.\n" +
+  "- Répliques courtes d'une ligne, prêtes à mettre en bulle — jamais de tirade d'un paragraphe.\n" +
+  "- Monologue intérieur limité à UNE phrase charnière par scène (décision, prise de conscience).\n" +
+  "- Chaque scène se termine sur un beat visuel fort (image, geste, révélation).\n" +
+  "- Dernière phrase du chapitre : courte, autonome, qui tient seule dans une case — " +
+  "cliffhanger sensoriel sec, micro-cliff relationnel, ou fausse quiétude ironique.\n" +
+  "- Planter 1-2 détails-graines par chapitre dans des paragraphes anodins, sans les souligner.\n" +
+  "- Ellipses temporelles toujours signalées en tête de scène (« Deux jours plus tard »), jamais implicites.";
 
 // ── Build du prompt utilisateur complet ───────────────────────
 

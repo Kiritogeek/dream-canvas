@@ -1,5 +1,7 @@
 // Edge Function: génération d'image par bloc de case (Étape 5)
-// Body: panel_id (id de la case), block_id, width, height, prompt, block_asset_*
+// Body: panel_id (id de la case), block_id, width, height, prompt,
+//       block_assets [{name,url}] (prioritaire) ou block_asset_* (rétrocompat),
+//       previous_image_url, scene_type, effects, shot_type
 // Style : uniquement `projects.style_template` en BDD (pas le corps de requête).
 // Stockage: {user_id}/projects/{project_id}/cases/{panel_id}/blocks/{block_id}.png
 // Secrets: FAL_API_KEY
@@ -37,6 +39,7 @@ import { getCorsHeaders, makeJsonResponse, isAllowedOriginConfigured } from "../
 import { getTierLimits, type UserPlan } from "../_shared/tierConfig.ts";
 import { computeUsagePeriodStart } from "../_shared/usagePeriod.ts";
 import { reserveImageCredit, refundImageCredit } from "../_shared/quota.ts";
+import { buildReferencePlan, buildAnatomyHint, type IdentityPair } from "./panelRefs.ts";
 
 function clip(value: string, max = 1200): string {
   if (value.length <= max) return value;
@@ -238,12 +241,15 @@ function buildVisualEffectsPrefix(sceneType?: string, effects?: string[]): strin
 function buildPolicySafePanelPrompt(params: {
   styleSummary: string;
   scenePrompt: string;
-  assetNames?: string[];
+  identityPairs: IdentityPair[];
+  textOnlyAssetNames: string[];
+  styleRefCount: number;
+  hasPreviousRef: boolean;
   width: number;
   height: number;
-  withReferences: boolean;
   sceneType?: string;
   effects?: string[];
+  shotType?: string;
 }): string {
   const safeStyle = clip(params.styleSummary.trim(), 520);
   const visualPrefix = buildVisualEffectsPrefix(params.sceneType, params.effects);
@@ -251,7 +257,7 @@ function buildPolicySafePanelPrompt(params: {
     ? sanitizePolicySensitiveText(visualPrefix + params.scenePrompt, 1400)
     : sanitizePolicySensitiveText(params.scenePrompt, 1200);
   const safeScene = enrichedScene;
-  const safeAssets = params.assetNames ? sanitizeAssetLabels(params.assetNames) : [];
+  const textOnlyNames = sanitizeAssetLabels(params.textOnlyAssetNames);
 
   const FULLBLEED_OPEN =
     `Full-bleed cinematic scene, no borders, no margins, no frames, no gutters, no white space. ` +
@@ -270,28 +276,62 @@ function buildPolicySafePanelPrompt(params: {
 
   parts.push(safeScene);
 
-  if (safeAssets.length > 0) {
-    if (params.withReferences) {
-      // Chaque image de référence est indexée par son nom d'asset pour que le modèle sache quelle image correspond à quel élément.
-      const indexedRefs = safeAssets
-        .map((name, i) => `image de référence ${i + 1} = "${name}"`)
-        .join(", ");
-      parts.push(
-        `CORRESPONDANCE DES RÉFÉRENCES : ${indexedRefs}. ` +
-        `Reproduire fidèlement l'apparence visuelle de chaque élément en utilisant uniquement l'image de référence qui lui correspond.`
-      );
-    } else {
-      parts.push(`Inclure dans la scène : ${safeAssets.join(", ")}.`);
-    }
+  const anatomyHint = buildAnatomyHint(params.shotType, params.sceneType);
+  if (anatomyHint) {
+    parts.push(`ANATOMY QUALITY: ${anatomyHint}.`);
+  }
+
+  // Chaque image envoyée à FLUX a UN rôle explicite, indexé dans l'ordre réel
+  // d'envoi (identité 1..P, style P+1..P+S, continuité en dernier) — sans
+  // rôles nommés le modèle mélange identité/style/continuité (constat C6).
+  const identityCount = params.identityPairs.length;
+  const styleStart = identityCount + 1;
+  const previousIndex = identityCount + params.styleRefCount + 1;
+
+  if (identityCount > 0) {
+    const indexedRefs = params.identityPairs
+      .map((pair, i) => {
+        const label = sanitizePolicySensitiveText(pair.name, 120) || `élément ${i + 1}`;
+        return `reference image ${i + 1} = "${label}"`;
+      })
+      .join(", ");
+    parts.push(
+      `CHARACTER IDENTITY REFERENCES (reproduce these exact characters/elements) : ${indexedRefs}. ` +
+      `Reproduire fidèlement l'apparence exacte (visage, coiffure, costume, couleurs, forme) de chaque élément ` +
+      `en utilisant UNIQUEMENT l'image de référence qui lui correspond.`
+    );
+  }
+
+  if (params.styleRefCount > 0) {
+    const range =
+      params.styleRefCount === 1
+        ? `reference image ${styleStart}`
+        : `reference images ${styleStart}-${styleStart + params.styleRefCount - 1}`;
+    parts.push(
+      `STYLE REFERENCES (${range}) : STYLE REFERENCE ONLY — reproduce the art style, linework, palette and shading of these images; ` +
+      `do NOT copy their characters or composition.`
+    );
+  }
+
+  if (params.hasPreviousRef) {
+    parts.push(
+      `PREVIOUS PANEL (reference image ${previousIndex} — visual continuity only) : c'est le panneau qui précède directement cette case dans la séquence. ` +
+      "Maintenir la cohérence : même espace narratif, même éclairage ambiant, même angle de caméra (relatif au personnage), " +
+      "même position du personnage dans l'environnement. Ne PAS reproduire l'image précédente — générer la scène SUIVANTE " +
+      "qui s'enchaîne naturellement. L'environnement et l'atmosphère doivent être visuellement continus."
+    );
+  }
+
+  if (textOnlyNames.length > 0) {
+    parts.push(`Inclure aussi dans la scène : ${textOnlyNames.join(", ")}.`);
   }
 
   let fullPrompt = parts.join("\n\n") + FULLBLEED_CLOSE;
 
-  if (params.withReferences) {
+  if (identityCount > 0) {
     fullPrompt +=
-      "\n\nRÈGLE ABSOLUE : chaque image de référence fournie représente un élément précis de la scène (voir correspondance ci-dessus). " +
-      "Reproduire l'apparence exacte (visage, coiffure, costume, couleurs, style graphique, forme) de chaque élément à partir de son image de référence. " +
-      "IMPORTANT — certaines références de personnages sont des PLANCHES MODÈLE (model sheet) montrant le MÊME personnage sous plusieurs angles (face, profil, dos) : utilise-les pour (1) garder son identité et son design EXACTS, et (2) le représenter dans la POSE et l'ANGLE décrits par la scène (par ex. de dos, de profil, en plongée). " +
+      "\n\nRÈGLE ABSOLUE : chaque image de référence a UN SEUL rôle — identité, style ou continuité (voir sections ci-dessus) ; ne jamais mélanger ces rôles. " +
+      "Si une référence d'identité est une PLANCHE MODÈLE (plusieurs angles du MÊME personnage), l'utiliser uniquement pour (1) garder son identité et son design EXACTS, et (2) le représenter dans la POSE et l'ANGLE décrits par la scène. " +
       "Le rendu final est UNE seule image de scène intégrée et cohérente — surtout PAS une planche, une grille ou un montage de plusieurs vignettes.";
   }
 
@@ -748,6 +788,7 @@ Deno.serve(async (req) => {
       width?: number;
       height?: number;
       prompt?: string;
+      block_assets?: unknown;
       block_asset_image_urls?: string[];
       block_asset_names?: string[];
       previous_image_url?: string;
@@ -772,6 +813,7 @@ Deno.serve(async (req) => {
       previous_image_url,
       scene_type,
       effects,
+      shot_type,
     } = body;
     if (!panel_id || !block_id || !prompt?.trim()) {
       return jsonResponse({ error: "panel_id, block_id et prompt requis" }, 400);
@@ -875,14 +917,6 @@ Deno.serve(async (req) => {
 
     const FLUX_MAX_REFS = 5;
 
-    const referenceImageUrls = Array.isArray(block_asset_image_urls)
-      ? block_asset_image_urls.filter((u) => typeof u === "string" && u.trim().length > 0)
-      : [];
-
-    const previousImageUrl = typeof previous_image_url === "string" && previous_image_url.trim()
-      ? previous_image_url.trim()
-      : null;
-
     // C3 — images de style du projet appliquées aux CASES (comme aux assets).
     // Droppées en preset manga (parité N&B avec generate-asset-image).
     const projStyleKey = (dbStyleText.match(/style_key:\s*(.+)/i)?.[1] ?? "").trim().toLowerCase();
@@ -891,53 +925,38 @@ Deno.serve(async (req) => {
       : [];
     if (projStyleKey === "manga") styleRefUrls = [];
 
-    // Budget FLUX (5) : assets nommés D'ABORD (indexés par nom dans le prompt),
-    // puis images de style, puis l'image de continuité EN DERNIER (le prompt de
-    // continuité la référence explicitement comme « la dernière image »).
-    const reservedForPrev = previousImageUrl ? 1 : 0;
-    const assetRefs = referenceImageUrls.slice(0, FLUX_MAX_REFS - reservedForPrev);
-    const styleSlots = Math.max(0, FLUX_MAX_REFS - assetRefs.length - reservedForPrev);
-    const styleRefsUsed = styleRefUrls.slice(0, styleSlots);
-    const hasStyleRefs = styleRefsUsed.length > 0;
-
-    const allReferenceImageUrls = [
-      ...assetRefs,
-      ...styleRefsUsed,
-      ...(previousImageUrl ? [previousImageUrl] : []),
-    ];
-    const useReferences = allReferenceImageUrls.length > 0;
-
-    const fullPrompt = buildPolicySafePanelPrompt({
-      styleSummary: effectiveStyleTemplate,
-      scenePrompt: prompt.trim(),
-      assetNames: Array.isArray(block_asset_names) ? block_asset_names : undefined,
-      width,
-      height,
-      withReferences: useReferences,
-      sceneType: typeof scene_type === "string" ? scene_type : undefined,
-      effects: Array.isArray(effects) ? effects : undefined,
+    // Plan de références en PAIRES {name, url} tronquées ensemble (C6) :
+    // identité d'abord, 1-2 images de style, continuité en dernier.
+    const plan = buildReferencePlan({
+      blockAssets: body.block_assets,
+      blockAssetNames: block_asset_names,
+      blockAssetImageUrls: block_asset_image_urls,
+      styleImageUrls: styleRefUrls,
+      previousImageUrl: typeof previous_image_url === "string" ? previous_image_url : null,
+      maxRefs: FLUX_MAX_REFS,
     });
 
-    let finalPrompt = fullPrompt;
-    if (previousImageUrl) {
-      finalPrompt = clip(
-        fullPrompt +
-        "\n\nCONTINUITÉ VISUELLE : La dernière image de référence est le panneau qui précède directement cette case dans la séquence. " +
-        "Maintenir la cohérence : même espace narratif, même éclairage ambiant, même angle de caméra (relatif au personnage), " +
-        "même position du personnage dans l'environnement. Ne PAS reproduire l'image précédente — générer la scène SUIVANTE " +
-        "qui s'enchaîne naturellement. L'environnement et l'atmosphère doivent être visuellement continus.",
-        2800
-      );
-    }
+    const allReferenceImageUrls = plan.imageUrls;
+    const useReferences = allReferenceImageUrls.length > 0;
 
-    if (hasStyleRefs) {
-      finalPrompt = clip(
-        finalPrompt +
-        `\n\nIMAGES DE RÉFÉRENCE DE STYLE (${styleRefsUsed.length}) : elles définissent UNIQUEMENT le style graphique du projet (trait, encrage, ombrage, palette, rendu des matières). ` +
-        "INTERDIT d'en copier les personnages, décors ou scènes — le contenu de la case reste exclusivement celui décrit ci-dessus.",
-        2800
-      );
-    }
+    // Les sections CONTINUITÉ et STYLE sont désormais générées DANS le prompt
+    // (rôles indexés par image) — plus d'appends séparés, sinon doublon.
+    const finalPrompt = clip(
+      buildPolicySafePanelPrompt({
+        styleSummary: effectiveStyleTemplate,
+        scenePrompt: prompt.trim(),
+        identityPairs: plan.identityPairs,
+        textOnlyAssetNames: plan.textOnlyAssetNames,
+        styleRefCount: plan.styleRefsUsed.length,
+        hasPreviousRef: plan.previousImageUrl !== null,
+        width,
+        height,
+        sceneType: typeof scene_type === "string" ? scene_type : undefined,
+        effects: Array.isArray(effects) ? effects : undefined,
+        shotType: typeof shot_type === "string" ? shot_type : undefined,
+      }),
+      2800
+    );
 
     // Réservation atomique du crédit AVANT l'appel FAL (anti race condition).
     const reservation = await reserveImageCredit(

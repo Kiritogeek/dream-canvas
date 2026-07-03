@@ -356,12 +356,16 @@ export interface GenerateBlockImageParams {
   blockAssetImageUrls?: string[];
   /** Noms des assets du bloc pour enrichir le prompt. */
   blockAssetNames?: string[];
+  /** Paires nom↔image alignées (prioritaire serveur) — évite le désalignement C6. */
+  blockAssets?: Array<{ name: string; url: string | null }>;
   /** URL de l'image du bloc précédent dans la séquence (contexte visuel pour la continuité). */
   previousImageUrl?: string;
   /** Type de scène issu du découpage IA (ex: action_impact, dialogue, establishing). */
   sceneType?: string;
   /** Effets visuels à injecter dans le prompt FLUX (ex: radial_speed_lines, impact_burst). */
   effects?: string[];
+  /** Cadrage (ex: extreme_close_up, wide_shot) — pilote les hints anatomie. */
+  shotType?: string;
 }
 
 /**
@@ -407,9 +411,11 @@ export async function generatePanelBlockImage(
       context_chapter: params.contextChapter ?? undefined,
       block_asset_image_urls: params.blockAssetImageUrls?.length ? params.blockAssetImageUrls : undefined,
       block_asset_names: params.blockAssetNames?.length ? params.blockAssetNames : undefined,
+      block_assets: params.blockAssets?.length ? params.blockAssets : undefined,
       previous_image_url: params.previousImageUrl ?? undefined,
       scene_type: params.sceneType ?? undefined,
       effects: params.effects?.length ? params.effects : undefined,
+      shot_type: params.shotType ?? undefined,
     }),
   });
 

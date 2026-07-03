@@ -19,7 +19,9 @@ import {
   AlertTriangle,
   Lock,
   Unlock,
+  SlidersHorizontal,
 } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -55,6 +57,7 @@ import { useScenarioAI } from "@/hooks/useScenarioAI";
 import { useUserPlan } from "@/hooks/useUserPlan";
 import { useAuth } from "@/hooks/useAuth";
 import { callDetectBlocks, callGenerateAiSummary } from "@/services/scenarioAI";
+import type { DetectBlocksDensity, DetectBlocksGenre } from "@/services/scenarioAI";
 import { useNarraMindDebounce } from "@/hooks/useNarraMindDebounce";
 import { useCompassIndex } from "@/hooks/useCompassIndex";
 import { estimatePanelCount } from "@/services/panels";
@@ -68,6 +71,43 @@ import { EMPTY_CHAPTER_ASSETS } from "@/types";
 
 /** NarraMind : auto-save uniquement, pas d’appel manuel — garde-fous tokens. */
 const NARRAMIND_AUTOSAVE_MIN_WORDS = 80;
+
+// ── Réglages du découpage (persistés par projet, pas de migration) ──
+
+interface DecoupageSettings {
+  density: DetectBlocksDensity;
+  genre: DetectBlocksGenre | "";
+  allowSystem: boolean;
+}
+
+const DEFAULT_DECOUPAGE_SETTINGS: DecoupageSettings = { density: "standard", genre: "", allowSystem: true };
+
+const decoupageSettingsKey = (projectId: string) => `dreamweave_decoupage_settings_${projectId}`;
+
+function loadDecoupageSettings(projectId: string | undefined): DecoupageSettings {
+  if (!projectId) return DEFAULT_DECOUPAGE_SETTINGS;
+  try {
+    const raw = localStorage.getItem(decoupageSettingsKey(projectId));
+    return raw ? { ...DEFAULT_DECOUPAGE_SETTINGS, ...(JSON.parse(raw) as Partial<DecoupageSettings>) } : DEFAULT_DECOUPAGE_SETTINGS;
+  } catch {
+    return DEFAULT_DECOUPAGE_SETTINGS;
+  }
+}
+
+const DECOUPAGE_GENRE_LABELS: Record<DetectBlocksGenre | "", string> = {
+  "": "Aucun (standard)",
+  action: "Action / RPG",
+  fantasy: "Fantasy",
+  drame: "Drame",
+  romance: "Romance",
+  comedie: "Comédie",
+};
+
+const DECOUPAGE_DENSITY_LABELS: Record<DetectBlocksDensity, string> = {
+  aere: "Aéré",
+  standard: "Standard",
+  dense: "Dense",
+};
 
 
 function stripTypeMarkers(text: string): string {
@@ -646,6 +686,24 @@ export default function ScenarioChapterEditor() {
     return () => window.removeEventListener("keydown", handler);
   }, [handleManualSave]);
 
+  // ── Réglages du découpage (genre / densité / système) ─────────
+
+  const [decoupageSettings, setDecoupageSettings] = useState<DecoupageSettings>(() => loadDecoupageSettings(projectId));
+  useEffect(() => {
+    setDecoupageSettings(loadDecoupageSettings(projectId));
+  }, [projectId]);
+  const updateDecoupageSettings = useCallback((updates: Partial<DecoupageSettings>) => {
+    setDecoupageSettings((prev) => {
+      const next = { ...prev, ...updates };
+      if (projectId) {
+        try {
+          localStorage.setItem(decoupageSettingsKey(projectId), JSON.stringify(next));
+        } catch { /* storage indisponible */ }
+      }
+      return next;
+    });
+  }, [projectId]);
+
   // ── Détecter les blocs ────────────────────────────────────────
 
   const handleDetectBlocks = useCallback(async () => {
@@ -680,6 +738,9 @@ export default function ScenarioChapterEditor() {
         target_panel_count: project?.panels_target_per_chapter ?? undefined,
         assets_context: assetsContext,
         universe_lore: project?.universe_lore?.trim() || undefined,
+        text_density: decoupageSettings.density,
+        genre: decoupageSettings.genre || undefined,
+        allow_system_windows: decoupageSettings.allowSystem,
       });
 
       // Sauvegarder en BDD quelle que soit la navigation courante
@@ -722,7 +783,7 @@ export default function ScenarioChapterEditor() {
       if (isMountedRef.current) setIsDetecting(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chapter, content, toast]);
+  }, [chapter, content, toast, decoupageSettings]);
 
   // ── Toggle / unlock un bloc ──────────────────────────────────
 
@@ -1642,6 +1703,82 @@ export default function ScenarioChapterEditor() {
             )}
             <span>Modifier les assets</span>
           </button>
+
+          {!allBlocksLocked && (
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  title="Réglages du découpage"
+                  className="flex items-center gap-2 pl-3.5 pr-4 h-9 rounded-full bg-background/95 backdrop-blur-xl border border-border/60 hover:border-border shadow-md text-xs font-medium text-muted-foreground hover:text-foreground transition-[box-shadow,border-color,transform,color] duration-200 hover:scale-[1.03]"
+                >
+                  <SlidersHorizontal className="h-3.5 w-3.5 shrink-0" />
+                  <span>
+                    {DECOUPAGE_DENSITY_LABELS[decoupageSettings.density]}
+                    {decoupageSettings.genre ? ` · ${DECOUPAGE_GENRE_LABELS[decoupageSettings.genre]}` : ""}
+                    {decoupageSettings.allowSystem ? "" : " · sans système"}
+                  </span>
+                </button>
+              </PopoverTrigger>
+              <PopoverContent side="top" align="end" sideOffset={8} className="w-[300px] p-4 space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Genre de l'histoire</label>
+                  <select
+                    value={decoupageSettings.genre}
+                    onChange={(e) => {
+                      const g = e.target.value as DetectBlocksGenre | "";
+                      // Le genre suggère un défaut système ; l'utilisateur peut le rouvrir ensuite.
+                      const allowSystem = g === "action" || g === "fantasy" ? true : g === "" ? decoupageSettings.allowSystem : false;
+                      updateDecoupageSettings({ genre: g, allowSystem });
+                    }}
+                    className="w-full h-9 rounded-lg border border-border bg-background text-sm px-2.5 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  >
+                    {(Object.entries(DECOUPAGE_GENRE_LABELS) as [DetectBlocksGenre | "", string][]).map(([value, label]) => (
+                      <option key={value || "none"} value={value}>{label}</option>
+                    ))}
+                  </select>
+                  <p className="text-[11px] text-muted-foreground leading-snug">Calibre le nombre de cases et le style du découpage.</p>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Densité de texte</label>
+                  <div className="flex gap-1.5">
+                    {(Object.entries(DECOUPAGE_DENSITY_LABELS) as [DetectBlocksDensity, string][]).map(([value, label]) => (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => updateDecoupageSettings({ density: value })}
+                        className={cn(
+                          "flex-1 h-8 rounded-lg border text-xs font-medium transition-colors",
+                          decoupageSettings.density === value
+                            ? "border-primary/60 bg-primary/15 text-primary"
+                            : "border-border/70 text-muted-foreground hover:text-foreground hover:bg-muted/50",
+                        )}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground leading-snug">Aéré : peu de texte, plus de cases muettes. Dense : plus de bulles par case.</p>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Fenêtres système (RPG)</label>
+                  <button
+                    type="button"
+                    onClick={() => updateDecoupageSettings({ allowSystem: !decoupageSettings.allowSystem })}
+                    className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-muted/40 border border-border hover:bg-muted/60 transition-colors text-sm text-left"
+                  >
+                    <span className="text-[13px] leading-snug">Mon univers a des notifications / statuts</span>
+                    <span className={cn(
+                      "shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full border",
+                      decoupageSettings.allowSystem ? "border-primary/60 bg-primary/15 text-primary" : "border-border/70 text-muted-foreground",
+                    )}>
+                      {decoupageSettings.allowSystem ? "Oui" : "Non"}
+                    </span>
+                  </button>
+                </div>
+              </PopoverContent>
+            </Popover>
+          )}
 
           {allBlocksLocked ? (
             <button

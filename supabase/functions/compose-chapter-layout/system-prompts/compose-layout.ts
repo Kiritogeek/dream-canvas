@@ -77,6 +77,13 @@ export const COMPOSE_LAYOUT_SYSTEM_PROMPT =
 
 // ── Types ────────────────────────────────────────────────────────
 
+/** Une réplique du découpage v2 (detect_blocks). */
+export interface OutlineDialogue {
+  character?: string;
+  type?: string;
+  text: string;
+}
+
 export interface PanelOutlineBlock {
   panel_number: number;
   block_number?: number;
@@ -87,6 +94,15 @@ export interface PanelOutlineBlock {
   scene_type?: string;
   shot_type?: string;
   effects?: string[];
+  // ── Découpage v2 (juillet 2026) — champs optionnels, rétrocompatibles ──
+  characters?: string[];
+  location?: string;
+  dialogue?: OutlineDialogue[];
+  narration?: string | null;
+  silent?: boolean;
+  sfx?: { text?: string; preset?: string } | null;
+  breathing_after?: number;
+  system_window?: { variant?: string; title?: string; body?: string } | null;
 }
 
 // Mapping direct scene_type (13 types du découpage) → catégorie + compositions suggérées.

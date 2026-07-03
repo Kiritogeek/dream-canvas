@@ -14,6 +14,8 @@ export interface ComposeChapterLayoutParams {
   }>;
   projectStyle?: string | null;
   characters?: string[];
+  /** Assets du projet (id + nom) — le serveur pré-lie les blocs composés à leurs personnages (asset_refs). */
+  assets?: Array<{ id: string; name: string }>;
   chapterTitle?: string;
   chapterSynopsis?: string;
   chapterScenarioContent?: string;
@@ -51,6 +53,7 @@ export async function composeChapterLayout(
       panels_outline: params.panelsOutline,
       project_style: params.projectStyle ?? undefined,
       characters: params.characters?.length ? params.characters : undefined,
+      assets: params.assets?.length ? params.assets : undefined,
       chapter_title: params.chapterTitle,
       chapter_synopsis: params.chapterSynopsis ?? undefined,
       chapter_scenario_content: params.chapterScenarioContent ?? undefined,

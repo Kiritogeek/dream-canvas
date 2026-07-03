@@ -113,7 +113,9 @@ const SfxItem = memo(function SfxItem({
         top: geom.y,
         width: geom.width,
         height: geom.height,
-        zIndex: isSelected ? 99999 : (sfx.zIndex ?? 0),
+        // Un SFX (onomatopée) se peint TOUJOURS au-dessus des cases : bande +6000,
+        // au-dessus des images (+1000) et du système (+3000), sous les bulles (+10000).
+        zIndex: isSelected ? 99999 : (sfx.zIndex ?? 0) + 6000,
         overflow: "visible",
         ...(sfx.hidden ? { opacity: 0, pointerEvents: "none" } : {}),
         ...(isSelected ? { outline: "2px dashed hsl(var(--primary))", outlineOffset: "2px" } : {}),

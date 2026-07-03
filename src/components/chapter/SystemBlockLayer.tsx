@@ -62,7 +62,8 @@ const SystemBlockItem = memo(function SystemBlockItem({
         top: geom.y,
         width: geom.width,
         height: geom.height,
-        zIndex: isSelected ? 99999 : (sb.zIndex ?? 0),
+        // Fenêtre système au-dessus des cases (+1000), sous les SFX (+6000) et les bulles (+10000).
+        zIndex: isSelected ? 99999 : (sb.zIndex ?? 0) + 3000,
         overflow: "visible",
         ...(sb.hidden ? { opacity: 0, pointerEvents: "none" } : {}),
         ...(isSelected ? { outline: "2px dashed hsl(var(--primary))", outlineOffset: "3px" } : {}),

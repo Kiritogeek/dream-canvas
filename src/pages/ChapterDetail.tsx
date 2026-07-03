@@ -76,10 +76,18 @@ import {
   getPanelLayout,
   getPanelColorBlocks,
   getPanelSpeechBubbles,
+  getPanelSfxBlocks,
+  getPanelSystemBlocks,
+  makeSfxBlockFromPreset,
+  makeSystemBlock,
   generatePanelBlockImage,
   DEFAULT_BLOCK_WIDTH,
   DEFAULT_BLOCK_HEIGHT,
   DEFAULT_COLOR_BLOCK_FILL,
+  DEFAULT_SFX_WIDTH,
+  DEFAULT_SFX_HEIGHT,
+  DEFAULT_SYSTEM_BLOCK_WIDTH,
+  DEFAULT_SYSTEM_BLOCK_HEIGHT,
   PANEL_HEIGHT_MIN,
   PANEL_HEIGHT_MAX,
 } from "@/services/panels";
@@ -87,12 +95,18 @@ import { callSuggestBlockPrompt } from "@/services/scenarioAI";
 import { ColorBlockLayer } from "@/components/chapter/ColorBlockLayer";
 import { ImageBlockLayer } from "@/components/chapter/ImageBlockLayer";
 import { BubbleLayer } from "@/components/chapter/BubbleLayer";
+import { SfxLayer } from "@/components/chapter/SfxLayer";
+import { SystemBlockLayer } from "@/components/chapter/SystemBlockLayer";
+import { SfxToolbar } from "@/components/chapter/SfxToolbar";
+import { SystemBlockToolbar } from "@/components/chapter/SystemBlockToolbar";
+import { SfxVisual } from "@/components/chapter/SfxVisual";
+import { SystemBlockVisual } from "@/components/chapter/SystemBlockVisual";
 import { PanelExportSpeechBubbles } from "@/components/chapter/PanelExportSpeechBubbles";
 import { EditorRightPanel } from "@/components/chapter/EditorRightPanel";
 import { EditorLeftSidebar, type SidebarTab } from "@/components/chapter/EditorLeftSidebar";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import type { Json } from "@/integrations/supabase/types";
-import type { Panel, PanelBlock, PanelLayout, PanelBlockShape, ColorBlock, ColorBlockFill, SpeechBubble, Asset } from "@/types";
+import type { Panel, PanelBlock, PanelLayout, PanelBlockShape, ColorBlock, ColorBlockFill, SpeechBubble, Asset, SfxBlock, SystemBlock, SystemBlockVariant } from "@/types";
 import {
   DEFAULT_SPEECH_BUBBLE_WIDTH,
   DEFAULT_SPEECH_BUBBLE_HEIGHT,
@@ -187,7 +201,9 @@ function loadCanvasHistoryRestoredIds(chapterDbId: string | undefined): Set<stri
 type CanvasElementDeleteIntent =
   | { panelId: string; kind: "image"; blockId: string }
   | { panelId: string; kind: "color"; colorBlockId: string }
-  | { panelId: string; kind: "bubble"; bubbleId: string };
+  | { panelId: string; kind: "bubble"; bubbleId: string }
+  | { panelId: string; kind: "sfx"; sfxId: string }
+  | { panelId: string; kind: "system"; systemBlockId: string };
 
 function getAssetReferenceImageUrl(asset: Asset): string | null {
   if (asset.asset_type === "character") {
@@ -384,6 +400,10 @@ export default function ChapterDetail() {
   const [selectedColorBlockIdInModal, setSelectedColorBlockIdInModal] = useState<{ panelId: string; colorBlockId: string } | null>(null);
   /** Bulle de dialogue sélectionnée (onglet Dialogue) pour éditer le texte et le style */
   const [selectedSpeechBubbleIdInModal, setSelectedSpeechBubbleIdInModal] = useState<{ panelId: string; bubbleId: string } | null>(null);
+
+  const [selectedSfxIdInModal, setSelectedSfxIdInModal] = useState<{ panelId: string; sfxId: string } | null>(null);
+
+  const [selectedSystemBlockIdInModal, setSelectedSystemBlockIdInModal] = useState<{ panelId: string; systemBlockId: string } | null>(null);
   /** Bulle dont la toolbar affiche le mode queue (null = mode bulle normal) */
   const [tailContextBubbleId, setTailContextBubbleId] = useState<string | null>(null);
   /** Modal de découpage et téléchargement ZIP */
@@ -402,6 +422,8 @@ export default function ChapterDetail() {
     setSelectedBlockIdInModal(null);
     setSelectedColorBlockIdInModal(null);
     setSelectedSpeechBubbleIdInModal(null);
+    setSelectedSfxIdInModal(null);
+    setSelectedSystemBlockIdInModal(null);
     setTailContextBubbleId(null);
     setPanelHeightDragDraft(null);
   }, []);
@@ -640,6 +662,10 @@ export default function ChapterDetail() {
     setSelectedBlockIdInModal,
     setSelectedColorBlockIdInModal,
     setSelectedSpeechBubbleIdInModal,
+    selectedSfxIdInModal,
+    selectedSystemBlockIdInModal,
+    setSelectedSfxIdInModal,
+    setSelectedSystemBlockIdInModal,
     setCanvasDeleteIntent,
     PANEL_WIDTH,
     canvasPlacementFromViewportCenter,
@@ -759,6 +785,126 @@ export default function ChapterDetail() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [queryClient, panels, updatePanelMutation, toast, recordCanvasUndoBeforeChange]);
 
+  // ── Blocs SFX & fenêtres système — même pattern optimiste que les autres couches.
+  // Toujours écrire le layout en spread {...layoutData} pour préserver blocks/panelHeight.
+  // Gestes continus (sliders, color picker) : variantes *Live = cache seul, avec UN snapshot
+  // undo par geste (pattern handleColorBlockFillChange) ; le commit final écrit en BDD.
+
+  /** panelIds dont le geste live en cours a déjà pris son snapshot undo. */
+  const liveLayoutGestureUndoRef = useRef<Set<string>>(new Set());
+
+  const applySfxBlocksLive = useCallback((panelId: string, nextSfx: SfxBlock[]) => {
+    if (!liveLayoutGestureUndoRef.current.has(panelId)) {
+      recordCanvasUndoBeforeChange(panelId);
+      liveLayoutGestureUndoRef.current.add(panelId);
+    }
+    const currentPanels = queryClient.getQueryData<Panel[]>(panelsQueryKey) ?? [];
+    const panelData = currentPanels.find((p) => p.id === panelId) ?? panels.find((p) => p.id === panelId);
+    const layoutData = getPanelLayout(panelData);
+    const nextLayout: PanelLayout = { ...layoutData, sfxBlocks: nextSfx };
+    queryClient.setQueryData<Panel[]>(panelsQueryKey, (old) => (!old ? old : old.map((p) => (p.id === panelId ? { ...p, layout: nextLayout as unknown as Json } : p))));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [queryClient, panels, recordCanvasUndoBeforeChange]);
+
+  const applySfxBlocksUpdate = useCallback((panelId: string, nextSfx: SfxBlock[]) => {
+    const hadLiveGesture = liveLayoutGestureUndoRef.current.delete(panelId);
+    const currentPanels = queryClient.getQueryData<Panel[]>(panelsQueryKey) ?? [];
+    const panelData = currentPanels.find((p) => p.id === panelId) ?? panels.find((p) => p.id === panelId);
+    if (panelData && !hadLiveGesture) recordCanvasUndoBeforeChange(panelId);
+    const layoutData = getPanelLayout(panelData);
+    const nextLayout: PanelLayout = { ...layoutData, sfxBlocks: nextSfx };
+    queryClient.cancelQueries({ queryKey: panelsQueryKey });
+    const previousPanels = queryClient.getQueryData<Panel[]>(panelsQueryKey);
+    queryClient.setQueryData<Panel[]>(panelsQueryKey, (old) => (!old ? old : old.map((p) => (p.id === panelId ? { ...p, layout: nextLayout as unknown as Json } : p))));
+    updatePanelMutation.mutate(
+      { id: panelId, updates: { layout: nextLayout as unknown as Json } },
+      { onError: (err) => { if (previousPanels != null) queryClient.setQueryData(panelsQueryKey, previousPanels); toast({ title: "Erreur", description: err.message, variant: "destructive" }); } }
+    );
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [queryClient, panels, updatePanelMutation, toast, recordCanvasUndoBeforeChange]);
+
+  const handleSfxMoveCommit = useCallback((panelId: string, sfxId: string, x: number, y: number) => {
+    const currentPanels = queryClient.getQueryData<Panel[]>(panelsQueryKey) ?? [];
+    const panelData = currentPanels.find((p) => p.id === panelId) ?? panels.find((p) => p.id === panelId);
+    const list = getPanelSfxBlocks(panelData);
+    applySfxBlocksUpdate(panelId, list.map((s) => (s.id === sfxId ? { ...s, x, y } : s)));
+    skipNextCanvasEmptyClickRef.current = true;
+    setSelectedBlockIdInModal(null);
+    setSelectedColorBlockIdInModal(null);
+    setSelectedSpeechBubbleIdInModal(null);
+    setSelectedSystemBlockIdInModal(null);
+    setSelectedSfxIdInModal({ panelId, sfxId });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [queryClient, panels, applySfxBlocksUpdate]);
+
+  const handleSfxResizeCommit = useCallback((panelId: string, sfxId: string, draft: { x: number; y: number; width: number; height: number }) => {
+    const currentPanels = queryClient.getQueryData<Panel[]>(panelsQueryKey) ?? [];
+    const panelData = currentPanels.find((p) => p.id === panelId) ?? panels.find((p) => p.id === panelId);
+    const list = getPanelSfxBlocks(panelData);
+    applySfxBlocksUpdate(panelId, list.map((s) => (s.id === sfxId ? { ...s, x: draft.x, y: draft.y, width: draft.width, height: draft.height } : s)));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [queryClient, panels, applySfxBlocksUpdate]);
+
+  const handleSfxRotateCommit = useCallback((panelId: string, sfxId: string, rotation: number) => {
+    const currentPanels = queryClient.getQueryData<Panel[]>(panelsQueryKey) ?? [];
+    const panelData = currentPanels.find((p) => p.id === panelId) ?? panels.find((p) => p.id === panelId);
+    const list = getPanelSfxBlocks(panelData);
+    applySfxBlocksUpdate(panelId, list.map((s) => (s.id === sfxId ? { ...s, rotation } : s)));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [queryClient, panels, applySfxBlocksUpdate]);
+
+  const applySystemBlocksLive = useCallback((panelId: string, nextSystem: SystemBlock[]) => {
+    if (!liveLayoutGestureUndoRef.current.has(panelId)) {
+      recordCanvasUndoBeforeChange(panelId);
+      liveLayoutGestureUndoRef.current.add(panelId);
+    }
+    const currentPanels = queryClient.getQueryData<Panel[]>(panelsQueryKey) ?? [];
+    const panelData = currentPanels.find((p) => p.id === panelId) ?? panels.find((p) => p.id === panelId);
+    const layoutData = getPanelLayout(panelData);
+    const nextLayout: PanelLayout = { ...layoutData, systemBlocks: nextSystem };
+    queryClient.setQueryData<Panel[]>(panelsQueryKey, (old) => (!old ? old : old.map((p) => (p.id === panelId ? { ...p, layout: nextLayout as unknown as Json } : p))));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [queryClient, panels, recordCanvasUndoBeforeChange]);
+
+  const applySystemBlocksUpdate = useCallback((panelId: string, nextSystem: SystemBlock[]) => {
+    const hadLiveGesture = liveLayoutGestureUndoRef.current.delete(panelId);
+    const currentPanels = queryClient.getQueryData<Panel[]>(panelsQueryKey) ?? [];
+    const panelData = currentPanels.find((p) => p.id === panelId) ?? panels.find((p) => p.id === panelId);
+    if (panelData && !hadLiveGesture) recordCanvasUndoBeforeChange(panelId);
+    const layoutData = getPanelLayout(panelData);
+    const nextLayout: PanelLayout = { ...layoutData, systemBlocks: nextSystem };
+    queryClient.cancelQueries({ queryKey: panelsQueryKey });
+    const previousPanels = queryClient.getQueryData<Panel[]>(panelsQueryKey);
+    queryClient.setQueryData<Panel[]>(panelsQueryKey, (old) => (!old ? old : old.map((p) => (p.id === panelId ? { ...p, layout: nextLayout as unknown as Json } : p))));
+    updatePanelMutation.mutate(
+      { id: panelId, updates: { layout: nextLayout as unknown as Json } },
+      { onError: (err) => { if (previousPanels != null) queryClient.setQueryData(panelsQueryKey, previousPanels); toast({ title: "Erreur", description: err.message, variant: "destructive" }); } }
+    );
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [queryClient, panels, updatePanelMutation, toast, recordCanvasUndoBeforeChange]);
+
+  const handleSystemBlockMoveCommit = useCallback((panelId: string, systemBlockId: string, x: number, y: number) => {
+    const currentPanels = queryClient.getQueryData<Panel[]>(panelsQueryKey) ?? [];
+    const panelData = currentPanels.find((p) => p.id === panelId) ?? panels.find((p) => p.id === panelId);
+    const list = getPanelSystemBlocks(panelData);
+    applySystemBlocksUpdate(panelId, list.map((s) => (s.id === systemBlockId ? { ...s, x, y } : s)));
+    skipNextCanvasEmptyClickRef.current = true;
+    setSelectedBlockIdInModal(null);
+    setSelectedColorBlockIdInModal(null);
+    setSelectedSpeechBubbleIdInModal(null);
+    setSelectedSfxIdInModal(null);
+    setSelectedSystemBlockIdInModal({ panelId, systemBlockId });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [queryClient, panels, applySystemBlocksUpdate]);
+
+  const handleSystemBlockResizeCommit = useCallback((panelId: string, systemBlockId: string, draft: { x: number; y: number; width: number; height: number }) => {
+    const currentPanels = queryClient.getQueryData<Panel[]>(panelsQueryKey) ?? [];
+    const panelData = currentPanels.find((p) => p.id === panelId) ?? panels.find((p) => p.id === panelId);
+    const list = getPanelSystemBlocks(panelData);
+    applySystemBlocksUpdate(panelId, list.map((s) => (s.id === systemBlockId ? { ...s, x: draft.x, y: draft.y, width: draft.width, height: draft.height } : s)));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [queryClient, panels, applySystemBlocksUpdate]);
+
   const loading = loadingChapter || loadingPanels;
   const canSaveLink =
     (chapter?.linked_scenario_chapter_id ?? null) !==
@@ -839,6 +985,46 @@ export default function ChapterDetail() {
         {
           onSuccess: () => toast({ title: "Bloc de couleur supprimé" }),
           onError: (err) => { if (prevColor) queryClient.setQueryData(panelsQueryKey, prevColor); toast({ title: "Erreur", description: err.message, variant: "destructive" }); },
+        },
+      );
+      return;
+    }
+    if (intent.kind === "sfx") {
+      const nextSfx = getPanelSfxBlocks(row).filter((s) => s.id !== intent.sfxId);
+      const nextLayout: PanelLayout = { ...ly, sfxBlocks: nextSfx };
+      if (
+        selectedSfxIdInModal?.panelId === intent.panelId &&
+        selectedSfxIdInModal.sfxId === intent.sfxId
+      ) {
+        setSelectedSfxIdInModal(null);
+      }
+      const prevSfx = queryClient.getQueryData<Panel[]>(panelsQueryKey);
+      queryClient.setQueryData<Panel[]>(panelsQueryKey, (old) => (!old ? old : old.map((p) => (p.id === intent.panelId ? { ...p, layout: nextLayout as unknown as Json } : p))));
+      updatePanelMutation.mutate(
+        { id: intent.panelId, updates: { layout: nextLayout as unknown as Json } },
+        {
+          onSuccess: () => toast({ title: "SFX supprimé" }),
+          onError: (err) => { if (prevSfx) queryClient.setQueryData(panelsQueryKey, prevSfx); toast({ title: "Erreur", description: err.message, variant: "destructive" }); },
+        },
+      );
+      return;
+    }
+    if (intent.kind === "system") {
+      const nextSystem = getPanelSystemBlocks(row).filter((s) => s.id !== intent.systemBlockId);
+      const nextLayout: PanelLayout = { ...ly, systemBlocks: nextSystem };
+      if (
+        selectedSystemBlockIdInModal?.panelId === intent.panelId &&
+        selectedSystemBlockIdInModal.systemBlockId === intent.systemBlockId
+      ) {
+        setSelectedSystemBlockIdInModal(null);
+      }
+      const prevSystem = queryClient.getQueryData<Panel[]>(panelsQueryKey);
+      queryClient.setQueryData<Panel[]>(panelsQueryKey, (old) => (!old ? old : old.map((p) => (p.id === intent.panelId ? { ...p, layout: nextLayout as unknown as Json } : p))));
+      updatePanelMutation.mutate(
+        { id: intent.panelId, updates: { layout: nextLayout as unknown as Json } },
+        {
+          onSuccess: () => toast({ title: "Fenêtre système supprimée" }),
+          onError: (err) => { if (prevSystem) queryClient.setQueryData(panelsQueryKey, prevSystem); toast({ title: "Erreur", description: err.message, variant: "destructive" }); },
         },
       );
       return;
@@ -1024,6 +1210,8 @@ export default function ChapterDetail() {
     const blocks = getPanelBlocks(panel);
     const colorBlocks = getPanelColorBlocks(panel);
     const speechBubbles = getPanelSpeechBubbles(panel);
+    const sfxBlocks = getPanelSfxBlocks(panel);
+    const systemBlocks = getPanelSystemBlocks(panel);
     const panelHeight = getPanelHeight(panel);
     const selectedBlock = selectedBlockIdInModal?.panelId === panel.id && selectedBlockIdInModal?.blockId
       ? blocks.find((b) => b.id === selectedBlockIdInModal.blockId)
@@ -1034,6 +1222,111 @@ export default function ChapterDetail() {
     const selectedSpeechBubble = selectedSpeechBubbleIdInModal?.panelId === panel.id && selectedSpeechBubbleIdInModal?.bubbleId
       ? speechBubbles.find((b) => b.id === selectedSpeechBubbleIdInModal.bubbleId)
       : null;
+    const selectedSfx = selectedSfxIdInModal?.panelId === panel.id && selectedSfxIdInModal?.sfxId
+      ? sfxBlocks.find((s) => s.id === selectedSfxIdInModal.sfxId)
+      : null;
+    const selectedSystemBlock = selectedSystemBlockIdInModal?.panelId === panel.id && selectedSystemBlockIdInModal?.systemBlockId
+      ? systemBlocks.find((s) => s.id === selectedSystemBlockIdInModal.systemBlockId)
+      : null;
+
+    const selectSfxOnly = (sfxId: string) => {
+      setSelectedBlockIdInModal(null);
+      setSelectedColorBlockIdInModal(null);
+      setSelectedSpeechBubbleIdInModal(null);
+      setSelectedSystemBlockIdInModal(null);
+      setSelectedSfxIdInModal({ panelId: panel.id, sfxId });
+    };
+    const selectSystemBlockOnly = (systemBlockId: string) => {
+      setSelectedBlockIdInModal(null);
+      setSelectedColorBlockIdInModal(null);
+      setSelectedSpeechBubbleIdInModal(null);
+      setSelectedSfxIdInModal(null);
+      setSelectedSystemBlockIdInModal({ panelId: panel.id, systemBlockId });
+    };
+
+    const handleAddSfxBlock = (presetId?: string, atX?: number, atY?: number) => {
+      const placed =
+        atX !== undefined && atY !== undefined
+          ? { x: atX, y: atY }
+          : canvasPlacementFromViewportCenter(
+              canvasRefByPanel.current[panel.id] ?? null,
+              panelEditorCanvasScrollRef.current,
+              PANEL_WIDTH,
+              panelHeight,
+              DEFAULT_SFX_WIDTH,
+              DEFAULT_SFX_HEIGHT,
+            );
+      const maxZ = Math.max(0, ...sfxBlocks.map((s) => s.zIndex ?? 0));
+      const newSfx = makeSfxBlockFromPreset(presetId, placed.x, placed.y, maxZ + 10);
+      applySfxBlocksUpdate(panel.id, [...sfxBlocks, newSfx]);
+      selectSfxOnly(newSfx.id);
+      toast({ title: "SFX ajouté" });
+    };
+
+    const handleAddSystemBlock = (variant: SystemBlockVariant, atX?: number, atY?: number) => {
+      const placed =
+        atX !== undefined && atY !== undefined
+          ? { x: atX, y: atY }
+          : canvasPlacementFromViewportCenter(
+              canvasRefByPanel.current[panel.id] ?? null,
+              panelEditorCanvasScrollRef.current,
+              PANEL_WIDTH,
+              panelHeight,
+              DEFAULT_SYSTEM_BLOCK_WIDTH,
+              DEFAULT_SYSTEM_BLOCK_HEIGHT,
+            );
+      const maxZ = Math.max(0, ...systemBlocks.map((s) => s.zIndex ?? 0));
+      const newBlock = makeSystemBlock(variant, placed.x, placed.y, maxZ + 10);
+      applySystemBlocksUpdate(panel.id, [...systemBlocks, newBlock]);
+      selectSystemBlockOnly(newBlock.id);
+      toast({ title: "Fenêtre système ajoutée" });
+    };
+
+    /**
+     * Fond de page narratif : bloc couleur pleine largeur inséré SOUS tous les éléments
+     * (zIndex = min - 10). Création directe dans color_blocks — ne passe pas par
+     * handleAddColorBlock pour ne pas modifier son comportement (zone protégée).
+     */
+    const handleAddPageBackground = (color: string, atY?: number) => {
+      const placed =
+        atY !== undefined
+          ? { y: atY }
+          : canvasPlacementFromViewportCenter(
+              canvasRefByPanel.current[panel.id] ?? null,
+              panelEditorCanvasScrollRef.current,
+              PANEL_WIDTH,
+              panelHeight,
+              PANEL_WIDTH,
+              1200,
+            );
+      const y = Math.max(0, Math.min(panelHeight - 1200, placed.y));
+      const minZ = Math.min(0, ...colorBlocks.map((cb) => cb.zIndex ?? 0));
+      const newCb: ColorBlock = {
+        id: crypto.randomUUID(),
+        x: 0,
+        y,
+        width: PANEL_WIDTH,
+        height: 1200,
+        fill: { type: "solid", color },
+        zIndex: minZ - 10,
+      };
+      recordCanvasUndoBeforeChange(panel.id);
+      const previousPanels = queryClient.getQueryData<Panel[]>(panelsQueryKey);
+      const nextColorBlocks = [...colorBlocks, newCb];
+      queryClient.setQueryData<Panel[]>(panelsQueryKey, (old) => (!old ? old : old.map((p) => (p.id === panel.id ? { ...p, color_blocks: nextColorBlocks as unknown as Json } : p))));
+      setSelectedBlockIdInModal(null);
+      setSelectedSpeechBubbleIdInModal(null);
+      setSelectedSfxIdInModal(null);
+      setSelectedSystemBlockIdInModal(null);
+      setSelectedColorBlockIdInModal({ panelId: panel.id, colorBlockId: newCb.id });
+      updatePanelMutation.mutate(
+        { id: panel.id, updates: { color_blocks: nextColorBlocks as unknown as Json } },
+        {
+          onSuccess: () => toast({ title: "Fond de page ajouté", description: "Pleine largeur, placé sous les cases." }),
+          onError: (err) => { if (previousPanels) queryClient.setQueryData(panelsQueryKey, previousPanels); toast({ title: "Erreur", description: err.message, variant: "destructive" }); },
+        }
+      );
+    };
 
     const handleAddBlock = (atX?: number, atY?: number, width = DEFAULT_BLOCK_WIDTH, height = DEFAULT_BLOCK_HEIGHT, shape?: PanelBlockShape) => {
       const w = Math.max(100, Math.min(PANEL_WIDTH, width));
@@ -1219,6 +1512,31 @@ export default function ChapterDetail() {
           const fill: ColorBlockFill = data.fill && (data.fill as ColorBlockFill).type ? (data.fill as ColorBlockFill) : { type: "solid", color: "#ffffff" };
           const { x, y } = getCanvasDropPosition(e, canvasEl, w, h);
           handleAddColorBlock(x, y, w, h, fill);
+          setDraggingBlock(null);
+          setDragPreview(null);
+          return;
+        }
+        if (data.type === "sfx-block") {
+          const presetId = (data as { presetId?: string }).presetId;
+          const { x, y } = getCanvasDropPosition(e, canvasEl, DEFAULT_SFX_WIDTH, DEFAULT_SFX_HEIGHT);
+          handleAddSfxBlock(presetId, x, y);
+          setDraggingBlock(null);
+          setDragPreview(null);
+          return;
+        }
+        if (data.type === "system-block") {
+          const rawVariant = (data as { variant?: string }).variant;
+          const variant: SystemBlockVariant = rawVariant === "quest" || rawVariant === "alert" || rawVariant === "levelup" || rawVariant === "status" ? rawVariant : "notification";
+          const { x, y } = getCanvasDropPosition(e, canvasEl, DEFAULT_SYSTEM_BLOCK_WIDTH, DEFAULT_SYSTEM_BLOCK_HEIGHT);
+          handleAddSystemBlock(variant, x, y);
+          setDraggingBlock(null);
+          setDragPreview(null);
+          return;
+        }
+        if (data.type === "page-background") {
+          const color = typeof (data as { color?: string }).color === "string" ? (data as { color: string }).color : "#0a0a12";
+          const { y } = getCanvasDropPosition(e, canvasEl, PANEL_WIDTH, 1200);
+          handleAddPageBackground(color, y);
           setDraggingBlock(null);
           setDragPreview(null);
           return;
@@ -1640,12 +1958,19 @@ export default function ChapterDetail() {
           onAddBlock={handleAddBlock}
           onAddColorBlock={handleAddColorBlock}
           onAddSpeechBubble={handleAddSpeechBubble}
+          onAddSfxBlock={handleAddSfxBlock}
+          onAddSystemBlock={handleAddSystemBlock}
+          onAddPageBackground={handleAddPageBackground}
           selectedBlockId={selectedBlockIdInModal}
           selectedColorBlockId={selectedColorBlockIdInModal}
           selectedSpeechBubbleId={selectedSpeechBubbleIdInModal}
+          selectedSfxId={selectedSfxIdInModal}
+          selectedSystemBlockId={selectedSystemBlockIdInModal}
           onSelectBlock={setSelectedBlockIdInModal}
           onSelectColorBlock={setSelectedColorBlockIdInModal}
           onSelectSpeechBubble={setSelectedSpeechBubbleIdInModal}
+          onSelectSfx={setSelectedSfxIdInModal}
+          onSelectSystemBlock={setSelectedSystemBlockIdInModal}
           scenarioContent={scenarioChapter?.content}
           loadingScenario={loadingScenario}
           validatedCases={validatedCases}
@@ -1689,6 +2014,11 @@ export default function ChapterDetail() {
                   .map((b) => ({ prompt: b.prompt, image_url: b.image_url ?? null, name: b.name ?? null }))
               : undefined;
 
+            // SFX et fenêtres système — l'Edge Function réécrit le layout sans ces clés :
+            // on les capture avant compose et on les re-fusionne après le refetch.
+            const sfxToPreserve = getPanelSfxBlocks(panel);
+            const systemToPreserve = getPanelSystemBlocks(panel);
+
             composeLayout.mutate(
               {
                 chapterId: chapterId!,
@@ -1703,12 +2033,28 @@ export default function ChapterDetail() {
                 existingBlocks: existingBlocksForRecompose,
               },
               {
-                onSuccess: (result) => {
+                onSuccess: async (result) => {
                   if (!isRecompose) {
                     toast({
                       title: `✨ ${result.blocksCount} blocs composés`,
                       description: "La mise en page est prête. Génère maintenant les images !",
                     });
+                  }
+                  if (sfxToPreserve.length > 0 || systemToPreserve.length > 0) {
+                    try {
+                      await queryClient.refetchQueries({ queryKey: panelsQueryKey });
+                      const freshRow = (queryClient.getQueryData<Panel[]>(panelsQueryKey) ?? []).find((p) => p.id === result.canvasId)
+                        ?? (queryClient.getQueryData<Panel[]>(panelsQueryKey) ?? []).find((p) => p.id === panel.id);
+                      if (freshRow) {
+                        const freshLayout = getPanelLayout(freshRow);
+                        const mergedLayout: PanelLayout = { ...freshLayout, sfxBlocks: sfxToPreserve, systemBlocks: systemToPreserve };
+                        queryClient.setQueryData<Panel[]>(panelsQueryKey, (old) => (!old ? old : old.map((p) => (p.id === freshRow.id ? { ...p, layout: mergedLayout as unknown as Json } : p))));
+                        updatePanelMutation.mutate(
+                          { id: freshRow.id, updates: { layout: mergedLayout as unknown as Json } },
+                          { onError: () => queryClient.invalidateQueries({ queryKey: panelsQueryKey }) }
+                        );
+                      }
+                    } catch { /* non-critique : les SFX restent restaurables via Refuser la recomposition */ }
                   }
                 },
                 onError: (err) => {
@@ -1739,6 +2085,8 @@ export default function ChapterDetail() {
             setSelectedBlockIdInModal(null);
             setSelectedColorBlockIdInModal(null);
             setSelectedSpeechBubbleIdInModal(null);
+            setSelectedSfxIdInModal(null);
+            setSelectedSystemBlockIdInModal(null);
             setTailContextBubbleId(null);
           }}
         >
@@ -1806,6 +2154,44 @@ export default function ChapterDetail() {
               </div>
             </div>
           )}
+          {/* Toolbar SFX — sticky, même pattern */}
+          {selectedSfx && (
+            <div className="sticky top-1 z-50 self-center pointer-events-none" style={{ height: 0, overflow: "visible" }}>
+              <div className="pointer-events-auto" onClick={(e) => e.stopPropagation()}>
+                <SfxToolbar
+                  sfx={selectedSfx}
+                  sfxBlocks={sfxBlocks}
+                  onUpdate={(next) => applySfxBlocksUpdate(panel.id, next)}
+                  onLiveUpdate={(next) => applySfxBlocksLive(panel.id, next)}
+                  onDuplicate={() => {
+                    const copy: SfxBlock = { ...selectedSfx, id: crypto.randomUUID(), x: Math.min(PANEL_WIDTH - selectedSfx.width, selectedSfx.x + 24), y: selectedSfx.y + 24 };
+                    applySfxBlocksUpdate(panel.id, [...sfxBlocks, copy]);
+                    selectSfxOnly(copy.id);
+                  }}
+                  onDelete={() => setCanvasDeleteIntent({ panelId: panel.id, kind: "sfx", sfxId: selectedSfx.id })}
+                />
+              </div>
+            </div>
+          )}
+          {/* Toolbar fenêtre système — sticky, même pattern */}
+          {selectedSystemBlock && (
+            <div className="sticky top-1 z-50 self-center pointer-events-none" style={{ height: 0, overflow: "visible" }}>
+              <div className="pointer-events-auto" onClick={(e) => e.stopPropagation()}>
+                <SystemBlockToolbar
+                  block={selectedSystemBlock}
+                  systemBlocks={systemBlocks}
+                  onUpdate={(next) => applySystemBlocksUpdate(panel.id, next)}
+                  onLiveUpdate={(next) => applySystemBlocksLive(panel.id, next)}
+                  onDuplicate={() => {
+                    const copy: SystemBlock = { ...selectedSystemBlock, id: crypto.randomUUID(), x: Math.min(PANEL_WIDTH - selectedSystemBlock.width, selectedSystemBlock.x + 24), y: selectedSystemBlock.y + 24 };
+                    applySystemBlocksUpdate(panel.id, [...systemBlocks, copy]);
+                    selectSystemBlockOnly(copy.id);
+                  }}
+                  onDelete={() => setCanvasDeleteIntent({ panelId: panel.id, kind: "system", systemBlockId: selectedSystemBlock.id })}
+                />
+              </div>
+            </div>
+          )}
           {/* Wrapper relatif pour positionner la poignée de redimensionnement */}
           <div className="relative mt-[160px]" style={{ flexShrink: 0 }}>
             {(() => {
@@ -1868,6 +2254,8 @@ export default function ChapterDetail() {
                           if (id) {
                             setSelectedBlockIdInModal(null);
                             setSelectedSpeechBubbleIdInModal(null);
+                            setSelectedSfxIdInModal(null);
+                            setSelectedSystemBlockIdInModal(null);
                             setSelectedColorBlockIdInModal({ panelId: panel.id, colorBlockId: id });
                           } else {
                             setSelectedColorBlockIdInModal(null);
@@ -1889,6 +2277,8 @@ export default function ChapterDetail() {
                           if (id) {
                             setSelectedSpeechBubbleIdInModal(null);
                             setSelectedColorBlockIdInModal(null);
+                            setSelectedSfxIdInModal(null);
+                            setSelectedSystemBlockIdInModal(null);
                             setSelectedBlockIdInModal({ panelId: panel.id, blockId: id });
                           } else {
                             setSelectedBlockIdInModal(null);
@@ -1901,6 +2291,41 @@ export default function ChapterDetail() {
                         isUpdating={updatePanelMutation.isPending}
                         generatingBlockId={generatingBlocks.get(panel.id) ?? null}
                       />
+                      <SystemBlockLayer
+                        panel={panel}
+                        panels={panels}
+                        systemBlocks={systemBlocks}
+                        canvasRefByPanel={canvasRefByPanel}
+                        zoomRef={zoomRef}
+                        selectedSystemBlockId={selectedSystemBlockIdInModal?.panelId === panel.id ? selectedSystemBlockIdInModal.systemBlockId : null}
+                        onSelectSystemBlock={(id) => {
+                          if (id) {
+                            selectSystemBlockOnly(id);
+                          } else {
+                            setSelectedSystemBlockIdInModal(null);
+                          }
+                        }}
+                        onMoveCommit={handleSystemBlockMoveCommit}
+                        onResizeCommit={handleSystemBlockResizeCommit}
+                      />
+                      <SfxLayer
+                        panel={panel}
+                        panels={panels}
+                        sfxBlocks={sfxBlocks}
+                        canvasRefByPanel={canvasRefByPanel}
+                        zoomRef={zoomRef}
+                        selectedSfxId={selectedSfxIdInModal?.panelId === panel.id ? selectedSfxIdInModal.sfxId : null}
+                        onSelectSfx={(id) => {
+                          if (id) {
+                            selectSfxOnly(id);
+                          } else {
+                            setSelectedSfxIdInModal(null);
+                          }
+                        }}
+                        onMoveCommit={handleSfxMoveCommit}
+                        onResizeCommit={handleSfxResizeCommit}
+                        onRotateCommit={handleSfxRotateCommit}
+                      />
                       <BubbleLayer
                         panel={panel}
                         panels={panels}
@@ -1912,6 +2337,8 @@ export default function ChapterDetail() {
                           if (id) {
                             setSelectedBlockIdInModal(null);
                             setSelectedColorBlockIdInModal(null);
+                            setSelectedSfxIdInModal(null);
+                            setSelectedSystemBlockIdInModal(null);
                             setSelectedSpeechBubbleIdInModal({ panelId: panel.id, bubbleId: id });
                           } else {
                             setSelectedSpeechBubbleIdInModal(null);
@@ -2273,6 +2700,18 @@ export default function ChapterDetail() {
                       ) : null}
                     </div>
                   ))}
+                  {/* data-export-layer="bg" : rendu en passe 1 uniquement — sans l'attribut,
+                      les 2 passes html2canvas les dessineraient deux fois (lueur/opacité doublées). */}
+                  {getPanelSystemBlocks(panel).filter((sb) => !sb.hidden).map((sb) => (
+                    <div key={sb.id} data-export-layer="bg" style={{ position: "absolute", left: sb.x, top: sb.y, width: sb.width, height: sb.height, zIndex: 14 }}>
+                      <SystemBlockVisual block={sb} />
+                    </div>
+                  ))}
+                  {getPanelSfxBlocks(panel).filter((sfx) => !sfx.hidden).map((sfx) => (
+                    <div key={sfx.id} data-export-layer="bg" style={{ position: "absolute", left: sfx.x, top: sfx.y, width: sfx.width, height: sfx.height, zIndex: 16, overflow: "visible" }}>
+                      <SfxVisual sfx={sfx} />
+                    </div>
+                  ))}
                   <PanelExportSpeechBubbles speechBubbles={getPanelSpeechBubbles(panel)} />
                 </div>
               </div>
@@ -2295,7 +2734,11 @@ export default function ChapterDetail() {
                 ? "Supprimer cette case ?"
                 : canvasDeleteIntent?.kind === "color"
                   ? "Supprimer ce bloc de couleur ?"
-                  : "Supprimer cette bulle ?"}
+                  : canvasDeleteIntent?.kind === "sfx"
+                    ? "Supprimer ce SFX ?"
+                    : canvasDeleteIntent?.kind === "system"
+                      ? "Supprimer cette fenêtre système ?"
+                      : "Supprimer cette bulle ?"}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {"L'élément sera retiré du canvas. Vous pouvez annuler avec Ctrl+Z ou rétablir avec Ctrl+Maj+Z."}

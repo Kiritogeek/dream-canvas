@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ImageIcon, Square, MessageSquare, ChevronDown } from "lucide-react";
+import { ImageIcon, Square, MessageSquare, ChevronDown, Zap, MonitorCheck } from "lucide-react";
 import {
   Collapsible,
   CollapsibleContent,
@@ -9,8 +9,10 @@ import {
   getPanelBlocks,
   getPanelColorBlocks,
   getPanelSpeechBubbles,
+  getPanelSfxBlocks,
+  getPanelSystemBlocks,
 } from "@/services/panels";
-import { SPEECH_BUBBLE_TYPE_LABELS } from "@/types";
+import { SPEECH_BUBBLE_TYPE_LABELS, SYSTEM_BLOCK_VARIANT_CONFIG } from "@/types";
 import type { Panel, SpeechBubbleType } from "@/types";
 import { cn } from "@/lib/utils";
 
@@ -19,9 +21,13 @@ interface CaseLayersProps {
   selectedBlockId: { panelId: string; blockId: string } | null;
   selectedColorBlockId: { panelId: string; colorBlockId: string } | null;
   selectedSpeechBubbleId: { panelId: string; bubbleId: string } | null;
+  selectedSfxId?: { panelId: string; sfxId: string } | null;
+  selectedSystemBlockId?: { panelId: string; systemBlockId: string } | null;
   onSelectBlock: (v: { panelId: string; blockId: string } | null) => void;
   onSelectColorBlock: (v: { panelId: string; colorBlockId: string } | null) => void;
   onSelectSpeechBubble: (v: { panelId: string; bubbleId: string } | null) => void;
+  onSelectSfx?: (v: { panelId: string; sfxId: string } | null) => void;
+  onSelectSystemBlock?: (v: { panelId: string; systemBlockId: string } | null) => void;
   onScrollToY?: (logicalY: number) => void;
 }
 
@@ -30,18 +36,50 @@ export function CaseLayers({
   selectedBlockId,
   selectedColorBlockId,
   selectedSpeechBubbleId,
+  selectedSfxId,
+  selectedSystemBlockId,
   onSelectBlock,
   onSelectColorBlock,
   onSelectSpeechBubble,
+  onSelectSfx,
+  onSelectSystemBlock,
   onScrollToY,
 }: CaseLayersProps) {
   const [imagesOpen, setImagesOpen] = useState(true);
   const [couleursOpen, setCouleursOpen] = useState(true);
   const [bullesOpen, setBullesOpen] = useState(true);
+  const [sfxOpen, setSfxOpen] = useState(true);
+  const [systemOpen, setSystemOpen] = useState(true);
 
   const blocks = [...getPanelBlocks(panel)].reverse();
   const colorBlocks = [...getPanelColorBlocks(panel)].reverse();
   const speechBubbles = [...getPanelSpeechBubbles(panel)].reverse();
+  const sfxBlocks = [...getPanelSfxBlocks(panel)].reverse();
+  const systemBlocks = [...getPanelSystemBlocks(panel)].reverse();
+
+  const handleSelectSfx = (sfxId: string) => {
+    if (!onSelectSfx) return;
+    const sfx = getPanelSfxBlocks(panel).find((s) => s.id === sfxId);
+    if (sfx) onScrollToY?.(sfx.y + sfx.height / 2);
+    const isSelected = selectedSfxId?.panelId === panel.id && selectedSfxId.sfxId === sfxId;
+    onSelectSfx(isSelected ? null : { panelId: panel.id, sfxId });
+    onSelectBlock(null);
+    onSelectColorBlock(null);
+    onSelectSpeechBubble(null);
+    onSelectSystemBlock?.(null);
+  };
+
+  const handleSelectSystemBlock = (systemBlockId: string) => {
+    if (!onSelectSystemBlock) return;
+    const sb = getPanelSystemBlocks(panel).find((s) => s.id === systemBlockId);
+    if (sb) onScrollToY?.(sb.y + sb.height / 2);
+    const isSelected = selectedSystemBlockId?.panelId === panel.id && selectedSystemBlockId.systemBlockId === systemBlockId;
+    onSelectSystemBlock(isSelected ? null : { panelId: panel.id, systemBlockId });
+    onSelectBlock(null);
+    onSelectColorBlock(null);
+    onSelectSpeechBubble(null);
+    onSelectSfx?.(null);
+  };
 
   const handleSelectBlock = (blockId: string) => {
     const block = getPanelBlocks(panel).find((b) => b.id === blockId);
@@ -50,6 +88,8 @@ export function CaseLayers({
     onSelectBlock(isSelected ? null : { panelId: panel.id, blockId });
     onSelectColorBlock(null);
     onSelectSpeechBubble(null);
+    onSelectSfx?.(null);
+    onSelectSystemBlock?.(null);
   };
 
   const handleSelectColorBlock = (colorBlockId: string) => {
@@ -59,6 +99,8 @@ export function CaseLayers({
     onSelectColorBlock(isSelected ? null : { panelId: panel.id, colorBlockId });
     onSelectBlock(null);
     onSelectSpeechBubble(null);
+    onSelectSfx?.(null);
+    onSelectSystemBlock?.(null);
   };
 
   const handleSelectSpeechBubble = (bubbleId: string) => {
@@ -68,6 +110,8 @@ export function CaseLayers({
     onSelectSpeechBubble(isSelected ? null : { panelId: panel.id, bubbleId });
     onSelectBlock(null);
     onSelectColorBlock(null);
+    onSelectSfx?.(null);
+    onSelectSystemBlock?.(null);
   };
 
   return (
@@ -176,6 +220,77 @@ export function CaseLayers({
                 >
                   <MessageSquare className="h-3.5 w-3.5 shrink-0" />
                   <span className="truncate">{typeLabel}{textPreview}</span>
+                </button>
+              );
+            })
+          )}
+        </CollapsibleContent>
+      </Collapsible>
+
+      {/* SFX */}
+      <Collapsible open={sfxOpen} onOpenChange={setSfxOpen}>
+        <CollapsibleTrigger className="flex items-center justify-between w-full py-1 px-0.5 hover:opacity-80 transition-opacity">
+          <span className="text-xs font-bold uppercase tracking-wider text-amber-500 dark:text-amber-400">
+            SFX ({sfxBlocks.length})
+          </span>
+          <ChevronDown className={cn("h-3.5 w-3.5 text-amber-500 dark:text-amber-400 transition-transform", sfxOpen ? "rotate-0" : "-rotate-90")} />
+        </CollapsibleTrigger>
+        <CollapsibleContent className="mt-1 space-y-1">
+          {sfxBlocks.length === 0 ? (
+            <span className="text-xs text-muted-foreground italic px-2 py-1 block">Aucun élément</span>
+          ) : (
+            sfxBlocks.map((sfx) => {
+              const isSelected = selectedSfxId?.panelId === panel.id && selectedSfxId.sfxId === sfx.id;
+              return (
+                <button
+                  key={sfx.id}
+                  type="button"
+                  onClick={() => handleSelectSfx(sfx.id)}
+                  className={cn(
+                    "w-full flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors text-left",
+                    isSelected
+                      ? "bg-primary/10 border border-primary/30 text-primary"
+                      : "hover:bg-muted/60 text-muted-foreground hover:text-foreground border border-transparent",
+                  )}
+                >
+                  <Zap className="h-3.5 w-3.5 shrink-0" style={{ color: sfx.color }} />
+                  <span className="truncate">{sfx.text.trim() || "SFX vide"}</span>
+                </button>
+              );
+            })
+          )}
+        </CollapsibleContent>
+      </Collapsible>
+
+      {/* Fenêtres système */}
+      <Collapsible open={systemOpen} onOpenChange={setSystemOpen}>
+        <CollapsibleTrigger className="flex items-center justify-between w-full py-1 px-0.5 hover:opacity-80 transition-opacity">
+          <span className="text-xs font-bold uppercase tracking-wider text-cyan-500 dark:text-cyan-400">
+            Système ({systemBlocks.length})
+          </span>
+          <ChevronDown className={cn("h-3.5 w-3.5 text-cyan-500 dark:text-cyan-400 transition-transform", systemOpen ? "rotate-0" : "-rotate-90")} />
+        </CollapsibleTrigger>
+        <CollapsibleContent className="mt-1 space-y-1">
+          {systemBlocks.length === 0 ? (
+            <span className="text-xs text-muted-foreground italic px-2 py-1 block">Aucun élément</span>
+          ) : (
+            systemBlocks.map((sb) => {
+              const isSelected = selectedSystemBlockId?.panelId === panel.id && selectedSystemBlockId.systemBlockId === sb.id;
+              const variantLabel = SYSTEM_BLOCK_VARIANT_CONFIG[sb.variant]?.label ?? sb.variant;
+              return (
+                <button
+                  key={sb.id}
+                  type="button"
+                  onClick={() => handleSelectSystemBlock(sb.id)}
+                  className={cn(
+                    "w-full flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors text-left",
+                    isSelected
+                      ? "bg-primary/10 border border-primary/30 text-primary"
+                      : "hover:bg-muted/60 text-muted-foreground hover:text-foreground border border-transparent",
+                  )}
+                >
+                  <MonitorCheck className="h-3.5 w-3.5 shrink-0" style={{ color: sb.accentColor }} />
+                  <span className="truncate">{variantLabel} · {sb.title}</span>
                 </button>
               );
             })

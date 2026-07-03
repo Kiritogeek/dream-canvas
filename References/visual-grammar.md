@@ -433,5 +433,48 @@ Quand le texte exprime une révélation silencieuse ou un regard intense → pan
 
 ---
 
-*Source : Solo Leveling c01-c82 + "Your Talent is Mine" LN ch.1-4 + YTIM Webtoon ch.1 (152 pages analysées)*
-*Créé le 2026-05-28. Mis à jour le 2026-05-28. Injecter dans DETECT_BLOCKS_SYSTEM_PROMPT.*
+## GRAMMAIRE DES ÉLÉMENTS D'HABILLAGE (hors image générée)
+
+> Ajout 2026-07-03 — analyse image par image de 146 planches (YTIM ch1 ×40, SL c00-c02 ×55, SL c10/c30/c57/c82 ×51).
+> Ces éléments sont posés PAR-DESSUS les cases dans l'Édition (blocs SFX, fenêtres système, fonds de page) — jamais générés par FLUX.
+
+### SFX / onomatopées — sémantique de couleur (observée Solo Leveling)
+
+| Couleur du SFX | Sens | Exemple |
+|---|---|---|
+| Noir brush sans contour | impact sourd, pas lourds, cœur qui bat | 쿵 répété en rythme (c10) |
+| Noir contour blanc | foley intime (objet posé, porte, frottement) | c57 p12-p20 |
+| Rouge (dégradé rouge→orange) | hurlement, tranchage, violence | c57 p14, c82 p01-04 |
+| Violet | vitesse/pouvoir d'élite — signature Solo Leveling | c82 p01 |
+| Bleu électrique + glow | charge magique, mana | c82 p10/p14 |
+| Jaune-orange contour noir épais | explosion, boum de bataille | c00 p003 |
+
+**Règles de pose** : rotation ±5-15° presque systématique ; à cheval case/gouttière ; répétition du même SFX à intervalles verticaux = métronome de scroll ; taille proportionnelle à la violence (30-600px) ; le SFX peut être le SEUL contenu d'une zone noire (c01 p006).
+
+### Fenêtres système — grammaire éditoriale
+
+- La fenêtre n'est **jamais dans une case** : elle occupe le blanc/noir de la page entre les cases, comme une interruption du monde réel.
+- Précédée d'un SFX de notification discret (« ding »), suivie d'un grand vide.
+- Voix du Système = texte **entre crochets** `[...]`, uppercase, typo condensée/mono.
+- Codes : cyan/bleu = info (YTIM), or/parchemin = Système SL mature, rouge = alerte, violet = level up.
+- Variante **bandeau une ligne pleine largeur en pied de page** = cliffhanger (c82 p10).
+- Multi-fenêtres en cascade décalées = menu/shop (c57 p08).
+
+### Fond de page — levier d'ambiance macro n°1
+
+- Blanc = régime par défaut (quotidien). **Noir = donjon, mort, flashback, oppression** — des séquences ENTIÈRES (4-5 pages) basculent au noir (c01 p002-006, YTIM p04-16, flashback c30 p018-020).
+- Transitions observées : coupe franche (changement de réalité), dégradé vertical long ~1200px (glissement), rideau de stries (sortie de rêve).
+- Le changement de fond EST la transition narrative (YTIM p16-17 : cauchemar→réveil en une coupe noir→blanc).
+- Sur fond noir : bulles blanches en contraste maximal, bulles grises à contour coloré par locuteur (flashback choral c30 p018).
+
+### Pacing vertical — mesures de référence (canvas 800px)
+
+- Gouttière rythme normal : 100-200px · respiration : 200-400px · **beat de silence avant révélation : 400-900px** (le vide précède TOUJOURS le choc, jamais l'inverse).
+- Hauteurs : letterbox 180-250px · case dialogue 400-900px · case portrait 1000-1300px · splash 1500-3000px.
+- Hiérarchie des corps de texte : SFX géants 200-600px > cris 80-150px > cliffhanger ~40px > dialogue 22-26px > chuchotement 14-16px.
+- Ratio surface : ~55 % cases / ~45 % respiration (gouttières + fonds + bandes).
+
+---
+
+*Source : Solo Leveling c00-c82 + "Your Talent is Mine" LN ch.1-4 + YTIM Webtoon ch.1 (152 pages analysées)*
+*Créé le 2026-05-28. Mis à jour le 2026-07-03 (grammaire des éléments d'habillage). Injecter dans DETECT_BLOCKS_SYSTEM_PROMPT.*

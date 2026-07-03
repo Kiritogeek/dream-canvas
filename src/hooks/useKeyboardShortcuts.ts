@@ -7,6 +7,8 @@ import {
   getPanelColorBlocks,
   getPanelSpeechBubbles,
   getPanelBlocks,
+  getPanelSfxBlocks,
+  getPanelSystemBlocks,
   DEFAULT_BLOCK_WIDTH,
   DEFAULT_BLOCK_HEIGHT,
   DEFAULT_COLOR_BLOCK_FILL,
@@ -18,7 +20,9 @@ import type { Json } from "@/integrations/supabase/types";
 type CanvasElementDeleteIntent =
   | { panelId: string; kind: "image"; blockId: string }
   | { panelId: string; kind: "color"; colorBlockId: string }
-  | { panelId: string; kind: "bubble"; bubbleId: string };
+  | { panelId: string; kind: "bubble"; bubbleId: string }
+  | { panelId: string; kind: "sfx"; sfxId: string }
+  | { panelId: string; kind: "system"; systemBlockId: string };
 
 interface UseKeyboardShortcutsParams {
   expandedPanelId: string | null;
@@ -35,6 +39,11 @@ interface UseKeyboardShortcutsParams {
   setSelectedBlockIdInModal: (v: { panelId: string; blockId: string } | null) => void;
   setSelectedColorBlockIdInModal: (v: { panelId: string; colorBlockId: string } | null) => void;
   setSelectedSpeechBubbleIdInModal: (v: { panelId: string; bubbleId: string } | null) => void;
+  /** Optionnels — sélection des blocs SFX / fenêtres système (Suppr + Échap). */
+  selectedSfxIdInModal?: { panelId: string; sfxId: string } | null;
+  selectedSystemBlockIdInModal?: { panelId: string; systemBlockId: string } | null;
+  setSelectedSfxIdInModal?: (v: { panelId: string; sfxId: string } | null) => void;
+  setSelectedSystemBlockIdInModal?: (v: { panelId: string; systemBlockId: string } | null) => void;
   setCanvasDeleteIntent: (v: CanvasElementDeleteIntent | null) => void;
   PANEL_WIDTH: number;
   canvasPlacementFromViewportCenter: (
@@ -62,6 +71,10 @@ export function useKeyboardShortcuts({
   setSelectedBlockIdInModal,
   setSelectedColorBlockIdInModal,
   setSelectedSpeechBubbleIdInModal,
+  selectedSfxIdInModal,
+  selectedSystemBlockIdInModal,
+  setSelectedSfxIdInModal,
+  setSelectedSystemBlockIdInModal,
   setCanvasDeleteIntent,
   PANEL_WIDTH,
   canvasPlacementFromViewportCenter,
@@ -83,6 +96,8 @@ export function useKeyboardShortcuts({
         setSelectedBlockIdInModal(null);
         setSelectedColorBlockIdInModal(null);
         setSelectedSpeechBubbleIdInModal(null);
+        setSelectedSfxIdInModal?.(null);
+        setSelectedSystemBlockIdInModal?.(null);
         return;
       }
 
@@ -216,6 +231,18 @@ export function useKeyboardShortcuts({
           e.preventDefault();
           setCanvasDeleteIntent({ panelId: panel.id, kind: "bubble", bubbleId: bubble.id });
         }
+      } else if (selectedSfxIdInModal?.panelId === expandedPanelId && selectedSfxIdInModal.sfxId) {
+        const sfx = getPanelSfxBlocks(panel).find((s) => s.id === selectedSfxIdInModal.sfxId);
+        if (sfx) {
+          e.preventDefault();
+          setCanvasDeleteIntent({ panelId: panel.id, kind: "sfx", sfxId: sfx.id });
+        }
+      } else if (selectedSystemBlockIdInModal?.panelId === expandedPanelId && selectedSystemBlockIdInModal.systemBlockId) {
+        const sb = getPanelSystemBlocks(panel).find((s) => s.id === selectedSystemBlockIdInModal.systemBlockId);
+        if (sb) {
+          e.preventDefault();
+          setCanvasDeleteIntent({ panelId: panel.id, kind: "system", systemBlockId: sb.id });
+        }
       }
     };
     window.addEventListener("keydown", handler);
@@ -225,6 +252,8 @@ export function useKeyboardShortcuts({
     selectedBlockIdInModal,
     selectedColorBlockIdInModal,
     selectedSpeechBubbleIdInModal,
+    selectedSfxIdInModal,
+    selectedSystemBlockIdInModal,
     panels,
     updatePanelMutation,
     toast,
@@ -236,6 +265,8 @@ export function useKeyboardShortcuts({
     setSelectedBlockIdInModal,
     setSelectedColorBlockIdInModal,
     setSelectedSpeechBubbleIdInModal,
+    setSelectedSfxIdInModal,
+    setSelectedSystemBlockIdInModal,
     setCanvasDeleteIntent,
     PANEL_WIDTH,
     canvasPlacementFromViewportCenter,

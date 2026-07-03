@@ -1,7 +1,8 @@
 // Service — Panels (table panels), découpage, génération par bloc
 import { supabase } from "@/integrations/supabase/client";
 import { logGenerationFailure, logGenerationInfo } from "@/lib/generationLogger";
-import type { Panel, PanelInsert, PanelUpdate, PanelLayout, PanelBlock, PanelOutlineItem, ColorBlock, SpeechBubble } from "@/types";
+import type { Panel, PanelInsert, PanelUpdate, PanelLayout, PanelBlock, PanelOutlineItem, ColorBlock, SpeechBubble, SfxBlock, SystemBlock, SystemBlockVariant } from "@/types";
+import { SYSTEM_BLOCK_VARIANT_CONFIG } from "@/types";
 import type { Project } from "@/types";
 
 // ── Constantes ───────────────────────────────────────────────────
@@ -41,6 +42,123 @@ export const BLOCK_PRESETS = [
 
 /** Couleur par défaut d'un nouveau bloc de couleur. */
 export const DEFAULT_COLOR_BLOCK_FILL = { type: "solid" as const, color: "#1e293b" };
+
+/**
+ * Hauteurs de case standard webtoon (grille 400px, canvas 800 de large).
+ * petite = beat rapide, moyenne = standard, grande = temps fort, impact = splash/thumb-stop.
+ */
+export const WEBTOON_CASE_PRESETS = [
+  { label: "Petite — 800×400",   description: "Beat rapide, enchaînement",   width: 800, height: 400 },
+  { label: "Moyenne — 800×800",  description: "Case standard",               width: 800, height: 800 },
+  { label: "Grande — 800×1200",  description: "Temps fort, émotion",         width: 800, height: 1200 },
+  { label: "Impact — 800×1600",  description: "Splash, révélation",          width: 800, height: 1600 },
+  { label: "Letterbox — 800×200", description: "Bande ciné (yeux, horizon)", width: 800, height: 200 },
+] as const;
+
+/**
+ * Fonds narratifs webtoon — la couleur de fond encode la scène
+ * (grammaire observée : Solo Leveling, Your Talent is Mine).
+ */
+export const NARRATIVE_COLOR_PRESETS = [
+  { label: "Quotidien",  description: "Dialogue neutre, calme", color: "#ffffff" },
+  { label: "Mystère",    description: "Danger, révélation",     color: "#0a0a12" },
+  { label: "Action",     description: "Combat, transformation", color: "#b45309" },
+  { label: "Pouvoir",    description: "Magie, intériorité",     color: "#1e1b4b" },
+  { label: "Tension",    description: "Boss fight, extrême",    color: "#7f1d1d" },
+  { label: "Flashback",  description: "Souvenir, sépia",        color: "#e8d9c0" },
+] as const;
+
+// ── Blocs SFX (onomatopées) ──────────────────────────────────────
+
+export const DEFAULT_SFX_WIDTH = 320;
+export const DEFAULT_SFX_HEIGHT = 140;
+
+/** Presets SFX de la bibliothèque (fonts chargées dans index.html). */
+export const SFX_PRESETS: Array<{
+  id: string;
+  label: string;
+  text: string;
+  fontFamily: string;
+  color: string;
+  strokeColor: string;
+  strokeWidth: number;
+  rotation: number;
+  glowColor?: string;
+  glowBlur?: number;
+  fontSize: number;
+}> = [
+  { id: "boom",    label: "Impact",      text: "BOOM !",  fontFamily: "'Bangers', cursive",       color: "#ef4444", strokeColor: "#1a0a0a", strokeWidth: 6, rotation: -6,  glowColor: "#f97316", glowBlur: 18, fontSize: 72 },
+  { id: "slash",   label: "Coup",        text: "SLASH",   fontFamily: "'Bangers', cursive",       color: "#fbbf24", strokeColor: "#111111", strokeWidth: 6, rotation: 8,   fontSize: 64 },
+  { id: "crack",   label: "Fracas",      text: "KRAK",    fontFamily: "'Black Ops One', cursive", color: "#ffffff", strokeColor: "#111111", strokeWidth: 5, rotation: -3,  fontSize: 60 },
+  { id: "whoosh",  label: "Vitesse",     text: "FWOOSH",  fontFamily: "'Luckiest Guy', cursive",  color: "#7dd3fc", strokeColor: "#0c1c3d", strokeWidth: 5, rotation: -14, fontSize: 54 },
+  { id: "rumble",  label: "Grondement",  text: "GRRRR…",  fontFamily: "'Rock Salt', cursive",     color: "#c4b5fd", strokeColor: "#17102e", strokeWidth: 4, rotation: 0,   glowColor: "#7c3aed", glowBlur: 14, fontSize: 42 },
+  { id: "tap",     label: "Pas",         text: "TAP TAP", fontFamily: "'Permanent Marker', cursive", color: "#e2e8f0", strokeColor: "#1e293b", strokeWidth: 3, rotation: 4, fontSize: 36 },
+];
+
+/** Extrait les blocs SFX du layout (layout.sfxBlocks ou []). */
+export function getPanelSfxBlocks(panel: Panel | null | undefined): SfxBlock[] {
+  if (!panel?.layout || typeof panel.layout !== "object") return [];
+  const layout = panel.layout as PanelLayout;
+  return Array.isArray(layout.sfxBlocks) ? layout.sfxBlocks : [];
+}
+
+/** Fabrique un bloc SFX depuis un preset (ou le preset par défaut). */
+export function makeSfxBlockFromPreset(presetId: string | undefined, x: number, y: number, zIndex: number): SfxBlock {
+  const preset = SFX_PRESETS.find((p) => p.id === presetId) ?? SFX_PRESETS[0];
+  return {
+    id: crypto.randomUUID(),
+    x, y,
+    width: DEFAULT_SFX_WIDTH,
+    height: DEFAULT_SFX_HEIGHT,
+    text: preset.text,
+    fontFamily: preset.fontFamily,
+    fontSize: preset.fontSize,
+    color: preset.color,
+    strokeColor: preset.strokeColor,
+    strokeWidth: preset.strokeWidth,
+    rotation: preset.rotation,
+    ...(preset.glowColor ? { glowColor: preset.glowColor, glowBlur: preset.glowBlur ?? 12 } : {}),
+    zIndex,
+  };
+}
+
+// ── Blocs Notification Système ───────────────────────────────────
+
+export const DEFAULT_SYSTEM_BLOCK_WIDTH = 460;
+export const DEFAULT_SYSTEM_BLOCK_HEIGHT = 240;
+
+/** Corps d'exemple par variante (aide à la prise en main). */
+export const SYSTEM_BLOCK_SAMPLE_BODY: Record<SystemBlockVariant, string> = {
+  notification: "Vous avez accompli les conditions\nde la quête secrète « Courage ».",
+  quest: "Objectif : vaincre 10 gobelins\nRécompense : 500 XP",
+  alert: "Zone de danger détectée.\nÉvacuez immédiatement.",
+  levelup: "Niveau 12 → 13\nPoints de capacité +3",
+  status: "Nom : ???\nClasse : Chasseur — Rang E",
+};
+
+/** Extrait les blocs système du layout (layout.systemBlocks ou []). */
+export function getPanelSystemBlocks(panel: Panel | null | undefined): SystemBlock[] {
+  if (!panel?.layout || typeof panel.layout !== "object") return [];
+  const layout = panel.layout as PanelLayout;
+  return Array.isArray(layout.systemBlocks) ? layout.systemBlocks : [];
+}
+
+/** Fabrique un bloc système d'une variante donnée. */
+export function makeSystemBlock(variant: SystemBlockVariant, x: number, y: number, zIndex: number): SystemBlock {
+  const cfg = SYSTEM_BLOCK_VARIANT_CONFIG[variant];
+  return {
+    id: crypto.randomUUID(),
+    x, y,
+    width: DEFAULT_SYSTEM_BLOCK_WIDTH,
+    height: DEFAULT_SYSTEM_BLOCK_HEIGHT,
+    variant,
+    title: cfg.defaultTitle,
+    body: SYSTEM_BLOCK_SAMPLE_BODY[variant],
+    accentColor: cfg.accent,
+    showIcon: true,
+    zIndex,
+  };
+}
 
 // ── Helpers ──────────────────────────────────────────────────────
 

@@ -230,11 +230,89 @@ export interface PanelBlock {
   shot_type?: string | null;
 }
 
-/** Layout d'un panel : liste de blocs + hauteur du panel. Stocké dans panels.layout (JSONB). */
+/**
+ * Bloc SFX — onomatopée graphique (texte stylisé hors bulle, rotation libre).
+ * Référence : Solo Leveling c01 p006 (SFX rouges stylisés), grammaire visuelle webtoon.
+ * Le contour est simulé par text-shadows multi-directionnels (compatible html2canvas,
+ * contrairement à -webkit-text-stroke qui n'est pas rendu à l'export).
+ */
+export interface SfxBlock {
+  id: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  text: string;
+  fontFamily: string;
+  fontSize: number;
+  /** Couleur de remplissage du texte. */
+  color: string;
+  /** Couleur du contour (simulé en text-shadow). */
+  strokeColor: string;
+  /** Épaisseur du contour en px (0 = aucun). */
+  strokeWidth: number;
+  /** Rotation en degrés (-180 à 180), appliquée autour du centre du bloc. */
+  rotation: number;
+  /** Lueur optionnelle (halo) autour du texte — signature manhwa action. */
+  glowColor?: string;
+  glowBlur?: number;
+  letterSpacing?: number;
+  /** Opacité 0–1 (échos mentaux : instances multiples à opacités dégressives). */
+  opacity?: number;
+  zIndex?: number;
+  hidden?: boolean;
+}
+
+/** Variantes de fenêtre système (genre RPG/hunter — Solo Leveling, YTIM). */
+export type SystemBlockVariant = "notification" | "quest" | "alert" | "levelup" | "status";
+
+/**
+ * Bloc Notification Système — fenêtre UI in-fiction à texte net éditable.
+ * Remplace le rendu FLUX de `revelation_system` (texte IA illisible) par un vrai bloc UI :
+ * fond near-black, bordure lumineuse, typo monospace.
+ */
+export interface SystemBlock {
+  id: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  variant: SystemBlockVariant;
+  /** Titre en tête de fenêtre (ex : "NOTIFICATION"). */
+  title: string;
+  /** Corps multi-lignes (\n = retour ligne). */
+  body: string;
+  /** Couleur d'accent (bordure, lueur, titre). */
+  accentColor: string;
+  /** Affiche l'icône [!] dans l'en-tête. */
+  showIcon?: boolean;
+  /** Affiche le bouton ✕ en haut à droite (signature RPG — Solo Leveling). */
+  showClose?: boolean;
+  zIndex?: number;
+  hidden?: boolean;
+}
+
+/** Libellés + accents par défaut des variantes système. */
+export const SYSTEM_BLOCK_VARIANT_CONFIG: Record<SystemBlockVariant, { label: string; accent: string; defaultTitle: string }> = {
+  notification: { label: "Notification", accent: "#22d3ee", defaultTitle: "NOTIFICATION" },
+  quest:        { label: "Quête",        accent: "#fbbf24", defaultTitle: "QUÊTE" },
+  alert:        { label: "Alerte",       accent: "#f87171", defaultTitle: "ALERTE" },
+  levelup:      { label: "Level Up",     accent: "#a78bfa", defaultTitle: "LEVEL UP !" },
+  status:       { label: "Statut",       accent: "#60a5fa", defaultTitle: "STATUT" },
+};
+
+/**
+ * Layout d'un panel : liste de blocs + hauteur du panel. Stocké dans panels.layout (JSONB).
+ * sfxBlocks / systemBlocks : clés additives — préservées par tous les writes client
+ * (spread {...layout}) ; re-fusionnées côté client après une composition Auto
+ * (l'Edge Function compose-chapter-layout réécrit le layout sans ces clés).
+ */
 export interface PanelLayout {
   blocks: PanelBlock[];
   /** Hauteur du canvas en px (défaut 5000, min 1200, max 7000). */
   panelHeight?: number;
+  sfxBlocks?: SfxBlock[];
+  systemBlocks?: SystemBlock[];
 }
 
 /** Remplissage d'un bloc de couleur (couleur unie ou dégradé). */

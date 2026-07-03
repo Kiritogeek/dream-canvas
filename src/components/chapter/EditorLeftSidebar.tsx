@@ -1,14 +1,15 @@
 import React, { useState, useMemo } from "react";
-import { LayoutPanelTop, Palette, MessageCircle, X, Download, History, LayoutList, Layers } from "lucide-react";
+import { LayoutPanelTop, Palette, MessageCircle, X, Download, History, LayoutList, Layers, Zap } from "lucide-react";
 import { CaseLayers } from "@/components/chapter/CaseLayers";
 import { ScenarioCasesPanel, type ValidatedCase } from "@/components/chapter/ScenarioCasesPanel";
-import { getPanelBlocks, getPanelColorBlocks, getPanelSpeechBubbles } from "@/services/panels";
+import { getPanelBlocks, getPanelColorBlocks, getPanelSpeechBubbles, getPanelSfxBlocks, getPanelSystemBlocks } from "@/services/panels";
 import type { ChapterCanvasImageHistoryRow } from "@/services/chapterCanvasImageHistory";
 import { ChapterImageHistoryList } from "@/components/chapter/ChapterImageHistoryList";
 import { BubblePreview } from "@/components/chapter/SpeechBubbleShape";
-import { BLOCK_PRESETS } from "@/services/panels";
-import { SPEECH_BUBBLE_TYPE_LABELS } from "@/types";
-import type { Panel, ColorBlockFill, SpeechBubbleType, PanelBlockShape } from "@/types";
+import { BLOCK_PRESETS, WEBTOON_CASE_PRESETS, NARRATIVE_COLOR_PRESETS, SFX_PRESETS } from "@/services/panels";
+import { buildSfxTextShadow, hexToRgba } from "@/components/chapter/sfxSystemStyle";
+import { SPEECH_BUBBLE_TYPE_LABELS, SYSTEM_BLOCK_VARIANT_CONFIG } from "@/types";
+import type { Panel, ColorBlockFill, SpeechBubbleType, PanelBlockShape, SystemBlockVariant } from "@/types";
 import { cn } from "@/lib/utils";
 import {
   CHAPTER_EDITOR_RAIL_ASIDE_CLASS,
@@ -41,13 +42,13 @@ const COLOR_PRESETS_SIDEBAR = [
   { label: "Jaune",  color: "#fbbf24" },
 ] as const;
 
-export type SidebarTab = "cases-scenario" | "blocs" | "couleurs" | "dialogue" | "historique" | "calques";
+export type SidebarTab = "cases-scenario" | "blocs" | "couleurs" | "dialogue" | "sfx" | "historique" | "calques";
 
-/** Bibliothèque (Cases du scénario, Cases, Couleurs, Dialogue, Calques) — chrome flyout lisible comme Couleurs ; historique gardé compact. */
+/** Bibliothèque (Cases du scénario, Cases, Couleurs, Dialogue, SFX & Système, Calques) — chrome flyout lisible comme Couleurs ; historique gardé compact. */
 function isLibraryContentSidebarTab(
   tab: SidebarTab | null,
 ): tab is Exclude<SidebarTab, "historique"> {
-  return tab === "cases-scenario" || tab === "blocs" || tab === "couleurs" || tab === "dialogue" || tab === "calques";
+  return tab === "cases-scenario" || tab === "blocs" || tab === "couleurs" || tab === "dialogue" || tab === "sfx" || tab === "calques";
 }
 
 interface EditorLeftSidebarProps {
@@ -67,12 +68,19 @@ interface EditorLeftSidebarProps {
   /** Si x/y sont omis ou `undefined`, le parent positionne sous le centre visible du canvas. */
   onAddColorBlock: (x: number | undefined, y: number | undefined, width: number, height: number, fill?: ColorBlockFill) => void;
   onAddSpeechBubble: (type: SpeechBubbleType, x?: number, y?: number) => void;
+  onAddSfxBlock: (presetId?: string, x?: number, y?: number) => void;
+  onAddSystemBlock: (variant: SystemBlockVariant, x?: number, y?: number) => void;
+  onAddPageBackground: (color: string, y?: number) => void;
   selectedBlockId: { panelId: string; blockId: string } | null;
   selectedColorBlockId: { panelId: string; colorBlockId: string } | null;
   selectedSpeechBubbleId: { panelId: string; bubbleId: string } | null;
+  selectedSfxId: { panelId: string; sfxId: string } | null;
+  selectedSystemBlockId: { panelId: string; systemBlockId: string } | null;
   onSelectBlock: (v: { panelId: string; blockId: string } | null) => void;
   onSelectColorBlock: (v: { panelId: string; colorBlockId: string } | null) => void;
   onSelectSpeechBubble: (v: { panelId: string; bubbleId: string } | null) => void;
+  onSelectSfx: (v: { panelId: string; sfxId: string } | null) => void;
+  onSelectSystemBlock: (v: { panelId: string; systemBlockId: string } | null) => void;
   // ── Cases du scénario (onglet en haut du rail) ──
   scenarioContent: string | null | undefined;
   loadingScenario: boolean;
@@ -110,12 +118,19 @@ export function EditorLeftSidebar({
   onAddBlock,
   onAddColorBlock,
   onAddSpeechBubble,
+  onAddSfxBlock,
+  onAddSystemBlock,
+  onAddPageBackground,
   selectedBlockId,
   selectedColorBlockId,
   selectedSpeechBubbleId,
+  selectedSfxId,
+  selectedSystemBlockId,
   onSelectBlock,
   onSelectColorBlock,
   onSelectSpeechBubble,
+  onSelectSfx,
+  onSelectSystemBlock,
   scenarioContent,
   loadingScenario,
   validatedCases,
@@ -141,7 +156,9 @@ export function EditorLeftSidebar({
     () =>
       getPanelBlocks(panel).length +
       getPanelColorBlocks(panel).length +
-      getPanelSpeechBubbles(panel).length,
+      getPanelSpeechBubbles(panel).length +
+      getPanelSfxBlocks(panel).length +
+      getPanelSystemBlocks(panel).length,
     [panel],
   );
 
@@ -209,6 +226,7 @@ export function EditorLeftSidebar({
           { id: "blocs" as const, icon: LayoutPanelTop, label: "Cases" },
           { id: "couleurs" as const, icon: Palette, label: "Couleurs" },
           { id: "dialogue" as const, icon: MessageCircle, label: "Dialogue" },
+          { id: "sfx" as const, icon: Zap, label: "SFX & Système" },
           {
             id: "calques" as const,
             icon: LayoutList,
@@ -315,6 +333,7 @@ export function EditorLeftSidebar({
                 <kbd className="text-[10px] font-mono bg-muted text-muted-foreground border border-border px-1.5 py-px rounded-md leading-none">D</kbd>
               </>
             )}
+            {activeSidebarTab === "sfx" && <>SFX & Système</>}
             {activeSidebarTab === "cases-scenario" && <>Cases du scénario</>}
             {activeSidebarTab === "calques" && <>Calques</>}
             {activeSidebarTab === "historique" && <>Historique</>}
@@ -364,11 +383,101 @@ export function EditorLeftSidebar({
               selectedBlockId={selectedBlockId}
               selectedColorBlockId={selectedColorBlockId}
               selectedSpeechBubbleId={selectedSpeechBubbleId}
+              selectedSfxId={selectedSfxId}
+              selectedSystemBlockId={selectedSystemBlockId}
               onSelectBlock={onSelectBlock}
               onSelectColorBlock={onSelectColorBlock}
               onSelectSpeechBubble={onSelectSpeechBubble}
+              onSelectSfx={onSelectSfx}
+              onSelectSystemBlock={onSelectSystemBlock}
               onScrollToY={onScrollToY}
             />
+          )}
+          {activeSidebarTab === "sfx" && (
+            <div className="space-y-5">
+              <p className="text-sm text-muted-foreground leading-snug">
+                Clic : sous la zone visible ; glisser : position au dépôt. Onomatopées et fenêtres RPG, posables sur les cases comme sur le fond de page.
+              </p>
+
+              {/* Onomatopées */}
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Onomatopées (SFX)</p>
+                <div className="grid grid-cols-2 gap-3">
+                  {SFX_PRESETS.map((preset) => (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      draggable
+                      onDragStart={(e) => {
+                        setDraggingKey(`sfx-${preset.id}`);
+                        e.dataTransfer.setData("application/json", JSON.stringify({ type: "sfx-block", presetId: preset.id }));
+                        e.dataTransfer.effectAllowed = "copy";
+                      }}
+                      onDragEnd={() => setDraggingKey(null)}
+                      onClick={() => onAddSfxBlock(preset.id)}
+                      className={`cursor-grab active:cursor-grabbing active:scale-[0.98] rounded-xl border bg-card transition-all duration-150 flex flex-col items-center gap-1.5 px-2 pb-2.5 pt-3 overflow-hidden hover:-translate-y-0.5 hover:shadow-md hover:border-primary/50 ${draggingKey === `sfx-${preset.id}` ? "opacity-50 scale-[0.98] border-border" : "border-border/60"}`}
+                    >
+                      <div className="h-12 flex items-center justify-center overflow-visible rounded-lg w-full bg-muted/60">
+                        <span
+                          style={{
+                            fontFamily: preset.fontFamily,
+                            fontSize: 22,
+                            color: preset.color,
+                            textShadow: buildSfxTextShadow({ strokeColor: preset.strokeColor, strokeWidth: Math.min(3, preset.strokeWidth), glowColor: preset.glowColor, glowBlur: preset.glowBlur ? Math.min(8, preset.glowBlur) : undefined }),
+                            transform: `rotate(${preset.rotation}deg)`,
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {preset.text}
+                        </span>
+                      </div>
+                      <span className="text-xs font-semibold text-muted-foreground text-center leading-tight">{preset.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Fenêtres système */}
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Fenêtres système (RPG)</p>
+                <div className="flex flex-col gap-2.5">
+                  {(Object.entries(SYSTEM_BLOCK_VARIANT_CONFIG) as [SystemBlockVariant, { label: string; accent: string; defaultTitle: string }][]).map(([variant, cfg]) => (
+                    <button
+                      key={variant}
+                      type="button"
+                      draggable
+                      onDragStart={(e) => {
+                        setDraggingKey(`system-${variant}`);
+                        e.dataTransfer.setData("application/json", JSON.stringify({ type: "system-block", variant }));
+                        e.dataTransfer.effectAllowed = "copy";
+                      }}
+                      onDragEnd={() => setDraggingKey(null)}
+                      onClick={() => onAddSystemBlock(variant)}
+                      className={`cursor-grab active:cursor-grabbing active:scale-[0.98] rounded-xl border bg-card px-4 py-3 transition-all duration-150 flex items-center gap-3.5 select-none hover:-translate-y-0.5 hover:shadow-md hover:border-primary/50 ${draggingKey === `system-${variant}` ? "opacity-50 scale-[0.98] border-border" : "border-border/60"}`}
+                    >
+                      <div
+                        className="shrink-0 rounded-md flex items-center justify-center"
+                        style={{
+                          width: 72,
+                          height: 40,
+                          background: "linear-gradient(180deg, rgba(9,12,24,0.96), rgba(15,19,38,0.96))",
+                          border: `1.5px solid ${cfg.accent}`,
+                          boxShadow: `0 0 10px ${hexToRgba(cfg.accent, 0.45)}`,
+                        }}
+                      >
+                        <span style={{ color: cfg.accent, fontFamily: "'Roboto Mono', monospace", fontSize: 8, fontWeight: 700, letterSpacing: 1 }}>
+                          {cfg.defaultTitle}
+                        </span>
+                      </div>
+                      <div className="flex flex-col min-w-0 gap-0.5 text-left">
+                        <span className="text-sm font-semibold text-foreground leading-snug">{cfg.label}</span>
+                        <span className="text-xs text-muted-foreground leading-snug">Texte net éditable, sans IA</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
           )}
           {activeSidebarTab === "historique" && (
             <ChapterImageHistoryList
@@ -438,6 +547,49 @@ export function EditorLeftSidebar({
                 </div>
               </div>
 
+              {/* Hauteurs webtoon — grille 400px, pleine largeur */}
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Cases webtoon (pleine largeur)</p>
+                <div className="flex flex-col gap-2.5">
+                  {WEBTOON_CASE_PRESETS.map((preset) => {
+                    const MAX_W = 72;
+                    const thumbH = Math.max(8, Math.round((preset.height / 1600) * 56));
+                    return (
+                      <div
+                        key={preset.label}
+                        draggable
+                        onDragStart={(e) => {
+                          setDraggingKey(preset.label);
+                          e.dataTransfer.setData("application/json", JSON.stringify({ type: "new-block", width: preset.width, height: preset.height }));
+                          e.dataTransfer.effectAllowed = "copy";
+                          const ghost = newBlockDragGhostRef.current;
+                          if (ghost) {
+                            ghost.style.width = "104px";
+                            ghost.style.height = `${Math.max(24, Math.round((preset.height / 1600) * 104))}px`;
+                            ghost.textContent = `${preset.width}×${preset.height}`;
+                            e.dataTransfer.setDragImage(ghost, 52, 20);
+                          }
+                        }}
+                        onDragEnd={() => setDraggingKey(null)}
+                        onClick={() => onAddBlock(undefined, undefined, preset.width, preset.height)}
+                        className={`cursor-grab active:cursor-grabbing active:scale-[0.98] rounded-xl border bg-card px-4 py-3 transition-all duration-150 flex items-center gap-3.5 select-none hover:-translate-y-0.5 hover:shadow-md hover:border-border ${draggingKey === preset.label ? "opacity-50 scale-[0.98] border-border" : "border-border/60"}`}
+                      >
+                        <div className="shrink-0 flex items-center justify-center" style={{ width: MAX_W, height: 56 }}>
+                          <div
+                            className="rounded-sm border-2 border-dashed border-muted-foreground/25 bg-muted/50 w-full"
+                            style={{ height: thumbH }}
+                          />
+                        </div>
+                        <div className="flex flex-col min-w-0 gap-1">
+                          <span className="text-sm font-semibold text-foreground leading-snug">{preset.label}</span>
+                          <span className="text-xs text-muted-foreground leading-snug">{preset.description}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
               {/* Blocs diagonaux */}
               <div className="space-y-2">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Formes diagonales</p>
@@ -493,6 +645,59 @@ export function EditorLeftSidebar({
               <p className="text-sm text-muted-foreground leading-snug">
                 Clic : sous la zone visible ; glisser : position au dépôt.
               </p>
+
+              {/* Fonds narratifs — pleine largeur, placés SOUS les cases (fond de page) */}
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Fonds de page narratifs</p>
+                <p className="text-xs text-muted-foreground leading-snug">
+                  La couleur du fond encode la scène : pleine largeur, insérée sous toutes les cases.
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  {NARRATIVE_COLOR_PRESETS.map((preset) => (
+                    <div
+                      key={preset.label}
+                      draggable
+                      onDragStart={(e) => {
+                        setDraggingKey(`bg-${preset.label}`);
+                        e.dataTransfer.setData("application/json", JSON.stringify({ type: "page-background", color: preset.color }));
+                        e.dataTransfer.effectAllowed = "copy";
+                        const ghost = newBlockDragGhostRef.current;
+                        if (ghost) {
+                          ghost.style.width = "104px";
+                          ghost.style.height = "56px";
+                          ghost.style.background = preset.color;
+                          ghost.style.border = preset.color === "#ffffff" ? "2px solid #cbd5e1" : "none";
+                          ghost.textContent = preset.label;
+                          ghost.style.color = ["#ffffff", "#e8d9c0"].includes(preset.color) ? "#0f172a" : "#ffffff";
+                          e.dataTransfer.setDragImage(ghost, 52, 28);
+                        }
+                      }}
+                      onDragEnd={() => {
+                        setDraggingKey(null);
+                        const ghost = newBlockDragGhostRef.current;
+                        if (ghost) {
+                          ghost.style.background = "";
+                          ghost.style.border = "";
+                          ghost.style.color = "";
+                        }
+                      }}
+                      onClick={() => onAddPageBackground(preset.color)}
+                      className={`cursor-grab active:cursor-grabbing active:scale-[0.98] rounded-xl border transition-all duration-150 overflow-hidden select-none hover:-translate-y-0.5 hover:shadow-md hover:border-border ${draggingKey === `bg-${preset.label}` ? "opacity-50 scale-[0.98] border-border" : "border-border/60"}`}
+                    >
+                      <div
+                        className="h-10 w-full"
+                        style={{ backgroundColor: preset.color, boxShadow: preset.color === "#ffffff" ? "inset 0 0 0 1px #e2e8f0" : undefined }}
+                      />
+                      <div className="px-3 py-2 bg-card flex flex-col gap-0.5">
+                        <span className="text-sm font-semibold text-foreground leading-tight">{preset.label}</span>
+                        <span className="text-xs text-muted-foreground leading-tight">{preset.description}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide pt-2">Blocs de couleur</p>
               <div className="grid grid-cols-2 gap-3">
                 {COLOR_PRESETS_SIDEBAR.map((preset) => (
                   <div

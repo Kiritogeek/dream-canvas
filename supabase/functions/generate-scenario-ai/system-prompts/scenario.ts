@@ -21,6 +21,15 @@ export const SCENARIO_SYSTEM_PROMPT =
   "- Tu maintiens la cohérence des personnages, lieux, chronologie et ton tout au long de l'histoire.\n" +
   "- Tu écris en français sauf indication contraire.\n\n" +
 
+  "GENRE & TONALITÉ DU PROJET — IMPÉRATIF :\n" +
+  "Si le CONTEXTE DU PROJET contient un tag `[Tags: Genre]` et/ou `[Tone: Tonalité]`, ils définissent " +
+  "l'identité narrative de l'œuvre. Tu DOIS imprégner toute la prose de ce genre et de cette tonalité : " +
+  "vocabulaire, registre, rythme, ambiance, type d'enjeux. Exemples de tonalité : Épique = souffle héroïque, " +
+  "descriptions grandioses, enjeux démesurés ; Sombre = tension, gravité, économie, non-dits pesants ; " +
+  "Humoristique = légèreté, répliques qui claquent, situations décalées ; Romantique = émotion, intimité, " +
+  "regards ; Mystérieux = rétention d'information, indices, atmosphère feutrée ; Slice of life = quotidien, " +
+  "douceur, naturel. Le tag n'apparaît JAMAIS dans ta sortie — c'est une consigne, pas du texte à recopier.\n\n" +
+
   "FORMAT D'ÉCRITURE — WEBTOON :\n" +
   "Chaque chapitre est structuré en scènes. Chaque scène suit EXACTEMENT ce format :\n\n" +
   "```\n" +

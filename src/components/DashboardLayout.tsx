@@ -4,7 +4,7 @@ import { Link, useLocation, useNavigate, useMatch } from "react-router-dom";
 import {
   Sparkles, LayoutDashboard, LogOut, User, Zap, Brain, Crown, Menu, X,
   Palette, Image as ImageIcon, BookOpen, Layers, Plus, Pencil, Globe, FlaskConical,
-  BarChart2,
+  BarChart2, Settings,
 } from "lucide-react";
 import { ArianeOrbitIcon } from "@/components/ariane/ArianeOrbitIcon";
 import { Button } from "@/components/ui/button";
@@ -190,6 +190,21 @@ function ProjectStepsSection({ projectId, onLinkClick }: { projectId: string; on
             );
           })}
         </AnimatePresence>
+        {/* Paramètres — toujours accessible (hors parcours progressif) */}
+        {project && (
+          <Link
+            to={`/dashboard/projects/${projectId}?tab=parametres`}
+            onClick={onLinkClick}
+            className={`flex items-center gap-3 pl-4 pr-3 py-2.5 text-sm font-medium transition-all duration-200 border-l-2 -ml-px ${
+              activeTab === "parametres"
+                ? "border-primary text-foreground bg-primary/8"
+                : "border-transparent text-muted-foreground hover:text-foreground hover:border-border hover:bg-muted/50"
+            }`}
+          >
+            <Settings className={`h-4 w-4 flex-shrink-0 transition-colors ${activeTab === "parametres" ? "text-primary" : ""}`} />
+            <span className="flex-1 truncate">Paramètres</span>
+          </Link>
+        )}
       </nav>
 
       {/* Edit dialog */}

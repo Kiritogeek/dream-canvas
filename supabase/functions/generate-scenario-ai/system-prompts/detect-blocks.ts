@@ -209,33 +209,37 @@ export const DETECT_BLOCKS_SYSTEM_PROMPT =
   "IMPORTANT : répondre UNIQUEMENT avec le JSON. Pas d'introduction, pas de commentaire, pas de markdown.";
 
 // Profils de genre — la cible de cases ne s'applique QUE si l'utilisateur
-// n'a pas fourni targetPanelCount (qui prime toujours).
+// n'a pas fourni targetPanelCount (qui prime toujours). Clés = 12 genres FR
+// de la modale de création projet, normalisées sans accent/casse.
 const GENRE_PROFILES: Record<string, { target: number; directives: string }> = {
-  action: {
-    target: 60,
-    directives: "SFX fréquents sur les impacts et déplacements, répliques sèches et courtes.",
-  },
-  fantasy: {
-    target: 50,
-    directives: "SFX sur les sorts et impacts, équilibre action/dialogue.",
-  },
-  drame: {
-    target: 50,
-    directives: "SFX rares, monologue charnière plus présent, battements émotionnels appuyés (breathing_after 250-500).",
-  },
-  romance: {
-    target: 40,
-    directives: "Plus de dialogues doux, SFX quasi absents, JAMAIS de system_window.",
-  },
-  comedie: {
-    target: 30,
-    directives: "Cases serrées (breathing_after 120 dominant), répliques qui claquent.",
-  },
+  action:     { target: 60, directives: "SFX fréquents sur les impacts et déplacements, répliques sèches et courtes." },
+  aventure:   { target: 55, directives: "Rythme soutenu, SFX sur l'action, alternance exploration/dialogue." },
+  thriller:   { target: 55, directives: "Tension permanente, cases serrées, SFX ponctuels, cliffhangers appuyés." },
+  fantasy:    { target: 50, directives: "SFX sur les sorts et impacts, équilibre action/dialogue, splash sur les révélations." },
+  medieval:   { target: 50, directives: "SFX sur les combats, cadrages amples pour les décors, registre soutenu." },
+  sf:         { target: 55, directives: "SFX énergie/technologie, fenêtres système cohérentes seulement si le texte les évoque." },
+  historique: { target: 45, directives: "SFX rares, cadrages posés, importance des décors et des costumes." },
+  dystopie:   { target: 50, directives: "Ambiance pesante, palette froide, SFX industriels rares, silences." },
+  horreur:    { target: 45, directives: "Silences (breathing 500-700), SFX secs et rares, ombres dures, cases muettes fréquentes." },
+  mystere:    { target: 45, directives: "SFX rares, gros plans sur les indices, battements de suspense, révélations en fin." },
+  drame:      { target: 50, directives: "SFX rares, monologue charnière plus présent, battements émotionnels appuyés (breathing_after 250-500)." },
+  romance:    { target: 40, directives: "Plus de dialogues doux, SFX quasi absents, JAMAIS de system_window." },
+  comedie:    { target: 30, directives: "Cases serrées (breathing_after 120 dominant), répliques qui claquent." },
 };
 
-// « Comédie » / « DRAME » → « comedie » / « drame » : tolère accents et casse côté client.
-function normalizeGenre(genre: string): string {
-  return genre.trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+// Tonalité — 6 valeurs FR de la modale → biais de registre, palette et rythme du découpage.
+const TONE_DIRECTIVES: Record<string, string> = {
+  epique:          "Registre ample et héroïque : descriptions grandioses, échelles imposantes, splash sur les moments forts, palette contrastée et lumineuse, respirations larges avant les climax.",
+  sombre:          "Registre grave et tendu : palette froide et désaturée, ombres profondes, beaucoup de cases muettes et de silences (breathing 500-700), économie de mots, dialogues secs.",
+  humoristique:    "Registre léger et vif : rythme rapide (breathing 120 dominant), cases serrées, répliques qui claquent, expressions exagérées, fréquence de dialogue élevée.",
+  romantique:      "Registre tendre et intimiste : gros plans sur les visages et les regards, lumière douce et chaude, palette pastel, rythme posé, beaucoup de non-dits.",
+  mysterieux:      "Registre feutré et intrigant : cadrages partiels et hors-champ, gros plans sur les indices, palette brumeuse, révélations retenues jusqu'à la fin.",
+  "slice of life": "Registre doux et quotidien : scènes calmes et chaleureuses, cadrages posés, palette naturelle, dialogues naturels, peu ou pas de SFX ni de système.",
+};
+
+// « Comédie » / « Épique » / « Médiéval » → clés normalisées sans accent/casse.
+function normalizeMeta(v: string): string {
+  return v.trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 }
 
 export function buildDetectBlocksPrompt(opts: {
@@ -247,6 +251,7 @@ export function buildDetectBlocksPrompt(opts: {
   universeLore?: string;
   textDensity?: "aere" | "standard" | "dense";
   genre?: string;
+  tone?: string;
   allowSystemWindows?: boolean;
 }): string {
   let prompt = "";
@@ -265,7 +270,7 @@ export function buildDetectBlocksPrompt(opts: {
     prompt += `Chapitre ${opts.chapterNumber} : ${opts.chapterTitle}\n\n`;
   }
 
-  const genreKey = opts.genre?.trim() ? normalizeGenre(opts.genre) : "";
+  const genreKey = opts.genre?.trim() ? normalizeMeta(opts.genre) : "";
   const profile = genreKey ? GENRE_PROFILES[genreKey] : undefined;
 
   if (opts.targetPanelCount) {
@@ -275,9 +280,15 @@ export function buildDetectBlocksPrompt(opts: {
   }
 
   if (profile) {
-    prompt += `PROFIL DE GENRE (${genreKey}) : ${profile.directives}\n\n`;
+    prompt += `PROFIL DE GENRE (${opts.genre!.trim()}) : ${profile.directives}\n\n`;
   } else if (opts.genre?.trim()) {
     prompt += `GENRE DE L'ŒUVRE : ${opts.genre.trim()} — adapte le ton des répliques et la fréquence des SFX à ce genre.\n\n`;
+  }
+
+  // Tonalité du projet — biais transverse le plus fort sur le rendu ressenti.
+  if (opts.tone?.trim()) {
+    const toneDir = TONE_DIRECTIVES[normalizeMeta(opts.tone)];
+    prompt += `TONALITÉ DE L'ŒUVRE — « ${opts.tone.trim()} » : ${toneDir ?? "imprègne chaque case de ce registre (palette, cadrage, rythme des respirations, choix des mots dans les bulles)."}\n\n`;
   }
 
   if (opts.textDensity === "aere") {

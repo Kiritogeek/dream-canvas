@@ -57,7 +57,8 @@ import { useScenarioAI } from "@/hooks/useScenarioAI";
 import { useUserPlan } from "@/hooks/useUserPlan";
 import { useAuth } from "@/hooks/useAuth";
 import { callDetectBlocks, callGenerateAiSummary } from "@/services/scenarioAI";
-import type { DetectBlocksDensity, DetectBlocksGenre } from "@/services/scenarioAI";
+import type { DetectBlocksDensity } from "@/services/scenarioAI";
+import { parseProjectMeta } from "@/lib/projectMeta";
 import { useNarraMindDebounce } from "@/hooks/useNarraMindDebounce";
 import { useCompassIndex } from "@/hooks/useCompassIndex";
 import { estimatePanelCount } from "@/services/panels";
@@ -76,11 +77,10 @@ const NARRAMIND_AUTOSAVE_MIN_WORDS = 80;
 
 interface DecoupageSettings {
   density: DetectBlocksDensity;
-  genre: DetectBlocksGenre | "";
   allowSystem: boolean;
 }
 
-const DEFAULT_DECOUPAGE_SETTINGS: DecoupageSettings = { density: "standard", genre: "", allowSystem: true };
+const DEFAULT_DECOUPAGE_SETTINGS: DecoupageSettings = { density: "standard", allowSystem: true };
 
 const decoupageSettingsKey = (projectId: string) => `dreamweave_decoupage_settings_${projectId}`;
 
@@ -93,15 +93,6 @@ function loadDecoupageSettings(projectId: string | undefined): DecoupageSettings
     return DEFAULT_DECOUPAGE_SETTINGS;
   }
 }
-
-const DECOUPAGE_GENRE_LABELS: Record<DetectBlocksGenre | "", string> = {
-  "": "Aucun (standard)",
-  action: "Action / RPG",
-  fantasy: "Fantasy",
-  drame: "Drame",
-  romance: "Romance",
-  comedie: "Comédie",
-};
 
 const DECOUPAGE_DENSITY_LABELS: Record<DetectBlocksDensity, string> = {
   aere: "Aéré",
@@ -689,6 +680,8 @@ export default function ScenarioChapterEditor() {
   // ── Réglages du découpage (genre / densité / système) ─────────
 
   const [decoupageSettings, setDecoupageSettings] = useState<DecoupageSettings>(() => loadDecoupageSettings(projectId));
+  // Genre + tonalité viennent du PROJET (onglet Paramètres) — source unique, plus de duplication.
+  const decoupageMeta = useMemo(() => parseProjectMeta(project?.description), [project?.description]);
   useEffect(() => {
     setDecoupageSettings(loadDecoupageSettings(projectId));
   }, [projectId]);
@@ -739,7 +732,8 @@ export default function ScenarioChapterEditor() {
         assets_context: assetsContext,
         universe_lore: project?.universe_lore?.trim() || undefined,
         text_density: decoupageSettings.density,
-        genre: decoupageSettings.genre || undefined,
+        genre: decoupageMeta.genre || undefined,
+        tone: decoupageMeta.tone || undefined,
         allow_system_windows: decoupageSettings.allowSystem,
       });
 
@@ -783,7 +777,7 @@ export default function ScenarioChapterEditor() {
       if (isMountedRef.current) setIsDetecting(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chapter, content, toast, decoupageSettings]);
+  }, [chapter, content, toast, decoupageSettings, decoupageMeta]);
 
   // ── Toggle / unlock un bloc ──────────────────────────────────
 
@@ -1715,29 +1709,27 @@ export default function ScenarioChapterEditor() {
                   <SlidersHorizontal className="h-3.5 w-3.5 shrink-0" />
                   <span>
                     {DECOUPAGE_DENSITY_LABELS[decoupageSettings.density]}
-                    {decoupageSettings.genre ? ` · ${DECOUPAGE_GENRE_LABELS[decoupageSettings.genre]}` : ""}
+                    {decoupageMeta.genre ? ` · ${decoupageMeta.genre}` : ""}
                     {decoupageSettings.allowSystem ? "" : " · sans système"}
                   </span>
                 </button>
               </PopoverTrigger>
               <PopoverContent side="top" align="end" sideOffset={8} className="w-[300px] p-4 space-y-4">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Genre de l'histoire</label>
-                  <select
-                    value={decoupageSettings.genre}
-                    onChange={(e) => {
-                      const g = e.target.value as DetectBlocksGenre | "";
-                      // Le genre suggère un défaut système ; l'utilisateur peut le rouvrir ensuite.
-                      const allowSystem = g === "action" || g === "fantasy" ? true : g === "" ? decoupageSettings.allowSystem : false;
-                      updateDecoupageSettings({ genre: g, allowSystem });
-                    }}
-                    className="w-full h-9 rounded-lg border border-border bg-background text-sm px-2.5 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/30"
-                  >
-                    {(Object.entries(DECOUPAGE_GENRE_LABELS) as [DetectBlocksGenre | "", string][]).map(([value, label]) => (
-                      <option key={value || "none"} value={value}>{label}</option>
-                    ))}
-                  </select>
-                  <p className="text-[11px] text-muted-foreground leading-snug">Calibre le nombre de cases et le style du découpage.</p>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Genre & tonalité</label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {decoupageMeta.genre ? (
+                      <span className="text-[11px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">{decoupageMeta.genre}</span>
+                    ) : (
+                      <span className="text-[11px] text-muted-foreground italic">Aucun genre défini</span>
+                    )}
+                    {decoupageMeta.tone && (
+                      <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-500 font-medium">{decoupageMeta.tone}</span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground leading-snug">
+                    Définis dans <button type="button" onClick={() => navigate(`/dashboard/projects/${projectId}?tab=parametres`)} className="text-primary hover:underline font-medium">Paramètres du projet</button>. Ils calibrent le nombre de cases, les SFX et le registre.
+                  </p>
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Densité de texte</label>

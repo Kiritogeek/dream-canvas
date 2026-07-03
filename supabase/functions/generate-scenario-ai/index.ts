@@ -407,6 +407,7 @@ Deno.serve(async (req) => {
       target_panel_count?: number;
       text_density?: string;
       genre?: string;
+      tone?: string;
       allow_system_windows?: boolean;
       previous_summaries?: string;
       previous_prompts?: string[];
@@ -512,6 +513,7 @@ Deno.serve(async (req) => {
         universeLore: typeof body.universe_lore === "string" ? body.universe_lore : undefined,
         textDensity: body.text_density === "aere" || body.text_density === "dense" || body.text_density === "standard" ? body.text_density : undefined,
         genre: typeof body.genre === "string" && body.genre.trim() ? body.genre : undefined,
+        tone: typeof body.tone === "string" && body.tone.trim() ? body.tone : undefined,
         allowSystemWindows: typeof body.allow_system_windows === "boolean" ? body.allow_system_windows : undefined,
       });
     } else if (mode === "ai_summary") {

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
+import { buildProjectDescription, parseProjectMeta } from "@/lib/projectMeta";
 import { Plus, Trash2, Sparkles, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -69,14 +70,7 @@ export default function Projects() {
     e.preventDefault();
     if (!title.trim()) return;
 
-    const parts: string[] = [];
-    if (selectedGenre) parts.push(`[Tags: ${selectedGenre}]`);
-    if (selectedTone) parts.push(`[Tone: ${selectedTone}]`);
-    const prefix = parts.join("");
-    const body = synopsis.trim();
-    const finalDescription = prefix || body
-      ? `${prefix}${body ? (prefix ? " " + body : body) : ""}`
-      : null;
+    const finalDescription = buildProjectDescription({ genre: selectedGenre, tone: selectedTone, synopsis });
 
     const isFirstProject = projects.length === 0;
 
@@ -290,12 +284,10 @@ export default function Projects() {
                     {p.title}
                   </h3>
                   {(() => {
-                    const tags = p.description?.match(/^\[Tags: ([^\]]+)\]/)?.[1]?.split(", ") ?? [];
-                    const tones = p.description?.match(/\[Tone: ([^\]]+)\]/)?.[1]?.split(", ") ?? [];
-                    const synopsisText = p.description
-                      ?.replace(/\[Tags: [^\]]*\]/g, "")
-                      .replace(/\[Tone: [^\]]*\]/g, "")
-                      .trim() || null;
+                    const meta = parseProjectMeta(p.description);
+                    const tags = meta.genre ? meta.genre.split(", ") : [];
+                    const tones = meta.tone ? meta.tone.split(", ") : [];
+                    const synopsisText = meta.synopsis || null;
                     return (
                       <>
                         {(tags.length > 0 || tones.length > 0) && (

@@ -1,9 +1,10 @@
 import { useState, useCallback, useEffect, lazy, Suspense } from "react";
 import { QuotaReachedDialog } from "@/components/shared/QuotaReachedDialog";
 import { useParams, useSearchParams, Link, useNavigate } from "react-router-dom";
-import { Palette, Image as ImageIcon, BookOpen, Globe, Layers, FlaskConical } from "lucide-react";
+import { Palette, Image as ImageIcon, BookOpen, Globe, Layers, FlaskConical, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
+import { ProjectSettingsSection } from "@/components/project/ProjectSettingsSection";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { useProject } from "@/hooks/useProjects";
 import { useAssets } from "@/hooks/useAssets";
@@ -93,7 +94,8 @@ export default function ProjectDetail() {
     rawTab === "assets" ||
     rawTab === "scenario" ||
     rawTab === "universe" ||
-    rawTab === "edition"
+    rawTab === "edition" ||
+    rawTab === "parametres"
       ? rawTab
       : rawTab === "test" && isArianeOnboardingAdmin
         ? "test"
@@ -423,6 +425,7 @@ export default function ProjectDetail() {
     scenario: { icon: BookOpen, title: "Scénario" },
     universe: { icon: Globe, title: "Univers" },
     edition: { icon: Layers, title: "Édition" },
+    parametres: { icon: Settings, title: "Paramètres du projet" },
     test: { icon: FlaskConical, title: "Test — Fil d'Ariane" },
   } as const;
   const currentHeader = tabHeaders[activeTab as keyof typeof tabHeaders];
@@ -486,6 +489,11 @@ export default function ProjectDetail() {
                 if (isArianeOnboardingAdmin) setSearchParams({ tab });
                 return;
               }
+              // Paramètres : toujours accessible (hors parcours progressif).
+              if (tab === "parametres") {
+                setSearchParams({ tab });
+                return;
+              }
               const t = tab as keyof typeof accessible;
               if (!accessible[t]) return;
               setSearchParams({ tab });
@@ -527,6 +535,10 @@ export default function ProjectDetail() {
 
             <TabsContent value="edition">
               <EditionSection projectId={project.id} />
+            </TabsContent>
+
+            <TabsContent value="parametres">
+              <ProjectSettingsSection project={project} />
             </TabsContent>
 
             {isArianeOnboardingAdmin && (

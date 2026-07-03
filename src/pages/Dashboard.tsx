@@ -1,7 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
-import { Plus, FolderOpen, Sparkles, Image, Zap, Brain } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -16,12 +14,12 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useRecentProjects, useProjectCount, useCreateProject } from "@/hooks/useProjects";
-import { useAssetCount } from "@/hooks/useAssets";
 import { useUserPlan } from "@/hooks/useUserPlan";
-import { planDisplayName, TIER_CONFIG } from "@/types";
+import { useDashboardStats } from "@/hooks/useDashboardStats";
+import { TIER_CONFIG } from "@/types";
 import DashboardLayout from "@/components/DashboardLayout";
+import { DashboardHome, type DashboardProject, type DashboardStyleKey } from "@/components/dashboard/DashboardHome";
 import {
-  ARIANE_DISPLAY_NAME,
   ARIANE_ONBOARDING_ADMIN_EMAIL,
   ARIANE_STYLE_ONBOARDING_NEXT_CREATE_SESSION_KEY,
   ARIANE_STYLE_ONBOARDING_PENDING_PROJECT_ID_KEY,
@@ -30,15 +28,18 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { resetProgressiveOnboardingSimulation, bindForcedProgressiveProjectAfterCreate } from "@/lib/progressiveOnboardingStorage";
 import { buildProjectDescription, parseProjectMeta } from "@/lib/projectMeta";
+import { extractStyleKeyFromTemplateText } from "@/lib/styleTemplateMeta";
+
+const KNOWN_STYLE_KEYS: DashboardStyleKey[] = ["manga", "webtoon-coreen", "manhwa-chinois", "europeen"];
 
 export default function Dashboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
-  const { data: projects = [], isLoading } = useRecentProjects(6);
+  const { data: projects = [] } = useRecentProjects(6);
   const { data: projectCount = 0 } = useProjectCount();
-  const { data: assetCount = 0 } = useAssetCount();
-  const { plan, usageInfo } = useUserPlan();
+  const { plan, usageInfo, nextResetDate } = useUserPlan();
+  const { data: stats } = useDashboardStats();
   const createProject = useCreateProject();
 
   const [createOpen, setCreateOpen] = useState(false);
@@ -91,210 +92,85 @@ export default function Dashboard() {
     );
   };
 
-  const usagePercent = Math.min(
-    100,
-    Math.round((usageInfo.count / usageInfo.limit) * 100)
-  );
+  const displayName =
+    (user?.user_metadata?.display_name as string | undefined)?.trim() ||
+    user?.email?.split("@")[0] ||
+    "Créateur";
 
-  const stats = [
-    { icon: FolderOpen, label: "Projets", value: projectCount },
-    { icon: Image, label: "Assets", value: assetCount },
-    { icon: Sparkles, label: "Générations", value: `${usageInfo.count}/${usageInfo.limit}` },
-  ];
+  const planConfig = {
+    libre: { label: TIER_CONFIG.libre.label, maxProjects: TIER_CONFIG.libre.maxProjects },
+    createur: { label: TIER_CONFIG.createur.label, maxProjects: TIER_CONFIG.createur.maxProjects },
+    studio: { label: TIER_CONFIG.studio.label, maxProjects: TIER_CONFIG.studio.maxProjects },
+  };
+
+  const mappedProjects: DashboardProject[] = projects.map((p) => {
+    const meta = parseProjectMeta(p.description);
+    const rawKey = extractStyleKeyFromTemplateText(p.style_template);
+    const styleKey = (KNOWN_STYLE_KEYS as string[]).includes(rawKey ?? "")
+      ? (rawKey as DashboardStyleKey)
+      : null;
+    return {
+      id: p.id,
+      title: p.title,
+      tags: [meta.genre, meta.tone].filter(Boolean),
+      styleKey,
+      coverUrl: p.cover_url ?? null,
+      createdAtLabel: new Date(p.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" }),
+      chaptersCount: stats?.chaptersByProject[p.id] ?? 0,
+      assetsCount: stats?.assetsByProject[p.id] ?? 0,
+    };
+  });
+
+  const renewLabel = nextResetDate.toLocaleDateString("fr-FR", { day: "numeric", month: "long" });
 
   return (
     <DashboardLayout>
-      <div className="space-y-6 sm:space-y-8">
-        {/* Welcome */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="gradient-dream rounded-xl sm:rounded-2xl p-5 sm:p-8 shadow-dream"
-        >
-          <h1 className="text-xl sm:text-2xl md:text-3xl font-display font-bold mb-2">
-            Bienvenue sur DreamWeave
-          </h1>
-          <p className="text-sm sm:text-base text-muted-foreground mb-4">
-            <span className="font-medium text-foreground/90">{ARIANE_DISPLAY_NAME}</span>{" "}
-            vous souhaite la bienvenue. Prêt à tisser de nouvelles histoires&nbsp;?
-            Créez un projet et commencez à générer vos webtoons.
-          </p>
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              size="sm"
-              onClick={() => setCreateOpen(true)}
-              className="gradient-primary text-primary-foreground shadow-dream sm:text-sm"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Nouveau projet
-            </Button>
-            {canReplayArianeOnboarding ? (
-              <>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  className="border-[hsl(var(--lavender)/0.4)] bg-background/40 text-sm"
-                  onClick={() => window.dispatchEvent(new CustomEvent(ARIANE_WELCOME_REPLAY_EVENT))}
-                >
-                  Relancer l’onboarding Ariane
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  className="border-[hsl(var(--mint)/0.35)] bg-background/40 text-sm"
-                  onClick={() => {
-                    resetProgressiveOnboardingSimulation(user?.id);
-                    window.dispatchEvent(new CustomEvent(ARIANE_WELCOME_REPLAY_EVENT));
-                    toast({
-                      title: "Parcours débutant réinitialisé",
-                      description:
-                        "Bienvenue Ariane, Style et menus New seront proposés après création d’un projet ou en naviguant.",
-                    });
-                  }}
-                >
-                  Simuler première connexion (menus)
-                </Button>
-              </>
-            ) : null}
-          </div>
-        </motion.div>
-
-        {/* Stats */}
-        <div className="grid grid-cols-3 gap-2 sm:gap-4">
-          {stats.map((s) => (
-            <div key={s.label} className="glass rounded-lg sm:rounded-xl p-3 sm:p-4 text-center">
-              <s.icon className="h-4 w-4 sm:h-5 sm:w-5 mx-auto mb-1.5 sm:mb-2 text-primary" />
-              <div className="text-lg sm:text-2xl font-display font-bold">{s.value}</div>
-              <div className="text-xs sm:text-sm text-muted-foreground">{s.label}</div>
-            </div>
-          ))}
+      {canReplayArianeOnboarding && (
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="border-[hsl(var(--lavender)/0.4)] bg-background/40 text-xs"
+            onClick={() => window.dispatchEvent(new CustomEvent(ARIANE_WELCOME_REPLAY_EVENT))}
+          >
+            Relancer l’onboarding Ariane
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="border-[hsl(var(--mint)/0.35)] bg-background/40 text-xs"
+            onClick={() => {
+              resetProgressiveOnboardingSimulation(user?.id);
+              window.dispatchEvent(new CustomEvent(ARIANE_WELCOME_REPLAY_EVENT));
+              toast({
+                title: "Parcours débutant réinitialisé",
+                description:
+                  "Bienvenue Ariane, Style et menus New seront proposés après création d’un projet ou en naviguant.",
+              });
+            }}
+          >
+            Simuler première connexion (menus)
+          </Button>
         </div>
+      )}
 
-        {/* Barre de progression usage + info tier */}
-        <div className="glass rounded-lg sm:rounded-xl p-4 sm:p-5">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span
-                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${
-                  plan === "studio"
-                    ? "bg-gradient-to-r from-violet-500/20 to-purple-500/20 text-violet-600 dark:text-violet-400 border border-violet-500/30"
-                    : plan === "createur"
-                    ? "bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30"
-                    : "bg-muted text-muted-foreground border border-border"
-                }`}
-              >
-                {plan === "studio" ? <Brain className="h-3 w-3" /> : plan === "createur" ? <Zap className="h-3 w-3" /> : null}
-                Plan {planDisplayName(plan)}
-              </span>
-              <span className="text-xs sm:text-sm text-muted-foreground">
-                {"FLUX.2 Pro"}
-              </span>
-            </div>
-            <span className="text-xs sm:text-sm font-medium">
-              {usageInfo.count}/{usageInfo.limit} générations
-            </span>
-          </div>
-          <div className="w-full bg-foreground/10 rounded-full h-2 sm:h-2.5">
-            <div
-              className={`h-2 sm:h-2.5 rounded-full transition-all duration-500 ${
-                usagePercent >= 90
-                  ? "bg-destructive"
-                  : usagePercent >= 70
-                    ? "bg-amber-500"
-                    : "bg-primary"
-              }`}
-              style={{ width: `${usagePercent}%` }}
-            />
-          </div>
-          {plan === "libre" && (
-            <p className="text-xs text-muted-foreground mt-2">
-              Besoin de créer davantage ? Passez au plan {planDisplayName("createur")} pour {TIER_CONFIG.createur.maxGenerationsPerMonth} générations par mois au lieu de {TIER_CONFIG.libre.maxGenerationsPerMonth}.
-            </p>
-          )}
-        </div>
+      <DashboardHome
+        displayName={displayName}
+        email={user?.email ?? ""}
+        plan={plan}
+        planConfig={planConfig}
+        usage={{ count: usageInfo.count, limit: usageInfo.limit }}
+        projectCount={projectCount}
+        totalChapters={stats?.totalChapters ?? 0}
+        totalAssets={stats?.totalAssets ?? 0}
+        projects={mappedProjects}
+        renewLabel={renewLabel}
+        onNewProject={() => setCreateOpen(true)}
+      />
 
-        {/* Recent projects */}
-        <div>
-          <div className="flex items-center justify-between mb-3 sm:mb-4">
-            <h2 className="text-lg sm:text-xl font-display font-semibold">
-              Projets récents
-            </h2>
-            <Button variant="ghost" size="sm" asChild className="text-xs sm:text-sm">
-              <Link to="/dashboard/projects">Voir tout</Link>
-            </Button>
-          </div>
-          {isLoading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-              {[1, 2, 3].map((i) => (
-                <div
-                  key={i}
-                  className="glass rounded-lg sm:rounded-xl p-5 sm:p-6 h-32 sm:h-40 animate-pulse"
-                />
-              ))}
-            </div>
-          ) : projects.length === 0 ? (
-            <div className="glass rounded-lg sm:rounded-xl p-8 sm:p-12 text-center">
-              <Sparkles className="h-8 w-8 sm:h-10 sm:w-10 mx-auto mb-3 sm:mb-4 text-primary opacity-50" />
-              <p className="text-sm sm:text-base text-muted-foreground">
-                Aucun projet pour l'instant. Créez votre premier webtoon !
-              </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-              {projects.map((p, i) => (
-                <motion.div
-                  key={p.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.05 }}
-                >
-                  <Link
-                    to={`/dashboard/projects/${p.id}`}
-                    className="block glass rounded-lg sm:rounded-xl p-4 sm:p-6 hover:shadow-dream transition-shadow duration-300 group"
-                  >
-                    {p.cover_url && (
-                      <img src={p.cover_url} alt="" className="w-full h-28 object-cover rounded-lg mb-2.5 border border-border/50" />
-                    )}
-                    <h3 className="font-display font-semibold text-sm sm:text-base mb-1 group-hover:text-primary transition-colors">
-                      {p.title}
-                    </h3>
-                    {(() => {
-                      const meta = parseProjectMeta(p.description);
-                      const tags = meta.genre ? meta.genre.split(", ") : [];
-                      const tones = meta.tone ? meta.tone.split(", ") : [];
-                      const synopsisText = meta.synopsis || null;
-                      return (
-                        <>
-                          {(tags.length > 0 || tones.length > 0) && (
-                            <div className="flex flex-wrap gap-1 mb-1.5">
-                              {tags.map((tag) => (
-                                <span key={tag} className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">{tag}</span>
-                              ))}
-                              {tones.map((tone) => (
-                                <span key={tone} className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-500 font-medium">{tone}</span>
-                              ))}
-                            </div>
-                          )}
-                          <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2">
-                            {synopsisText || "Aucune description"}
-                          </p>
-                        </>
-                      );
-                    })()}
-                    <p className="text-xs text-muted-foreground mt-2 sm:mt-3">
-                      {new Date(p.created_at).toLocaleDateString("fr-FR")}
-                    </p>
-                  </Link>
-                </motion.div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Dialog création projet */}
+      {/* Dialog — création de projet */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="glass">
           <DialogHeader>

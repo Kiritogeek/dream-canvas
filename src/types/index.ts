@@ -418,6 +418,8 @@ export interface SpeechBubble {
   thoughtTailGap?: number;
   thoughtTailOval?: number;
   thoughtTailDotSize?: number;
+  /** Origine de la bulle : "compose" = posée par la composition Auto (depuis dialogue[]). */
+  origin?: "compose";
   zIndex?: number;
   hidden?: boolean;
 }

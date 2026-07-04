@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Loader2, Save } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Loader2, Save, Trash2, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,7 +11,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useUpdateProject } from "@/hooks/useProjects";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { useUpdateProject, useDeleteProject } from "@/hooks/useProjects";
 import { useToast } from "@/hooks/use-toast";
 import {
   parseProjectMeta,
@@ -23,7 +35,9 @@ import type { Project } from "@/types";
 const TONE_NONE = "__none__";
 
 export function ProjectSettingsSection({ project }: { project: Project }) {
+  const navigate = useNavigate();
   const updateProject = useUpdateProject();
+  const deleteProject = useDeleteProject();
   const { toast } = useToast();
 
   const initial = parseProjectMeta(project.description);
@@ -59,9 +73,19 @@ export function ProjectSettingsSection({ project }: { project: Project }) {
     );
   };
 
+  const handleDelete = () => {
+    deleteProject.mutate(project.id, {
+      onSuccess: () => {
+        toast({ title: "Projet supprimé", description: "Le projet et tout son contenu ont été supprimés." });
+        navigate("/dashboard/projects");
+      },
+      onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }),
+    });
+  };
+
   return (
-    <div className="max-w-2xl space-y-6">
-      <div className="glass rounded-2xl p-5 sm:p-6 space-y-5">
+    <div className="w-full max-w-2xl space-y-5 sm:space-y-6">
+      <div className="glass rounded-2xl p-4 sm:p-6 space-y-5">
         <div>
           <h2 className="font-display font-semibold text-base">Identité narrative</h2>
           <p className="text-sm text-muted-foreground mt-1">
@@ -115,11 +139,11 @@ export function ProjectSettingsSection({ project }: { project: Project }) {
           </div>
         )}
 
-        <div className="flex justify-end">
+        <div className="flex flex-col sm:flex-row sm:justify-end">
           <Button
             onClick={handleSave}
             disabled={!dirty || updateProject.isPending}
-            className="gradient-primary text-primary-foreground"
+            className="w-full sm:w-auto gradient-primary text-primary-foreground"
           >
             {updateProject.isPending ? (
               <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Sauvegarde…</>
@@ -128,6 +152,50 @@ export function ProjectSettingsSection({ project }: { project: Project }) {
             )}
           </Button>
         </div>
+      </div>
+
+      <div className="glass rounded-2xl p-4 sm:p-6 border border-destructive/30 space-y-4">
+        <div className="flex items-start gap-3">
+          <div className="w-9 h-9 rounded-lg bg-destructive/10 text-destructive flex items-center justify-center shrink-0">
+            <AlertTriangle className="h-[18px] w-[18px]" />
+          </div>
+          <div className="min-w-0">
+            <h2 className="font-display font-semibold text-base text-destructive">Zone de danger</h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              Supprimer ce projet efface définitivement son scénario, ses chapitres, ses cases, ses assets et sa couverture. Cette action est irréversible.
+            </p>
+          </div>
+        </div>
+
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button
+              variant="outline"
+              className="w-full sm:w-auto justify-center border-destructive/40 text-destructive hover:bg-destructive hover:text-destructive-foreground"
+            >
+              <Trash2 className="h-4 w-4 mr-2" /> Supprimer ce projet
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent className="glass">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="font-display">
+                Supprimer « {project.title} » ?
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                Cette action est irréversible. Tout le contenu du projet (scénario, chapitres, cases, assets, couverture) sera définitivement supprimé.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Annuler</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDelete}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {deleteProject.isPending ? "Suppression…" : "Supprimer définitivement"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );

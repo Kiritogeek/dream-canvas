@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback, useMemo } from "react";
+import { useRef, useState, useCallback, useMemo, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   BookOpen,
@@ -48,6 +48,7 @@ import { estimatePanelCount } from "@/services/panels";
 import { triggerCompassIndex, triggerCompassPropose } from "@/services/compassIndex";
 import { triggerNarraMindUpdate } from "@/services/scenarioAI";
 import { getDetectedAssets, detectMissingNames } from "@/components/project/ScenarioTextHighlighter";
+import { parseProjectMeta } from "@/lib/projectMeta";
 import type { Project, ScenarioChapter, Asset, AssetType } from "@/types";
 
 // ── Props ─────────────────────────────────────────────────────
@@ -111,6 +112,24 @@ export function ScenarioSection({ projectId, project, assets = [] }: ScenarioSec
   const [selectedAiChapterNumber, setSelectedAiChapterNumber] = useState<number>(
     chapterNumberChoices[0] ?? nextChapterNumber
   );
+
+  // Amorce du Chapitre 1 : le synopsis décrit le début de l'histoire, il pré-remplit
+  // le prompt tant qu'aucun chapitre n'existe (une seule fois, sans écraser une saisie).
+  const projectSynopsis = useMemo(
+    () => parseProjectMeta(project.description).synopsis.trim(),
+    [project.description]
+  );
+  const didSeedPromptRef = useRef(false);
+  useEffect(() => {
+    if (didSeedPromptRef.current || isLoading) return;
+    didSeedPromptRef.current = true;
+    if (chapters.length === 0 && projectSynopsis && !aiPrompt.trim()) {
+      setAiPrompt(projectSynopsis);
+    }
+  }, [isLoading, chapters.length, projectSynopsis, aiPrompt]);
+
+  const showSynopsisHint =
+    chapters.length === 0 && !!projectSynopsis && aiPrompt.trim() === projectSynopsis;
 
   const runScenarioGeneration = useCallback(
     (targetChapterNumber: number) => {
@@ -275,6 +294,13 @@ export function ScenarioSection({ projectId, project, assets = [] }: ScenarioSec
           rows={5}
           className="text-base bg-white/70 dark:bg-card/60 border-[hsl(var(--lavender)/0.25)] rounded-xl focus-visible:border-[hsl(var(--lavender)/0.6)] focus-visible:ring-[hsl(var(--lavender)/0.15)] resize-none"
         />
+
+        {showSynopsisHint && (
+          <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground/80">
+            <Sparkles className="h-3 w-3 shrink-0 text-[hsl(var(--lavender))]" />
+            Pré-rempli depuis le synopsis de votre projet. Ajustez-le librement.
+          </p>
+        )}
 
         <div className="flex flex-wrap items-center gap-3">
           <Button

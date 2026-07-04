@@ -1338,7 +1338,9 @@ export function LoreGraphView({ project, assets }: Props) {
   }, [loreNodes]);
   const { toast } = useToast();
   const updateProject = useUpdateProject();
-  const [loreText, setLoreText] = useState(project.universe_lore ?? project.description ?? "");
+  // Le champ « Construis ton Univers » décrit les lois du monde, pas le pitch :
+  // on ne pré-remplit jamais avec project.description (qui contient le synopsis).
+  const [loreText, setLoreText] = useState(project.universe_lore ?? "");
   const [formDone, setFormDone] = useState(!!project.universe_lore);
   const [loreFormSaving, setLoreFormSaving] = useState(false);
 

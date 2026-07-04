@@ -2,9 +2,37 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { contentContainsAssetName } from "@/services/scenarioChapters";
 import type { CompassProposal, LoreNodeType, LoreNode } from "@/types";
 
 const SCAN_DEBOUNCE_MS = 300_000;
+
+// Cap de sécurité : le vrai filtre est la proximité (score > 0), pas ce nombre.
+const MAX_ARIANE_CONNECTIONS = 8;
+
+/**
+ * Score d'importance d'une connexion = nombre de phrases (tous chapitres validés) où
+ * les deux noms sont co-mentionnés. Deux éléments simplement présents dans le même
+ * (long) chapitre ne sont PAS considérés liés : il faut une co-mention rapprochée.
+ * Matching accent-aware (contentContainsAssetName), contrairement à l'ancien \b.
+ */
+function coMentionScore<T extends { content: string | null }>(
+  chapters: T[],
+  nameA: string,
+  nameB: string,
+): { score: number; firstChapter: T | null } {
+  let score = 0;
+  let firstChapter: T | null = null;
+  for (const sc of chapters) {
+    const content = sc.content ?? "";
+    if (!contentContainsAssetName(content, nameA) || !contentContainsAssetName(content, nameB)) continue;
+    if (!firstChapter) firstChapter = sc;
+    for (const sentence of content.split(/[.!?\n]+/)) {
+      if (contentContainsAssetName(sentence, nameA) && contentContainsAssetName(sentence, nameB)) score++;
+    }
+  }
+  return { score, firstChapter };
+}
 
 interface LorePrefillData {
   asset_id: string;
@@ -276,9 +304,17 @@ export function useArianeLoreProposals(projectId: string, { enableAutoScan = tru
 
       // Assets + événements manuels (nœuds sans asset_id mais type=event)
       const nodesForConnections = loreNodeRows.filter((n) => n.asset_id || n.type === "event");
-      const connectionInserts: typeof toInsert = [];
 
-      outer: for (let i = 0; i < nodesForConnections.length; i++) {
+      // F : ne proposer que les connexions les plus IMPORTANTES (co-mention en même phrase),
+      // triées par fréquence — pas toutes les paires simplement co-présentes dans un chapitre.
+      type ConnCandidate = {
+        nodeA: (typeof nodesForConnections)[number];
+        nodeB: (typeof nodesForConnections)[number];
+        nameA: string; nameB: string; sorted: string[]; dedupeKey: string;
+        score: number; firstChapter: (typeof validatedChapters)[number];
+      };
+      const candidates: ConnCandidate[] = [];
+      for (let i = 0; i < nodesForConnections.length; i++) {
         for (let j = i + 1; j < nodesForConnections.length; j++) {
           const nodeA = nodesForConnections[i];
           const nodeB = nodesForConnections[j];
@@ -294,38 +330,37 @@ export function useArianeLoreProposals(projectId: string, { enableAutoScan = tru
           if (alreadyProposed.has(dedupeKey)) continue;
           if (edgeSet.has(sorted.join("|"))) continue;
 
-          const reA = new RegExp(`\\b${escapeRegex(nameA)}\\b`, "i");
-          const reB = new RegExp(`\\b${escapeRegex(nameB)}\\b`, "i");
-
-          for (const sc of validatedChapters) {
-            const text = sc.content ?? "";
-            if (reA.test(text) && reB.test(text)) {
-              const [fromNode, toNode] = sorted[0] === nodeA.id ? [nodeA, nodeB] : [nodeB, nodeA];
-              const [fromName, toName] = sorted[0] === nodeA.id ? [nameA, nameB] : [nameB, nameA];
-              connectionInserts.push({
-                project_id: projectId,
-                user_id: user.id,
-                proposal_type: "lore_connection",
-                origin: "extracted",
-                title: `${fromName} ↔ ${toName}`,
-                content: `Co-présents dans le Chapitre ${sc.chapter_number}`,
-                prefill_data: {
-                  from_node_id: fromNode.id,
-                  to_node_id: toNode.id,
-                  from_name: fromName,
-                  to_name: toName,
-                  chapter_number: sc.chapter_number,
-                  context_excerpt: extractContextSentence(text, fromName, toName),
-                } as LoreConnectionPrefill,
-                status: "active",
-                dedupe_key: dedupeKey,
-              });
-              break;
-            }
+          const { score, firstChapter } = coMentionScore(validatedChapters, nameA, nameB);
+          if (score > 0 && firstChapter) {
+            candidates.push({ nodeA, nodeB, nameA, nameB, sorted, dedupeKey, score, firstChapter });
           }
-          if (connectionInserts.length >= 5) break outer;
         }
       }
+      candidates.sort((a, b) => b.score - a.score);
+
+      const connectionInserts: typeof toInsert = candidates.slice(0, MAX_ARIANE_CONNECTIONS).map((c) => {
+        const text = c.firstChapter.content ?? "";
+        const [fromNode, toNode] = c.sorted[0] === c.nodeA.id ? [c.nodeA, c.nodeB] : [c.nodeB, c.nodeA];
+        const [fromName, toName] = c.sorted[0] === c.nodeA.id ? [c.nameA, c.nameB] : [c.nameB, c.nameA];
+        return {
+          project_id: projectId,
+          user_id: user.id,
+          proposal_type: "lore_connection",
+          origin: "extracted",
+          title: `${fromName} ↔ ${toName}`,
+          content: `Co-mentionnés dans le Chapitre ${c.firstChapter.chapter_number}`,
+          prefill_data: {
+            from_node_id: fromNode.id,
+            to_node_id: toNode.id,
+            from_name: fromName,
+            to_name: toName,
+            chapter_number: c.firstChapter.chapter_number,
+            context_excerpt: extractContextSentence(text, fromName, toName),
+          } as LoreConnectionPrefill,
+          status: "active",
+          dedupe_key: c.dedupeKey,
+        };
+      });
 
       if (connectionInserts.length > 0) {
         let labelBlocked = false;
@@ -509,7 +544,7 @@ export function useArianeLoreProposals(projectId: string, { enableAutoScan = tru
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["lore-proposals", projectId] });
-      qc.invalidateQueries({ queryKey: ["lore-nodes", projectId] });
+      qc.invalidateQueries({ queryKey: ["lore_nodes", projectId] });
       qc.invalidateQueries({ queryKey: ["lore_edges", projectId] });
     },
   });
@@ -731,8 +766,14 @@ export function useArianeLoreProposals(projectId: string, { enableAutoScan = tru
     const validatedChapters = (scenarioChapters ?? []).filter((sc) => validatedIds.has(sc.id));
     if (validatedChapters.length > 0) {
       const nodesForConnections = loreNodeRows.filter((n) => n.asset_id || n.type === "event");
-      let connectionCount = 0;
-      outer: for (let i = 0; i < nodesForConnections.length; i++) {
+      type FConnCandidate = {
+        fromNode: (typeof nodesForConnections)[number];
+        toNode: (typeof nodesForConnections)[number];
+        fromName: string; toName: string; dedupeKey: string;
+        score: number; firstChapter: (typeof validatedChapters)[number];
+      };
+      const fCandidates: FConnCandidate[] = [];
+      for (let i = 0; i < nodesForConnections.length; i++) {
         for (let j = i + 1; j < nodesForConnections.length; j++) {
           const nodeA = nodesForConnections[i];
           const nodeB = nodesForConnections[j];
@@ -744,29 +785,27 @@ export function useArianeLoreProposals(projectId: string, { enableAutoScan = tru
           const nameB = assetB?.name ?? nodeB.name;
           const sorted = [nodeA.id, nodeB.id].sort();
           const dedupeKey = `lore_connection-${sorted[0]}-${sorted[1]}`;
-          const reA = new RegExp(`\\b${escapeRegex(nameA)}\\b`, "i");
-          const reB = new RegExp(`\\b${escapeRegex(nameB)}\\b`, "i");
-          for (const sc of validatedChapters) {
-            const text = sc.content ?? "";
-            if (reA.test(text) && reB.test(text)) {
-              const [fromNode, toNode] = sorted[0] === nodeA.id ? [nodeA, nodeB] : [nodeB, nodeA];
-              const [fromName, toName] = sorted[0] === nodeA.id ? [nameA, nameB] : [nameB, nameA];
-              if (edgeSet.has(sorted.join("|"))) reasonByDedupe.set(dedupeKey, "already_exists");
-              else if (dismissedDedupeKeys.has(dedupeKey)) reasonByDedupe.set(dedupeKey, "ignored");
-              forceInserts.push({
-                project_id: projectId, user_id: user.id,
-                proposal_type: "lore_connection", origin: "extracted",
-                title: `${fromName} ↔ ${toName}`,
-                content: `Co-présents dans le Chapitre ${sc.chapter_number}`,
-                prefill_data: { from_node_id: fromNode.id, to_node_id: toNode.id, from_name: fromName, to_name: toName, chapter_number: sc.chapter_number, context_excerpt: extractContextSentence(text, fromName, toName) },
-                status: "active", dedupe_key: dedupeKey,
-              });
-              connectionCount++;
-              break;
-            }
+          if (edgeSet.has(sorted.join("|"))) continue; // E : ne pas re-proposer une connexion déjà matérialisée en lore_edge
+          const { score, firstChapter } = coMentionScore(validatedChapters, nameA, nameB);
+          if (score > 0 && firstChapter) {
+            const [fromNode, toNode] = sorted[0] === nodeA.id ? [nodeA, nodeB] : [nodeB, nodeA];
+            const [fromName, toName] = sorted[0] === nodeA.id ? [nameA, nameB] : [nameB, nameA];
+            fCandidates.push({ fromNode, toNode, fromName, toName, dedupeKey, score, firstChapter });
           }
-          if (connectionCount >= 5) break outer;
         }
+      }
+      fCandidates.sort((a, b) => b.score - a.score);
+      for (const c of fCandidates.slice(0, MAX_ARIANE_CONNECTIONS)) {
+        const text = c.firstChapter.content ?? "";
+        if (dismissedDedupeKeys.has(c.dedupeKey)) reasonByDedupe.set(c.dedupeKey, "ignored");
+        forceInserts.push({
+          project_id: projectId, user_id: user.id,
+          proposal_type: "lore_connection", origin: "extracted",
+          title: `${c.fromName} ↔ ${c.toName}`,
+          content: `Co-mentionnés dans le Chapitre ${c.firstChapter.chapter_number}`,
+          prefill_data: { from_node_id: c.fromNode.id, to_node_id: c.toNode.id, from_name: c.fromName, to_name: c.toName, chapter_number: c.firstChapter.chapter_number, context_excerpt: extractContextSentence(text, c.fromName, c.toName) },
+          status: "active", dedupe_key: c.dedupeKey,
+        });
       }
     }
 

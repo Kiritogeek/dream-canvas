@@ -19,7 +19,6 @@ import {
   AlertTriangle,
   Lock,
   Unlock,
-  SlidersHorizontal,
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
@@ -684,6 +683,7 @@ export default function ScenarioChapterEditor() {
   // ── Réglages du découpage (genre / densité / système) ─────────
 
   const [decoupageSettings, setDecoupageSettings] = useState<DecoupageSettings>(() => loadDecoupageSettings(projectId));
+  const [decoupagePopoverOpen, setDecoupagePopoverOpen] = useState(false);
   // Genre + tonalité viennent du PROJET (onglet Paramètres) — source unique, plus de duplication.
   const decoupageMeta = useMemo(() => parseProjectMeta(project?.description), [project?.description]);
   useEffect(() => {
@@ -1700,20 +1700,43 @@ export default function ScenarioChapterEditor() {
             <span>Modifier les assets</span>
           </button>
 
-          {!allBlocksLocked && (
-            <Popover>
+          {allBlocksLocked ? (
+            <button
+              onClick={handleEditChapter}
+              disabled={isCreatingEditionChapter}
+              className="flex items-center gap-2 pl-4 pr-5 h-12 rounded-full text-sm font-semibold gradient-primary text-primary-foreground shadow-dream hover:scale-[1.03] transition-[box-shadow,transform,opacity] duration-200 disabled:opacity-50 disabled:pointer-events-none"
+            >
+              {isCreatingEditionChapter ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                  <span>Création…</span>
+                </>
+              ) : (
+                <>
+                  <PenLine className="h-4 w-4 shrink-0" />
+                  <span>{linkedEditionChapter ? "Éditer le chapitre" : "Créer & éditer"}</span>
+                </>
+              )}
+            </button>
+          ) : (
+            <Popover open={decoupagePopoverOpen} onOpenChange={setDecoupagePopoverOpen}>
               <PopoverTrigger asChild>
                 <button
                   type="button"
-                  title="Réglages du découpage"
-                  className="flex items-center gap-2 pl-3.5 pr-4 h-9 rounded-full bg-background/95 backdrop-blur-xl border border-border/60 hover:border-border shadow-md text-xs font-medium text-muted-foreground hover:text-foreground transition-[box-shadow,border-color,transform,color] duration-200 hover:scale-[1.03]"
+                  disabled={isDetecting || !content.trim() || (cases.length > 0 && detectedAtContent !== "" && content === detectedAtContent)}
+                  className="flex items-center gap-2 pl-4 pr-5 h-12 rounded-full text-sm font-semibold gradient-primary text-primary-foreground shadow-dream hover:scale-[1.03] transition-[box-shadow,transform,opacity] duration-200 disabled:opacity-50 disabled:pointer-events-none"
                 >
-                  <SlidersHorizontal className="h-3.5 w-3.5 shrink-0" />
-                  <span>
-                    {DECOUPAGE_DENSITY_LABELS[decoupageSettings.density]}
-                    {decoupageMeta.genre ? ` · ${decoupageMeta.genre}` : ""}
-                    {decoupageSettings.allowSystem ? "" : " · sans système"}
-                  </span>
+                  {isDetecting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                      <span>Découpage en cours…</span>
+                    </>
+                  ) : (
+                    <>
+                      <Scissors className="h-4 w-4 shrink-0" />
+                      <span>Découper en cases</span>
+                    </>
+                  )}
                 </button>
               </PopoverTrigger>
               <PopoverContent side="top" align="end" sideOffset={8} className="w-[300px] p-4 space-y-4">
@@ -1770,46 +1793,17 @@ export default function ScenarioChapterEditor() {
                     </span>
                   </button>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => { setDecoupagePopoverOpen(false); handleDetectBlocks(); }}
+                  disabled={isDetecting}
+                  className="w-full flex items-center justify-center gap-2 h-11 rounded-xl text-sm font-semibold gradient-primary text-primary-foreground shadow-dream hover:shadow-glow transition-[box-shadow,transform] duration-200 disabled:opacity-50 disabled:pointer-events-none"
+                >
+                  <Scissors className="h-4 w-4 shrink-0" />
+                  <span>Lancer le découpage</span>
+                </button>
               </PopoverContent>
             </Popover>
-          )}
-
-          {allBlocksLocked ? (
-            <button
-              onClick={handleEditChapter}
-              disabled={isCreatingEditionChapter}
-              className="flex items-center gap-2 pl-4 pr-5 h-12 rounded-full text-sm font-semibold gradient-primary text-primary-foreground shadow-dream hover:scale-[1.03] transition-[box-shadow,transform,opacity] duration-200 disabled:opacity-50 disabled:pointer-events-none"
-            >
-              {isCreatingEditionChapter ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin shrink-0" />
-                  <span>Création…</span>
-                </>
-              ) : (
-                <>
-                  <PenLine className="h-4 w-4 shrink-0" />
-                  <span>{linkedEditionChapter ? "Éditer le chapitre" : "Créer & éditer"}</span>
-                </>
-              )}
-            </button>
-          ) : (
-            <button
-              onClick={handleDetectBlocks}
-              disabled={isDetecting || !content.trim() || (cases.length > 0 && detectedAtContent !== "" && content === detectedAtContent)}
-              className="flex items-center gap-2 pl-4 pr-5 h-12 rounded-full text-sm font-semibold gradient-primary text-primary-foreground shadow-dream hover:scale-[1.03] transition-[box-shadow,transform,opacity] duration-200 disabled:opacity-50 disabled:pointer-events-none"
-            >
-              {isDetecting ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin shrink-0" />
-                  <span>Découpage en cours…</span>
-                </>
-              ) : (
-                <>
-                  <Scissors className="h-4 w-4 shrink-0" />
-                  <span>Découper en cases</span>
-                </>
-              )}
-            </button>
           )}
         </div>
       )}

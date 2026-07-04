@@ -9,6 +9,7 @@ import {
 import { useNarraMindAlerts, useSetNarraMindAlertStatus } from "@/hooks/useNarramindAlerts";
 import { useNarramindMissingAssets, useDismissNarramindMissingAsset } from "@/hooks/useNarramindMissingAssets";
 import { scrollChapterEditorToExcerpt } from "@/lib/arianeScroll";
+import { normalizeEntityName } from "@/services/scenarioChapters";
 import { cn } from "@/lib/utils";
 import type { Asset, NarrativeAlertSeverity, NarraMindAlertView } from "@/types";
 import type { NarramindMissingAsset } from "@/types";
@@ -109,6 +110,13 @@ export function ArianeContinuityPanel({
   const { data: missingAssets = [], isLoading: isLoadingMissing } = useNarramindMissingAssets(projectId);
   const dismiss = useDismissNarramindMissingAsset();
 
+  // Filtre client : ne jamais afficher comme "manquant" un asset qui existe déjà.
+  // Le détecteur serveur (narramind) peut en lister à tort (matching accents, budget prompt).
+  const visibleMissingAssets = useMemo(() => {
+    const existing = new Set((assets ?? []).map((a) => normalizeEntityName(a.name ?? "")));
+    return missingAssets.filter((m) => !existing.has(normalizeEntityName(m.name ?? "")));
+  }, [missingAssets, assets]);
+
   const isAlertsCapped = filArianeLimit != null && alerts.length > filArianeLimit;
 
   const grouped = useMemo(() => {
@@ -125,7 +133,7 @@ export function ArianeContinuityPanel({
   const activeSeverities = SEVERITY_ORDER.filter((s) => grouped[s].length > 0);
 
   const anyLoading = (isLoading && alerts.length === 0) || (isLoadingMissing && missingAssets.length === 0);
-  const hasContent = activeSeverities.length > 0 || missingAssets.length > 0;
+  const hasContent = activeSeverities.length > 0 || visibleMissingAssets.length > 0;
 
   return (
     <>
@@ -249,7 +257,7 @@ export function ArianeContinuityPanel({
               })}
 
               {/* Section Assets manquants */}
-              {missingAssets.length > 0 && (
+              {visibleMissingAssets.length > 0 && (
                 <div>
                   {activeSeverities.length > 0 && <div className="border-t border-border/40 mb-5" />}
 
@@ -260,12 +268,12 @@ export function ArianeContinuityPanel({
                       Assets manquants
                     </span>
                     <span className="ml-auto text-[10px] text-muted-foreground tabular-nums">
-                      {missingAssets.length}
+                      {visibleMissingAssets.length}
                     </span>
                   </div>
 
                   <ul className="space-y-2" role="list">
-                    {missingAssets.map((asset) => (
+                    {visibleMissingAssets.map((asset) => (
                       <MissingAssetCard
                         key={asset.id}
                         asset={asset}

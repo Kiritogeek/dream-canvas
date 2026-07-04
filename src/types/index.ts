@@ -317,7 +317,7 @@ export const SYSTEM_BLOCK_VARIANT_CONFIG: Record<SystemBlockVariant, { label: st
  */
 export interface PanelLayout {
   blocks: PanelBlock[];
-  /** Hauteur du canvas en px (défaut 5000, min 1200, max 7000). */
+  /** Hauteur du canvas en px (défaut 5000, min 1200, max 100 000). */
   panelHeight?: number;
   sfxBlocks?: SfxBlock[];
   systemBlocks?: SystemBlock[];

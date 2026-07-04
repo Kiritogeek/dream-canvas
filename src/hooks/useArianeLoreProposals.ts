@@ -171,9 +171,8 @@ export function useArianeLoreProposals(projectId: string, { enableAutoScan = tru
       let firstChapterId: string | null = null;
       let firstChapterNumber: number | null = null;
 
-      const wordRe = new RegExp(`\\b${escapeRegex(asset.name)}\\b`, "i");
       for (const sc of (scenarioChapters ?? [])) {
-        if (wordRe.test(sc.content ?? "")) {
+        if (contentContainsAssetName(sc.content ?? "", asset.name)) {
           firstChapterId = sc.id;
           firstChapterNumber = sc.chapter_number;
           break;
@@ -181,7 +180,7 @@ export function useArianeLoreProposals(projectId: string, { enableAutoScan = tru
       }
 
       // Si absent des chapitres, chercher dans la description projet
-      const foundInDescription = !firstChapterNumber && wordRe.test(projectDescription);
+      const foundInDescription = !firstChapterNumber && contentContainsAssetName(projectDescription, asset.name);
       if (!firstChapterNumber && !foundInDescription) continue;
 
       seenNames.add(normalizedName);
@@ -253,11 +252,10 @@ export function useArianeLoreProposals(projectId: string, { enableAutoScan = tru
       } else {
         continue;
       }
-      const wordRe = new RegExp(`\\b${escapeRegex(searchName)}\\b`, "i");
       let firstChapterId: string | null = null;
       let firstChapterNumber: number | null = null;
       for (const sc of (scenarioChapters ?? [])) {
-        if (wordRe.test(sc.content ?? "")) {
+        if (contentContainsAssetName(sc.content ?? "", searchName)) {
           firstChapterId = sc.id;
           firstChapterNumber = sc.chapter_number;
           break;
@@ -695,17 +693,16 @@ export function useArianeLoreProposals(projectId: string, { enableAutoScan = tru
     // ── lore_asset : tous les assets détectés ──────────────────────────────
     for (const asset of assets) {
       if (asset.name.trim().length < 2) continue;
-      const wordRe = new RegExp(`\\b${escapeRegex(asset.name)}\\b`, "i");
       let firstChapterId: string | null = null;
       let firstChapterNumber: number | null = null;
       for (const sc of (scenarioChapters ?? [])) {
-        if (wordRe.test(sc.content ?? "")) {
+        if (contentContainsAssetName(sc.content ?? "", asset.name)) {
           firstChapterId = sc.id;
           firstChapterNumber = sc.chapter_number;
           break;
         }
       }
-      const foundInDescription = !firstChapterNumber && wordRe.test(projectDescription);
+      const foundInDescription = !firstChapterNumber && contentContainsAssetName(projectDescription, asset.name);
       const inLore = alreadyInLore.has(asset.id);
       // Skip si absent du texte ET pas encore en lore (les assets en lore remontent toujours)
       if (!firstChapterNumber && !foundInDescription && !inLore) continue;
@@ -737,21 +734,20 @@ export function useArianeLoreProposals(projectId: string, { enableAutoScan = tru
       } else {
         continue;
       }
-      const wordRe = new RegExp(`\\b${escapeRegex(searchName)}\\b`, "i");
       let firstChapterId: string | null = null;
       let firstChapterNumber: number | null = null;
       for (const sc of (scenarioChapters ?? [])) {
-        if (wordRe.test(sc.content ?? "")) {
+        if (contentContainsAssetName(sc.content ?? "", searchName)) {
           firstChapterId = sc.id;
           firstChapterNumber = sc.chapter_number;
           break;
         }
       }
       if (!firstChapterNumber) continue;
+      if (loreNode.chapter_id === firstChapterId) continue; // déjà lié au bon chapitre → ne pas re-proposer
 
       const dedupeKey = `lore_chapter_update-${loreNode.id}`;
-      if (loreNode.chapter_id === firstChapterId) reasonByDedupe.set(dedupeKey, "already_exists");
-      else if (dismissedDedupeKeys.has(dedupeKey)) reasonByDedupe.set(dedupeKey, "ignored");
+      if (dismissedDedupeKeys.has(dedupeKey)) reasonByDedupe.set(dedupeKey, "ignored");
 
       forceInserts.push({
         project_id: projectId, user_id: user.id,

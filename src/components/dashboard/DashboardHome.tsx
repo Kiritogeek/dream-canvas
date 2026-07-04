@@ -83,8 +83,10 @@ function ProjectCard({ project: p }: { project: DashboardProject }) {
           <Palette size={11} className="text-primary" /> {meta?.label ?? "Style libre"}
         </span>
         {!p.coverUrl && (
-          <span className="absolute bottom-3 left-3 z-10 inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-black/45 backdrop-blur text-[11px] font-medium text-white/95 shadow-sm">
-            <ImageIcon size={11} /> Couverture à générer
+          <span className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/35 backdrop-blur-sm text-[11px] font-medium text-white/95 shadow-sm">
+              <ImageIcon size={12} /> Couverture à générer
+            </span>
           </span>
         )}
         <span className="absolute bottom-3 right-3 z-10 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full gradient-primary text-primary-foreground text-xs font-semibold shadow-dream opacity-0 translate-x-2 transition-all duration-300 group-hover:opacity-100 group-hover:translate-x-0">

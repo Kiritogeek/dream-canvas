@@ -1336,27 +1336,6 @@ export function LoreGraphView({ project, assets }: Props) {
     // Intentionnellement : ne dépend que de loreNodes pour éviter une boucle infinie
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loreNodes]);
-  const { toast } = useToast();
-  const updateProject = useUpdateProject();
-  // Le champ « Construis ton Univers » décrit les lois du monde, pas le pitch :
-  // on ne pré-remplit jamais avec project.description (qui contient le synopsis).
-  const [loreText, setLoreText] = useState(project.universe_lore ?? "");
-  const [formDone, setFormDone] = useState(!!project.universe_lore);
-  const [loreFormSaving, setLoreFormSaving] = useState(false);
-
-  const handleLoreFormSave = useCallback(async () => {
-    setLoreFormSaving(true);
-    try {
-      await updateProject.mutateAsync({ id: project.id, updates: { universe_lore: loreText.trim() } });
-      toast({ title: "Univers initialisé — Ariane va scanner ton scénario" });
-      setFormDone(true);
-    } catch {
-      toast({ title: "Erreur", description: "Impossible de sauvegarder.", variant: "destructive" });
-    } finally {
-      setLoreFormSaving(false);
-    }
-  }, [loreText, project.id, updateProject, toast]);
-
   const [worldRulesOpen, setWorldRulesOpen] = useState(false);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [addEventDialogOpen, setAddEventDialogOpen] = useState(false);
@@ -2041,44 +2020,6 @@ export function LoreGraphView({ project, assets }: Props) {
           <Background variant={BackgroundVariant.Dots} gap={22} size={1} color="rgba(255,255,255,0.05)" />
         </ReactFlow>
       </LoreEdgesCtx.Provider>
-
-      {/* État vide — formulaire guidé Règles du Monde */}
-      {!formDone && !isLoading && loreNodes.length === 0 && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 px-4">
-          <div className="glass border border-white/10 rounded-2xl shadow-dream p-6 w-full max-w-md space-y-4">
-            <div className="flex items-center gap-2.5">
-              <Globe className="h-5 w-5 text-amber-400 shrink-0" />
-              <h2 className="text-base font-semibold text-gradient">Construis ton Univers</h2>
-            </div>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              Ariane scannera ton scénario pour peupler l'univers automatiquement. Commence par décrire les lois fondamentales de ton monde.
-            </p>
-            <div className="space-y-1.5">
-              <Textarea
-                value={loreText}
-                onChange={(e) => setLoreText(e.target.value.slice(0, 1000))}
-                placeholder="Magie, règles du monde, sociétés, géographie globale, lois qui régissent tout…"
-                className="resize-none h-28 text-sm bg-white/5 border-white/10 focus-visible:ring-amber-500/40"
-              />
-              <p className="text-[10px] text-muted-foreground/60 text-right">{loreText.length}/1000</p>
-            </div>
-            <Button
-              onClick={handleLoreFormSave}
-              disabled={loreFormSaving || loreText.trim().length === 0}
-              className="w-full gradient-primary text-white font-semibold"
-            >
-              {loreFormSaving ? (
-                <><Loader2 className="h-4 w-4 animate-spin mr-2" />Sauvegarde…</>
-              ) : (
-                "Démarrer"
-              )}
-            </Button>
-          </div>
-          <p className="text-[11px] text-muted-foreground/50 pointer-events-none">
-            Ou ajoute directement un élément ↑
-          </p>
-        </div>
-      )}
 
       {/* Toolbar haut */}
       <div className="absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-2 z-10">

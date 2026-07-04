@@ -48,7 +48,7 @@ import { useProject, useUpdateProject } from "@/hooks/useProjects";
 import { useChapters } from "@/hooks/useChapters";
 import { ArianeAnalysisModal } from "@/components/project/ArianeAnalysisModal";
 import { getMaxAccessibleTab, useProgressiveMenuAccess } from "@/hooks/useProgressiveMenuGate";
-import { useAssets, useCreateAsset } from "@/hooks/useAssets";
+import { useAssets } from "@/hooks/useAssets";
 import { useAssetGeneration } from "@/hooks/useAssetGeneration";
 import { useActiveLoreAssetProposals } from "@/hooks/useCompassProposals";
 import { useGeneratingAssetId } from "@/lib/generationPending";
@@ -63,6 +63,7 @@ import { useNarraMindDebounce } from "@/hooks/useNarraMindDebounce";
 import { useCompassIndex } from "@/hooks/useCompassIndex";
 import { estimatePanelCount } from "@/services/panels";
 import { ScenarioTextHighlighter } from "@/components/project/ScenarioTextHighlighter";
+import { CreateAssetDialog } from "@/components/project/CreateAssetDialog";
 import { ChapterStatusBar } from "@/components/project/ChapterStatusBar";
 import { useToast } from "@/hooks/use-toast";
 import { scrollChapterEditorToExcerpt } from "@/lib/arianeScroll";
@@ -353,7 +354,6 @@ export default function ScenarioChapterEditor() {
 
   // Curation des assets au survol du texte (étape 2) — créer + générer en place.
   const updateChapterAssets = useUpdateChapterAssets();
-  const createAsset = useCreateAsset();
   const generatingAssetId = useGeneratingAssetId();
   const { data: loreProposals = [] } = useActiveLoreAssetProposals(projectId);
   const { canGenerate: canGenerateAsset, generate: generateAsset } = useAssetGeneration({
@@ -361,6 +361,10 @@ export default function ScenarioChapterEditor() {
     userPlan: plan,
     usageInfo,
   });
+
+  // Pop-up de création d'asset ouverte depuis le texte du scénario (avec prompt).
+  const [scenarioAssetDialogOpen, setScenarioAssetDialogOpen] = useState(false);
+  const [scenarioAssetDraft, setScenarioAssetDraft] = useState<{ name: string; type: AssetType } | null>(null);
 
   // Highlight via ?highlight= param (navigation depuis Fil d'Ariane)
   const [searchParams] = useSearchParams();
@@ -945,25 +949,23 @@ export default function ScenarioChapterEditor() {
     });
   }, [projectId]);
 
-  // « Créer l'asset » au survol : crée la fiche + génère immédiatement, sans quitter le scénario.
+  // « Créer l'asset » au survol : ouvre la pop-up de création (nom + prompt), sans quitter le scénario.
   const handleCreateAssetFromText = useCallback((name: string, type: AssetType) => {
     if (!canGenerateAsset()) return;
-    createAsset.mutate(
-      { project_id: projectId!, name, asset_type: type, prompt: name },
-      {
-        onSuccess: (asset) => {
-          const items = (chapterAssets?.items ?? []).filter((it) => it.asset_id !== asset.id);
-          items.push({ asset_id: asset.id, status: "added" });
-          updateChapterAssets.mutate({
-            chapterId,
-            projectId: projectId!,
-            state: { ...(chapterAssets ?? EMPTY_CHAPTER_ASSETS), items },
-          });
-          void generateAsset(asset);
-        },
-      }
-    );
-  }, [canGenerateAsset, createAsset, projectId, chapterId, chapterAssets, updateChapterAssets, generateAsset]);
+    setScenarioAssetDraft({ name, type });
+    setScenarioAssetDialogOpen(true);
+  }, [canGenerateAsset]);
+
+  // Après création depuis la pop-up : lier le nouvel asset au chapitre courant.
+  const handleAssetCreatedFromScenario = useCallback((asset: Asset) => {
+    const items = (chapterAssets?.items ?? []).filter((it) => it.asset_id !== asset.id);
+    items.push({ asset_id: asset.id, status: "added" });
+    updateChapterAssets.mutate({
+      chapterId,
+      projectId: projectId!,
+      state: { ...(chapterAssets ?? EMPTY_CHAPTER_ASSETS), items },
+    });
+  }, [chapterAssets, chapterId, projectId, updateChapterAssets]);
 
   const handleGenerateAsset = useCallback((asset: Asset) => {
     if (!canGenerateAsset()) return;
@@ -1900,6 +1902,17 @@ export default function ScenarioChapterEditor() {
           chapterNumber={chapter.chapter_number}
         />
       )}
+
+      <CreateAssetDialog
+        open={scenarioAssetDialogOpen}
+        onOpenChange={setScenarioAssetDialogOpen}
+        projectId={projectId!}
+        assets={assets}
+        onGenerate={handleGenerateAsset}
+        initialName={scenarioAssetDraft?.name}
+        initialType={scenarioAssetDraft?.type}
+        onCreated={handleAssetCreatedFromScenario}
+      />
     </div>
   );
 }

@@ -591,11 +591,12 @@ RÈGLES ABSOLUES :
       const headers = { apikey: serviceKey!, Authorization: `Bearer ${serviceKey}` };
       const base = `${supabaseUrl}/rest/v1`;
 
-      const [nodesRes, edgesRes, proposalsRes, chaptersRes] = await Promise.all([
+      const [nodesRes, edgesRes, proposalsRes, chaptersRes, projectRes] = await Promise.all([
         fetch(`${base}/lore_nodes?project_id=eq.${body.project_id}&select=id,name,type,description&order=type.asc`, { headers }),
         fetch(`${base}/lore_edges?project_id=eq.${body.project_id}&select=from_node_id,to_node_id,label`, { headers }),
         fetch(`${base}/compass_proposals?project_id=eq.${body.project_id}&proposal_type=eq.lore_asset&status=eq.active&select=title`, { headers }),
         fetch(`${base}/scenario_chapters?project_id=eq.${body.project_id}&select=chapter_number,title,content,ai_summary&order=chapter_number.desc&limit=40`, { headers }),
+        fetch(`${base}/projects?id=eq.${body.project_id}&select=description&limit=1`, { headers }),
       ]);
 
       type LoreNodeRow = { id: string; name: string; type: string; description: string | null };
@@ -608,6 +609,7 @@ RÈGLES ABSOLUES :
       const proposals: ProposalRow[] = proposalsRes.ok ? await proposalsRes.json() : [];
       const chaptersRaw: ChapterRow[] = chaptersRes.ok ? await chaptersRes.json()  : [];
       const chapters = [...chaptersRaw].sort((a, b) => a.chapter_number - b.chapter_number);
+      const projectRows: { description: string | null }[] = projectRes.ok ? await projectRes.json() : [];
 
       // Map id → name pour les connexions
       const nodeById = new Map(nodes.map((n) => [n.id, n.name]));
@@ -680,10 +682,31 @@ RÈGLES ABSOLUES :
 
       const isFirstChapter = chapters.length === 0;
       const nextChapterNumber = isFirstChapter ? 1 : chapters[chapters.length - 1].chapter_number + 1;
+
+      // Synopsis du projet (pitch de départ) : décisif au Chapitre 1 où lore et scénario
+      // sont souvent vides. Tags [Tags:…][Tone:…] retirés comme dans src/lib/projectMeta.ts.
+      // Injecté uniquement au Chapitre 1 — après, le scénario écrit fait foi.
+      const rawDescription = projectRows[0]?.description ?? "";
+      const projectGenre = rawDescription.match(/\[Tags:\s*([^\]]*)\]/)?.[1]?.trim() ?? "";
+      const projectTone = rawDescription.match(/\[Tone:\s*([^\]]*)\]/)?.[1]?.trim() ?? "";
+      const projectSynopsis = rawDescription
+        .replace(/\[Tags:\s*[^\]]*\]/g, "")
+        .replace(/\[Tone:\s*[^\]]*\]/g, "")
+        .trim();
+      const premiseLines = [
+        projectGenre ? `Genre : ${projectGenre}` : "",
+        projectTone ? `Tonalité : ${projectTone}` : "",
+        projectSynopsis ? `Synopsis : ${projectSynopsis}` : "",
+      ].filter(Boolean);
+      const premiseBlock =
+        isFirstChapter && premiseLines.length > 0
+          ? `SYNOPSIS / PITCH DE DÉPART (l'intention de l'auteur, socle du Chapitre 1) :\n${premiseLines.join("\n")}\n\n`
+          : "";
+
       systemPrompt = isFirstChapter
         ? NARRATIVE_DIRECTIONS_SYSTEM_PROMPT_CHAPTER_1
         : NARRATIVE_DIRECTIONS_SYSTEM_PROMPT;
-      userPrompt = `UNIVERS CARTOGRAPHIÉ :
+      userPrompt = `${premiseBlock}UNIVERS CARTOGRAPHIÉ :
 ${loreSection}
 
 CONNEXIONS :
@@ -696,7 +719,9 @@ SCÉNARIO DÉJÀ ÉCRIT (le PASSÉ — ne pas le réécrire, c'est ton contexte)
 ${chaptersSection}
 
 ${isFirstChapter
-  ? "Propose 3 directions pour démarrer le Chapitre 1 — le tout début de cette histoire."
+  ? (premiseBlock
+      ? "Propose 3 directions pour démarrer le Chapitre 1, fidèles au synopsis ci-dessus."
+      : "Propose 3 directions pour démarrer le Chapitre 1, le tout début de cette histoire.")
   : `Génère 3 directions narratives pour le Chapitre ${nextChapterNumber}. Pars de l'état final du dernier chapitre écrit ci-dessus et fais AVANCER l'histoire — ne re-raconte aucun événement déjà écrit.`
 }`;
 

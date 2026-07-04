@@ -848,9 +848,16 @@ function FloatingEdge({ source, target, label, selected, data }: EdgeProps) {
   const tcx = tx0 + NODE_CARD_W / 2;
   const tcy = ty0 + NODE_CARD_H / 2;
 
-  // Point exact sur la surface du bounding-box de chaque nœud (pas centre du côté)
-  const srcPt = boxEdgePoint(scx, scy, NODE_CARD_W, NODE_CARD_H, tcx - scx, tcy - scy);
-  const tgtPt = boxEdgePoint(tcx, tcy, NODE_CARD_W, NODE_CARD_H, scx - tcx, scy - tcy);
+  // Accroche sur l'axe DOMINANT (horizontal si |dx|>=|dy|, sinon vertical) : la face,
+  // le point d'accroche et la tangente bezier s'accordent avec la direction, donc le fil
+  // contourne la carte au lieu de la traverser (B).
+  const rdx = tcx - scx;
+  const rdy = tcy - scy;
+  const horizontalDominant = Math.abs(rdx) >= Math.abs(rdy);
+  const dirX = horizontalDominant ? rdx : 0;
+  const dirY = horizontalDominant ? 0 : rdy;
+  const srcPt = boxEdgePoint(scx, scy, NODE_CARD_W, NODE_CARD_H, dirX, dirY);
+  const tgtPt = boxEdgePoint(tcx, tcy, NODE_CARD_W, NODE_CARD_H, -dirX, -dirY);
 
   const sc = { x: srcPt.x, y: srcPt.y };
   const tc = { x: tgtPt.x, y: tgtPt.y };
@@ -1424,11 +1431,9 @@ export function LoreGraphView({ project, assets }: Props) {
       const src = nodeCenter.get(e.from_node_id);
       const tgt = nodeCenter.get(e.to_node_id);
       if (!src || !tgt) return;
-      const adx = Math.abs(tgt.cx - src.cx);
-      const ady = Math.abs(tgt.cy - src.cy);
-      const corridorKey = adx >= ady
-        ? `h:${Math.round(src.cy / 50)}`
-        : `v:${Math.round(src.cx / 50)}`;
+      // Regrouper uniquement les fils entre LA MÊME paire de nœuds (vrais parallèles),
+      // pour les décaler symétriquement sans fusionner des paires différentes (D).
+      const corridorKey = [e.from_node_id, e.to_node_id].sort().join("|");
       if (!corridorGroups.has(corridorKey)) corridorGroups.set(corridorKey, []);
       corridorGroups.get(corridorKey)!.push(e.id);
     });

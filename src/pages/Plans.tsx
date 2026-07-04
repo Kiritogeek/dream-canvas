@@ -472,8 +472,8 @@ export default function Plans() {
                 <span className="text-muted-foreground text-sm">/ mois</span>
               </div>
               <p className="text-sm text-muted-foreground">
-                Pour les projets ambitieux avec mémoire narrative et traitement
-                prioritaire.
+                Pour les créateurs les plus prolifiques, avec le maximum de
+                crédits par mois.
               </p>
             </div>
             <ul className="space-y-2.5">
@@ -481,8 +481,6 @@ export default function Plans() {
                 "250 crédits / mois",
                 "Projets illimités",
                 "Tout le plan Créateur",
-                "Mémoire narrative longue",
-                "Priorité traitement FAL.ai",
               ].map((item) => (
                 <li key={item} className="flex items-center gap-2.5 text-sm">
                   <Check className="h-4 w-4 text-emerald-500 shrink-0" />

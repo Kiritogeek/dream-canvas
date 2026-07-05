@@ -18,6 +18,7 @@ import {
   Compass,
   Lock,
   Scissors,
+  FileText,
 } from "lucide-react";
 import { useBackgroundJobs } from "@/contexts/BackgroundJobsContext";
 import { ArianeNarrativeSheet } from "./ArianeNarrativeSheet";
@@ -33,6 +34,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import {
   useScenarioChapters,
@@ -72,6 +79,8 @@ export function ScenarioSection({ projectId, project, assets = [] }: ScenarioSec
 
   const { data: chapters = [], isLoading } = useScenarioChapters(projectId);
   const createChapter = useCreateScenarioChapter();
+  const [importOpen, setImportOpen] = useState(false);
+  const [importText, setImportText] = useState("");
   const deleteChapterMutation = useDeleteScenarioChapter();
   const reorderChapters = useReorderScenarioChapters();
   const scenarioAI = useScenarioAI();
@@ -459,16 +468,70 @@ export function ScenarioSection({ projectId, project, assets = [] }: ScenarioSec
             </div>
           </div>
 
-          <Button
-            size="sm"
-            onClick={() => handleCreateChapter()}
-            disabled={createChapter.isPending}
-            className="gap-1.5 gradient-primary text-primary-foreground rounded-lg"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Nouveau chapitre</span>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setImportOpen(true)}
+              className="gap-1.5 rounded-lg border-[hsl(var(--lavender)/0.35)] text-[hsl(var(--lavender))] hover:bg-[hsl(var(--lavender)/0.08)]"
+            >
+              <FileText className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Importer</span>
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => handleCreateChapter()}
+              disabled={createChapter.isPending}
+              className="gap-1.5 gradient-primary text-primary-foreground rounded-lg"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Nouveau chapitre</span>
+            </Button>
+          </div>
         </div>
+
+        {/* Importer un light novel / texte existant */}
+        <Dialog open={importOpen} onOpenChange={setImportOpen}>
+          <DialogContent className="glass sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="font-display flex items-center gap-2">
+                <FileText className="h-4 w-4" style={{ color: "hsl(var(--lavender))" }} />
+                Importer un chapitre
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground leading-snug">
+                Colle le texte d'un chapitre existant (light novel, roman, nouvelle). Il devient un chapitre de scénario, prêt à découper en cases.
+              </p>
+              <Textarea
+                value={importText}
+                onChange={(e) => setImportText(e.target.value)}
+                placeholder="Colle ici le texte de ton chapitre de light novel..."
+                rows={12}
+                className="resize-none text-sm leading-relaxed"
+              />
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-[11px] text-muted-foreground">
+                  {importText.trim() ? `${importText.trim().split(/\s+/).length} mots` : "Aucun texte"}
+                </span>
+                <Button
+                  onClick={() => {
+                    const text = importText.trim();
+                    if (!text) return;
+                    handleCreateChapter(text);
+                    setImportOpen(false);
+                    setImportText("");
+                  }}
+                  disabled={!importText.trim() || createChapter.isPending}
+                  className="gap-1.5 gradient-primary text-primary-foreground rounded-lg"
+                >
+                  <Plus className="h-4 w-4" />
+                  Créer le chapitre
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* Loading */}
         {isLoading && (
@@ -514,6 +577,15 @@ export function ScenarioSection({ projectId, project, assets = [] }: ScenarioSec
               >
                 <Sparkles className="h-3.5 w-3.5" />
                 Générer avec l'IA
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setImportOpen(true)}
+                className="gap-1.5 rounded-lg px-4"
+              >
+                <FileText className="h-3.5 w-3.5" />
+                Importer un light novel
               </Button>
             </div>
           </div>

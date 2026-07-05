@@ -8,16 +8,49 @@ import { AuthProvider } from "@/hooks/useAuth";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { BackgroundJobsProvider } from "@/contexts/BackgroundJobsContext";
 
-// Recharge la page si un chunk JS est introuvable après un nouveau déploiement (hash périmé en cache).
+// Affiché si, même après un rechargement, un chunk reste introuvable (évite l'écran blanc + la boucle).
+function ChunkErrorFallback() {
+  return (
+    <div className="flex min-h-screen items-center justify-center gradient-dream p-6">
+      <div className="glass rounded-2xl p-8 max-w-md text-center space-y-4">
+        <h1 className="font-display text-xl font-bold">Nouvelle version disponible</h1>
+        <p className="text-sm text-muted-foreground">
+          L'application a été mise à jour. Rechargez la page pour continuer.
+        </p>
+        <button
+          type="button"
+          onClick={() => { sessionStorage.removeItem(CHUNK_RELOAD_KEY); window.location.reload(); }}
+          className="inline-flex items-center h-10 px-5 rounded-md gradient-primary text-primary-foreground text-sm font-semibold"
+        >
+          Recharger
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// Recharge la page UNE seule fois si un chunk JS est introuvable après un déploiement (hash périmé
+// en cache). Garde-fou anti-boucle : jamais deux rechargements d'affilée. En DEV on ne recharge
+// pas — l'erreur remonte (sinon on masque un vrai bug et on boucle).
+const CHUNK_RELOAD_KEY = "chunk-reload-attempted";
 function lazyWithReload<T extends React.ComponentType<unknown>>(
   factory: () => Promise<{ default: T }>
 ) {
-  return lazy(() =>
-    factory().catch(() => {
+  return lazy(async () => {
+    try {
+      const mod = await factory();
+      sessionStorage.removeItem(CHUNK_RELOAD_KEY); // succès → réarme pour un futur déploiement
+      return mod;
+    } catch (err) {
+      if (import.meta.env.DEV) throw err;
+      if (sessionStorage.getItem(CHUNK_RELOAD_KEY)) {
+        return { default: ChunkErrorFallback as unknown as T };
+      }
+      sessionStorage.setItem(CHUNK_RELOAD_KEY, "1");
       window.location.reload();
       return new Promise<{ default: T }>(() => {});
-    })
-  );
+    }
+  });
 }
 
 const Landing = lazyWithReload(() => import("./pages/Landing"));

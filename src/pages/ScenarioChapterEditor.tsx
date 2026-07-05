@@ -77,10 +77,9 @@ const NARRAMIND_AUTOSAVE_MIN_WORDS = 80;
 
 interface DecoupageSettings {
   density: DetectBlocksDensity;
-  allowSystem: boolean;
 }
 
-const DEFAULT_DECOUPAGE_SETTINGS: DecoupageSettings = { density: "standard", allowSystem: true };
+const DEFAULT_DECOUPAGE_SETTINGS: DecoupageSettings = { density: "standard" };
 
 const decoupageSettingsKey = (projectId: string) => `dreamweave_decoupage_settings_${projectId}`;
 
@@ -738,7 +737,8 @@ export default function ScenarioChapterEditor() {
         text_density: decoupageSettings.density,
         genre: decoupageMeta.genre || undefined,
         tone: decoupageMeta.tone || undefined,
-        allow_system_windows: decoupageSettings.allowSystem,
+        // L'utilisateur crée ses fenêtres système à la main dans l'Édition → l'IA n'en génère jamais.
+        allow_system_windows: false,
       });
 
       // Sauvegarder en BDD quelle que soit la navigation courante
@@ -1783,22 +1783,6 @@ export default function ScenarioChapterEditor() {
                       ))}
                     </div>
                     <p className="text-[11px] text-muted-foreground leading-snug">Aéré : peu de texte, plus de cases muettes. Dense : plus de bulles par case.</p>
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Fenêtres système (RPG)</label>
-                    <button
-                      type="button"
-                      onClick={() => updateDecoupageSettings({ allowSystem: !decoupageSettings.allowSystem })}
-                      className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-muted/40 border border-border hover:bg-muted/60 transition-colors text-sm text-left"
-                    >
-                      <span className="text-[13px] leading-snug">Mon univers a des notifications / statuts</span>
-                      <span className={cn(
-                        "shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full border",
-                        decoupageSettings.allowSystem ? "border-primary/60 bg-primary/15 text-primary" : "border-border/70 text-muted-foreground",
-                      )}>
-                        {decoupageSettings.allowSystem ? "Oui" : "Non"}
-                      </span>
-                    </button>
                   </div>
                   <button
                     type="button"

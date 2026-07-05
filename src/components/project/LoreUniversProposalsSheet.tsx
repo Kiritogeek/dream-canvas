@@ -61,6 +61,13 @@ interface LoreConnectionPrefillLocal {
   proposed_label?: string;
 }
 
+interface LoreNodeEnrichmentPrefillLocal {
+  node_id: string;
+  node_name: string;
+  section: string;
+  text: string;
+}
+
 type ForcedReason = "already_exists" | "ignored";
 
 interface Props {
@@ -110,9 +117,16 @@ const SECTION_CONFIG: Record<string, SectionConfig> = {
     labelClass: "text-green-300",
     borderClass: "border-l-green-500/50",
   },
+  lore_node_enrichment: {
+    label: "Enrichir les fiches",
+    icon: <Sparkles className="h-3 w-3" />,
+    dotClass: "bg-amber-400",
+    labelClass: "text-amber-300",
+    borderClass: "border-l-amber-500/50",
+  },
 };
 
-const SECTION_ORDER = ["lore_asset", "lore_event", "lore_connection", "lore_chapter_update"] as const;
+const SECTION_ORDER = ["lore_node_enrichment", "lore_asset", "lore_event", "lore_connection", "lore_chapter_update"] as const;
 
 export function LoreUniversProposalsSheet({
   proposals,
@@ -135,6 +149,9 @@ export function LoreUniversProposalsSheet({
         onNodeCreated(node);
         setOpen(false);
       });
+    } else if (proposal.proposal_type === "lore_node_enrichment") {
+      // Enrichissement : garde le panneau ouvert pour en accepter plusieurs d'affilée.
+      onAccept(proposal);
     } else {
       onAccept(proposal, undefined, connectionLabel);
       setOpen(false);
@@ -325,6 +342,8 @@ function LoreProposalCard({
     ? (proposal.prefill_data as unknown as LoreConnectionPrefillLocal)
     : null;
   const eventPrefill = isEvent ? (proposal.prefill_data as unknown as LoreEventPrefillLocal) : null;
+  const isEnrichment = proposal.proposal_type === "lore_node_enrichment";
+  const enrichmentPrefill = isEnrichment ? (proposal.prefill_data as unknown as LoreNodeEnrichmentPrefillLocal) : null;
 
   const [connectionLabel, setConnectionLabel] = useState(connectionPrefill?.proposed_label ?? "");
 
@@ -347,13 +366,17 @@ function LoreProposalCard({
     ? "Connecter"
     : isChapterUpdate
       ? `Lier Chap. ${chapterUpdatePrefill?.chapter_number}`
-      : "Ajouter";
+      : isEnrichment
+        ? "Ajouter à la fiche"
+        : "Ajouter";
 
   const ariaLabel = isConnection
     ? `Connecter ${connectionPrefill?.from_name} et ${connectionPrefill?.to_name}`
     : isChapterUpdate
       ? `Lier ${proposal.title} au chapitre ${chapterUpdatePrefill?.chapter_number}`
-      : `Ajouter ${proposal.title} à l'Univers`;
+      : isEnrichment
+        ? `Enrichir la fiche ${proposal.title} (section ${enrichmentPrefill?.section})`
+        : `Ajouter ${proposal.title} à l'Univers`;
 
   return (
     <li>
@@ -405,6 +428,11 @@ function LoreProposalCard({
               Événement
             </span>
           )}
+          {isEnrichment && (
+            <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-md border bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30">
+              Enrichir · {enrichmentPrefill?.section}
+            </span>
+          )}
           {isEvent && eventPrefill?.chapter_number && (
             <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/25 text-amber-600 dark:text-amber-400">
               Chap. {eventPrefill.chapter_number}
@@ -444,6 +472,12 @@ function LoreProposalCard({
             </div>
           )}
         </div>
+
+        {isEnrichment && proposal.content && (
+          <p className="text-xs text-foreground/90 leading-relaxed bg-background/40 rounded-md p-2 border border-amber-500/15">
+            {proposal.content}
+          </p>
+        )}
 
         <div className="flex flex-wrap gap-2 pt-0.5">
           <Button

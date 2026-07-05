@@ -397,7 +397,7 @@ Deno.serve(async (req) => {
 
     // 4. Parse body
     let body: {
-      mode?: "scenario" | "chapter" | "detect_blocks" | "ai_summary" | "suggest_block_prompt" | "baseline" | "narramind" | "narrative_directions" | "suggest_connection_label" | "extract_events";
+      mode?: "scenario" | "chapter" | "detect_blocks" | "ai_summary" | "suggest_block_prompt" | "baseline" | "narramind" | "narrative_directions" | "suggest_connection_label" | "extract_events" | "enrich_lore_node";
       prompt?: string;
       num_chapters?: number;
       existing_content?: string;
@@ -421,6 +421,11 @@ Deno.serve(async (req) => {
       to_type?: string;
       to_description?: string;
       context_excerpt?: string;
+      node_name?: string;
+      node_type?: string;
+      current_description?: string;
+      chapter_excerpts?: string;
+      sections?: string[];
     };
     try {
       body = (await req.json()) as typeof body;
@@ -431,12 +436,12 @@ Deno.serve(async (req) => {
     const { mode, prompt } = body;
     if (
       !mode ||
-      !["scenario", "chapter", "detect_blocks", "ai_summary", "suggest_block_prompt", "baseline", "narramind", "narrative_directions", "suggest_connection_label", "extract_events"].includes(mode)
+      !["scenario", "chapter", "detect_blocks", "ai_summary", "suggest_block_prompt", "baseline", "narramind", "narrative_directions", "suggest_connection_label", "extract_events", "enrich_lore_node"].includes(mode)
     ) {
       return jsonResponse({ error: 'Le champ "mode" est requis.' }, 400);
     }
     if (
-      !["detect_blocks", "ai_summary", "suggest_block_prompt", "baseline", "narramind", "narrative_directions", "suggest_connection_label", "extract_events"].includes(mode) &&
+      !["detect_blocks", "ai_summary", "suggest_block_prompt", "baseline", "narramind", "narrative_directions", "suggest_connection_label", "extract_events", "enrich_lore_node"].includes(mode) &&
       !prompt?.trim()
     ) {
       return jsonResponse(
@@ -749,6 +754,32 @@ ${isFirstChapter
       systemPrompt = EXTRACT_EVENTS_SYSTEM_PROMPT;
       const safeContent = shrinkTextByTokens(body.chapter_content.trim(), 3_000);
       userPrompt = buildExtractEventsPrompt(safeContent, body.chapter_number ?? 1);
+    } else if (mode === "enrich_lore_node") {
+      if (!body.node_name?.trim() || !body.chapter_excerpts?.trim()) {
+        return jsonResponse({ error: '"node_name" et "chapter_excerpts" requis pour enrich_lore_node.' }, 400);
+      }
+      const validSections = Array.isArray(body.sections) && body.sections.length > 0
+        ? body.sections.map((s) => String(s).trim()).filter(Boolean)
+        : ["Description"];
+      const safeExcerpts = shrinkTextByTokens(body.chapter_excerpts.trim(), 3_000);
+      const currentDesc = (body.current_description ?? "").trim();
+      systemPrompt = `Tu es Ariane, l'assistante narrative de DreamWeave. À partir d'extraits du scénario où un élément de l'univers apparaît, tu proposes d'ENRICHIR sa fiche avec des détails FACTUELS tirés du texte.
+RÈGLES ABSOLUES :
+- N'invente rien : chaque détail doit être appuyé par les extraits fournis.
+- N'ajoute que des détails ABSENTS de la description actuelle (pas de redite, pas de reformulation).
+- Chaque enrichissement va dans UNE section parmi : ${validSections.join(", ")}.
+- Formule en langage d'univers, à la 3e personne, phrases courtes et concrètes (pas de méta, jamais "selon le chapitre").
+- Si rien de nouveau et de factuel n'émerge, renvoie une liste vide.
+Réponds UNIQUEMENT en JSON : { "enrichments": [ { "section": "<une des sections>", "text": "<1 à 2 phrases>" } ] } — 3 maximum.`;
+      userPrompt = `ÉLÉMENT : ${body.node_name.trim()}${body.node_type ? ` (${body.node_type})` : ""}
+
+DESCRIPTION ACTUELLE :
+${currentDesc || "(vide)"}
+
+EXTRAITS DU SCÉNARIO :
+${safeExcerpts}
+
+Propose les enrichissements factuels manquants (JSON).`;
     } else {
       // mode === "baseline"
       if (!body.project_id) {
@@ -786,7 +817,7 @@ Maintenant, écris le chapitre suivant en respectant les personnages, décors et
     });
 
     // Activer le mode JSON strict pour les modes structurés
-    const jsonMode = mode === "detect_blocks" || mode === "narrative_directions";
+    const jsonMode = mode === "detect_blocks" || mode === "narrative_directions" || mode === "enrich_lore_node";
     const result = await callAI(systemPrompt, userPrompt, geminiKey, jsonMode, requestId);
 
     if ("error" in result) {
@@ -934,6 +965,29 @@ Maintenant, écris le chapitre suivant en respectant les personnages, décors et
         }
       } catch { /* graceful: events = [] */ }
       return jsonResponse({ events, mode, model: result.modelUsed, request_id: requestId }, 200);
+    }
+
+    // Mode enrich_lore_node : parser { enrichments: [{ section, text }] }
+    if (mode === "enrich_lore_node") {
+      const validSectionSet = Array.isArray(body.sections) && body.sections.length > 0
+        ? new Set(body.sections.map((s) => String(s).trim()).filter(Boolean))
+        : null;
+      let enrichments: Array<{ section: string; text: string }> = [];
+      try {
+        const cleaned = extractJsonObject(result.text);
+        const parsed = JSON.parse(cleaned) as { enrichments?: unknown };
+        if (Array.isArray(parsed.enrichments)) {
+          enrichments = parsed.enrichments
+            .filter((e): e is { section: string; text: string } =>
+              !!e && typeof (e as { section?: unknown }).section === "string" &&
+              typeof (e as { text?: unknown }).text === "string" &&
+              (e as { text: string }).text.trim().length > 0)
+            .map((e) => ({ section: e.section.trim().slice(0, 40), text: e.text.trim().slice(0, 400) }))
+            .filter((e) => !validSectionSet || validSectionSet.has(e.section))
+            .slice(0, 3);
+        }
+      } catch { /* graceful: enrichments = [] */ }
+      return jsonResponse({ enrichments, mode, model: result.modelUsed, request_id: requestId }, 200);
     }
 
     // Modes texte : scenario, chapter, ai_summary, suggest_block_prompt

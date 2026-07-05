@@ -71,6 +71,39 @@ const ASSET_TO_LORE_TYPE: Record<string, LoreNodeType> = {
   object: "object",
 };
 
+// Sections de fiche par type (miroir de LORE_CHIPS dans LoreNodeSheet) — guident où placer un enrichissement.
+const LORE_CHIPS: Record<string, string[]> = {
+  character: ["Apparence", "Personnalité", "Histoire", "Motivations", "Capacités"],
+  location: ["Description", "Atmosphère", "Histoire", "Habitants", "Règles"],
+  object: ["Apparence", "Origine", "Propriétés", "Propriétaires", "Symbolique"],
+  event: ["Époque", "Participants", "Déclencheur", "Déroulement", "Conséquences"],
+};
+
+// Ariane n'enrichit que les fiches à description pauvre, un cap par scan (quota IA).
+const ENRICH_MIN_DESC_CHARS = 120;
+const MAX_ENRICH_NODES = 6;
+const ENRICH_EXCERPT_MAX_CHARS = 1500;
+
+interface LoreNodeEnrichmentPrefill {
+  node_id: string;
+  node_name: string;
+  section: string;
+  text: string;
+}
+
+/** Complète une description structurée (### Section) sans rien effacer : append sous la section ciblée (créée si absente). */
+function appendEnrichment(current: string, section: string, text: string): string {
+  const body = text.trim();
+  if (!body) return current;
+  const header = `### ${(section || "Description").trim()}`;
+  if (!current.trim()) return `${header}\n${body}`;
+  const idx = current.indexOf(header);
+  if (idx === -1) return `${current.trimEnd()}\n\n${header}\n${body}`;
+  const nextHeaderIdx = current.indexOf("\n### ", idx + header.length);
+  if (nextHeaderIdx === -1) return `${current.trimEnd()}\n${body}`;
+  return `${current.slice(0, nextHeaderIdx).trimEnd()}\n${body}${current.slice(nextHeaderIdx)}`;
+}
+
 function escapeRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -96,7 +129,7 @@ export function useArianeLoreProposals(projectId: string, { enableAutoScan = tru
         .from("compass_proposals")
         .select("*")
         .eq("project_id", projectId)
-        .in("proposal_type", ["lore_asset", "lore_chapter_update", "lore_connection", "lore_event"])
+        .in("proposal_type", ["lore_asset", "lore_chapter_update", "lore_connection", "lore_event", "lore_node_enrichment"])
         .eq("status", "active")
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -495,6 +528,20 @@ export function useArianeLoreProposals(projectId: string, { enableAutoScan = tru
           .single();
         if (nodeError) throw nodeError;
         onNodeCreated?.(newNode as LoreNode);
+      } else if (proposal.proposal_type === "lore_node_enrichment") {
+        const prefill = proposal.prefill_data as unknown as LoreNodeEnrichmentPrefill;
+        const { data: nodeRow } = await supabase
+          .from("lore_nodes")
+          .select("description")
+          .eq("id", prefill.node_id)
+          .maybeSingle();
+        const current = (nodeRow?.description ?? "").trim();
+        const newDescription = appendEnrichment(current, prefill.section, prefill.text);
+        const { error } = await supabase
+          .from("lore_nodes")
+          .update({ description: newDescription })
+          .eq("id", prefill.node_id);
+        if (error) throw error;
       } else {
         // lore_asset
         const prefill = proposal.prefill_data as unknown as LorePrefillData;
@@ -570,7 +617,10 @@ export function useArianeLoreProposals(projectId: string, { enableAutoScan = tru
   const deduplicatedProposals = useMemo(() => {
     const seen = new Set<string>();
     return proposals.filter((p) => {
-      const key = `${p.proposal_type}:${p.title.toLowerCase().trim()}`;
+      // Les enrichissements partagent le titre (nom du nœud) mais diffèrent par section → dédup par id.
+      const key = p.proposal_type === "lore_node_enrichment"
+        ? `lore_node_enrichment:${p.id}`
+        : `${p.proposal_type}:${p.title.toLowerCase().trim()}`;
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
@@ -657,7 +707,7 @@ export function useArianeLoreProposals(projectId: string, { enableAutoScan = tru
     ] = await Promise.all([
       supabase.from("assets").select("id, name, asset_type, prompt").eq("project_id", projectId),
       supabase.from("scenario_chapters").select("id, chapter_number, content").eq("project_id", projectId).order("chapter_number"),
-      supabase.from("lore_nodes").select("id, name, asset_id, chapter_id, type").eq("project_id", projectId),
+      supabase.from("lore_nodes").select("id, name, asset_id, chapter_id, type, description").eq("project_id", projectId),
       supabase.from("lore_edges").select("from_node_id, to_node_id").eq("project_id", projectId),
       supabase.from("projects").select("description").eq("id", projectId).single(),
     ]);
@@ -678,7 +728,7 @@ export function useArianeLoreProposals(projectId: string, { enableAutoScan = tru
     }
 
     const projectDescription = (projectData as { description?: string | null } | null)?.description ?? "";
-    const loreNodeRows = (loreNodes ?? []) as Array<{ id: string; name: string; asset_id: string | null; chapter_id: string | null; type: string }>;
+    const loreNodeRows = (loreNodes ?? []) as Array<{ id: string; name: string; asset_id: string | null; chapter_id: string | null; type: string; description: string | null }>;
     const alreadyInLore = new Set(loreNodeRows.map((n) => n.asset_id).filter(Boolean) as string[]);
     const edgeSet = new Set((loreEdges ?? []).map((e) => [e.from_node_id, e.to_node_id].sort().join("|")));
 
@@ -860,6 +910,86 @@ export function useArianeLoreProposals(projectId: string, { enableAutoScan = tru
           status: "active", dedupe_key: saved.dedupe_key,
         });
       }
+    }
+
+    // ── lore_node_enrichment : Ariane enrichit les fiches existantes à description pauvre (IA, borné + circuit breaker) ──
+    const { data: existingEnrich } = await supabase
+      .from("compass_proposals")
+      .select("dedupe_key")
+      .eq("project_id", projectId)
+      .eq("proposal_type", "lore_node_enrichment");
+    const usedEnrichKeys = new Set<string>((existingEnrich ?? []).map((p) => p.dedupe_key));
+
+    const enrichCandidates: Array<{ node: typeof loreNodeRows[number]; name: string; excerpts: string }> = [];
+    for (const node of loreNodeRows) {
+      if ((node.description ?? "").trim().length >= ENRICH_MIN_DESC_CHARS) continue;
+      let name: string;
+      if (node.asset_id) {
+        const asset = (assets ?? []).find((a) => a.id === node.asset_id);
+        if (!asset) continue;
+        name = asset.name;
+      } else if (node.type === "event" && node.name) {
+        name = node.name;
+      } else {
+        continue;
+      }
+      const parts: string[] = [];
+      let acc = 0;
+      for (const sc of (scenarioChapters ?? [])) {
+        const content = sc.content ?? "";
+        if (!contentContainsAssetName(content, name)) continue;
+        for (const sentence of content.split(/(?<=[.!?])\s+/)) {
+          if (!contentContainsAssetName(sentence, name)) continue;
+          const s = sentence.trim();
+          parts.push(s);
+          acc += s.length;
+          if (acc > ENRICH_EXCERPT_MAX_CHARS) break;
+        }
+        if (acc > ENRICH_EXCERPT_MAX_CHARS) break;
+      }
+      const excerpts = parts.join(" ").slice(0, ENRICH_EXCERPT_MAX_CHARS);
+      if (excerpts.trim().length < 40) continue;
+      enrichCandidates.push({ node, name, excerpts });
+    }
+
+    let enrichAiBlocked = false;
+    if (enrichCandidates.length > 0) await supabase.auth.refreshSession();
+    for (const cand of enrichCandidates.slice(0, MAX_ENRICH_NODES)) {
+      if (enrichAiBlocked) break;
+      const sections = LORE_CHIPS[cand.node.type] ?? ["Description"];
+      try {
+        const { data, error } = await supabase.functions.invoke("generate-scenario-ai", {
+          body: {
+            mode: "enrich_lore_node",
+            node_name: cand.name,
+            node_type: cand.node.type,
+            current_description: cand.node.description ?? "",
+            chapter_excerpts: cand.excerpts,
+            sections,
+          },
+        });
+        if (error) { enrichAiBlocked = true; }
+        else if (Array.isArray(data?.enrichments)) {
+          for (const enr of data.enrichments as Array<{ section: string; text: string }>) {
+            const section = (enr?.section ?? "").trim() || "Description";
+            const text = (enr?.text ?? "").trim();
+            if (!text) continue;
+            const sectionSlug = section.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "").slice(0, 40) || "section";
+            const dedupeKey = `lore_node_enrichment-${cand.node.id}-${sectionSlug}`;
+            if (usedEnrichKeys.has(dedupeKey)) continue;
+            usedEnrichKeys.add(dedupeKey);
+            forceInserts.push({
+              project_id: projectId, user_id: user.id,
+              proposal_type: "lore_node_enrichment", origin: "extracted",
+              title: cand.name,
+              content: text,
+              prefill_data: { node_id: cand.node.id, node_name: cand.name, section, text } satisfies LoreNodeEnrichmentPrefill,
+              status: "active", dedupe_key: dedupeKey,
+            });
+          }
+        }
+      } catch { enrichAiBlocked = true; }
+      await new Promise((resolve) => setTimeout(resolve, 500));
     }
 
     // Ré-insérer les proposals dismissées non capturées par le scan normal (asset plus dans le texte, etc.)

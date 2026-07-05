@@ -512,7 +512,7 @@ export interface NarramindMissingAsset {
 
 export type CompassSourceType = "chapter" | "lore_world_section" | "asset_lore" | "summary";
 
-export type CompassProposalType = "lore_world" | "lore_asset" | "lore_chapter_update" | "lore_connection" | "narrative_direction" | "asset_prefill";
+export type CompassProposalType = "lore_world" | "lore_asset" | "lore_chapter_update" | "lore_connection" | "lore_event" | "lore_node_enrichment" | "narrative_direction" | "asset_prefill";
 
 export interface CompassProposal {
   id: string;

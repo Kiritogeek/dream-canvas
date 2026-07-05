@@ -1723,7 +1723,7 @@ export default function ScenarioChapterEditor() {
               <DialogTrigger asChild>
                 <button
                   type="button"
-                  disabled={isDetecting || !content.trim() || (cases.length > 0 && detectedAtContent !== "" && content === detectedAtContent)}
+                  disabled={isDetecting || !content.trim()}
                   className="flex items-center gap-2 pl-4 pr-5 h-12 rounded-full text-sm font-semibold gradient-primary text-primary-foreground shadow-dream hover:scale-[1.03] transition-[box-shadow,transform,opacity] duration-200 disabled:opacity-50 disabled:pointer-events-none"
                 >
                   {isDetecting ? (
@@ -1784,6 +1784,11 @@ export default function ScenarioChapterEditor() {
                     </div>
                     <p className="text-[11px] text-muted-foreground leading-snug">Aéré : peu de texte, plus de cases muettes. Dense : plus de bulles par case.</p>
                   </div>
+                  {cases.length > 0 && (
+                    <p className="text-[11px] text-amber-500 leading-snug">
+                      Re-découper remplacera les {cases.length} case{cases.length > 1 ? "s" : ""} actuelle{cases.length > 1 ? "s" : ""} de ce chapitre.
+                    </p>
+                  )}
                   <button
                     type="button"
                     onClick={() => { setDecoupageDialogOpen(false); handleDetectBlocks(); }}
@@ -1791,7 +1796,7 @@ export default function ScenarioChapterEditor() {
                     className="w-full flex items-center justify-center gap-2 h-11 rounded-xl text-sm font-semibold gradient-primary text-primary-foreground shadow-dream hover:shadow-glow transition-[box-shadow,transform] duration-200 disabled:opacity-50 disabled:pointer-events-none"
                   >
                     <Scissors className="h-4 w-4 shrink-0" />
-                    <span>Lancer le découpage</span>
+                    <span>{cases.length > 0 ? "Re-découper" : "Lancer le découpage"}</span>
                   </button>
                 </div>
               </DialogContent>

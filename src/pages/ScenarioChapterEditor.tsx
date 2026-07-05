@@ -20,7 +20,7 @@ import {
   Lock,
   Unlock,
 } from "lucide-react";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -683,7 +683,7 @@ export default function ScenarioChapterEditor() {
   // ── Réglages du découpage (genre / densité / système) ─────────
 
   const [decoupageSettings, setDecoupageSettings] = useState<DecoupageSettings>(() => loadDecoupageSettings(projectId));
-  const [decoupagePopoverOpen, setDecoupagePopoverOpen] = useState(false);
+  const [decoupageDialogOpen, setDecoupageDialogOpen] = useState(false);
   // Genre + tonalité viennent du PROJET (onglet Paramètres) — source unique, plus de duplication.
   const decoupageMeta = useMemo(() => parseProjectMeta(project?.description), [project?.description]);
   useEffect(() => {
@@ -1719,8 +1719,8 @@ export default function ScenarioChapterEditor() {
               )}
             </button>
           ) : (
-            <Popover open={decoupagePopoverOpen} onOpenChange={setDecoupagePopoverOpen}>
-              <PopoverTrigger asChild>
+            <Dialog open={decoupageDialogOpen} onOpenChange={setDecoupageDialogOpen}>
+              <DialogTrigger asChild>
                 <button
                   type="button"
                   disabled={isDetecting || !content.trim() || (cases.length > 0 && detectedAtContent !== "" && content === detectedAtContent)}
@@ -1738,72 +1738,80 @@ export default function ScenarioChapterEditor() {
                     </>
                   )}
                 </button>
-              </PopoverTrigger>
-              <PopoverContent side="top" align="end" sideOffset={8} className="w-[300px] p-4 space-y-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Genre & tonalité</label>
-                  <div className="flex flex-wrap gap-1.5">
-                    {decoupageMeta.genre ? (
-                      <span className="text-[11px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">{decoupageMeta.genre}</span>
-                    ) : (
-                      <span className="text-[11px] text-muted-foreground italic">Aucun genre défini</span>
-                    )}
-                    {decoupageMeta.tone && (
-                      <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-500 font-medium">{decoupageMeta.tone}</span>
-                    )}
+              </DialogTrigger>
+              <DialogContent className="glass sm:max-w-sm">
+                <DialogHeader>
+                  <DialogTitle className="font-display text-base flex items-center gap-2">
+                    <Scissors className="h-4 w-4 text-primary shrink-0" />
+                    Réglages du découpage
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Genre & tonalité</label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {decoupageMeta.genre ? (
+                        <span className="text-[11px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">{decoupageMeta.genre}</span>
+                      ) : (
+                        <span className="text-[11px] text-muted-foreground italic">Aucun genre défini</span>
+                      )}
+                      {decoupageMeta.tone && (
+                        <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-500 font-medium">{decoupageMeta.tone}</span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-muted-foreground leading-snug">
+                      Définis dans <button type="button" onClick={() => navigate(`/dashboard/projects/${projectId}?tab=parametres`)} className="text-primary hover:underline font-medium">Paramètres du projet</button>. Ils calibrent le nombre de cases, les SFX et le registre.
+                    </p>
                   </div>
-                  <p className="text-[11px] text-muted-foreground leading-snug">
-                    Définis dans <button type="button" onClick={() => navigate(`/dashboard/projects/${projectId}?tab=parametres`)} className="text-primary hover:underline font-medium">Paramètres du projet</button>. Ils calibrent le nombre de cases, les SFX et le registre.
-                  </p>
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Densité de texte</label>
-                  <div className="flex gap-1.5">
-                    {(Object.entries(DECOUPAGE_DENSITY_LABELS) as [DetectBlocksDensity, string][]).map(([value, label]) => (
-                      <button
-                        key={value}
-                        type="button"
-                        onClick={() => updateDecoupageSettings({ density: value })}
-                        className={cn(
-                          "flex-1 h-8 rounded-lg border text-xs font-medium transition-colors",
-                          decoupageSettings.density === value
-                            ? "border-primary/60 bg-primary/15 text-primary"
-                            : "border-border/70 text-muted-foreground hover:text-foreground hover:bg-muted/50",
-                        )}
-                      >
-                        {label}
-                      </button>
-                    ))}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Densité de texte</label>
+                    <div className="flex gap-1.5">
+                      {(Object.entries(DECOUPAGE_DENSITY_LABELS) as [DetectBlocksDensity, string][]).map(([value, label]) => (
+                        <button
+                          key={value}
+                          type="button"
+                          onClick={() => updateDecoupageSettings({ density: value })}
+                          className={cn(
+                            "flex-1 h-8 rounded-lg border text-xs font-medium transition-colors",
+                            decoupageSettings.density === value
+                              ? "border-primary/60 bg-primary/15 text-primary"
+                              : "border-border/70 text-muted-foreground hover:text-foreground hover:bg-muted/50",
+                          )}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-[11px] text-muted-foreground leading-snug">Aéré : peu de texte, plus de cases muettes. Dense : plus de bulles par case.</p>
                   </div>
-                  <p className="text-[11px] text-muted-foreground leading-snug">Aéré : peu de texte, plus de cases muettes. Dense : plus de bulles par case.</p>
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Fenêtres système (RPG)</label>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Fenêtres système (RPG)</label>
+                    <button
+                      type="button"
+                      onClick={() => updateDecoupageSettings({ allowSystem: !decoupageSettings.allowSystem })}
+                      className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-muted/40 border border-border hover:bg-muted/60 transition-colors text-sm text-left"
+                    >
+                      <span className="text-[13px] leading-snug">Mon univers a des notifications / statuts</span>
+                      <span className={cn(
+                        "shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full border",
+                        decoupageSettings.allowSystem ? "border-primary/60 bg-primary/15 text-primary" : "border-border/70 text-muted-foreground",
+                      )}>
+                        {decoupageSettings.allowSystem ? "Oui" : "Non"}
+                      </span>
+                    </button>
+                  </div>
                   <button
                     type="button"
-                    onClick={() => updateDecoupageSettings({ allowSystem: !decoupageSettings.allowSystem })}
-                    className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-muted/40 border border-border hover:bg-muted/60 transition-colors text-sm text-left"
+                    onClick={() => { setDecoupageDialogOpen(false); handleDetectBlocks(); }}
+                    disabled={isDetecting}
+                    className="w-full flex items-center justify-center gap-2 h-11 rounded-xl text-sm font-semibold gradient-primary text-primary-foreground shadow-dream hover:shadow-glow transition-[box-shadow,transform] duration-200 disabled:opacity-50 disabled:pointer-events-none"
                   >
-                    <span className="text-[13px] leading-snug">Mon univers a des notifications / statuts</span>
-                    <span className={cn(
-                      "shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full border",
-                      decoupageSettings.allowSystem ? "border-primary/60 bg-primary/15 text-primary" : "border-border/70 text-muted-foreground",
-                    )}>
-                      {decoupageSettings.allowSystem ? "Oui" : "Non"}
-                    </span>
+                    <Scissors className="h-4 w-4 shrink-0" />
+                    <span>Lancer le découpage</span>
                   </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => { setDecoupagePopoverOpen(false); handleDetectBlocks(); }}
-                  disabled={isDetecting}
-                  className="w-full flex items-center justify-center gap-2 h-11 rounded-xl text-sm font-semibold gradient-primary text-primary-foreground shadow-dream hover:shadow-glow transition-[box-shadow,transform] duration-200 disabled:opacity-50 disabled:pointer-events-none"
-                >
-                  <Scissors className="h-4 w-4 shrink-0" />
-                  <span>Lancer le découpage</span>
-                </button>
-              </PopoverContent>
-            </Popover>
+              </DialogContent>
+            </Dialog>
           )}
         </div>
       )}

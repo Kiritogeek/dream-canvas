@@ -71,8 +71,11 @@ const AI_MODEL = "gemini-2.5-flash";
 // Fallback si le modèle principal renvoie 429 (rate limit / quota épuisé).
 // `gemini-2.5-flash-lite` a un quota free tier ~3x plus généreux.
 const AI_FALLBACK_MODEL = "gemini-2.5-flash-lite";
-const AI_TIMEOUT_MS = 60_000;
-const AI_MAX_OUTPUT_TOKENS = 8_192;
+// 90 s : un découpage objectif d'un long chapitre génère beaucoup de tokens.
+const AI_TIMEOUT_MS = 90_000;
+// Plein budget de sortie Gemini 2.5 Flash pour un découpage OBJECTIF : un long chapitre
+// peut produire beaucoup de cases sans être tronqué (avant : 8192 → coupé à ~6 cases).
+const AI_MAX_OUTPUT_TOKENS = 32_768;
 
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
 const GROQ_EXTRACT_EVENTS_MODEL = "llama-3.3-70b-versatile";

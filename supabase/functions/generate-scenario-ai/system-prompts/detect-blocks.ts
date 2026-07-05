@@ -161,10 +161,12 @@ export const DETECT_BLOCKS_SYSTEM_PROMPT =
   '- Format : {"variant": "notification", "title": "NOTIFICATION", "body": "..."} — ' +
   "`body` peut contenir des sauts de ligne \\n.\n\n" +
 
-  "PLAFOND — JAMAIS PLUS DE ~60 CASES :\n" +
-  "- Si le texte est trop long pour tenir en 60 cases en respectant ces règles : compresser plus " +
-  "agressivement (couper davantage de contenu secondaire) pour tenir QUAND MÊME en 60, ET ajouter " +
-  'à la RACINE du JSON, AVANT `blocks` : "split_suggestion": {"reason": "...", "suggested_parts": 2}.\n\n' +
+  "NOMBRE DE CASES — OBJECTIF (rappel) :\n" +
+  "- Le nombre de cases découle des beats RÉELS du chapitre : ne compresse pas pour tenir un quota, ne gonfle pas. " +
+  "Si le chapitre justifie 100 cases, produis 100 cases.\n" +
+  "- Plafond de SÉCURITÉ purement technique : ~150 cases. Si le chapitre en exigerait davantage, " +
+  "découpe fidèlement jusqu'à ~150 cases ET ajoute à la RACINE du JSON, AVANT `blocks` : " +
+  '"split_suggestion": {"reason": "chapitre trop long pour un seul découpage", "suggested_parts": N}.\n\n' +
 
   "FORMAT DE SORTIE JSON :\n" +
   '{"blocks":[\n' +
@@ -273,11 +275,17 @@ export function buildDetectBlocksPrompt(opts: {
   const genreKey = opts.genre?.trim() ? normalizeMeta(opts.genre) : "";
   const profile = genreKey ? GENRE_PROFILES[genreKey] : undefined;
 
-  if (opts.targetPanelCount) {
-    prompt += `CIBLE : générer environ ${opts.targetPanelCount} cases au total (jamais plus de 60).\n\n`;
-  } else if (profile) {
-    prompt += `CIBLE : générer environ ${profile.target} cases au total (jamais plus de 60).\n\n`;
-  }
+  // DÉCOUPAGE OBJECTIF : le nombre de cases n'est jamais imposé — il découle des beats
+  // réels du chapitre. Un éventuel targetPanelCount n'est plus qu'une indication ignorable.
+  prompt +=
+    "NOMBRE DE CASES — OBJECTIF, JAMAIS IMPOSÉ :\n" +
+    "- Découpe selon les beats dramatiques RÉELS du chapitre : autant de cases que le récit l'exige. " +
+    "Un chapitre riche et long donne beaucoup de cases ; un chapitre bref en donne peu.\n" +
+    "- Ne compresse PAS pour tenir un quota et ne gonfle PAS artificiellement. Le juste découpage prime sur tout total.\n" +
+    (opts.targetPanelCount
+      ? `- Indication facultative de l'auteur : ~${opts.targetPanelCount} cases — à suivre uniquement si ça colle au contenu, sinon ignore-la.\n`
+      : "") +
+    "\n";
 
   if (profile) {
     prompt += `PROFIL DE GENRE (${opts.genre!.trim()}) : ${profile.directives}\n\n`;

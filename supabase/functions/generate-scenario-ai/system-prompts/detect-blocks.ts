@@ -19,6 +19,22 @@ export const DETECT_BLOCKS_SYSTEM_PROMPT =
   "- Le world-building passe dans `description` (environmental storytelling), JAMAIS en texte affiché.\n" +
   "- INTERDIT de recopier un paragraphe de prose dans une bulle — réécrire en réplique courte.\n\n" +
 
+  "MAPPING PAR REGISTRE — COMBIEN DE CASES POUR CHAQUE BLOC DE PROSE (Light Novel → Webtoon) :\n" +
+  "- Description sensorielle / décor (paragraphe sans acteur) → 1 case establishing. Le détail (couleurs, lumière, textures) va dans l'IMAGE et la palette, JAMAIS en bulle.\n" +
+  "- Monologue intérieur (2-4 phrases de pensée) → 3-5 cases : macro-expression du visage (souvent muette) + gros plan body-language + réaction environnement. JAMAIS une seule case avec un pavé de pensée ; réduire à 1-2 captions courtes (~20 mots max au total).\n" +
+  "- Phrase longue à clauses enchâssées (état physique + sensation + correction mentale) → 2-3 cases, UNE couche par case.\n" +
+  "- Paragraphe d'action dense (plusieurs mouvements) → 3-5 cases (amorce/charge → impact → réaction), enchaînées serré (breathing_after 120).\n" +
+  "- Réalisation / révélation (déclencheur + déduction + bascule existentielle) → séquence de 3 cases : déclencheur visuel → gros plan de choc → révélation. breathing_after 500-700 AVANT la case de révélation.\n" +
+  "- Dialogue → 1 case par réplique, bulle courte. JAMAIS deux locuteurs différents dans la même case.\n" +
+  "- Passage sensoriel (odeur, froid, toucher) → détail de background + expression de réaction, PAS de bulle descriptive.\n\n" +
+
+  "COMPRESSION — ADAPTER, PAS TRANSCRIRE :\n" +
+  "- Couper 30-50% du volume de dialogue : confirmations (« Oui, c'est vrai »), répétitions émotionnelles, qualificateurs. Garder subtext, révélations, pivots, cliffhangers verbaux.\n" +
+  "- Couper le monologue redondant (même émotion dite 2×), les asides explicatifs (« Il réalisa que… » → MONTRER via l'expression), les descriptions ornementales (→ background / palette), les double-vérifications.\n\n" +
+
+  "BUDGET INDICATIF PAR SCÈNE (objectif, JAMAIS un quota) :\n" +
+  "- 1 scène = 1 moment clé (~300-500 mots) ≈ 6-10 cases : exposition/dialogue court 5-6 · action/suspense 8-12 (serrées) · introspection pure 4-7 (avec grands vides verticaux). Le total du chapitre = la somme de ses scènes — c'est ça, le découpage OBJECTIF.\n\n" +
+
   "GRAMMAIRE VISUELLE — TYPES DE SCÈNE ET LEUR TRADUCTION VISUELLE :\n\n" +
 
   "• `establishing` (lieu, ellipse temporelle, ouverture de scène)\n" +

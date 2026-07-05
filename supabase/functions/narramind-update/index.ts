@@ -29,6 +29,8 @@ const ASSET_PROMPT_MAX_CHARS = 320;
 const ASSET_LORE_MAX_CHARS = 520;
 const ENTITIES_CONTEXT_TOKEN_BUDGET = 5_000;
 const ENTITY_LORE_SUMMARY_MAX_CHARS = 900;
+/** Règles du Monde (world_rules) injectées dans la détection d'anomalies — contraintes explicites de l'univers dont la violation est signalée. */
+const WORLD_RULES_MAX_CHARS = 6_000;
 
 /** Phase 3 — mémoire longue (méga-résumé + compression résumés). */
 const NARRA_SUMMARY_STORE_MAX_CHARS = 24_000;
@@ -218,6 +220,22 @@ function capUniverseLoreForPrompt(
       tail,
     truncated: true,
     originalChars: t.length,
+  };
+}
+
+function capWorldRulesForPrompt(
+  raw: string | null | undefined,
+  maxChars: number
+): { text: string | null; truncated: boolean } {
+  if (raw == null) return { text: null, truncated: false };
+  const t = raw.replace(/\r\n/g, "\n").trim();
+  if (!t) return { text: null, truncated: false };
+  if (t.length <= maxChars) return { text: t, truncated: false };
+  return {
+    text:
+      t.slice(0, maxChars) +
+      `\n… [Règles du monde tronquées : ${t.length - maxChars} caractères supplémentaires]`,
+    truncated: true,
   };
 }
 
@@ -808,7 +826,7 @@ Deno.serve(async (req) => {
         { headers: dbHeaders }
       ),
       fetch(
-        `${supabaseUrl}/rest/v1/projects?id=eq.${project_id}&select=universe_lore,narra_summary,narra_summary_updated_at`,
+        `${supabaseUrl}/rest/v1/projects?id=eq.${project_id}&select=universe_lore,world_rules,narra_summary,narra_summary_updated_at`,
         { headers: dbHeaders }
       ),
     ]);
@@ -839,12 +857,14 @@ Deno.serve(async (req) => {
     const projects = projectRes.ok
       ? (await projectRes.json() as Array<{
           universe_lore: string | null;
+          world_rules: string | null;
           narra_summary: string | null;
           narra_summary_updated_at: string | null;
         }>)
       : [];
     const projectRow = projects[0];
     const universeLore = projectRow?.universe_lore ?? null;
+    const worldRules = projectRow?.world_rules ?? null;
     const initialNarraSummary = projectRow?.narra_summary ?? null;
 
     const prevChapterNum = chapter.chapter_number;
@@ -885,6 +905,7 @@ Deno.serve(async (req) => {
     );
 
     const loreCap = capUniverseLoreForPrompt(universeLore, UNIVERSE_LORE_MAX_CHARS);
+    const worldRulesCap = capWorldRulesForPrompt(worldRules, WORLD_RULES_MAX_CHARS);
     const narraCap = capNarraSummaryForPrompt(initialNarraSummary, NARRA_SUMMARY_PROMPT_MAX_CHARS);
     const assetsCtx = buildAssetsContextForPrompt(assets, ASSETS_CONTEXT_TOKEN_BUDGET);
     const entitiesCtx = buildMemoryEntitiesContextForPrompt(
@@ -897,6 +918,8 @@ Deno.serve(async (req) => {
       universe_lore_truncated: loreCap.truncated,
       universe_lore_original_chars: loreCap.originalChars,
       universe_lore_sent_chars: loreCap.text?.length ?? 0,
+      world_rules_truncated: worldRulesCap.truncated,
+      world_rules_sent_chars: worldRulesCap.text?.length ?? 0,
       narra_summary_truncated: narraCap.truncated,
       narra_summary_sent_chars: narraCap.text?.length ?? 0,
       assets_included: assetsCtx.includedCount,
@@ -913,7 +936,7 @@ Deno.serve(async (req) => {
     const assetsContext = assetsCtx.text;
 
     const systemPrompt = `Tu es NarraMind, un système de mémoire narrative.
-${loreCap.text ? `\nLORE DU MONDE :\n${loreCap.text}\n` : ""}${narraCap.text ? `\nRÉSUMÉ LONG DU PROJET (NarraMind — mémoire consolidée sur les chapitres passés ; un détail absent ici ne constitue pas une anomalie si le mystère ou l'ellipse restent légitimes) :\n${narraCap.text}\n` : ""}${prevSummariesCtx.text ? `\n${prevSummariesCtx.text}\n` : ""}
+${loreCap.text ? `\nLORE DU MONDE :\n${loreCap.text}\n` : ""}${worldRulesCap.text ? `\nRÈGLES DU MONDE (contraintes explicites posées par l'auteur pour cet univers — une violation nette et non justifiée par le chapitre est une anomalie) :\n${worldRulesCap.text}\n` : ""}${narraCap.text ? `\nRÉSUMÉ LONG DU PROJET (NarraMind — mémoire consolidée sur les chapitres passés ; un détail absent ici ne constitue pas une anomalie si le mystère ou l'ellipse restent légitimes) :\n${narraCap.text}\n` : ""}${prevSummariesCtx.text ? `\n${prevSummariesCtx.text}\n` : ""}
 ASSETS DU PROJET (avec leur LORE) :
 ${assetsContext}
 
@@ -943,6 +966,9 @@ A) CONTRADICTIONS EXPLICITES — Le chapitre affirme X alors que le lore / les r
 B) RUPTURES DE TON / GENRE — L'univers établi (lore ou résumés antérieurs) est clairement réaliste ou ne comporte aucun élément magique / fantastique / science-fiction, et le chapitre courant en introduit un brusquement, sans mise en place préalable.
    Exemples : un personnage tire une boule de feu dans un récit policier réaliste ; un vaisseau spatial apparaît dans une saga médiévale sans technologie avancée.
    Condition stricte : l'univers DOIT avoir été posé comme sans ces éléments (via le lore ou des résumés de chapitres précédents). Si l'univers est vague, nouveau ou non établi → ne pas alerter.
+C) VIOLATION D'UNE RÈGLE DU MONDE — Les RÈGLES DU MONDE ci-dessus posent une contrainte explicite, et le chapitre courant la viole nettement sans qu'aucune exception ne soit justifiée dans le texte.
+   Exemples : les règles posent que la magie coûte des années de vie à celui qui l'emploie, mais un personnage enchaîne les sorts sans jamais en payer le prix ; les règles posent que la cité est interdite aux étrangers, mais un étranger y circule librement sans que le texte n'explique comment.
+   Condition stricte : la règle DOIT être explicitement posée dans les RÈGLES DU MONDE ci-dessus — ne jamais inventer ni supposer une règle. Si aucune règle n'est fournie, ou si le chapitre pose lui-même une exception ou une justification légitime, → ne pas alerter.
 
 RÈGLES STRICTES POUR "anomalies" (légitime = ne PAS alerter) :
 - Mystère, suspense, révélation différée, ellipses, éléments « étranges » ou nouveaux dans le chapitre tant que le texte ne les présente pas comme déjà fixés ailleurs : ce n'est PAS une anomalie.
@@ -961,6 +987,7 @@ Rédaction "title" et "explanation" pour l'auteur — **ABSOLUMENT INTERDIT** :
 - Tout terme ou artefact **technique** ou **outil / base de données** : « asset », « entité », « fiche », « JSON », noms de champs (ex. first_seen_chapter, last_seen_chapter, entity_type, traits, relations, project_id, etc.).
 - Toute référence à **une fiche** ou **un enregistrement** : n'écrire jamais « la fiche de X indique », « selon la fiche », « la fiche du personnage », etc.
 - Toute référence au **format interne** ou aux clés du JSON que tu produis.
+- Ne jamais nommer l'outil (« Règles du Monde », « la section Magie / Géographie / Cosmologie ») comme un artefact : exprime la contrainte en langage d'univers (« la magie ne ressuscite pas les morts »), jamais « selon vos Règles du Monde » ni « la section Cosmologie indique que ».
 Exemple **interdit** : « Contradiction avec first_seen_chapter: 2 ».
 Exemple **interdit** : « La fiche de Pleine Mer indique qu'il a été vu pour la première fois au chapitre 2. »
 Exemple **correct** : « Le texte dit que Kael n'a jamais nagé vers l'épave, alors qu'au chapitre 3 il s'y dirige déjà. »

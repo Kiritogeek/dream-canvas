@@ -46,7 +46,7 @@ Le nombre de cases n'est **jamais imposé** : il découle des beats réels. Un c
 
 ---
 
-## Prochaine étape (proposée)
-Ces 15 règles peuvent enrichir le system prompt `detect-blocks.ts` (aujourd'hui la grammaire visuelle par `scene_type` existe, mais le **mapping registre LN → nb de cases + gutter** n'est pas explicite). Intégration = Edge Function → feu vert + déploiement. Voir wiki `[[Decoupage-Regles]]` (§2 bis).
+## ✅ Intégré (2026-07-05, commit `d041fbd` — à déployer)
+Les 15 règles sont désormais dans le system prompt `detect-blocks.ts` (sections « MAPPING PAR REGISTRE » → registre LN → nb de cases, « COMPRESSION » → couper 30-50%, « BUDGET INDICATIF PAR SCÈNE » → 6-10 cases/scène). À activer : `npx supabase functions deploy generate-scenario-ai`. Voir wiki `[[Decoupage-Regles]]` §2 bis.
 
 Sources : novelfrance.fr, webtoons.com (format), comistitch.com, s-morishitastudio.com, toonora.com (Solo Leveling novel→webtoon), lordofthemysteries.fandom.com.

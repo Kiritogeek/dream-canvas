@@ -57,6 +57,7 @@ import { useUserPlan } from "@/hooks/useUserPlan";
 import { useAuth } from "@/hooks/useAuth";
 import { callDetectBlocks, callGenerateAiSummary } from "@/services/scenarioAI";
 import type { DetectBlocksDensity } from "@/services/scenarioAI";
+import { splitChapterForDetection } from "@/lib/chapterChunking";
 import { parseProjectMeta } from "@/lib/projectMeta";
 import { useNarraMindDebounce } from "@/hooks/useNarraMindDebounce";
 import { useCompassIndex } from "@/hooks/useCompassIndex";
@@ -385,6 +386,8 @@ export default function ScenarioChapterEditor() {
   const [lockedBlocks, setLockedBlocks] = useState<LockedBlock[]>([]);
   const [detectedBlocks, setDetectedBlocks] = useState<DetectedBlock[]>([]);
   const [isDetecting, setIsDetecting] = useState(false);
+  // Chapitre long découpé en parties : progression « partie i/N » (null = un seul appel).
+  const [detectProgress, setDetectProgress] = useState<{ current: number; total: number } | null>(null);
   // Contenu au moment de la dernière détection — pour P2 warning
   const [detectedAtContent, setDetectedAtContent] = useState("");
   // Track montage pour éviter setState sur composant démonté (background)
@@ -726,20 +729,37 @@ export default function ScenarioChapterEditor() {
             .join("\n")
         : undefined;
 
-      const result = await callDetectBlocks({
-        mode: "detect_blocks",
-        chapter_content: capturedContent,
-        chapter_title: capturedChapterTitle,
-        chapter_number: capturedChapterNumber,
-        target_panel_count: project?.panels_target_per_chapter ?? undefined,
-        assets_context: assetsContext,
-        universe_lore: project?.universe_lore?.trim() || undefined,
-        text_density: decoupageSettings.density,
-        genre: decoupageMeta.genre || undefined,
-        tone: decoupageMeta.tone || undefined,
-        // L'utilisateur crée ses fenêtres système à la main dans l'Édition → l'IA n'en génère jamais.
-        allow_system_windows: false,
-      });
+      // Chapitre long (import light novel) : découpé en parties de ~7 500 chars,
+      // sinon l'Edge Function tronque l'entrée à ~16 000 chars et la sortie
+      // dépasse le plafond de tokens ou le timeout 90s (échecs « length »/Timeout).
+      const parts = splitChapterForDetection(capturedContent);
+      const allBlocks: typeof detectedBlocks = [];
+      for (let i = 0; i < parts.length; i++) {
+        if (parts.length > 1 && isMountedRef.current) {
+          setDetectProgress({ current: i + 1, total: parts.length });
+        }
+        const result = await callDetectBlocks({
+          mode: "detect_blocks",
+          chapter_content: parts[i],
+          chapter_title: parts.length > 1
+            ? `${capturedChapterTitle} (partie ${i + 1}/${parts.length})`
+            : capturedChapterTitle,
+          chapter_number: capturedChapterNumber,
+          // Une cible par partie gonflerait le total : objectif libre en multi-parties.
+          target_panel_count: parts.length > 1 ? undefined : project?.panels_target_per_chapter ?? undefined,
+          assets_context: assetsContext,
+          universe_lore: project?.universe_lore?.trim() || undefined,
+          text_density: decoupageSettings.density,
+          genre: decoupageMeta.genre || undefined,
+          tone: decoupageMeta.tone || undefined,
+          // L'utilisateur crée ses fenêtres système à la main dans l'Édition → l'IA n'en génère jamais.
+          allow_system_windows: false,
+        });
+        // Renumérotation continue : les cases de la partie i suivent celles de i-1.
+        const offset = allBlocks.reduce((m, b) => Math.max(m, b.panel_number), 0);
+        allBlocks.push(...result.blocks.map((b) => ({ ...b, panel_number: b.panel_number + offset })));
+      }
+      const result = { blocks: allBlocks };
 
       // Sauvegarder en BDD quelle que soit la navigation courante
       if (result.blocks.length > 0) {
@@ -778,7 +798,10 @@ export default function ScenarioChapterEditor() {
         });
       }
     } finally {
-      if (isMountedRef.current) setIsDetecting(false);
+      if (isMountedRef.current) {
+        setIsDetecting(false);
+        setDetectProgress(null);
+      }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chapter, content, toast, decoupageSettings, decoupageMeta]);
@@ -1729,7 +1752,11 @@ export default function ScenarioChapterEditor() {
                   {isDetecting ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin shrink-0" />
-                      <span>Découpage en cours…</span>
+                      <span>
+                        {detectProgress
+                          ? `Découpage ${detectProgress.current}/${detectProgress.total}…`
+                          : "Découpage en cours…"}
+                      </span>
                     </>
                   ) : (
                     <>

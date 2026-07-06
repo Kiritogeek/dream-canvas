@@ -285,6 +285,14 @@ export default function ChapterDetail() {
   const composeLayout = useComposeChapterLayout(chapterId);
   const generatingBlocks = useGeneratingBlocks();
   const [generatingAllProgress, setGeneratingAllProgress] = useState<{ current: number; total: number } | null>(null);
+  // Garde-fou crédits avant génération en masse : nombre de cases à générer, null = fermé.
+  const [pendingGenerateAll, setPendingGenerateAll] = useState<number | null>(null);
+  // Texte du dialog pendant l'animation de fermeture (évite le flash « 0 image »).
+  const lastGenerateAllCountRef = useRef(0);
+  // Verrou de réentrance : l'action du dialog reste cliquable ~200ms pendant la
+  // fermeture Radix — sans ce verrou, un double-clic lance DEUX boucles de
+  // génération concurrentes (crédits débités en double).
+  const generatingAllRef = useRef(false);
   const [savedCompositionBeforeRecompose, setSavedCompositionBeforeRecompose] = useState<{
     layout: PanelLayout;
     speechBubbles: SpeechBubble[];
@@ -1078,14 +1086,17 @@ export default function ChapterDetail() {
     }
   }, [savedCompositionBeforeRecompose, panels, updatePanelMutation, queryClient, chapterId, toast]);
 
-  const handleGenerateAllBlocks = useCallback(async () => {
+  const handleGenerateAllBlocks = useCallback(async (limit?: number) => {
     if (!project || !panels.length) return;
+    if (generatingAllRef.current) return;
     const panel = panels[0];
     const layout = getPanelLayout(panel);
-    // Triés par Y : ordre visuel top→bottom = ordre narratif garanti
+    // Triés par Y : ordre visuel top→bottom = ordre narratif garanti.
+    // `limit` (garde-fou crédits) : ne générer que les N premières cases.
     const blocksToGen = layout.blocks
       .filter((b) => b.prompt?.trim() && !b.image_url)
-      .sort((a, b) => a.y - b.y);
+      .sort((a, b) => a.y - b.y)
+      .slice(0, typeof limit === "number" && limit > 0 ? limit : undefined);
 
     if (!blocksToGen.length) {
       toast({ title: "Toutes les cases ont déjà une image" });
@@ -1096,6 +1107,7 @@ export default function ChapterDetail() {
       return;
     }
 
+    generatingAllRef.current = true;
     setGeneratingAllProgress({ current: 0, total: blocksToGen.length });
     let currentLayout: PanelLayout = { ...layout, blocks: [...layout.blocks] };
     let generated = 0;
@@ -1152,19 +1164,54 @@ export default function ChapterDetail() {
         lastGeneratedPrompt = prompt;
         generated++;
         setGeneratingAllProgress({ current: generated, total: blocksToGen.length });
-      } catch {
-        // skip block, continue avec le suivant (lastGeneratedImageUrl inchangé — pas de contexte corrompu)
+      } catch (err) {
+        // 429 quota : le compteur client peut être périmé — refléter l'état réel
+        // du serveur (modale quota) et arrêter la boucle au lieu d'échouer en silence.
+        if ((err as { quotaExceeded?: boolean })?.quotaExceeded) {
+          setShowQuotaModal(true);
+          break; // le finally exécute endBlockGeneration
+        }
+        // sinon : skip block, continue avec le suivant (lastGeneratedImageUrl inchangé — pas de contexte corrompu)
       } finally {
         endBlockGeneration(panel.id);
       }
     }
 
+    generatingAllRef.current = false;
     setGeneratingAllProgress(null);
     if (generated > 0) {
       toast({ title: `${generated} case${generated > 1 ? "s" : ""} générée${generated > 1 ? "s" : ""} !` });
     }
     queryClient.invalidateQueries({ queryKey: ["panels", chapterId] });
+    // Crédits consommés pendant le batch : rafraîchir le compteur mensuel.
+    queryClient.invalidateQueries({ queryKey: ["monthlyUsage"] });
   }, [project, panels, assets, usageInfo, chapterId, queryClient, updatePanelMutation, toast]);
+
+  // Garde-fou crédits : annonce le coût AVANT de lancer la génération en masse
+  // (une seule action peut vider le quota d'un plan Libre). Quota déjà épuisé →
+  // modale quota directe ; sinon dialog de confirmation avec le coût exact.
+  const requestGenerateAll = useCallback(() => {
+    if (!project || !panels.length || generatingAllRef.current) return;
+    const count = getPanelLayout(panels[0]).blocks
+      .filter((b) => b.prompt?.trim() && !b.image_url).length;
+    if (count === 0) {
+      toast({ title: "Toutes les cases ont déjà une image" });
+      return;
+    }
+    if (!project.style_template?.trim()) {
+      toast({ title: "Style requis", description: "Enregistrez un template de style texte sur le projet.", variant: "destructive" });
+      return;
+    }
+    if (usageInfo.count >= usageInfo.limit) {
+      setShowQuotaModal(true);
+      return;
+    }
+    // Compteur potentiellement périmé (staleTime 30s) : re-fetch pendant que
+    // l'utilisateur lit le dialog, pour que remaining/capped soient justes.
+    queryClient.invalidateQueries({ queryKey: ["monthlyUsage"] });
+    lastGenerateAllCountRef.current = count;
+    setPendingGenerateAll(count);
+  }, [project, panels, usageInfo, queryClient, toast]);
 
   if (loading && !chapter) {
     return (
@@ -2128,7 +2175,7 @@ export default function ChapterDetail() {
             );
           }}
           blocksToGenerateCount={layout.blocks.filter((b) => b.prompt?.trim() && !b.image_url).length}
-          onGenerateAll={handleGenerateAllBlocks}
+          onGenerateAll={requestGenerateAll}
           isGeneratingAll={generatingAllProgress !== null}
           generateAllProgress={generatingAllProgress}
         />
@@ -3052,6 +3099,67 @@ export default function ChapterDetail() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Garde-fou crédits avant la génération en masse (1 crédit = 1 case) */}
+      <AlertDialog
+        open={pendingGenerateAll !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingGenerateAll(null);
+        }}
+      >
+        <AlertDialogContent className="glass">
+          {(() => {
+            // lastGenerateAllCountRef : garde le texte stable pendant l'animation
+            // de fermeture (pendingGenerateAll repasse à null avant le démontage).
+            const count = pendingGenerateAll ?? lastGenerateAllCountRef.current;
+            const remaining = Math.max(0, usageInfo.limit - usageInfo.count);
+            const enough = remaining >= count;
+            const capped = Math.min(count, remaining);
+            return (
+              <>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>
+                    Générer {count} image{count > 1 ? "s" : ""} ?
+                  </AlertDialogTitle>
+                  <AlertDialogDescription>
+                    {enough
+                      ? `Cette génération utilisera ${count} crédit${count > 1 ? "s" : ""}. Il vous en restera ${remaining - count} sur ${usageInfo.limit} ce mois-ci.`
+                      : `Il vous reste ${remaining} crédit${remaining > 1 ? "s" : ""} pour ${count} cases. Vous pouvez générer les ${capped} première${capped > 1 ? "s" : ""} maintenant, dans l'ordre de lecture.`}
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Annuler</AlertDialogCancel>
+                  {!enough && (
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setPendingGenerateAll(null);
+                        navigate("/dashboard/plans");
+                      }}
+                    >
+                      Voir les plans
+                    </Button>
+                  )}
+                  <AlertDialogAction
+                    className="gradient-primary text-primary-foreground"
+                    onClick={() => {
+                      // Neutralise le 2e clic pendant l'animation de fermeture
+                      // (sinon : run complet non cappé + double génération).
+                      if (pendingGenerateAll === null) return;
+                      setPendingGenerateAll(null);
+                      handleGenerateAllBlocks(enough ? undefined : capped);
+                    }}
+                  >
+                    {enough
+                      ? `Générer (${count} crédit${count > 1 ? "s" : ""})`
+                      : `Générer les ${capped} première${capped > 1 ? "s" : ""}`}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </>
+            );
+          })()}
+        </AlertDialogContent>
+      </AlertDialog>
 
       <QuotaReachedDialog
         open={showQuotaModal}

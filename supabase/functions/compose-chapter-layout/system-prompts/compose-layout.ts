@@ -47,7 +47,8 @@ export const COMPOSE_LAYOUT_SYSTEM_PROMPT =
   "  M  3 blocs  Triptyque — 3 réactions simultanées côte à côte\n" +
   "  N  2 blocs  ⚡ Attaque verticale diagonale — frappe/contre (signature SL)\n" +
   "  O  1 bloc   Panel carré ancré GAUCHE — blanc massif à droite (introspection, objet clé)\n" +
-  "  P  1 bloc   Panel carré ancré DROITE — blanc massif à gauche (révélation latérale)\n\n" +
+  "  P  1 bloc   Panel carré ancré DROITE — blanc massif à gauche (révélation latérale)\n" +
+  "  Q  1 bloc   Letterbox — bande cinéma ultra-plate 800×200 : yeux, horizon, détail linéaire\n\n" +
 
   "HEIGHT HINT — s'adapte au contenu du bloc :\n" +
   "  strip   → gros plan ultra-serré : yeux, mains, détail minuscule\n" +
@@ -61,8 +62,9 @@ export const COMPOSE_LAYOUT_SYSTEM_PROMPT =
   "  → Utilise quand même le bon hint pour guider l'échelle globale de la scène.\n" +
   "  → JAMAIS strip ou compact si le bloc a du dialogue (le texte a besoin d'espace).\n\n" +
 
-  "GAP APRÈS (gap_after en px) :\n" +
-  "  150-300 = action haché | 350-500 = dialogue normal | 500-700 = pause dramatique | 700-1000 = transition\n\n" +
+  "GAP APRÈS (gap_after en px) — le vide vertical EST le tempo (Distance = Time) :\n" +
+  "  50-150 = action rapide | 200 = battement normal | 200-400 = beat émotionnel |\n" +
+  "  400-600 = transition de scène | 600-900 = pause cliffhanger | 1000+ = changement de lieu | 2000 = ellipse temporelle\n\n" +
 
   "RÈGLES STRICTES :\n" +
   "1. Chaque source_index [0..N-1] apparaît EXACTEMENT UNE FOIS\n" +
@@ -72,7 +74,10 @@ export const COMPOSE_LAYOUT_SYSTEM_PROMPT =
   "5. O et P = 1 seul bloc chacun — panel carré avec grand blanc latéral\n" +
   "   → Utilise O/P pour : zoom sur un objet, une plante, un visage seul, une réplique visuelle\n" +
   "   → O = panel ancré gauche (blanc à droite) | P = panel ancré droite (blanc à gauche)\n" +
-  "6. Le rationale DOIT citer le contenu du bloc (personnage, action, lieu, réplique)\n\n" +
+  "6. Le rationale DOIT citer le contenu du bloc (personnage, action, lieu, réplique)\n" +
+  "7. Q = 1 bloc, JAMAIS si le bloc a du dialogue (bande trop plate pour une bulle)\n" +
+  "8. RYTHME : jamais 3 scènes consécutives avec le même height_hint — alterne les échelles (serré → moyen → large)\n" +
+  "9. AVANT une révélation (A, L) : le gap_after de la scène PRÉCÉDENTE = 600-900 (le vide prépare le choc)\n\n" +
   "Répondre UNIQUEMENT avec le JSON brut.";
 
 // ── Types ────────────────────────────────────────────────────────
@@ -139,7 +144,7 @@ function tagBlock(block: PanelOutlineBlock): { emoji: string; tag: string; sugge
     return { emoji: "🔮", tag: "RÉVÉLATION", suggestions: "A ou L" };
   }
   if (/gros plan|détail|yeux|regard|main|doigt|pied|visage|sourire|sueur|larme|lèvre|expression|plante|fleur|insecte|objet|cicatrice|symbole/.test(d)) {
-    return { emoji: "🔍", tag: "DÉTAIL", suggestions: "L, B, O ou P" };
+    return { emoji: "🔍", tag: "DÉTAIL", suggestions: "L, B, O, P ou Q (yeux/horizon sans dialogue)" };
   }
   if (/donjon|salle|forêt|ville|entrée|paysage|bâtiment|couloir|extérieur|lieu|endroit|décor|pièce|rue/.test(d)) {
     return { emoji: "🏛️", tag: "LIEU", suggestions: "F ou A" };

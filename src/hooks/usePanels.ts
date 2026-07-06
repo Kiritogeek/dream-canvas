@@ -153,6 +153,9 @@ export function useGeneratePanelImage(chapterId: string) {
     onSuccess: (_data, variables) => {
       notifyBlockDone(variables.project.id, chapterId);
       queryClient.invalidateQueries({ queryKey: keys.list(chapterId) });
+      // Une génération = un crédit consommé : rafraîchir le compteur mensuel
+      // (sinon le garde-fou crédits raisonne sur un count périmé).
+      queryClient.invalidateQueries({ queryKey: ["monthlyUsage"] });
     },
   });
 }

@@ -439,11 +439,17 @@ export async function generatePanelBlockImage(
       },
       body
     );
-    throw new Error(
+    const err = new Error(
       requestId
         ? `${String(msg || `Erreur ${res.status}`)} (request_id: ${requestId})`
         : String(msg || `Erreur ${res.status}`)
     );
+    // 429 quota : marqué pour que l'appelant (batch « Tout générer ») affiche la
+    // modale quota au lieu d'avaler l'échec en silence.
+    if (res.status === 429 || body?.quota_exceeded) {
+      (err as Error & { quotaExceeded?: boolean }).quotaExceeded = true;
+    }
+    throw err;
   }
 
   if (!body?.image_url) {

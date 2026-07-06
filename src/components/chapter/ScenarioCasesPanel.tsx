@@ -138,8 +138,10 @@ export function ScenarioCasesPanel({
         </Button>
       )}
 
-      {/* Bouton Générer toutes les cases */}
-      {blocksToGenerateCount > 0 && onGenerateAll && !hasExistingComposition && (
+      {/* Bouton Générer toutes les cases — visible aussi après une composition
+          (c'est le geste 2 du Mode Auto : composer PUIS générer les images).
+          Masqué uniquement pendant la décision Accepter/Refuser d'une recompose. */}
+      {blocksToGenerateCount > 0 && onGenerateAll && !showRecomposeActions && (
         <div className="flex flex-col gap-1.5">
           <Button
             size="sm"

@@ -132,6 +132,13 @@ export interface SuggestAssetPromptResponse {
 const MSG_401 =
   "Session expirée ou invalide. Déconnectez-vous puis reconnectez-vous pour utiliser l'IA.";
 
+// 503 = surcharge transitoire du serveur IA (Gemini aux heures de pointe) :
+// on réessaie brièvement avant d'abandonner — indispensable pour le découpage
+// multi-parties où un seul 503 tuerait toute la chaîne. 429 (quota quotidien)
+// n'est jamais réessayé : ça ne se résout pas en quelques secondes.
+const TRANSIENT_503_DELAYS_MS: number[] =
+  import.meta.env.MODE === "test" ? [0, 0] : [2_000, 5_000];
+
 // ── Helper interne : appel Edge Function ────────────────────────
 
 async function callEdgeFunction<T>(payload: AIRequest): Promise<T> {
@@ -155,17 +162,26 @@ async function callEdgeFunction<T>(payload: AIRequest): Promise<T> {
 
   const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-scenario-ai`;
 
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${session.access_token}`,
-      apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? "",
-    },
-    body: JSON.stringify(payload),
-  });
+  const doFetch = async () => {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}`,
+        apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? "",
+      },
+      body: JSON.stringify(payload),
+    });
+    const resBody = await res.json().catch(() => ({}));
+    return { res, resBody };
+  };
 
-  const resBody = await res.json().catch(() => ({}));
+  let { res, resBody } = await doFetch();
+  for (let attempt = 0; res.status === 503 && attempt < TRANSIENT_503_DELAYS_MS.length; attempt++) {
+    logGenerationInfo("scenario-ai:retry-503", { mode: payload.mode, attempt: attempt + 1 });
+    await new Promise((r) => setTimeout(r, TRANSIENT_503_DELAYS_MS[attempt]));
+    ({ res, resBody } = await doFetch());
+  }
 
   if (!res.ok) {
     logGenerationFailure(

@@ -54,7 +54,7 @@ import { AIChapterPreviewModal } from "@/components/project/AIChapterPreviewModa
 import { estimatePanelCount } from "@/services/panels";
 import { triggerCompassIndex, triggerCompassPropose } from "@/services/compassIndex";
 import { triggerNarraMindUpdate } from "@/services/scenarioAI";
-import { getDetectedAssets, detectMissingNames } from "@/components/project/ScenarioTextHighlighter";
+import { getDetectedAssets } from "@/components/project/ScenarioTextHighlighter";
 import { parseProjectMeta } from "@/lib/projectMeta";
 import type { Project, ScenarioChapter, Asset, AssetType } from "@/types";
 
@@ -805,21 +805,17 @@ function ChapterCard({
   );
   const panelEstimate = estimatePanelCount(chapter.content);
 
-  // Conditions de validation
-  const canValidate = useMemo(() => {
-    if (!chapter.content?.trim()) return false;
-    const detectedAssets = getDetectedAssets(chapter.content, assets);
-    const allGenerated = detectedAssets.every((a) => !!a.image_url);
-    const missing = detectMissingNames(chapter.content, assets);
-    const dismissed = (() => {
-      try {
-        const saved = localStorage.getItem(`dw:dismissed-missing:${projectId}`);
-        return saved ? new Set(JSON.parse(saved) as string[]) : new Set<string>();
-      } catch { return new Set<string>(); }
-    })();
-    const undismissed = missing.filter((n) => !dismissed.has(n.toLowerCase()));
-    return allGenerated && undismissed.length === 0;
-  }, [chapter.content, assets, projectId]);
+  // Validation alignée sur l'éditeur : un texte non vide suffit. La curation des
+  // assets (générer, ignorer les faux positifs) se fait dans l'éditeur et ne
+  // bloque plus la validation depuis la liste (fin du mur de crédits).
+  const canValidate = useMemo(() => !!chapter.content?.trim(), [chapter.content]);
+
+  // Hint non-bloquant : assets réellement présents en bibliothèque, détectés dans
+  // le texte mais sans visuel. Les « noms manquants » (faux positifs) sont exclus.
+  const ungeneratedCount = useMemo(() => {
+    if (!chapter.content?.trim()) return 0;
+    return getDetectedAssets(chapter.content, assets).filter((a) => !a.image_url).length;
+  }, [chapter.content, assets]);
 
   const isValidated = chapter.validated ?? false;
 
@@ -947,27 +943,32 @@ function ChapterCard({
         {!isValidated && (
           <div className="flex items-center gap-2 pt-1 border-t border-border/40 mt-1">
             {canValidate ? (
-              <button
-                type="button"
-                disabled={validateMutation.isPending}
-                onClick={(e) => {
-                  e.stopPropagation(); e.preventDefault();
-                  validateMutation.mutate({ id: chapter.id, projectId });
-                }}
-                className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20 transition-colors font-medium ml-auto"
-              >
-                {validateMutation.isPending ? (
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                ) : (
-                  <Lock className="h-3 w-3" />
+              <>
+                {ungeneratedCount > 0 && (
+                  <span className="text-[10px] text-muted-foreground/70 italic">
+                    {ungeneratedCount} asset{ungeneratedCount > 1 ? "s" : ""} sans visuel (optionnel)
+                  </span>
                 )}
-                Valider le chapitre
-              </button>
+                <button
+                  type="button"
+                  disabled={validateMutation.isPending}
+                  onClick={(e) => {
+                    e.stopPropagation(); e.preventDefault();
+                    validateMutation.mutate({ id: chapter.id, projectId });
+                  }}
+                  className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20 transition-colors font-medium ml-auto"
+                >
+                  {validateMutation.isPending ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <Lock className="h-3 w-3" />
+                  )}
+                  Valider le chapitre
+                </button>
+              </>
             ) : (
               <span className="text-[10px] text-muted-foreground/60 italic">
-                {!chapter.content?.trim()
-                  ? "Chapitre vide"
-                  : "Générez les assets détectés pour valider"}
+                Chapitre vide, cliquez pour écrire
               </span>
             )}
           </div>

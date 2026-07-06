@@ -66,6 +66,8 @@ const ChapterDetail = lazyWithReload(() => import("./pages/ChapterDetail"));
 const ScenarioChapterEditor = lazyWithReload(() => import("./pages/ScenarioChapterEditor"));
 const CoverEditor = lazyWithReload(() => import("./pages/CoverEditor"));
 const Pilotage = lazyWithReload(() => import("./pages/Pilotage"));
+const CGU = lazyWithReload(() => import("./pages/CGU"));
+const Confidentialite = lazyWithReload(() => import("./pages/Confidentialite"));
 const NotFound = lazyWithReload(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient({
@@ -104,6 +106,8 @@ const App = () => (
               <Route path="/auth" element={<Auth />} />
               <Route path="/auth/verify-email" element={<EmailVerification />} />
               <Route path="/auth/reset-password" element={<ResetPassword />} />
+              <Route path="/cgu" element={<CGU />} />
+              <Route path="/confidentialite" element={<Confidentialite />} />
               <Route
                 path="/dashboard"
                 element={

@@ -632,12 +632,18 @@ export default function Landing() {
             <Sparkles className="h-5 w-5 text-primary" />
             <span className="font-display font-bold text-gradient">DreamWeave</span>
           </div>
-          <div className="flex items-center gap-5 text-xs sm:text-sm text-muted-foreground">
+          <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs sm:text-sm text-muted-foreground">
             <Link to="/auth" className="hover:text-foreground transition-colors">
               Connexion
             </Link>
             <Link to="/auth?tab=signup" className="hover:text-foreground transition-colors">
               S'inscrire
+            </Link>
+            <Link to="/cgu" className="hover:text-foreground transition-colors">
+              CGU
+            </Link>
+            <Link to="/confidentialite" className="hover:text-foreground transition-colors">
+              Confidentialité
             </Link>
           </div>
           <p className="text-xs sm:text-sm text-muted-foreground">

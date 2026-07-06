@@ -1902,6 +1902,7 @@ export default function ScenarioChapterEditor() {
         onGenerate={handleGenerateAsset}
         initialName={scenarioAssetDraft?.name}
         initialType={scenarioAssetDraft?.type}
+        projectStyle={project?.style_template ?? undefined}
         onCreated={handleAssetCreatedFromScenario}
       />
     </div>

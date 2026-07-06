@@ -59,6 +59,18 @@ export interface SuggestBlockPromptRequest {
   previous_prompts?: string[];
 }
 
+export interface SuggestAssetPromptRequest {
+  mode: "suggest_asset_prompt";
+  asset_name: string;
+  asset_type: string;
+  /** Style visuel du projet (project.style_template) pour cohérence. */
+  style_description?: string;
+  /** LORE / contexte scénario de l'asset. */
+  context_excerpt?: string;
+  /** Description déjà saisie à enrichir plutôt qu'à remplacer. */
+  current_description?: string;
+}
+
 export interface NarrativeDirectionsRequest {
   mode: "narrative_directions";
   project_id: string;
@@ -82,6 +94,7 @@ export type AIRequest =
   | DetectBlocksRequest
   | AiSummaryRequest
   | SuggestBlockPromptRequest
+  | SuggestAssetPromptRequest
   | NarrativeDirectionsRequest;
 
 export interface AIResponse {
@@ -105,6 +118,12 @@ export interface AiSummaryResponse {
 export interface SuggestBlockPromptResponse {
   text: string;
   mode: "suggest_block_prompt";
+  model: string;
+}
+
+export interface SuggestAssetPromptResponse {
+  text: string;
+  mode: "suggest_asset_prompt";
   model: string;
 }
 
@@ -210,6 +229,16 @@ export async function callSuggestBlockPrompt(
   payload: SuggestBlockPromptRequest
 ): Promise<SuggestBlockPromptResponse> {
   return callEdgeFunction<SuggestBlockPromptResponse>(payload);
+}
+
+/**
+ * Décrit un asset (personnage/décor/objet) via l'IA scénario pour pré-remplir
+ * un prompt riche et éditable. Ne consomme aucun crédit image (génération de texte).
+ */
+export async function callSuggestAssetPrompt(
+  payload: SuggestAssetPromptRequest
+): Promise<SuggestAssetPromptResponse> {
+  return callEdgeFunction<SuggestAssetPromptResponse>(payload);
 }
 
 /** Génère des directions narratives basées sur le Lore + scénario du projet. */

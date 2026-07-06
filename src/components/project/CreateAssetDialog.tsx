@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Users, MapPin, Box, Coins, ImagePlus, X } from "lucide-react";
+import { Users, MapPin, Box, Coins, ImagePlus, X, Sparkles, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useCreateAsset } from "@/hooks/useAssets";
 import { uploadReferenceImage } from "@/services/assets";
+import { callSuggestAssetPrompt } from "@/services/scenarioAI";
 import type { Asset, AssetType, AssetTabConfig } from "@/types";
 
 const assetTabs: AssetTabConfig[] = [
@@ -36,6 +37,8 @@ interface CreateAssetDialogProps {
   initialName?: string;
   /** Type pré-rempli à l'ouverture (ex : depuis le scénario). */
   initialType?: AssetType | null;
+  /** Style visuel du projet (project.style_template) — nourrit l'aide IA à la description. */
+  projectStyle?: string;
   /** Appelé après création réussie (ex : lier l'asset au chapitre courant). */
   onCreated?: (asset: Asset) => void;
 }
@@ -53,6 +56,7 @@ export function CreateAssetDialog({
   defaultType = "character",
   initialName,
   initialType,
+  projectStyle,
   onCreated,
 }: CreateAssetDialogProps) {
   const { toast } = useToast();
@@ -63,6 +67,7 @@ export function CreateAssetDialog({
   const [newAssetName, setNewAssetName] = useState("");
   const [newAssetPrompt, setNewAssetPrompt] = useState("");
   const [newAssetLore, setNewAssetLore] = useState("");
+  const [isSuggesting, setIsSuggesting] = useState(false);
   const [newAssetRefFile, setNewAssetRefFile] = useState<File | null>(null);
   const [newAssetRefPreview, setNewAssetRefPreview] = useState<string | null>(null);
   const [newAssetRefDragging, setNewAssetRefDragging] = useState(false);
@@ -86,6 +91,38 @@ export function CreateAssetDialog({
   const handleOpenChange = (o: boolean) => {
     if (!o) clearRef();
     onOpenChange(o);
+  };
+
+  const canSuggest = !!newAssetType && newAssetName.trim().length > 0 && !isSuggesting;
+
+  const handleSuggestDescription = async () => {
+    if (!newAssetType || !newAssetName.trim()) return;
+    setIsSuggesting(true);
+    try {
+      const { text } = await callSuggestAssetPrompt({
+        mode: "suggest_asset_prompt",
+        asset_name: newAssetName.trim(),
+        asset_type: newAssetType,
+        style_description: projectStyle?.trim() || undefined,
+        context_excerpt: newAssetLore.trim() || undefined,
+        current_description: newAssetPrompt.trim() || undefined,
+      });
+      const suggestion = text?.trim();
+      if (suggestion) {
+        setNewAssetPrompt(suggestion);
+      } else {
+        toast({
+          title: "Aucune suggestion",
+          description: "L'IA n'a rien renvoyé. Réessayez.",
+          variant: "destructive",
+        });
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Erreur";
+      toast({ title: "Échec de la suggestion", description: msg, variant: "destructive" });
+    } finally {
+      setIsSuggesting(false);
+    }
   };
 
   const canCreateAsset =
@@ -186,10 +223,31 @@ export function CreateAssetDialog({
             />
           </div>
           <div className="space-y-2">
-            <Label>
-              Description / Prompt{" "}
-              <span className="text-destructive">*</span>
-            </Label>
+            <div className="flex items-center justify-between gap-2">
+              <Label>
+                Description / Prompt <span className="text-destructive">*</span>
+              </Label>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                disabled={!canSuggest}
+                onClick={handleSuggestDescription}
+                title={
+                  newAssetName.trim()
+                    ? "Laisse l'IA rédiger une description à partir du nom et du style"
+                    : "Renseigne d'abord un nom"
+                }
+                className="h-7 px-2 text-xs text-[hsl(var(--lavender))] hover:bg-[hsl(var(--lavender)/0.1)] disabled:opacity-40"
+              >
+                {isSuggesting ? (
+                  <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Sparkles className="mr-1 h-3.5 w-3.5" />
+                )}
+                {isSuggesting ? "Rédaction…" : "Aide-moi à décrire"}
+              </Button>
+            </div>
             <Textarea
               value={newAssetPrompt}
               onChange={(e) => setNewAssetPrompt(e.target.value)}
@@ -198,7 +256,8 @@ export function CreateAssetDialog({
             />
             {!newAssetPrompt.trim() && (
               <p className="text-xs text-muted-foreground">
-                Le prompt est requis pour générer l'image.
+                Le prompt est requis pour générer l'image. Astuce : « Aide-moi à décrire » le rédige
+                pour vous, sans crédit.
               </p>
             )}
           </div>

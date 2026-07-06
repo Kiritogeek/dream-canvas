@@ -46,6 +46,10 @@ import {
   buildSuggestPromptPrompt,
 } from "./system-prompts/suggest-prompt.ts";
 import {
+  SUGGEST_ASSET_PROMPT_SYSTEM_PROMPT,
+  buildSuggestAssetPrompt,
+} from "./system-prompts/suggest-asset-prompt.ts";
+import {
   NARRATIVE_DIRECTIONS_SYSTEM_PROMPT,
   NARRATIVE_DIRECTIONS_SYSTEM_PROMPT_CHAPTER_1,
 } from "./system-prompts/narrative-directions.ts";
@@ -397,7 +401,7 @@ Deno.serve(async (req) => {
 
     // 4. Parse body
     let body: {
-      mode?: "scenario" | "chapter" | "detect_blocks" | "ai_summary" | "suggest_block_prompt" | "baseline" | "narramind" | "narrative_directions" | "suggest_connection_label" | "extract_events" | "enrich_lore_node";
+      mode?: "scenario" | "chapter" | "detect_blocks" | "ai_summary" | "suggest_block_prompt" | "suggest_asset_prompt" | "baseline" | "narramind" | "narrative_directions" | "suggest_connection_label" | "extract_events" | "enrich_lore_node";
       prompt?: string;
       num_chapters?: number;
       existing_content?: string;
@@ -426,6 +430,9 @@ Deno.serve(async (req) => {
       current_description?: string;
       chapter_excerpts?: string;
       sections?: string[];
+      asset_name?: string;
+      asset_type?: string;
+      style_description?: string;
     };
     try {
       body = (await req.json()) as typeof body;
@@ -550,6 +557,18 @@ Deno.serve(async (req) => {
         chapterContent: safeContent,
         previousSummaries: safeSummaries,
         previousPrompts: body.previous_prompts,
+      });
+    } else if (mode === "suggest_asset_prompt") {
+      if (!body.asset_name?.trim()) {
+        return jsonResponse({ error: '"asset_name" requis pour suggest_asset_prompt.' }, 400);
+      }
+      systemPrompt = SUGGEST_ASSET_PROMPT_SYSTEM_PROMPT;
+      userPrompt = buildSuggestAssetPrompt({
+        assetName: body.asset_name.trim(),
+        assetType: body.asset_type?.trim() || "character",
+        styleDescription: body.style_description,
+        lore: body.context_excerpt,
+        currentDescription: body.current_description,
       });
     } else if (mode === "narramind") {
       if (!body.project_id) {

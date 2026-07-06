@@ -71,7 +71,7 @@ interface AssetLibraryProps {
 
 export function AssetLibrary({
   projectId,
-  project: _project,
+  project,
   assets,
   generatingAssetId,
   onCanGenerate,
@@ -320,6 +320,7 @@ export function AssetLibrary({
             defaultType={defaultNewAssetType}
             initialName={assetDialogSeed?.name}
             initialType={assetDialogSeed?.type}
+            projectStyle={project.style_template ?? undefined}
           />
         </div>
       </div>

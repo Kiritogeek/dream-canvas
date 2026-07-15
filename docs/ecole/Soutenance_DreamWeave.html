@@ -87,16 +87,16 @@
 
   <div class="seg">
     <div class="top"><span class="time">0:00 → 1:30</span><span class="dur">90 s</span><h3>Accroche &amp; problème</h3></div>
-    <div class="msg">Message unique : « Le marché du webtoon explose, mais la quasi-totalité des créateurs amateurs interrogés abandonnent faute de savoir transformer une histoire en images. »</div>
+    <div class="msg">Message unique : « Le marché du webtoon explose, mais la majorité des créateurs amateurs abandonnent faute de savoir transformer une histoire en images. »</div>
     <ul>
-      <li>Ouvre par le paradoxe : demande +35-40 %/an, offre de créateurs qui ne suit pas.</li>
-      <li>Le chiffre d'accroche : signal qualitatif (n = 12 créateurs + 3 studios, nov. 2025) — <b>assume le caractère exploratoire</b>, ne le présente pas comme une statistique de marché.</li>
+      <li>Ouvre par le paradoxe : demande +27 %/an, offre de créateurs qui ne suit pas.</li>
+      <li>L'accroche s'appuie sur des faits vérifiables — coût (300-1 500 €/chapitre), délai (1-4 semaines), compétence artistique — <b>pas sur un pourcentage d'abandon</b> : aucune enquête chiffrée n'a été menée.</li>
     </ul>
   </div>
 
   <div class="seg">
     <div class="top"><span class="time">1:30 → 3:30</span><span class="dur">2 min</span><h3>Marché &amp; positionnement</h3></div>
-    <div class="msg">Message unique : « Un marché à 5 Mds$ qui croît de 35-40 %/an, sans leader sur le quadrant IA + workflow webtoon. »</div>
+    <div class="msg">Message unique : « Un marché à 8,3 Mds$ (2023) qui croît d'environ 27 %/an, sans leader sur le quadrant IA + workflow webtoon. »</div>
     <ul>
       <li>TAM ~160 M · SAM 5-10 M · SOM 25 000 inscrits à M12. Dis la méthode de dérivation, pas juste les nombres.</li>
       <li>Benchmark : Midjourney (qualité, pas de workflow) vs Dashtoon (workflow, cohérence faible). DreamWeave = le seul à combiner les deux.</li>
@@ -157,15 +157,15 @@
   <table>
     <thead><tr><th style="width:34%">Sujet</th><th>Valeur exacte à dire</th></tr></thead>
     <tbody>
-      <tr><td><b>Marché</b></td><td>~5 Mds$ en 2025, CAGR <span class="num">35-40 %</span>/an. Recherches « AI webtoon maker » +200 % (2023→2025).</td></tr>
+      <tr><td><b>Marché</b></td><td>8,28 Mds$ en 2023 → 45,3 Mds$ visés en 2030, CAGR <span class="num">27,3 %</span>. Recherches « AI webtoon maker » +200 % (2023→2025).</td></tr>
       <tr><td><b>TAM / SAM / SOM</b></td><td>~160 M / 5-10 M / 25 000 inscrits à M12.</td></tr>
-      <tr><td><b>Chiffre d'accroche</b></td><td>« Quasi-totalité » des créateurs interrogés abandonnent en 3 mois — <b>n = 12 + 3, qualitatif</b>.</td></tr>
+      <tr><td><b>Chiffre d'accroche</b></td><td>Pas de chiffre d'abandon à citer — s'appuyer sur les 5 barrières documentées (coût, délai, compétence).</td></tr>
       <tr><td><b>Pricing</b></td><td>0 € · 12,99 € · 29,99 € · Entreprise sur devis. Crédits : <span class="num">20 / 100 / 250</span>.</td></tr>
       <tr><td><b>Coûts &amp; marge</b></td><td>FAL ~0,065 $/génération (~0,06 €). Marge Créateur ~54 %, Studio ~50 %. Coût d'un gratuit ~1,2 €/mois.</td></tr>
       <tr><td><b>Break-even</b></td><td><span class="num">10-15</span> abonnés Créateur couvrent les ~100 €/mois de coûts fixes.</td></tr>
       <tr><td><b>Projections M12</b></td><td>MRR <span class="num">11 400 €</span> → ARR <span class="num">~137 000 €</span> (= 600 × 19 € × 12). 600 payants, conversion 6 % des MAU.</td></tr>
       <tr><td><b>POC NarraMind</b></td><td>850 → ~50 tokens/chapitre, compression <span class="num">~9×</span>, recherche ~4 ms — <b>mesuré (narramind_metrics)</b>.</td></tr>
-      <tr><td><b>Technique</b></td><td>14 Edge Functions, FLUX.2 Pro (tous plans), Gemini Flash + fallback. ~450 commits.</td></tr>
+      <tr><td><b>Technique</b></td><td>14 Edge Functions, FLUX.2 Pro (tous plans), Gemini Flash + fallback. Développement itératif continu depuis janvier 2026.</td></tr>
     </tbody>
   </table>
 
@@ -179,8 +179,9 @@
   </div>
 
   <div class="qa">
-    <div class="q">Q2. « 89 % d'abandon », sur combien de personnes ?</div>
-    <div class="a"><b>Réponse :</b> C'est un <b>signal qualitatif</b>, issu de 12 entretiens créateurs + 3 studios en nov. 2025. Je l'assume comme exploratoire, pas comme une statistique de marché ; il oriente l'hypothèse, il ne la prouve pas seul.</div>
+    <div class="q">Q2. Quelle est la source du taux d'abandon des créateurs amateurs ?</div>
+    <div class="a"><b>Réponse :</b> Je n'ai pas mené d'enquête chiffrée, je l'assume complètement. L'argument repose sur des faits objectifs et sourcés — coût (300 à 1 500 €/chapitre en sous-traitance), délai (1 à 4 semaines/chapitre), compétence artistique requise — combinés à l'observation directe des communautés de créateurs (r/webtoons, forums Tapas), où l'abandon en cours de projet revient constamment dans les témoignages.</div>
+    <span class="danger">Piège : ne jamais citer « 89 % » ni « n = 12 + 3 » à l'oral — ce chiffre a été retiré du mémoire, il n'était pas vérifiable.</span>
   </div>
 
   <div class="qa">

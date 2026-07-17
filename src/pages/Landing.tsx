@@ -7,6 +7,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { ArianeOrbitIcon, ArianeBubble } from "@/components/ariane";
+import { LogoMark } from "@/components/Logo";
 import { ARIANE_DISPLAY_NAME } from "@/constants/ariane";
 import { TIER_CONFIG, planDisplayName, type UserPlan } from "@/types";
 import arianeImg from "@/assets/Ariane_Nero_AI_Background_Remover_transparent.png";
@@ -121,7 +122,7 @@ export default function Landing() {
           <div className="flex items-center gap-1.5 sm:gap-2">
             <ThemeToggle />
             <Link to="/" className="flex items-center gap-1.5 sm:gap-2">
-              <Sparkles className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
+              <LogoMark className="h-5 w-auto sm:h-6 shrink-0" />
               <span className="font-display text-lg sm:text-xl font-bold text-gradient">
                 DreamWeave
               </span>
@@ -629,7 +630,7 @@ export default function Landing() {
       <footer className="relative z-20 border-t border-border/50 py-6 sm:py-8 bg-background/94">
         <div className="container px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-primary" />
+            <LogoMark className="h-5 w-auto shrink-0" />
             <span className="font-display font-bold text-gradient">DreamWeave</span>
           </div>
           <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs sm:text-sm text-muted-foreground">

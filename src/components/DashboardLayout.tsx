@@ -7,6 +7,7 @@ import {
   BarChart2, Settings,
 } from "lucide-react";
 import { ArianeOrbitIcon } from "@/components/ariane/ArianeOrbitIcon";
+import { LogoMark } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -343,7 +344,7 @@ export default function DashboardLayout({ children, fluidSection, compactHeader 
               to="/dashboard"
               className="group/logo flex items-center gap-1.5 sm:gap-2 transition-transform duration-300 hover:scale-[1.02] active:scale-[0.98]"
             >
-              <Sparkles className="h-5 w-5 sm:h-6 sm:w-6 text-primary transition-transform duration-300 group-hover/logo:animate-logo-sparkle" />
+              <LogoMark className="h-6 w-auto sm:h-7 shrink-0 transition-transform duration-300 group-hover/logo:animate-logo-sparkle" />
               <span className="font-display text-lg sm:text-xl font-bold text-gradient">DreamWeave</span>
             </Link>
           </div>

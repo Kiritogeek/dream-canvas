@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
-import { Sparkles, ArrowLeft } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
+import { LogoMark } from "@/components/Logo";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
 interface LegalLayoutProps {
@@ -19,7 +20,7 @@ export default function LegalLayout({ title, updatedAt, children }: LegalLayoutP
       <header className="relative z-10 border-b border-border/50 bg-background/80 backdrop-blur-md">
         <div className="container flex items-center justify-between px-4 py-4 sm:px-6">
           <Link to="/" className="group flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-primary transition-transform group-hover:scale-110" />
+            <LogoMark className="h-5 w-auto shrink-0 transition-transform group-hover:scale-110" />
             <span className="font-display font-bold text-gradient">DreamWeave</span>
           </Link>
           <div className="flex items-center gap-4">

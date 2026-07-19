@@ -32,6 +32,11 @@ export interface ScenarioCasesPanelProps {
   blocksToGenerateCount?: number;
 }
 
+// Composition automatique du chapitre masquée à la demande de Louis (2026-07-19) :
+// l'utilisateur place lui-même ses blocs et prompts en glissant les cases sur le
+// canvas. Repasser à true pour réafficher les boutons Composer / Recomposer.
+const AUTO_COMPOSITION_ENABLED = false;
+
 /**
  * Panneau « Cases du scénario » — liste des cases validées du découpage,
  * composition / recomposition IA du canvas, génération en batch, et drag d'une
@@ -74,7 +79,7 @@ export function ScenarioCasesPanel({
       )}
 
       {/* Accepter / Refuser après une recomposition */}
-      {showRecomposeActions && (
+      {AUTO_COMPOSITION_ENABLED && showRecomposeActions && (
         <div className="flex flex-col gap-2">
           <p className="text-[11px] text-muted-foreground text-center">
             Nouvelle composition — la garder ?
@@ -108,7 +113,7 @@ export function ScenarioCasesPanel({
       )}
 
       {/* Bouton Composer / Recomposer */}
-      {!showRecomposeActions && hasOutlineToCompose && onCompose && (
+      {AUTO_COMPOSITION_ENABLED && !showRecomposeActions && hasOutlineToCompose && onCompose && (
         <Button
           size="sm"
           className={

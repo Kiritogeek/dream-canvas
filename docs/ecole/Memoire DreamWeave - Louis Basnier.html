@@ -206,7 +206,9 @@
 
   /* ---------- Print ---------- */
   @media print {
-    @page { size: A4; margin: 0; }
+    /* La marge est portee par @page (et non par .doc) : hauteur utile A4 constante,
+       quel que soit le reglage "Marges" du dialogue Chrome. */
+    @page { size: A4; margin: 12mm 10mm; }
     html, body {
       background: #0d0a12 !important;
       -webkit-print-color-adjust: exact !important;
@@ -215,19 +217,44 @@
     * {
       -webkit-print-color-adjust: exact !important;
       print-color-adjust: exact !important;
+      orphans: 3; widows: 3;
     }
     .toolbar { display: none !important; }
-    .doc { max-width: 100%; padding: 14mm 12mm; }
+    .doc { max-width: 100%; padding: 0; }
+
     /* le flou n'est pas imprimable : on fige un fond opaque sur les cartes */
     .glass, .card, .card.glass {
       background: #181320 !important;
       -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
     }
-    .cover { min-height: auto; page-break-after: always; padding: 40mm 0 30mm; }
-    .section { page-break-before: always; padding-top: 0; }
-    .sommaire { page-break-after: always; }
-    .decision, .card, .objective, .tw, table, .note-intent, .persona-head { page-break-inside: avoid; }
-    h2, h3, h4, .sub, .sub-2, .dh { page-break-after: avoid; }
+
+    /* Sauts de page structurels */
+    .cover { min-height: auto; break-after: page; page-break-after: always; padding: 30mm 0 20mm; }
+    .section { break-before: page; page-break-before: always; padding-top: 0; }
+    .sommaire { break-after: page; page-break-after: always; }
+
+    /* Blocs qui ne doivent jamais etre coupes en deux */
+    .decision, .card, .card.glass, .objective, .note-intent, .callout,
+    .explain, .persona-head, .tw, table, figure, img {
+      break-inside: avoid; page-break-inside: avoid;
+    }
+    /* Lignes internes : ne pas trancher une paire cle/valeur ou une ligne de tableau */
+    .decision p, .field, li, tr, td, th {
+      break-inside: avoid; page-break-inside: avoid;
+    }
+    thead { display: table-header-group; }
+
+    /* Un titre ne reste jamais seul en bas de page */
+    h1, h2, h3, h4, .sub, .sub-2, .dh, .section-head, .persona-tag {
+      break-after: avoid; page-break-after: avoid;
+    }
+
+    /* Compactage leger pour maximiser ce qui tient sur une page A4 */
+    .card { padding: 16px 20px; margin: 12px 0; }
+    .decision { padding: 16px 20px; margin: 16px 0; }
+    .objective { padding: 20px 24px; }
+    .sub { margin: 26px 0 12px; }
+
     a { color: inherit !important; text-decoration: none !important; }
   }
 
@@ -244,7 +271,7 @@
 
 <div class="toolbar">
   <button class="btn btn-pdf" onclick="window.print()">⬇ Télécharger en PDF</button>
-  <div class="pdf-hint">Dans la fenêtre : Destination = <b>« Enregistrer en PDF »</b> et coche <b>« Graphiques d'arrière-plan »</b>.</div>
+  <div class="pdf-hint">Dans la fenêtre : Destination = <b>« Enregistrer en PDF »</b>, Marges = <b>« Par défaut »</b>, et coche <b>« Graphiques d'arrière-plan »</b>.</div>
 </div>
 
 <div class="doc" id="doc">

@@ -353,9 +353,11 @@
 
   /* ---------- Print ---------- */
   @media print {
-    /* La marge est portee par @page (et non par .doc) : hauteur utile A4 constante,
-       quel que soit le reglage "Marges" du dialogue Chrome. */
-    @page { size: A4; margin: 12mm 10mm; }
+    /* Rendu pleine page (full-bleed) : marge @page a 0 pour que le fond sombre
+       couvre tout le papier -> aucune bordure blanche. Le texte est mis a
+       distance des bords par le padding de .doc.
+       IMPORTANT : dans le dialogue Chrome, choisir Marges = "Aucune". */
+    @page { size: A4; margin: 0; }
     html, body {
       background: #0d0a12 !important;
       -webkit-print-color-adjust: exact !important;
@@ -367,7 +369,7 @@
       orphans: 3; widows: 3;
     }
     .toolbar { display: none !important; }
-    .doc { max-width: 100%; padding: 0; }
+    .doc { max-width: 100%; padding: 14mm 13mm; }
 
     /* le flou n'est pas imprimable : on fige un fond opaque sur les cartes */
     .glass, .card, .card.glass {
@@ -427,7 +429,7 @@
 
 <div class="toolbar">
   <button class="btn btn-pdf" onclick="window.print()">⬇ Télécharger en PDF</button>
-  <div class="pdf-hint">Dans la fenêtre : Destination = <b>« Enregistrer en PDF »</b>, Marges = <b>« Par défaut »</b>, et coche <b>« Graphiques d'arrière-plan »</b>.</div>
+  <div class="pdf-hint">Dans la fenêtre : Destination = <b>« Enregistrer en PDF »</b>, Marges = <b>« Aucune »</b>, et coche <b>« Graphiques d'arrière-plan »</b> (décoche « En-têtes et pieds de page »).</div>
 </div>
 
 <div class="doc" id="doc">

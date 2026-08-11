@@ -96,6 +96,41 @@
   .sub { font-size: 23px; color: var(--lav-bright); margin: 42px 0 16px; font-weight: 600; }
   .sub-2 { font-size: 18px; color: var(--mint); margin: 26px 0 10px; font-weight: 700; }
 
+  /* ---------- Intercalaire de chapitre ---------- */
+  .chapter-cover {
+    position: relative; overflow: hidden;
+    display: flex; flex-direction: column; justify-content: center;
+    border-radius: 24px; border: 1px solid var(--border);
+    padding: 68px 46px; margin: 0 0 42px;
+    background: linear-gradient(150deg, rgba(155,109,255,.18), rgba(240,168,104,.10) 58%, rgba(111,214,189,.12));
+  }
+  .chapter-cover .ghost {
+    position: absolute; right: 18px; bottom: -56px; z-index: 0;
+    font-family: 'Quicksand', sans-serif; font-weight: 700; font-size: 300px; line-height: .8;
+    color: rgba(255,255,255,.045); pointer-events: none; user-select: none;
+  }
+  .chapter-cover .eyebrow {
+    position: relative; z-index: 1;
+    font-family: 'Quicksand', sans-serif; font-weight: 700; letter-spacing: 5px;
+    font-size: 13px; color: var(--mint); margin-bottom: 18px;
+  }
+  .chapter-cover h2 { position: relative; z-index: 1; font-size: 58px; line-height: 1.04; margin: 0; }
+  .chapter-cover .rule { position: relative; z-index: 1; width: 120px; height: 5px; border-radius: 999px; margin-top: 26px; background: var(--grad); }
+  .chapter-cover .lead { position: relative; z-index: 1; margin: 24px 0 0; max-width: 640px; color: var(--lav-bright); font-size: 17.5px; line-height: 1.5; }
+
+  /* ---------- Capture produit ---------- */
+  figure.shot { margin: 24px 0; }
+  figure.shot img {
+    width: 100%; height: auto; display: block; border-radius: 14px;
+    border: 1px solid var(--border); background: #181320;
+    box-shadow: 0 22px 55px -22px rgba(0,0,0,.65);
+  }
+  figure.shot figcaption {
+    margin-top: 11px; text-align: center; font-size: 13.5px; color: var(--muted);
+    font-family: 'Quicksand', sans-serif;
+  }
+  figure.shot figcaption b { color: var(--peach); font-weight: 700; }
+
   p { margin: 12px 0; color: #e7e2f0; }
   .muted { color: var(--muted); }
 
@@ -233,6 +268,15 @@
     .section { break-before: page; page-break-before: always; padding-top: 0; }
     .sommaire { break-after: page; page-break-after: always; }
 
+    /* Intercalaire : occupe une page A4 entiere, le contenu demarre a la page suivante */
+    .chapter-cover {
+      break-after: page; page-break-after: always;
+      break-inside: avoid; page-break-inside: avoid;
+      min-height: 244mm; margin: 0; border: none; border-radius: 0;
+    }
+    .chapter-cover .ghost { font-size: 270px; color: rgba(255,255,255,.06); }
+    figure.shot { break-inside: avoid; page-break-inside: avoid; }
+
     /* Blocs qui ne doivent jamais etre coupes en deux */
     .decision, .card, .card.glass, .objective, .note-intent, .callout,
     .explain, .persona-head, .tw, table, figure, img {
@@ -306,7 +350,13 @@
 
   <!-- ============ 1. ÉTUDE DE MARCHÉ ============ -->
   <section class="section" id="s1">
-    <div class="section-head"><span class="section-num">01</span><h2 class="text-grad">Étude de Marché</h2></div>
+    <div class="chapter-cover">
+      <span class="ghost" aria-hidden="true">01</span>
+      <div class="eyebrow">PARTIE 01 · 06</div>
+      <h2 class="text-grad">Étude de Marché</h2>
+      <div class="rule"></div>
+      <p class="lead">Existe-t-il un marché pour DreamWeave, et qui sont précisément ses utilisateurs ?</p>
+    </div>
     <p>Dans cette première partie, on cherche à répondre à une question simple : est-ce qu'il existe un marché pour DreamWeave ? Pour y répondre, on s'appuie sur des données de plusieurs études (2024-2026).</p>
     <p>On analyse quatre points :</p>
     <ul>
@@ -436,7 +486,13 @@
 
   <!-- ============ 2. PRODUCT / SERVICE DESIGN ============ -->
   <section class="section" id="s2">
-    <div class="section-head"><span class="section-num">02</span><h2 class="text-grad">Product / Service design</h2></div>
+    <div class="chapter-cover">
+      <span class="ghost" aria-hidden="true">02</span>
+      <div class="eyebrow">PARTIE 02 · 06</div>
+      <h2 class="text-grad">Product / Service design</h2>
+      <div class="rule"></div>
+      <p class="lead">Ce qu'est DreamWeave, comment il a été conçu, et pourquoi il répond au problème identifié.</p>
+    </div>
     <div class="objective"><div class="lbl">OBJECTIF</div><p>Expliquer concrètement ce qu'est DreamWeave, comment il a été conçu, et pourquoi il répond aux problèmes identifiés dans l'étude de marché.</p></div>
 
     <h3 class="sub">1. Insights, Problématiques et Product-Market Fit</h3>
@@ -542,7 +598,13 @@
 
   <!-- ============ 3. BUSINESS MODEL ============ -->
   <section class="section" id="s3">
-    <div class="section-head"><span class="section-num">03</span><h2 class="text-grad">Business Model</h2></div>
+    <div class="chapter-cover">
+      <span class="ghost" aria-hidden="true">03</span>
+      <div class="eyebrow">PARTIE 03 · 06</div>
+      <h2 class="text-grad">Business Model</h2>
+      <div class="rule"></div>
+      <p class="lead">Le modèle économique complet : Business Model Canvas, pricing argumenté et projections financières.</p>
+    </div>
     <div class="objective"><div class="lbl">OBJECTIF</div><p>Présenter le modèle économique complet de DreamWeave — BMC, pricing argumenté et projections financières.</p></div>
 
     <h3 class="sub">1. Business Model Canvas</h3>
@@ -662,7 +724,13 @@
 
   <!-- ============ 4. ORGANISATION ============ -->
   <section class="section" id="s4">
-    <div class="section-head"><span class="section-num">04</span><h2 class="text-grad">Organisation</h2></div>
+    <div class="chapter-cover">
+      <span class="ghost" aria-hidden="true">04</span>
+      <div class="eyebrow">PARTIE 04 · 06</div>
+      <h2 class="text-grad">Organisation</h2>
+      <div class="rule"></div>
+      <p class="lead">L'équipe, les besoins de recrutement, la structure juridique progressive et la gouvernance.</p>
+    </div>
     <div class="objective"><div class="lbl">OBJECTIF</div><p>Présenter l'équipe opérationnelle, les besoins de recrutement, la structure juridique progressive et les mécanismes de gouvernance.</p></div>
 
     <p><span class="c-lav b">DreamWeave</span> est un projet <span class="c-peach b">déjà lancé</span> : la plateforme est fonctionnelle sur l'ensemble du workflow créatif implémenté (style, assets, scénario, édition, paiements). Ce résultat a été obtenu en <span class="c-mint b">4 à 6 mois</span> grâce à un modèle de développement basé sur l'aide d'un <span class="c-peach b">outillage IA avancé</span>.</p>
@@ -729,7 +797,13 @@
 
   <!-- ============ 5. GO TO MARKET ============ -->
   <section class="section" id="s5">
-    <div class="section-head"><span class="section-num">05</span><h2 class="text-grad">Go to Market</h2></div>
+    <div class="chapter-cover">
+      <span class="ghost" aria-hidden="true">05</span>
+      <div class="eyebrow">PARTIE 05 · 06</div>
+      <h2 class="text-grad">Go to Market</h2>
+      <div class="rule"></div>
+      <p class="lead">Le cycle de vie utilisateur et la stratégie de lancement pour atteindre 25 000 inscrits à M12.</p>
+    </div>
     <div class="objective"><div class="lbl">OBJECTIF</div><p>Définir le cycle de vie des utilisateurs et la stratégie de lancement pour atteindre 25 000 inscrits et 600 payants à M12, avec un CAC &lt; 30 € et un LTV/CAC &gt; 3:1.</p></div>
 
     <h3 class="sub">1. Customer Lifecycle</h3>
@@ -791,7 +865,13 @@
 
   <!-- ============ 6. OPÉRATIONNALISATION ============ -->
   <section class="section" id="s6">
-    <div class="section-head"><span class="section-num">06</span><h2 class="text-grad">Opérationnalisation</h2></div>
+    <div class="chapter-cover">
+      <span class="ghost" aria-hidden="true">06</span>
+      <div class="eyebrow">PARTIE 06 · 06</div>
+      <h2 class="text-grad">Opérationnalisation</h2>
+      <div class="rule"></div>
+      <p class="lead">Posture CTO : benchmark, architecture technique, défis majeurs résolus et plan de release.</p>
+    </div>
     <div class="objective"><div class="lbl">OBJECTIF</div><p>Posture CTO : benchmark technologique, architecture technique, défis techniques majeurs &amp; solutions implémentées (POC), méthodologie d'itération, plan de release détaillé, besoins techniques, budget Build/Run, cadre juridique IA et veille systémique.</p></div>
 
     <p>DreamWeave s'attaque à <span class="c-peach b">trois problèmes techniques fondamentaux</span> dans la création de webtoons assistée par IA. Ces trois axes constituent les <span class="c-peach b">défis de posture CTO</span> qui ont guidé l'ensemble des <span class="c-mint b">choix techniques</span> et des itérations du projet.</p>

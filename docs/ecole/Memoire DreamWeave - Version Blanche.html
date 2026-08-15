@@ -121,20 +121,20 @@
 </style>
 <style>
  :root {
-  --bg: #0d0a12;
-  --bg-soft: #14101b;
-  --card: #181320;
-  --card-2: #1d1729;
-  --border: #2c2440;
-  --fg: #f4f1f8;
-  --muted: #b9b1c9;
-  --lav: #b18cf0;
-  --lav-bright: #c7a4ff;
-  --mint: #6fd6bd;
-  --peach: #f0a868;
-  --peach-deep: #e58f4e;
-  --rose: #e389b5;
-  --grad: linear-gradient(100deg, #9b6dff 0%, #c77dff 28%, #e394c0 55%, #f0a878 85%);
+  --bg: #ffffff;
+  --bg-soft: #f5f2f9;
+  --card: #ffffff;
+  --card-2: #f1eafb;
+  --border: #e6e1ef;
+  --fg: #1b1626;
+  --muted: #6a6380;
+  --lav: #7b45c8;
+  --lav-bright: #7a4fd0;
+  --mint: #12977a;
+  --peach: #c9701e;
+  --peach-deep: #b25e17;
+  --rose: #bf4a83;
+  --grad: linear-gradient(100deg, #7c3aed 0%, #b24fd6 28%, #d1478f 55%, #dd7a2f 85%);
  }
 
  * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -219,7 +219,7 @@
  .chapter-cover .ghost {
   position: absolute; right: 18px; bottom: -56px; z-index: 0;
   font-family: 'Quicksand', sans-serif; font-weight: 700; font-size: 300px; line-height: .8;
-  color: rgba(255,255,255,.045); pointer-events: none; user-select: none;
+  color: rgba(40,20,70,.05); pointer-events: none; user-select: none;
  }
  .chapter-cover .eyebrow {
   position: relative; z-index: 1;
@@ -234,8 +234,8 @@
  figure.shot { margin: 24px 0; }
  figure.shot img {
   width: 100%; height: auto; display: block; border-radius: 14px;
-  border: 1px solid var(--border); background: #181320;
-  box-shadow: 0 22px 55px -22px rgba(0,0,0,.65);
+  border: 1px solid var(--border); background: #ffffff;
+  box-shadow: 0 22px 55px -22px rgba(70,50,100,.16);
  }
  figure.shot figcaption {
   margin-top: 11px; text-align: center; font-size: 13.5px; color: var(--muted);
@@ -243,11 +243,11 @@
  }
  figure.shot figcaption b { color: var(--peach); font-weight: 700; }
 
- p { margin: 12px 0; color: #e7e2f0; }
+ p { margin: 12px 0; color: #2b2539; }
  .muted { color: var(--muted); }
 
  ul { margin: 12px 0 12px 4px; list-style: none; }
- ul li { position: relative; padding-left: 20px; margin: 7px 0; color: #e7e2f0; }
+ ul li { position: relative; padding-left: 20px; margin: 7px 0; color: #2b2539; }
  ul li::before { content: ""; position: absolute; left: 2px; top: 11px; width: 7px; height: 7px; border-radius: 999px; background: var(--lav); }
 
  /* ---------- Objective box ---------- */
@@ -257,14 +257,14 @@
   border: 1px solid var(--border);
  }
  .objective .lbl { font-family: 'Quicksand'; font-weight: 700; letter-spacing: 2px; font-size: 13px; color: var(--fg); margin-bottom: 10px; }
- .objective p { color: #efeaf6; margin: 0; }
+ .objective p { color: #2b2539; margin: 0; }
 
  /* ---------- Cards ---------- */
  .card {
   background: var(--card); border: 1px solid var(--border); border-radius: 16px;
   padding: 22px 26px; margin: 18px 0;
  }
- .card.glass { background: linear-gradient(160deg, rgba(40,30,60,.6), rgba(24,19,32,.6)); }
+ .card.glass { background: linear-gradient(160deg, #ffffff, #f7f3fd); }
  .persona-tag {
   display: inline-block; font-family: 'Quicksand'; font-weight: 700; font-size: 13px;
   color: var(--rose); margin-bottom: 4px;
@@ -288,7 +288,7 @@
   font-family: 'Quicksand'; font-weight: 700; color: var(--lav-bright);
   background: var(--card-2); font-size: 14px;
  }
- table td { color: #e3ddee; background: var(--card); }
+ table td { color: #332d44; background: var(--card); }
  table td:first-child { color: var(--peach); font-weight: 700; font-family: 'Quicksand'; }
  table.plain td:first-child { color: var(--peach); }
  .center td.center th { text-align: center; }
@@ -297,12 +297,12 @@
  /* ---------- Quote / callout ---------- */
  .callout {
   border-left: 3px solid var(--lav); background: var(--bg-soft);
-  border-radius: 0 12px 12px 0; padding: 16px 22px; margin: 18px 0; color: #efeaf6;
+  border-radius: 0 12px 12px 0; padding: 16px 22px; margin: 18px 0; color: #2b2539;
  }
 
  /* ---------- Explain lead-in ---------- */
  .explain {
-  color: #d9d2e6; font-size: 16.5px; line-height: 1.62;
+  color: #3c3550; font-size: 16.5px; line-height: 1.62;
   border-left: 2px solid var(--mint); padding: 2px 0 2px 18px; margin: 16px 0 18px;
  }
 
@@ -316,7 +316,7 @@
   font-family: 'Quicksand', sans-serif; font-weight: 700; font-size: 17px;
   color: var(--lav-bright); margin-bottom: 12px; line-height: 1.3;
  }
- .decision p { margin: 9px 0; color: #e7e2f0; font-size: 15.5px; }
+ .decision p { margin: 9px 0; color: #2b2539; font-size: 15.5px; }
  .decision .k { font-family: 'Quicksand', sans-serif; font-weight: 700; color: var(--peach); }
  .decision .kc { color: var(--mint); }
 
@@ -324,7 +324,7 @@
  .note-intent {
   border-radius: 16px; padding: 24px 30px; margin: 0 auto 20px; max-width: 720px;
   background: linear-gradient(120deg, rgba(155,109,255,.16), rgba(240,168,104,.11));
-  border: 1px solid var(--border); color: #efeaf6; text-align: center; font-size: 16.5px;
+  border: 1px solid var(--border); color: #2b2539; text-align: center; font-size: 16.5px;
  }
 
  hr.div { border: none; border-top: 1px solid var(--border); margin: 60px 0 0; }
@@ -339,7 +339,7 @@
   font-family: 'Quicksand', sans-serif; font-weight: 700; letter-spacing: 3px;
   font-size: 13px; color: var(--peach); margin-bottom: 16px; text-transform: uppercase;
  }
- .foreword p { color: #efeaf6; font-size: 16.5px; line-height: 1.7; }
+ .foreword p { color: #2b2539; font-size: 16.5px; line-height: 1.7; }
  .foreword .fw-sign { margin-top: 18px; text-align: right; font-family: 'Quicksand', sans-serif; font-weight: 700; color: var(--mint); }
 
  /* ---------- Rangée de figures ---------- */
@@ -356,7 +356,7 @@
  }
  .pdf-hint {
   max-width: 230px; font-size: 11.5px; line-height: 1.4; text-align: right;
-  color: var(--muted); background: rgba(13,10,18,.85); border: 1px solid var(--border);
+  color: var(--muted); background: rgba(255,255,255,.96); border: 1px solid var(--border);
   border-radius: 10px; padding: 7px 11px;
  }
  .pdf-hint b { color: var(--peach); font-weight: 700; }
@@ -377,11 +377,11 @@
     couvre tout le papier -> aucune bordure blanche. Le texte est mis a
     distance des bords par le padding de .doc.
     IMPORTANT : dans le dialogue Chrome, choisir Marges = "Aucune". */
-  @page { size: A4; margin: 15mm 16mm; background: #0d0a12; }
-   @page fullbleed { size: A4; margin: 0; background: #0d0a12; }
+  @page { size: A4; margin: 15mm 16mm; background: #ffffff; }
+   @page fullbleed { size: A4; margin: 0; background: #ffffff; }
    .cover, .sommaire, .chapter-cover { page: fullbleed; }
   html, body {
-   background: #0d0a12 !important;
+   background: #ffffff !important;
    -webkit-print-color-adjust: exact !important;
    print-color-adjust: exact !important;
   }
@@ -395,7 +395,7 @@
 
   /* le flou n'est pas imprimable : on fige un fond opaque sur les cartes */
   .glass.card.card.glass {
-   background: #181320 !important;
+   background: #ffffff !important;
    -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
   }
 
@@ -408,7 +408,7 @@
    break-after: page; page-break-after: always;
    break-inside: avoid; page-break-inside: avoid;
    margin: 0; min-height: 297mm; padding: 0 30mm;
-   background: linear-gradient(150deg, rgba(155,109,255,.18), rgba(240,168,104,.10) 58%, rgba(111,214,189,.12)), #0d0a12;
+   background: linear-gradient(150deg, rgba(155,109,255,.18), rgba(240,168,104,.10) 58%, rgba(111,214,189,.12)), #ffffff;
    display: flex; flex-direction: column; justify-content: center;
   }
 
@@ -419,7 +419,7 @@
    min-height: 297mm; margin: 0; border: none; border-radius: 0;
    padding: 40mm 30mm;
   }
-  .chapter-cover .ghost { font-size: 270px; color: rgba(255,255,255,.06); }
+  .chapter-cover .ghost { font-size: 270px; color: rgba(40,20,70,.06); }
   figure.shot.figrow { break-inside: avoid; page-break-inside: avoid; }
   .figrow { display: flex; gap: 14px; }
   .figrow figure.shot { flex: 1 1 0; margin: 0; }

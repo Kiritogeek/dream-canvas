@@ -30,9 +30,9 @@ Le texte d'intro existant est conservé. Ajout d'une transition vers les persona
 
 🟦 À INSÉRER — avant les personas
 
-Les quatre personas ci-dessous ne sont pas des profils inventés : ils résultent du croisement de trois sources — les données publiques des plateformes webtoon, les études citées en bibliographie, et une série d'entretiens exploratoires menés en novembre 2025 **(n = 12 créateurs amateurs et 3 responsables de studio)**. Chaque persona représente un **segment d'usage distinct**, avec une willingness-to-pay (WTP) et un rôle stratégique différents. Deux sont des cibles d'acquisition (Luna, Marc), un est un prescripteur viral (Théo), un est un levier de revenu B2B (Elodie).
+Les quatre personas ci-dessous ne sont pas des profils inventés : ils résultent du croisement de sources publiques — les données des plateformes webtoon (S-1 Webtoon), les études citées en bibliographie, et l'observation des communautés de créateurs (r/webtoons, forums Tapas). Chaque persona représente un **segment d'usage distinct**, avec une willingness-to-pay (WTP) et un rôle stratégique différents. Deux sont des cibles d'acquisition (Luna, Marc), un est un prescripteur viral (Théo), un est un levier de revenu B2B (Elodie). Les WTP sont des **fourchettes assumées**, calées sur les prix du marché SaaS créatif.
 
-> ⚠️ **Correctif à valider** : préciser la taille d'échantillon partout où apparaît « entretiens internes » (les 89 % d'abandon, les WTP). Sans `n`, le chiffre est attaquable en soutenance.
+> ✅ **Correction appliquée (2026-08-22)** : le « 89 % d'abandon » et la mention « n = 12 + 3 » ont été **retirés** (non vérifiables, non sourçables). L'argumentaire repose désormais sur des faits sourcés (coût, délai, compétence) et l'observation des communautés.
 
 ## Encadré de décision — Le pivot fondateur
 
@@ -40,7 +40,7 @@ Les quatre personas ci-dessous ne sont pas des profils inventés : ils résulten
 
 > **💡 Décision D1 — Pourquoi DreamWeave existe**
 >
-> **Genèse.** Le constat de départ n'est pas « il faut faire une app d'IA ». Il est inverse : un marché (le webtoon) croît de 35-40 %/an, mais le nombre de créateurs capables de produire ne suit pas. En creusant, on isole une cause unique et mesurable : **89 % des créateurs amateurs abandonnent dans les 3 premiers mois**, non par manque d'idées, mais parce qu'ils ne savent pas transformer une histoire en images.
+> **Genèse.** Le constat de départ n'est pas « il faut faire une app d'IA ». Il est inverse : un marché (le webtoon) croît d'environ 27 %/an, mais le nombre de créateurs capables de produire ne suit pas. En creusant, on isole une cause : sans compétence en dessin ni budget d'illustration (300 à 1 500 € par chapitre), beaucoup de créateurs amateurs **abandonnent en cours de projet** — un constat récurrent dans les communautés (r/webtoons, forums Tapas). Le blocage n'est pas l'idée, c'est de transformer une histoire en images.
 >
 > **Options envisagées.** (a) Une marketplace mettant en relation auteurs et illustrateurs — écartée : ne supprime pas le coût ni le délai. (b) Un outil de dessin assisté (type Procreate simplifié) — écarté : exige toujours une compétence artistique. (c) Une génération d'images one-shot (type Midjourney) — écarté : pas de cohérence ni de workflow.
 >
@@ -320,7 +320,7 @@ Ce tableau est un **exercice d'honnêteté technique** : il liste, pour chaque c
 | C1 | Projections (P3) | ARR M12 « ~150 000 € » ≠ 600 × 19 € × 12 = 136 800 € | Écrire « ~137 000 € » OU préciser « incl. packs + marketplace » |
 | C2 | Pricing / GTM | Plan Studio à 29,99 € mais « ARPU Studio > 49 € » et persona Elodie WTP 49-150 € | Rattacher le segment studio à **Entreprise (sur devis)** ; renommer le KPI |
 | C3 | Organisation | « 4 mois » de dev vs janvier→juin (5-6 mois) | « 4 à 6 mois » |
-| C4 | Personas / Insights | 89 % d'abandon et WTP sans taille d'échantillon | Ajouter « (n = 12 créateurs + 3 studios, nov. 2025) » |
+| C4 | Personas / Insights | 89 % d'abandon non vérifiable | **Corrigé (2026-08-22)** : chiffre retiré ; abandon présenté comme observation qualitative (communautés) + faits sourcés (coût, délai, compétence) ; WTP = fourchettes assumées |
 | C5 | GTM | Frise Product Hunt Q3 2026 vs content marketing 2027 | Vérifier cohérence avec « lancement sep-oct 2026 » du budget |
 
 ---

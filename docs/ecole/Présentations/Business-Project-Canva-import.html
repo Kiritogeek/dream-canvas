@@ -1,0 +1,613 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DreamWeave — Business Project (V2)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    /* Tokens dark mode DreamWeave réels (src/index.css .dark) */
+    --bg0:hsl(275 20% 7%); --bg1:hsl(275 18% 9%); --bg2:hsl(275 16% 11%);
+    --ink:#ffffff; --soft:hsl(275 12% 78%); --faint:hsl(275 10% 56%);
+    --line:hsl(275 14% 22% / .70); --line2:hsl(275 18% 34% / .70);
+    --lav:hsl(275 50% 75%); --lav-2:hsl(275 58% 84%);
+    --peach:hsl(28 70% 80%); --mint:hsl(170 40% 72%); --rose:hsl(340 55% 68%); --amber:hsl(38 80% 72%);
+    /* Accents VIFS pour nuancer les propos (famille mémoire : vert / orange / or / rose) */
+    --good:hsl(160 68% 52%); --warn:hsl(24 90% 62%); --money:hsl(42 95% 60%); --info:hsl(272 65% 78%); --risk:hsl(346 78% 66%);
+    --glass:hsl(275 16% 13% / .60);
+    --title:'Quicksand',"Segoe UI",system-ui,sans-serif;
+    --body:'Nunito',"Segoe UI",system-ui,sans-serif;
+  }
+  *{box-sizing:border-box; margin:0; padding:0}
+  html{-webkit-print-color-adjust:exact; print-color-adjust:exact}
+  body{font-family:var(--body); color:var(--ink); background:#0a0716}
+
+  .slide{
+    position:relative; width:1280px; height:720px; overflow:hidden;
+    background:
+      radial-gradient(1000px 560px at 84% -16%, hsl(275 55% 55% / .16), transparent 58%),
+      radial-gradient(820px 560px at 4% 120%, hsl(28 55% 48% / .09), transparent 55%),
+      hsl(275 20% 7%);
+    padding:60px 72px; display:flex; flex-direction:column;
+    page-break-after:always; break-after:page;
+  }
+  .slide:last-child{page-break-after:auto}
+  .slide::after{ /* subtle grid texture */
+    content:""; position:absolute; inset:0; opacity:.5; pointer-events:none;
+    background:linear-gradient(transparent 97%,rgba(255,255,255,.03) 100%) 0 0/100% 40px;
+  }
+
+  .eyebrow{font-family:var(--title); font-weight:700; font-size:15px; letter-spacing:.22em; text-transform:uppercase; color:var(--lav-2)}
+  h1{font-family:var(--title); font-weight:700; letter-spacing:-.5px; line-height:1.04}
+  h2{font-family:var(--title); font-weight:700; font-size:46px; letter-spacing:-.5px; line-height:1.05; margin-top:8px}
+  .lede{color:var(--soft); font-size:20px; margin-top:14px; max-width:60ch}
+  p{line-height:1.5}
+
+  .body{flex:1; display:flex; flex-direction:column; justify-content:center; gap:18px; margin-top:22px}
+  .footer{position:absolute; left:72px; right:72px; bottom:30px; display:flex; justify-content:space-between; align-items:center;
+    font-size:13px; color:var(--faint); border-top:1px solid var(--line); padding-top:14px}
+  .footer .brand{font-family:var(--title); font-weight:600; color:var(--soft); letter-spacing:.02em}
+  .num{font-variant-numeric:tabular-nums}
+
+  .badge{display:inline-flex; align-items:center; gap:8px; align-self:flex-start;
+    font-family:var(--title); font-weight:700; font-size:13px; letter-spacing:.04em;
+    padding:6px 14px; border-radius:999px; background:rgba(139,123,255,.16); color:var(--lav-2); border:1px solid var(--line2)}
+
+  ul.points{list-style:none; display:flex; flex-direction:column; gap:13px}
+  ul.points li{position:relative; padding-left:30px; font-size:19px; color:#e9e5ff; line-height:1.42}
+  ul.points li::before{content:""; position:absolute; left:6px; top:11px; width:9px; height:9px; border-radius:3px;
+    background:linear-gradient(135deg,var(--good),var(--warn))}
+  ul.points li b{color:#fff}
+  .muted{color:var(--soft)}
+
+  .cards{display:grid; gap:16px}
+  .c2{grid-template-columns:1fr 1fr}
+  .c3{grid-template-columns:repeat(3,1fr)}
+  .c4{grid-template-columns:repeat(4,1fr)}
+  .card{--c:var(--lav-2); background:var(--glass); border:1px solid var(--line); border-top:3px solid var(--c); border-radius:16px; padding:16px 20px 18px; backdrop-filter:blur(6px)}
+  .card.good{--c:var(--good)} .card.warn{--c:var(--warn)} .card.money{--c:var(--money)} .card.info{--c:var(--info)} .card.risk{--c:var(--risk)}
+  .card h3{font-family:var(--title); font-weight:700; font-size:19px; margin-bottom:6px}
+  .card p{font-size:15.5px; color:var(--soft); line-height:1.42}
+  .card .k{font-family:var(--title); font-weight:700; font-size:34px; background:linear-gradient(120deg,#fff,var(--c)); -webkit-background-clip:text; background-clip:text; color:transparent; line-height:1}
+  .card .tag{font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:var(--c); font-weight:700; opacity:.92}
+
+  .statrow{display:flex; gap:26px; flex-wrap:wrap}
+  .stat{--c:var(--lav-2); flex:1; min-width:190px; background:var(--glass); border:1px solid var(--line); border-top:3px solid var(--c); border-radius:16px; padding:18px 22px 20px}
+  .stat.good{--c:var(--good)} .stat.warn{--c:var(--warn)} .stat.money{--c:var(--money)} .stat.info{--c:var(--info)} .stat.risk{--c:var(--risk)}
+  .stat .big{font-family:var(--title); font-weight:700; font-size:46px; background:linear-gradient(120deg,#fff,var(--c)); -webkit-background-clip:text; background-clip:text; color:transparent; line-height:1}
+  .stat .lab{color:var(--soft); font-size:15px; margin-top:8px; line-height:1.35}
+  .src{color:var(--faint); font-size:12.5px; margin-top:6px}
+
+  .hero-num{font-family:var(--title); font-weight:700; font-size:120px; line-height:.9;
+    background:linear-gradient(120deg,#fff,var(--lav-2) 60%,var(--peach)); -webkit-background-clip:text; background-clip:text; color:transparent}
+
+  table.tbl{width:100%; border-collapse:collapse; font-size:15px}
+  table.tbl th,table.tbl td{border:1px solid var(--line); padding:9px 13px; text-align:left; vertical-align:top}
+  table.tbl th{background:rgba(139,123,255,.14); color:var(--lav-2); font-family:var(--title); font-weight:700; font-size:12.5px; letter-spacing:.08em; text-transform:uppercase}
+  table.tbl td b{color:#fff}
+  table.tbl td .ref{color:var(--lav-2); font-weight:700}
+
+  .flow{display:flex; align-items:stretch; gap:0}
+  .step{--c:var(--lav-2); flex:1; background:var(--glass); border:1px solid var(--line); border-top:3px solid var(--c); border-radius:16px; padding:16px 18px 18px; text-align:center}
+  .step.good{--c:var(--good)} .step.warn{--c:var(--warn)} .step.money{--c:var(--money)} .step.info{--c:var(--info)} .step.risk{--c:var(--risk)}
+  .arrow{display:flex; align-items:center; color:var(--lav-2); font-size:30px; padding:0 8px}
+  .step .n{font-family:var(--title); font-weight:700; color:var(--c); font-size:14px; letter-spacing:.1em}
+  .step h3{font-family:var(--title); font-weight:700; font-size:20px; margin:6px 0}
+  .step p{font-size:14px; color:var(--soft); line-height:1.38}
+
+  /* cover */
+  .cover{justify-content:center}
+  .cover h1{font-size:88px; background:linear-gradient(120deg,#fff 30%,var(--lav-2) 70%,var(--peach)); -webkit-background-clip:text; background-clip:text; color:transparent}
+  .cover .tagline{font-size:24px; color:var(--soft); margin-top:18px; max-width:56ch}
+  .cover .who{margin-top:40px; font-size:17px; color:var(--soft)}
+  .cover .who b{color:#fff; font-family:var(--title)}
+  .logo{display:inline-flex; align-items:center; gap:12px; font-family:var(--title); font-weight:700; font-size:20px; letter-spacing:.02em}
+  .logo .dot{width:16px; height:16px; border-radius:6px; background:linear-gradient(135deg,var(--lav),var(--peach)); box-shadow:0 0 24px rgba(139,123,255,.7)}
+
+  /* phone mock for webtoon slide */
+  .webtoon-wrap{display:flex; gap:40px; align-items:center}
+  .phone{width:230px; height:440px; border-radius:34px; border:8px solid rgba(255,255,255,.14); background:#0d0a1c; position:relative; overflow:hidden; flex:none; box-shadow:0 20px 60px rgba(0,0,0,.5)}
+  .phone .notch{position:absolute; top:10px; left:50%; transform:translateX(-50%); width:80px; height:16px; border-radius:10px; background:rgba(255,255,255,.12); z-index:2}
+  .phone .strip{position:absolute; inset:0; display:flex; flex-direction:column}
+  .phone .panel{flex:none; margin:8px; border-radius:12px}
+  .p1{height:150px; background:linear-gradient(160deg,#3a2f6e,#5b4aa8)}
+  .p2{height:110px; background:linear-gradient(160deg,#6d4b7a,#b06a56)}
+  .p3{height:170px; background:linear-gradient(160deg,#274d6e,#3f8f8a)}
+  .p4{height:130px; background:linear-gradient(160deg,#6e5327,#c8a24a)}
+  .scrollhint{position:absolute; right:10px; bottom:14px; color:rgba(255,255,255,.65); font-size:12px; z-index:3;
+    background:rgba(0,0,0,.35); padding:4px 8px; border-radius:8px}
+  .gifnote{font-size:13px; color:var(--amber); background:rgba(255,200,97,.10); border:1px solid rgba(255,200,97,.25); border-radius:10px; padding:10px 14px; margin-top:14px; max-width:52ch}
+
+  .kicker-num{font-family:var(--title); font-weight:700; font-size:15px; color:var(--faint)}
+  .two-col{display:grid; grid-template-columns:1fr 1fr; gap:16px}
+  .col-title{font-family:var(--title); font-weight:700; font-size:16px; letter-spacing:.06em; text-transform:uppercase; margin-bottom:10px}
+  .col-lav{color:var(--lav-2)} .col-peach{color:var(--peach)}
+
+  @page{ size:1280px 720px; margin:0 }
+  @media print{ body{background:#0a0716} .slide{box-shadow:none} }
+  /* screen scroll spacing */
+  @media screen{ body{display:flex; flex-direction:column; align-items:center; gap:22px; padding:22px} .slide{border-radius:14px; box-shadow:0 24px 70px rgba(0,0,0,.45)} }
+</style>
+</head>
+<body>
+
+<!-- 1 — COUVERTURE -->
+<section data-document-role="page" class="slide cover">
+  <div class="logo"><span class="dot"></span> DreamWeave</div>
+  <div style="margin-top:26px">
+    <div class="eyebrow">Business Project · WSF · Promotion 2026</div>
+    <h1>DreamWeave</h1>
+    <p class="tagline">Créer un webtoon complet et cohérent grâce à l'IA, sans savoir dessiner. De l'idée au chapitre publié.</p>
+  </div>
+  <div class="who">Louis Basnier &middot; <b>Soutenance 15 min</b> &middot; RNCP 40601</div>
+  <div class="footer"><span class="brand">DreamWeave — Business Project</span><span class="num">01 / 26</span></div>
+</section>
+
+<!-- 2 — UNE SUITE DE DÉCISIONS -->
+<section data-document-role="page" class="slide">
+  <div class="eyebrow">Clé de lecture</div>
+  <h2>Pas une liste de features,<br>une suite de décisions</h2>
+  <div class="body">
+    <ul class="points">
+      <li>Pour chaque choix structurant : <b>le problème</b>, <b>les options</b>, <b>la décision</b>, <b>la justification</b>.</li>
+      <li>Douze décisions balisent ce projet, du positionnement produit à la brique technique.</li>
+      <li>Le fil rouge : montrer non pas <i>ce qui a été construit</i>, mais <b>pourquoi cela a été construit ainsi</b>.</li>
+    </ul>
+  </div>
+  <div class="footer"><span class="brand">DreamWeave — Business Project</span><span class="num">02 / 26</span></div>
+</section>
+
+<!-- 3 — LE PROBLÈME -->
+<section data-document-role="page" class="slide">
+  <div class="eyebrow">Le problème</div>
+  <h2>Un marché qui explose, un goulot d'étranglement</h2>
+  <div class="body">
+    <div class="statrow">
+      <div class="stat good"><div class="big">+27 %<span style="font-size:24px">/an</span></div><div class="lab">Croissance annuelle du marché webtoon</div><div class="src">[3] Grand View Research</div></div>
+      <div class="stat good"><div class="big num">45,3 Md$</div><div class="lab">Marché projeté en 2030 (8,28 Md$ en 2023)</div><div class="src">[3] Grand View Research</div></div>
+      <div class="stat warn"><div class="big num">300&ndash;1500 €</div><div class="lab">Coût d'un chapitre illustré (1 à 4 semaines)</div><div class="src">[6] Vox Illustration · Tapas</div></div>
+    </div>
+    <ul class="points">
+      <li>La demande explose (recherches « AI webtoon maker » <b>+200 %</b> en 2 ans, Google Trends), mais créer un webtoon reste <b>bloqué par le dessin</b>.</li>
+      <li>Résultat : l'abandon en cours de projet revient constamment dans les communautés de créateurs (r/webtoons, forums Tapas). C'est cet écart que DreamWeave comble.</li>
+    </ul>
+  </div>
+  <div class="footer"><span class="brand">DreamWeave — Business Project</span><span class="num">03 / 26</span></div>
+</section>
+
+<!-- 4 — QU'EST-CE QU'UN WEBTOON (GIF) -->
+<section data-document-role="page" class="slide">
+  <div class="eyebrow">Le format</div>
+  <h2>Qu'est-ce qu'un webtoon ?</h2>
+  <div class="body">
+    <div class="webtoon-wrap">
+      <div class="phone">
+        <div class="notch"></div>
+        <div class="strip">
+          <div class="panel p1"></div><div class="panel p2"></div><div class="panel p3"></div><div class="panel p4"></div>
+        </div>
+        <div class="scrollhint">↕ scroll</div>
+      </div>
+      <div>
+        <ul class="points">
+          <li>Une <b>bande dessinée numérique verticale</b>, lue en <b>scrollant sur smartphone</b>, née en Corée du Sud.</li>
+          <li>Pas une BD papier scannée : une seule colonne continue, pensée nativement pour le mobile et la Gen Z.</li>
+          <li>C'est <b>exactement ce format</b> que DreamWeave produit (canvas vertical unique, jusqu'à 100 000 px de haut) — d'où sa contrainte n°1 : la <b>cohérence sur toute la longueur</b>.</li>
+        </ul>
+        <div class="gifnote">▶ Emplacement GIF : lecture d'un webtoon en temps réel. À privilégier : un webtoon <b>généré par DreamWeave</b> (montre le produit, zéro problème de droits). Déposer le fichier <code>webtoon-demo.gif</code> à côté de cette page.</div>
+      </div>
+    </div>
+  </div>
+  <div class="footer"><span class="brand">DreamWeave — Business Project</span><span class="num">04 / 26</span></div>
+</section>
+
+<!-- 5 — LE CONTEXTE -->
+<section data-document-role="page" class="slide">
+  <div class="eyebrow">Étude de marché · contexte</div>
+  <h2>Un public et une économie déjà installés</h2>
+  <div class="body">
+    <div class="statrow">
+      <div class="stat good"><div class="big num">170 M</div><div class="lab">Utilisateurs actifs mensuels (plateforme leader)</div><div class="src">[2] Webtoon — SEC S-1 (2024)</div></div>
+      <div class="stat info"><div class="big num">24 M</div><div class="lab">Créateurs actifs, 150+ pays</div><div class="src">[2] Webtoon — SEC S-1 (2024)</div></div>
+      <div class="stat money"><div class="big num">38,8 %</div><div class="lab">Des revenus captés par la romance, genre dominant</div><div class="src">[3] Grand View Research</div></div>
+    </div>
+    <ul class="points">
+      <li><b>76 %</b> des lecteurs ont 18 à 33 ans <span class="muted">[1] Journal of Documentation</span> — et <b>86 %</b> des créateurs utilisent déjà l'IA générative <span class="muted">[4] Adobe Creators' Toolkit Report</span>.</li>
+      <li>Le public est massif, l'économie de créateurs installée : ce qui manque, ce sont des <b>outils de production accessibles</b>.</li>
+    </ul>
+  </div>
+  <div class="footer"><span class="brand">DreamWeave — Business Project</span><span class="num">05 / 26</span></div>
+</section>
+
+<!-- 6 — TAM SAM SOM -->
+<section data-document-role="page" class="slide">
+  <div class="eyebrow">Étude de marché · taille</div>
+  <h2>TAM / SAM / SOM</h2>
+  <div class="body">
+    <div class="cards c3">
+      <div class="card info"><div class="tag">TAM · marché total</div><div class="k num" style="margin:6px 0">~160 M</div><p>Tous les auteurs de webfiction dans le monde qui pourraient produire un webtoon.</p></div>
+      <div class="card warn"><div class="tag">SAM · adressable</div><div class="k num" style="margin:6px 0">5–10 M</div><p>Les créateurs bloqués par le dessin, prêts à payer 10 à 30 €/mois.</p></div>
+      <div class="card good"><div class="tag">SOM · objectif M12</div><div class="k num" style="margin:6px 0">10 000</div><p>Inscrits visés à 12 mois, dont <b>600 payants</b>. CAC &lt; 30 € · LTV/CAC &gt; 3.</p></div>
+    </div>
+    <ul class="points">
+      <li>Objectif <b>volontairement prudent</b> : dérivé du SAM avec une conversion 2 % → 6 % sur 12 mois. On valide le modèle avant de chercher à grandir.</li>
+    </ul>
+  </div>
+  <div class="footer"><span class="brand">DreamWeave — Business Project</span><span class="num">06 / 26</span></div>
+</section>
+
+<!-- 7 — PERSONAS -->
+<section data-document-role="page" class="slide">
+  <div class="badge">💡 Décision D2 · B2C d'abord, B2B ensuite</div>
+  <div class="eyebrow" style="margin-top:14px">Étude de marché · cibles</div>
+  <h2>Quatre personas, un même blocage</h2>
+  <div class="body">
+    <div class="cards c4">
+      <div class="card good"><h3>Luna</h3><p><b>Cible primaire.</b> Créatrice passionnée, écrit déjà, ne sait pas dessiner. 8-15 €/mois.</p></div>
+      <div class="card info"><h3>Marc</h3><p>Auteur amateur exigeant. Veut publier vite, prêt à payer si gain &gt; 10 h/sem. 15-25 €/mois.</p></div>
+      <div class="card warn"><h3>Théo</h3><p>Étudiant storytelling, budget contraint, <b>prescripteur viral</b>. 0-10 €/mois.</p></div>
+      <div class="card money"><h3>Elodie</h3><p>Éditeur indépendant (B2B). Levier de revenu, WTP 49-150 €. Offre Entreprise.</p></div>
+    </div>
+    <ul class="points">
+      <li>Séquence : démarrer <b>B2C (Luna + Marc)</b>, ouvrir le <b>B2B (Elodie) dès la V1 / T3 2026</b>. Le B2C génère les preuves sociales qui crédibilisent le B2B — trajectoire validée par <b>Dashtoon &times; KWIA</b> <span class="muted">[5]</span>.</li>
+    </ul>
+  </div>
+  <div class="footer"><span class="brand">DreamWeave — Business Project</span><span class="num">07 / 26</span></div>
+</section>
+
+<!-- 8 — CONCURRENCE -->
+<section data-document-role="page" class="slide">
+  <div class="eyebrow">Concurrence · positionnement</div>
+  <h2>Une place vide : cohérence + accessibilité</h2>
+  <div class="body">
+    <div class="cards c3">
+      <div class="card risk"><h3>Dashtoon</h3><p>Bon workflow IA, mais <b>cohérence faible</b> d'une case à l'autre.</p></div>
+      <div class="card risk"><h3>Clip Studio Paint</h3><p>Référence des pros, mais <b>refuse l'IA</b> et exige de savoir dessiner.</p></div>
+      <div class="card risk"><h3>AI Comic Factory</h3><p>Gratuit, mais <b>rendu brut</b> : pas un produit fini.</p></div>
+    </div>
+    <ul class="points">
+      <li>Personne n'occupe le quadrant <b>IA forte + spécialisé webtoon + workflow complet</b>. C'est là que se positionne DreamWeave.</li>
+      <li><b>Force :</b> qualité FLUX.2 Pro pour tous + mémoire narrative. <b>Faiblesse assumée :</b> dépendance à un fournisseur d'IA.</li>
+    </ul>
+  </div>
+  <div class="footer"><span class="brand">DreamWeave — Business Project</span><span class="num">08 / 26</span></div>
+</section>
+
+<!-- 9 — DÉCISION FONDATRICE -->
+<section data-document-role="page" class="slide">
+  <div class="badge">💡 Décision D1 · Pourquoi DreamWeave existe</div>
+  <div class="eyebrow" style="margin-top:14px">La décision fondatrice</div>
+  <h2>Attaquer la cause, pas le symptôme</h2>
+  <div class="body">
+    <div class="cards c3">
+      <div class="card risk"><div class="tag">Option écartée</div><h3>Marketplace</h3><p>Mettre en relation auteurs et illustrateurs : ne supprime ni le coût ni le délai.</p></div>
+      <div class="card risk"><div class="tag">Option écartée</div><h3>Outil de dessin</h3><p>Type Procreate simplifié : exige toujours une compétence artistique.</p></div>
+      <div class="card risk"><div class="tag">Option écartée</div><h3>Génération one-shot</h3><p>Type Midjourney : ni cohérence, ni workflow de série.</p></div>
+    </div>
+    <ul class="points">
+      <li><b>Choix :</b> un pipeline complet <b>idée → webtoon publiable</b>, où la valeur tient dans la <b>cohérence</b> sur la durée d'une série — la seule option qui crée un fossé concurrentiel.</li>
+    </ul>
+  </div>
+  <div class="footer"><span class="brand">DreamWeave — Business Project</span><span class="num">09 / 26</span></div>
+</section>
+
+<!-- 10 — LA SOLUTION -->
+<section data-document-role="page" class="slide">
+  <div class="eyebrow">La solution</div>
+  <h2>Un parcours en quatre étapes</h2>
+  <div class="body">
+    <div class="flow">
+      <div class="step info"><div class="n">01</div><h3>Style</h3><p>Fixer une direction artistique de référence</p></div>
+      <div class="arrow">→</div>
+      <div class="step good"><div class="n">02</div><h3>Assets</h3><p>Personnages, décors, objets, cohérents entre eux</p></div>
+      <div class="arrow">→</div>
+      <div class="step warn"><div class="n">03</div><h3>Scénario</h3><p>Écriture assistée, découpage automatique en cases</p></div>
+      <div class="arrow">→</div>
+      <div class="step money"><div class="n">04</div><h3>Éditeur</h3><p>Composition, bulles, export du chapitre</p></div>
+    </div>
+    <ul class="points">
+      <li>Des visuels <b>cohérents en quelques secondes</b>, sans compétence en illustration. <span class="muted">(Captures réelles du POC à insérer sous chaque étape.)</span></li>
+    </ul>
+  </div>
+  <div class="footer"><span class="brand">DreamWeave — Business Project</span><span class="num">10 / 26</span></div>
+</section>
+
+<!-- 11 — 5 BARRIÈRES -->
+<section data-document-role="page" class="slide">
+  <div class="eyebrow">Product design</div>
+  <h2>Cinq barrières, cinq réponses</h2>
+  <div class="body">
+    <table class="tbl">
+      <thead><tr><th style="width:34%">Barrière à la création</th><th>Réponse DreamWeave</th></tr></thead>
+      <tbody>
+        <tr><td><b>Compétence artistique</b></td><td>Génération IA automatique (FLUX.2 Pro via FAL.ai)</td></tr>
+        <tr><td><b>Cohérence visuelle</b></td><td>Sheet System — fiche 4 angles réinjectée à chaque génération</td></tr>
+        <tr><td><b>Fragmentation des outils</b></td><td>Un seul outil tout-en-un, du style à l'export</td></tr>
+        <tr><td><b>Coût de production</b></td><td>Système de crédits — quelques euros par chapitre</td></tr>
+        <tr><td><b>Complexité de prise en main</b></td><td>Onboarding par déblocage progressif, guidé par Ariane</td></tr>
+      </tbody>
+    </table>
+    <p class="lede">La charnière du projet : de cette correspondance terme à terme découle toute l'architecture.</p>
+  </div>
+  <div class="footer"><span class="brand">DreamWeave — Business Project</span><span class="num">11 / 26</span></div>
+</section>
+
+<!-- 12 — ONBOARDING -->
+<section data-document-role="page" class="slide">
+  <div class="badge">💡 Décision D3 · Déblocage progressif</div>
+  <div class="eyebrow" style="margin-top:14px">Onboarding</div>
+  <h2>Guider sans écraser</h2>
+  <div class="body">
+    <ul class="points">
+      <li><b>Problème :</b> un éditeur complet (style, assets, scénario, univers, édition) est intimidant d'un coup — facteur d'abandon.</li>
+      <li><b>Options écartées :</b> tout exposer (écrasant) · wizard linéaire forcé (frustrant pour les avancés).</li>
+      <li><b>Choix :</b> les onglets s'ouvrent au fur et à mesure de la progression, <b>Ariane</b> accompagne, badges « New ».</li>
+      <li><b>Justification :</b> concilie un <b>Time-to-Value &lt; 10 min</b> et la profondeur de l'outil.</li>
+    </ul>
+  </div>
+  <div class="footer"><span class="brand">DreamWeave — Business Project</span><span class="num">12 / 26</span></div>
+</section>
+
+<!-- 13 — SHEET SYSTEM -->
+<section data-document-role="page" class="slide">
+  <div class="badge">💡 Décision D6 · Sheet System</div>
+  <div class="eyebrow" style="margin-top:14px">Cœur technique · le différenciateur n°1</div>
+  <h2>Un personnage qui reste lui-même, du chapitre 1 au 50</h2>
+  <div class="body">
+    <ul class="points">
+      <li><b>Problème :</b> en génération naïve, le même prompt produit un personnage <b>visuellement différent</b> à chaque appel.</li>
+      <li><b>Options écartées :</b> seed fixe (casse dès qu'on change l'angle) · LoRA par personnage (qualité max mais coûteux, lent, incompatible temps réel).</li>
+      <li><b>Choix :</b> une <b>fiche composite 4 angles</b> générée en une action, injectée à chaque génération via <b>FLUX.2 Pro Edit</b>.</li>
+      <li><b>Résultat :</b> ~90 % du bénéfice du LoRA pour une fraction du coût, après ~20 itérations de prompt engineering. <i>« La solution suffisante et livrable bat la solution parfaite et inatteignable. »</i></li>
+    </ul>
+  </div>
+  <div class="footer"><span class="brand">DreamWeave — Business Project</span><span class="num">13 / 26</span></div>
+</section>
+
+<!-- 14 — GÉNÉRATION PAR BLOC -->
+<section data-document-role="page" class="slide">
+  <div class="badge">💡 Décision D7 · Génération par bloc</div>
+  <div class="eyebrow" style="margin-top:14px">Cœur technique</div>
+  <h2>Régénérer un bloc sans toucher aux autres</h2>
+  <div class="body">
+    <ul class="points">
+      <li>Une case de webtoon n'est pas une image unique : c'est une <b>composition</b> de plusieurs scènes et personnages.</li>
+      <li><b>Choix :</b> un layout <code>JSONB</code> où chaque bloc porte ses coordonnées, dimensions, prompt et références d'assets, et se génère <b>indépendamment</b>.</li>
+      <li><b>Justification :</b> indispensable à un workflow créatif itératif — l'auteur retouche un détail sans tout refaire.</li>
+    </ul>
+  </div>
+  <div class="footer"><span class="brand">DreamWeave — Business Project</span><span class="num">14 / 26</span></div>
+</section>
+
+<!-- 15 — NARRAMIND -->
+<section data-document-role="page" class="slide">
+  <div class="badge">💡 Décision D8 · NarraMind</div>
+  <div class="eyebrow" style="margin-top:14px">Cœur technique · cohérence narrative</div>
+  <h2>Une mémoire qui alerte quand l'histoire se contredit</h2>
+  <div class="body">
+    <div class="statrow">
+      <div class="stat good"><div class="big num">850 → ~50</div><div class="lab">Tokens par chapitre (contexte brut → compressé)</div><div class="src">Mesuré · table narramind_metrics</div></div>
+      <div class="stat good"><div class="big num">~9×</div><div class="lab">Compression, recherche vectorielle ~4 ms</div><div class="src">POC instrumenté</div></div>
+    </div>
+    <ul class="points">
+      <li><b>Options écartées :</b> tout injecter (non scalable) · fenêtre glissante (perd le lore ancien).</li>
+      <li><b>Choix :</b> compression multi-niveaux + recherche vectorielle (Gemini text-embedding-004, 768D, pgvector). La mémoire reste <b>invisible</b> : l'auteur ne voit que les alertes d'Ariane.</li>
+    </ul>
+  </div>
+  <div class="footer"><span class="brand">DreamWeave — Business Project</span><span class="num">15 / 26</span></div>
+</section>
+
+<!-- 16 — BMC -->
+<section data-document-role="page" class="slide">
+  <div class="eyebrow">Business model</div>
+  <h2>Le modèle en une vue</h2>
+  <div class="body">
+    <div class="cards c2">
+      <div class="card info"><div class="tag">Partenaires & ressources clés</div><p style="margin-top:8px">FAL.ai (FLUX.2 Pro), Supabase, Vercel. Ressources : modèles FLUX, <b>prompts système propriétaires</b>, NarraMind.</p></div>
+      <div class="card good"><div class="tag">Sources de revenus</div><p style="margin-top:8px">Abonnements · packs de crédits · marketplace de styles (30 %) · API B2B.</p></div>
+      <div class="card warn"><div class="tag">Structure de coûts</div><p style="margin-top:8px">Fixes ~60 €/mois · variables <b>~0,065 €/génération</b>. Coûts majoritairement variables.</p></div>
+      <div class="card money"><div class="tag">Le seul levier de marge</div><p style="margin-top:8px">Le ratio entre le <b>prix d'un abonnement</b> et le <b>coût réel des générations</b> consommées.</p></div>
+    </div>
+  </div>
+  <div class="footer"><span class="brand">DreamWeave — Business Project</span><span class="num">16 / 26</span></div>
+</section>
+
+<!-- 17 — PRICING -->
+<section data-document-role="page" class="slide">
+  <div class="badge">💡 Décision D4 · Logique Spotify</div>
+  <div class="eyebrow" style="margin-top:14px">Pricing</div>
+  <h2>Différencier sur le volume, pas sur les fonctions</h2>
+  <div class="body">
+    <div class="cards c4">
+      <div class="card info"><div class="tag">Libre</div><div class="k">0 €</div><p>20 crédits/mois · FLUX.2 Pro</p></div>
+      <div class="card good"><div class="tag">Créateur</div><div class="k">12,99 €</div><p>100 crédits/mois · FLUX.2 Pro</p></div>
+      <div class="card money"><div class="tag">Studio</div><div class="k">29,99 €</div><p>250 crédits/mois · FLUX.2 Pro</p></div>
+      <div class="card warn"><div class="tag">Entreprise</div><div class="k" style="font-size:26px">sur devis</div><p>Studios / éditeurs · WTP 49-150 €</p></div>
+    </div>
+    <ul class="points">
+      <li><b>Toutes les fonctions et la même qualité pour tous</b>, même en gratuit. L'utilisateur upgrade <b>par manque de volume</b>, pas par frustration. Un gratuit coûte ~1,30 €/mois, absorbable.</li>
+    </ul>
+  </div>
+  <div class="footer"><span class="brand">DreamWeave — Business Project</span><span class="num">17 / 26</span></div>
+</section>
+
+<!-- 18 — PROJECTIONS -->
+<section data-document-role="page" class="slide">
+  <div class="eyebrow">Projections · année 1</div>
+  <h2>La proposition de valeur, chiffrée</h2>
+  <div class="body">
+    <div class="statrow">
+      <div class="stat good"><div class="big num">2–4 h</div><div class="lab">Un chapitre, contre 1 à 4 semaines avant</div></div>
+      <div class="stat good"><div class="big num">&lt; 5 €</div><div class="lab">Le chapitre, contre 300 à 1500 € <span class="muted">[6]</span></div></div>
+      <div class="stat money"><div class="big num">~137 000 €</div><div class="lab">ARR à M12 (600 × ~19 € × 12)</div></div>
+    </div>
+    <ul class="points">
+      <li>Conversion prudente 2 % → 6 % sur 12 mois. Le point clé n'est pas le MRR absolu, c'est la trajectoire.</li>
+      <li><b>Break-even opérationnel dès 10-15 abonnés Créateur</b> : le projet est viable très tôt, même sans levée.</li>
+    </ul>
+  </div>
+  <div class="footer"><span class="brand">DreamWeave — Business Project</span><span class="num">18 / 26</span></div>
+</section>
+
+<!-- 19 — ORGANISATION -->
+<section data-document-role="page" class="slide">
+  <div class="badge">💡 Décision D5 · Structure juridique progressive</div>
+  <div class="eyebrow" style="margin-top:14px">Organisation</div>
+  <h2>Une équipe minimale, une structure par paliers</h2>
+  <div class="body">
+    <ul class="points">
+      <li><b>Pari :</b> une équipe minimale outillée par l'IA de dev délivre la complexité d'une équipe de 3 à 5 développeurs. Recrutements P0→P3 déclenchés par des <b>seuils de revenus</b>.</li>
+    </ul>
+    <div class="flow">
+      <div class="step info"><div class="n">LANCEMENT</div><h3>Auto-entrepreneur</h3><p>Simplicité maximale, zéro frais</p></div>
+      <div class="arrow">→</div>
+      <div class="step warn"><div class="n">30 k€ CA / 1ᵉʳ SALARIÉ</div><h3>SASU</h3><p>Crédibilité, embauche possible</p></div>
+      <div class="arrow">→</div>
+      <div class="step good"><div class="n">ASSOCIÉS / LEVÉE</div><h3>SAS</h3><p>BSPCE, vesting, investisseurs</p></div>
+    </div>
+    <p class="lede">Chaque transition est déclenchée par un fait, jamais par une intuition : la gestion du risque appliquée au juridique.</p>
+  </div>
+  <div class="footer"><span class="brand">DreamWeave — Business Project</span><span class="num">19 / 26</span></div>
+</section>
+
+<!-- 20 — GO TO MARKET -->
+<section data-document-role="page" class="slide">
+  <div class="eyebrow">Go to market</div>
+  <h2>Construire la preuve avant de dépenser</h2>
+  <div class="body">
+    <div class="cards c3" style="grid-template-columns:repeat(5,1fr)">
+      <div class="card info"><div class="tag">Phase 0</div><h3 style="font-size:16px">Bêta</h3><p>10 pilotes, retours produit</p></div>
+      <div class="card good"><div class="tag">Phase 1</div><h3 style="font-size:16px">Lancement</h3><p>Ouverture publique du freemium</p></div>
+      <div class="card warn"><div class="tag">Phase 2</div><h3 style="font-size:16px">Content</h3><p>SEO, tutoriels, démos (Q4 2026)</p></div>
+      <div class="card money"><div class="tag">Phase 3</div><h3 style="font-size:16px">Influence</h3><p>Créateurs, preuve par l'exemple</p></div>
+      <div class="card good"><div class="tag">Phase 4</div><h3 style="font-size:16px">B2B studios</h3><p>Dès le T3 2026</p></div>
+    </div>
+    <ul class="points">
+      <li>Le point critique n'est pas l'acquisition, c'est <b>l'activation</b> : le « wow moment », une première case conforme en &lt; 10 min. On commence par le freemium, l'acquisition la moins chère.</li>
+    </ul>
+  </div>
+  <div class="footer"><span class="brand">DreamWeave — Business Project</span><span class="num">20 / 26</span></div>
+</section>
+
+<!-- 21 — STACK -->
+<section data-document-role="page" class="slide">
+  <div class="badge">💡 Décisions D9–D12 · Choix techniques</div>
+  <div class="eyebrow" style="margin-top:14px">Faisabilité · posture CTO</div>
+  <h2>Maximiser ce qu'une personne peut livrer et maintenir</h2>
+  <div class="body">
+    <div class="cards c2">
+      <div class="card info"><h3>Supabase</h3><p>RLS PostgreSQL native = isolation multi-tenant dès le 1ᵉʳ utilisateur, sans code de sécurité.</p></div>
+      <div class="card good"><h3>FAL.ai · FLUX.2 Pro</h3><p><b>Multi-référence native</b> = condition d'existence du Sheet System. + indemnisation copyright.</p></div>
+      <div class="card warn"><h3>Gemini Flash + Groq</h3><p>Fallback automatique sur erreur 429 : la panne de quota devient invisible pour l'utilisateur.</p></div>
+      <div class="card money"><h3>React + Vite + Edge Deno</h3><p>Zéro friction sur des mois de dev solo : pas de SSR à opérer, pas de cache à coder.</p></div>
+    </div>
+    <p class="lede">Dépendances assumées et réversibles (PostgreSQL standard, exportable ; veille tarifaire FAL.ai).</p>
+  </div>
+  <div class="footer"><span class="brand">DreamWeave — Business Project</span><span class="num">21 / 26</span></div>
+</section>
+
+<!-- 22 — JURIDIQUE -->
+<section data-document-role="page" class="slide">
+  <div class="eyebrow">Cadre juridique IA</div>
+  <h2>La conformité comme argument commercial</h2>
+  <div class="body">
+    <div class="cards c3">
+      <div class="card good"><h3>Propriété sécurisée</h3><p>Intervention humaine créative à chaque étape (L.111-1 CPI).</p></div>
+      <div class="card good"><h3>Transparence</h3><p>Badge « Créé avec DreamWeave » : anticipe l'obligation de déclaration (AI Act).</p></div>
+      <div class="card good"><h3>Couverture copyright</h3><p>Indemnisation contractuelle héritée de FAL.ai.</p></div>
+    </div>
+    <p class="lede">DreamWeave se positionne comme l'outil le plus conforme du secteur — un différenciateur face aux outils génériques non balisés.</p>
+  </div>
+  <div class="footer"><span class="brand">DreamWeave — Business Project</span><span class="num">22 / 26</span></div>
+</section>
+
+<!-- 23 — SCALE -->
+<section data-document-role="page" class="slide">
+  <div class="eyebrow">Architecture de scale</div>
+  <h2>Des choix de lancement, pas des impasses</h2>
+  <div class="body">
+    <table class="tbl">
+      <thead><tr><th style="width:30%">Composant</th><th>Limite assumée aujourd'hui</th><th style="width:18%">Dépassement</th></tr></thead>
+      <tbody>
+        <tr><td><b>Recherche vectorielle</b></td><td>Scan exact (rapide à 50-200 vecteurs/projet)</td><td>Index ivfflat/hnsw · P2</td></tr>
+        <tr><td><b>Cohérence perso</b></td><td>Sheet System (temps réel, ~90 % du bénéfice)</td><td>LoRA optionnel · P3</td></tr>
+        <tr><td><b>Tests</b></td><td>Vitest + TypeCheck (cycle rapide MVP)</td><td>E2E Playwright · P1</td></tr>
+      </tbody>
+    </table>
+    <p class="lede">Un exercice d'honnêteté : chaque limite a déjà son plan de dépassement priorisé pour passer les 10 000 MAU.</p>
+  </div>
+  <div class="footer"><span class="brand">DreamWeave — Business Project</span><span class="num">23 / 26</span></div>
+</section>
+
+<!-- 24 — CONCLUSION -->
+<section data-document-role="page" class="slide">
+  <div class="eyebrow">Conclusion</div>
+  <h2>Le bon produit, au bon moment</h2>
+  <div class="body">
+    <div class="statrow">
+      <div class="stat good"><div class="big num">86 %</div><div class="lab">Des créateurs utilisent déjà l'IA générative <span class="muted">[4]</span></div></div>
+      <div class="stat money"><div class="big num">&lt; 5 €</div><div class="lab">Le coût d'un chapitre, contre des centaines d'euros</div></div>
+    </div>
+    <ul class="points">
+      <li>Un marché qui grandit vite, personne qui ne résout vraiment la <b>cohérence</b>, et un modèle soutenable <b>dès le premier utilisateur gratuit</b>.</li>
+      <li>Ce n'est pas un concept : <b>le prototype tourne</b>. De l'idée au chapitre publié, sans savoir dessiner.</li>
+    </ul>
+  </div>
+  <div class="footer"><span class="brand">DreamWeave — Business Project</span><span class="num">24 / 26</span></div>
+</section>
+
+<!-- 25 — SOURCES -->
+<section data-document-role="page" class="slide">
+  <div class="eyebrow">Justifications</div>
+  <h2>Sources & preuves</h2>
+  <div class="body">
+    <div class="two-col">
+      <div>
+        <div class="col-title col-lav">Sources externes</div>
+        <table class="tbl" style="font-size:13px">
+          <tbody>
+            <tr><td><span class="ref">[1]</span> Cho, Adkins & Long — <i>Journal of Documentation</i> (2025)</td><td>76 % lecteurs 18-33 ans</td></tr>
+            <tr><td><span class="ref">[2]</span> Webtoon — <i>SEC S-1 Filing</i> (2024)</td><td>170 M MAU · 24 M créateurs</td></tr>
+            <tr><td><span class="ref">[3]</span> Grand View Research (2023)</td><td>8,28→45,3 Md$ · CAGR 27,3 % · romance 38,8 %</td></tr>
+            <tr><td><span class="ref">[4]</span> Adobe — <i>Creators' Toolkit</i> (2025)</td><td>86 % utilisent l'IA générative</td></tr>
+            <tr><td><span class="ref">[5]</span> Dashtoon × KWIA — GlobeNewswire (2024)</td><td>Trajectoire B2C → B2B</td></tr>
+            <tr><td><span class="ref">[6]</span> Vox Illustration + Tapas (2025)</td><td>300-1500 €/chapitre</td></tr>
+            <tr><td>Google Trends</td><td>+200 % « AI webtoon maker »</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div>
+        <div class="col-title col-peach">Preuves de réflexion (internes)</div>
+        <table class="tbl" style="font-size:13px">
+          <tbody>
+            <tr><td><b>~0,065 €/génération</b></td><td>Mesure sur l'API FAL.ai (FLUX.2 Pro)</td></tr>
+            <tr><td><b>ARR ~137 000 €</b></td><td>Calcul 600 × ~19 € × 12</td></tr>
+            <tr><td><b>Break-even 10-15 abonnés</b></td><td>Coûts fixes ~60 €/mois vs MRR Créateur</td></tr>
+            <tr><td><b>850 → ~50 tokens/ch.</b></td><td>Mesuré (table narramind_metrics)</td></tr>
+            <tr><td><b>~90 % du bénéfice LoRA</b></td><td>Évaluation qualitative du POC</td></tr>
+            <tr><td><b>SOM 10 000 / 600</b></td><td>Dérivé du SAM, conversion 2→6 %</td></tr>
+          </tbody>
+        </table>
+        <p class="src" style="margin-top:12px">Chaque chiffre est adossé à une source publique vérifiable ou à une mesure / un calcul assumé.</p>
+      </div>
+    </div>
+  </div>
+  <div class="footer"><span class="brand">DreamWeave — Business Project</span><span class="num">25 / 26</span></div>
+</section>
+
+<!-- 26 — MERCI -->
+<section data-document-role="page" class="slide cover">
+  <div class="logo"><span class="dot"></span> DreamWeave</div>
+  <div style="margin-top:30px">
+    <h1 style="font-size:76px">Merci</h1>
+    <p class="tagline">Des questions ?</p>
+  </div>
+  <div class="who">Louis Basnier &middot; Business Project &middot; RNCP 40601 &middot; Promotion 2026</div>
+  <div class="footer"><span class="brand">DreamWeave — Business Project</span><span class="num">26 / 26</span></div>
+</section>
+
+</body>
+</html>

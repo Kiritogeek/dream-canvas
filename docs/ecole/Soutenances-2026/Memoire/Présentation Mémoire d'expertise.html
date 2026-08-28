@@ -15,8 +15,8 @@
     --grad-num:linear-gradient(150deg,#7B45C8 0%,#BF4A83 48%,#C9701E 100%);
     --sans:"Quicksand",Century Gothic,sans-serif;
     --body:"Nunito","Calibri",system-ui,sans-serif;
-    --padx:clamp(1.6rem,4vw,3.6rem);
-    --pady:clamp(1.1rem,3.2vh,2.4rem);
+    --padx:clamp(2.6rem,7vw,7rem);
+    --pady:clamp(2rem,5vh,4rem);
   }
   *{box-sizing:border-box;margin:0;padding:0}
   html,body{height:100%}
@@ -27,19 +27,10 @@
     position:absolute; inset:0;
     display:flex; flex-direction:column; justify-content:center;
     padding:var(--pady) var(--padx);
-    opacity:0; visibility:hidden; transform:scale(.99);
-    transition:opacity .7s ease, transform .7s cubic-bezier(.22,.61,.36,1); background:var(--bg);
+    opacity:0; visibility:hidden; transition:opacity .7s ease; background:var(--bg);
   }
-  .slide.active{opacity:1; visibility:visible; transform:none}
-  .slide > *{max-width:min(1500px,94vw); width:100%; margin-inline:auto}
-
-  /* entrance animation of active-slide content (staggered) */
-  .slide.active > *{animation:riseIn .65s cubic-bezier(.22,.61,.36,1) both}
-  .slide.active > *:nth-child(2){animation-delay:.09s}
-  .slide.active > *:nth-child(3){animation-delay:.18s}
-  .slide.active > *:nth-child(4){animation-delay:.27s}
-  .slide.active > *:nth-child(5){animation-delay:.36s}
-  @keyframes riseIn{from{opacity:0; transform:translateY(22px)} to{opacity:1; transform:none}}
+  .slide.active{opacity:1; visibility:visible}
+  .slide > *{max-width:1240px; width:100%; margin-inline:auto}
 
   .chapter{
     font-family:var(--sans); font-weight:600; font-size:clamp(.82rem,1.25vw,1.02rem);
@@ -93,12 +84,18 @@
   @media(max-width:900px){.method{grid-template-columns:1fr} .method .arr{transform:rotate(90deg); justify-self:center}
     .year-wrap{grid-template-columns:1fr} .bignum{font-size:8rem}}
 
-  .thread{position:relative; margin-top:2rem; padding-left:2.4rem}
-  .thread::before{content:""; position:absolute; left:.6rem; top:.5rem; bottom:2.4rem; width:3px;
-    background:linear-gradient(180deg,#7B45C8,#BF4A83,#C9701E); border-radius:3px}
-  .node{position:relative; padding:.62rem 0; font-size:clamp(1.1rem,1.7vw,1.4rem)}
-  .node::before{content:""; position:absolute; left:-2rem; top:1rem; width:13px; height:13px; border-radius:50%;
-    background:var(--paper); border:3px solid var(--lav)}
+  .thread{position:relative; margin-top:2rem; padding-left:2.6rem}
+  .node{position:relative; padding:.85rem 0; font-size:clamp(1.1rem,1.7vw,1.4rem)}
+  .node::before{content:""; position:absolute; left:-1.8rem; top:50%; transform:translateY(-50%);
+    width:16px; height:16px; border-radius:50%; background:var(--lav);
+    box-shadow:0 3px 9px rgba(123,69,200,.32); z-index:2}
+  .node:not(:last-child)::after{content:""; position:absolute; left:-1.4rem; top:50%; height:100%; width:3px;
+    border-radius:3px; background:var(--lav); z-index:1}
+  .node:nth-child(1)::before{background:#7B45C8} .node:nth-child(1)::after{background:linear-gradient(180deg,#7B45C8,#9E4F9A)}
+  .node:nth-child(2)::before{background:#9E4F9A} .node:nth-child(2)::after{background:linear-gradient(180deg,#9E4F9A,#BF4A83)}
+  .node:nth-child(3)::before{background:#BF4A83} .node:nth-child(3)::after{background:linear-gradient(180deg,#BF4A83,#CB663B)}
+  .node:nth-child(4)::before{background:#CB663B} .node:nth-child(4)::after{background:linear-gradient(180deg,#CB663B,#C9701E)}
+  .node:nth-child(5)::before{background:#C9701E}
   .node b{font-family:var(--sans); font-weight:700; color:var(--lav)}
   .node span{color:var(--ink)}
   .converge{margin-top:.8rem; font-family:var(--sans); font-weight:700; font-size:clamp(1.3rem,2.1vw,1.7rem);
@@ -141,7 +138,7 @@
   .hint{position:fixed; bottom:1.35rem; left:50%; transform:translateX(-50%); z-index:40; color:var(--ink-3);
         font-size:.85rem; letter-spacing:.04em; transition:opacity .6s; pointer-events:none}
 
-  @media (prefers-reduced-motion:reduce){.slide{transition:opacity .2s ease; transform:none} .slide.active > *{animation:none} .progress{transition:none}}
+  @media (prefers-reduced-motion:reduce){.slide{transition:none} .progress{transition:none}}
 </style>
 
 <div class="progress" id="prog"></div>

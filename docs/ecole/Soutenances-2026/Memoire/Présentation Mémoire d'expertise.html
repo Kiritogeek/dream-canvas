@@ -15,8 +15,8 @@
     --grad-num:linear-gradient(150deg,#7B45C8 0%,#BF4A83 48%,#C9701E 100%);
     --sans:"Quicksand",Century Gothic,sans-serif;
     --body:"Nunito","Calibri",system-ui,sans-serif;
-    --padx:clamp(2.6rem,7vw,7rem);
-    --pady:clamp(2rem,5vh,4rem);
+    --padx:clamp(1.6rem,4vw,3.6rem);
+    --pady:clamp(1.1rem,3.2vh,2.4rem);
   }
   *{box-sizing:border-box;margin:0;padding:0}
   html,body{height:100%}
@@ -27,10 +27,19 @@
     position:absolute; inset:0;
     display:flex; flex-direction:column; justify-content:center;
     padding:var(--pady) var(--padx);
-    opacity:0; visibility:hidden; transition:opacity .7s ease; background:var(--bg);
+    opacity:0; visibility:hidden; transform:scale(.99);
+    transition:opacity .7s ease, transform .7s cubic-bezier(.22,.61,.36,1); background:var(--bg);
   }
-  .slide.active{opacity:1; visibility:visible}
-  .slide > *{max-width:1240px; width:100%; margin-inline:auto}
+  .slide.active{opacity:1; visibility:visible; transform:none}
+  .slide > *{max-width:min(1500px,94vw); width:100%; margin-inline:auto}
+
+  /* entrance animation of active-slide content (staggered) */
+  .slide.active > *{animation:riseIn .65s cubic-bezier(.22,.61,.36,1) both}
+  .slide.active > *:nth-child(2){animation-delay:.09s}
+  .slide.active > *:nth-child(3){animation-delay:.18s}
+  .slide.active > *:nth-child(4){animation-delay:.27s}
+  .slide.active > *:nth-child(5){animation-delay:.36s}
+  @keyframes riseIn{from{opacity:0; transform:translateY(22px)} to{opacity:1; transform:none}}
 
   .chapter{
     font-family:var(--sans); font-weight:600; font-size:clamp(.82rem,1.25vw,1.02rem);
@@ -132,7 +141,7 @@
   .hint{position:fixed; bottom:1.35rem; left:50%; transform:translateX(-50%); z-index:40; color:var(--ink-3);
         font-size:.85rem; letter-spacing:.04em; transition:opacity .6s; pointer-events:none}
 
-  @media (prefers-reduced-motion:reduce){.slide{transition:none} .progress{transition:none}}
+  @media (prefers-reduced-motion:reduce){.slide{transition:opacity .2s ease; transform:none} .slide.active > *{animation:none} .progress{transition:none}}
 </style>
 
 <div class="progress" id="prog"></div>

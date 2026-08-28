@@ -1,0 +1,587 @@
+<title>DreamWeave — Business Project</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&family=Nunito:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap">
+
+<style>
+  :root{
+    --bg:#13101B; --bg-2:#0F0C16;
+    --surface:#1C1726; --surface-2:#221B30;
+    --border:#2E2740;
+    --text:#FFFFFF; --text-2:#C7BFD6; --text-3:#8A809C;
+    --lav:#C59FDF; --peach:#F0C9A8; --mint:#9BD4CB;
+    --grad:linear-gradient(135deg,#C59FDF 0%,#D99A6E 100%);
+    --grad-dream:linear-gradient(135deg,#C59FDF 0%,#F0C9A8 50%,#9BD4CB 100%);
+    --sans:"Quicksand",Century Gothic,sans-serif;
+    --body:"Nunito","Calibri",system-ui,sans-serif;
+    --pad:clamp(2.2rem,5.2vw,6rem);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:var(--bg); color:var(--text);
+    font-family:var(--body); overflow:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  .deck{position:fixed; inset:0}
+
+  .slide{
+    position:absolute; inset:0;
+    display:flex; flex-direction:column; justify-content:center;
+    padding:var(--pad);
+    opacity:0; visibility:hidden;
+    transition:opacity .5s ease;
+    background:
+      radial-gradient(1100px 700px at 82% -12%, rgba(197,159,223,.14), transparent 60%),
+      radial-gradient(900px 600px at -8% 112%, rgba(155,212,203,.08), transparent 55%),
+      var(--bg);
+  }
+  .slide.active{opacity:1; visibility:visible}
+  .slide > *{max-width:1180px; width:100%; margin-inline:auto}
+
+  /* ── typography ── */
+  .kicker{
+    font-family:var(--sans); font-weight:600; font-size:clamp(.72rem,1.15vw,.92rem);
+    letter-spacing:.22em; text-transform:uppercase; color:var(--lav);
+    display:flex; align-items:center; gap:.7rem; margin-bottom:1.4rem;
+  }
+  .kicker::before{content:""; width:34px; height:2px; background:var(--grad); border-radius:2px}
+  h1,h2{font-family:var(--sans); font-weight:700; line-height:1.05; text-wrap:balance; letter-spacing:-.01em}
+  h1{font-size:clamp(2.6rem,6.2vw,5rem)}
+  h2{font-size:clamp(1.9rem,3.9vw,3.1rem)}
+  .lead{font-size:clamp(1.05rem,1.7vw,1.4rem); color:var(--text-2); line-height:1.55; max-width:60ch; font-weight:400}
+  .grad-word{background:var(--grad); -webkit-background-clip:text; background-clip:text; color:transparent}
+  .muted{color:var(--text-3)}
+
+  /* hero number */
+  .hero-num{
+    font-family:var(--sans); font-weight:700; line-height:.9;
+    font-size:clamp(4.5rem,15vw,12rem);
+    background:var(--grad); -webkit-background-clip:text; background-clip:text; color:transparent;
+    letter-spacing:-.03em;
+  }
+  .hero-sub{font-size:clamp(1.1rem,2vw,1.55rem); color:var(--text); font-family:var(--sans); font-weight:500; margin-top:.4rem}
+
+  /* glass card */
+  .glass{
+    background:linear-gradient(180deg,rgba(34,27,48,.85),rgba(28,23,38,.7));
+    border:1px solid var(--border); border-radius:18px;
+    box-shadow:0 24px 60px -30px rgba(0,0,0,.7);
+    padding:clamp(1.2rem,2vw,1.9rem);
+  }
+
+  /* layout helpers */
+  .split{display:grid; grid-template-columns:1.05fr .95fr; gap:clamp(1.6rem,3.5vw,3.6rem); align-items:center}
+  .stack-gap>*+*{margin-top:1rem}
+  .grid-2{display:grid; grid-template-columns:1fr 1fr; gap:1rem}
+  .grid-4{display:grid; grid-template-columns:repeat(4,1fr); gap:1rem}
+  @media(max-width:900px){.split,.grid-2,.grid-4{grid-template-columns:1fr}}
+
+  /* decision badge */
+  .decision{
+    position:absolute; top:clamp(1.4rem,3vw,2.4rem); right:clamp(1.4rem,3vw,2.4rem);
+    font-family:var(--sans); font-weight:600; font-size:.82rem; letter-spacing:.04em;
+    color:var(--lav); background:rgba(197,159,223,.1); border:1px solid rgba(197,159,223,.32);
+    padding:.42rem .9rem; border-radius:999px; display:flex; align-items:center; gap:.5rem;
+  }
+  .decision::before{content:""; width:7px; height:7px; border-radius:50%; background:var(--lav); box-shadow:0 0 12px var(--lav)}
+
+  /* stat rows / lists */
+  .rows{display:flex; flex-direction:column; gap:.75rem}
+  .row{display:flex; align-items:flex-start; gap:1rem; padding:.95rem 1.15rem; border:1px solid var(--border);
+       border-radius:14px; background:rgba(28,23,38,.55)}
+  .row .n{font-family:var(--sans); font-weight:700; color:var(--lav); font-size:1.05rem; min-width:1.6rem}
+  .row.hi{border-color:rgba(240,201,168,.55); background:rgba(240,201,168,.08)}
+  .row b{font-family:var(--sans); font-weight:600}
+  .row small{color:var(--text-3)}
+
+  .stat-line{display:flex; flex-wrap:wrap; gap:.7rem 1.6rem}
+  .stat{display:flex; flex-direction:column}
+  .stat .v{font-family:var(--sans); font-weight:700; font-size:clamp(1.5rem,2.6vw,2.2rem); color:var(--text)}
+  .stat .v.lav{color:var(--lav)} .stat .v.mint{color:var(--mint)} .stat .v.peach{color:var(--peach)}
+  .stat .l{color:var(--text-3); font-size:.9rem; margin-top:.15rem}
+
+  .chips{display:flex; flex-wrap:wrap; gap:.55rem}
+  .chip{border:1px solid var(--border); background:rgba(34,27,48,.6); border-radius:999px;
+        padding:.4rem .85rem; font-size:.92rem; color:var(--text-2)}
+  .chip.on{border-color:var(--lav); color:var(--text); background:rgba(197,159,223,.12)}
+
+  .arrow-flow{display:flex; align-items:center; gap:.65rem; flex-wrap:wrap}
+  .arrow-flow .step{font-family:var(--sans); font-weight:600; padding:.6rem 1rem; border-radius:12px;
+        background:rgba(197,159,223,.1); border:1px solid rgba(197,159,223,.3); color:var(--text)}
+  .arrow-flow .sep{color:var(--lav); font-weight:700}
+
+  .strike{text-decoration:line-through; color:var(--text-3)}
+  .keep{color:var(--mint); font-weight:600}
+
+  /* concentric */
+  .concentric{position:relative; width:min(46vh,420px); aspect-ratio:1; margin:0 auto}
+  .concentric div{position:absolute; border-radius:50%; border:1px solid var(--border); display:flex;
+        align-items:flex-start; justify-content:center; inset:0; padding-top:.6rem;
+        font-family:var(--sans); font-weight:600; font-size:.85rem; color:var(--text-2)}
+  .c1{background:rgba(197,159,223,.06)} .c2{inset:16% !important; background:rgba(240,201,168,.08)}
+  .c3{inset:36% !important; background:rgba(155,212,203,.16); color:var(--text) !important}
+
+  /* 2x2 matrix */
+  .matrix{position:relative; aspect-ratio:1.4/1; width:100%; border:1px solid var(--border); border-radius:16px; background:rgba(28,23,38,.4)}
+  .matrix .axis-x,.matrix .axis-y{position:absolute; color:var(--text-3); font-size:.82rem}
+  .matrix .axis-x{bottom:-1.6rem; left:50%; transform:translateX(-50%)}
+  .matrix .axis-y{top:50%; left:-.6rem; transform:rotate(-90deg) translateX(50%); transform-origin:left}
+  .matrix .qline{position:absolute; background:var(--border)}
+  .matrix .qv{left:50%; top:6%; bottom:6%; width:1px}
+  .matrix .qh{top:50%; left:6%; right:6%; height:1px}
+  .dot{position:absolute; transform:translate(-50%,-50%); text-align:center; font-size:.86rem; color:var(--text-2)}
+  .dot::before{content:""; display:block; width:12px; height:12px; border-radius:50%; background:var(--text-3); margin:0 auto .3rem}
+  .dot.us{color:var(--text); font-family:var(--sans); font-weight:700}
+  .dot.us::before{width:20px; height:20px; background:var(--grad); box-shadow:0 0 26px var(--lav)}
+
+  .foot{font-size:.85rem; color:var(--text-3); margin-top:1.5rem}
+  .foot b{color:var(--text-2); font-weight:600}
+
+  .cover-tag{font-family:var(--sans); font-weight:600; letter-spacing:.18em; text-transform:uppercase;
+        font-size:.8rem; color:var(--text-3)}
+
+  /* progress + hud */
+  .progress{position:fixed; top:0; left:0; height:3px; background:var(--grad); z-index:40; transition:width .4s ease; box-shadow:0 0 12px rgba(197,159,223,.6)}
+  .hud{position:fixed; bottom:1.1rem; right:1.3rem; z-index:40; font-family:var(--sans); font-weight:600;
+       font-size:.85rem; color:var(--text-3); letter-spacing:.05em; font-variant-numeric:tabular-nums}
+  .hud b{color:var(--lav)}
+  .nav{position:fixed; bottom:1rem; left:1.3rem; z-index:40; display:flex; gap:.5rem}
+  .nav button{width:38px; height:38px; border-radius:10px; border:1px solid var(--border); background:rgba(28,23,38,.7);
+       color:var(--text-2); cursor:pointer; font-size:1rem; transition:.2s}
+  .nav button:hover{border-color:var(--lav); color:var(--text)}
+  .nav button:focus-visible{outline:2px solid var(--lav); outline-offset:2px}
+  .hint{position:fixed; bottom:1.25rem; left:50%; transform:translateX(-50%); z-index:40; color:var(--text-3);
+        font-size:.8rem; letter-spacing:.04em; transition:opacity .6s; pointer-events:none}
+
+  @media (prefers-reduced-motion:reduce){.slide{transition:none} .progress{transition:none}}
+</style>
+
+<div class="progress" id="prog"></div>
+
+<div class="deck" id="deck">
+
+  <!-- 1 · Couverture -->
+  <section class="slide active" data-type="hero">
+    <div style="text-align:center">
+      <div class="cover-tag">Business Project · WSF Promotion 2026</div>
+      <h1 style="margin:1.4rem 0 1rem">Dream<span class="grad-word">Weave</span></h1>
+      <p class="lead" style="margin:0 auto; font-size:clamp(1.15rem,2.2vw,1.7rem); color:var(--text)">De l'idée au chapitre publié, sans savoir dessiner.</p>
+      <p class="foot" style="margin-top:2.2rem">Louis Basnier · Product Owner apprenti · Soutenance 20 min</p>
+    </div>
+  </section>
+
+  <!-- 2 · Une suite de décisions -->
+  <section class="slide" data-type="list">
+    <div class="kicker">Le fil rouge</div>
+    <h2>Ce deck ne liste pas des features. Il raconte des décisions.</h2>
+    <p class="lead" style="margin-top:1.1rem">Pour chaque choix structurant : le problème, les options écartées, la décision, sa justification.</p>
+    <div class="arrow-flow" style="margin-top:2rem">
+      <span class="step">Problème</span><span class="sep">→</span>
+      <span class="step">Options</span><span class="sep">→</span>
+      <span class="step">Décision</span><span class="sep">→</span>
+      <span class="step">Justification</span>
+    </div>
+    <p class="foot"><b>D1 → D12</b> · douze décisions fondatrices jalonnent la présentation.</p>
+  </section>
+
+  <!-- 3 · Le problème -->
+  <section class="slide" data-type="hero">
+    <div class="kicker">Le problème</div>
+    <div class="hero-num">300&#8239;–&#8239;1500&#8239;€</div>
+    <p class="hero-sub">le coût d'un seul chapitre de webtoon aujourd'hui — et 1 à 4 semaines de travail.</p>
+    <div class="stat-line" style="margin-top:2.4rem">
+      <div class="stat"><span class="v lav">45,3&#8239;Md$</span><span class="l">marché webtoon 2030</span></div>
+      <div class="stat"><span class="v">+27&#8239;%/an</span><span class="l">8,28&#8239;Md$ (2023) → 45,3&#8239;Md$</span></div>
+      <div class="stat"><span class="v peach">+200&#8239;%</span><span class="l">recherches « AI webtoon maker »</span></div>
+    </div>
+    <p class="foot">Le goulot d'étranglement n'est pas l'envie : c'est le mur « savoir dessiner ».</p>
+  </section>
+
+  <!-- 4 · Qu'est-ce qu'un webtoon -->
+  <section class="slide" data-type="split">
+    <div class="split">
+      <div>
+        <div class="kicker">Le format</div>
+        <h2>Un webtoon, ça se lit en scrollant.</h2>
+        <p class="lead" style="margin-top:1.1rem">Bande dessinée verticale née en Corée, pensée pour le mobile.</p>
+        <div class="rows" style="margin-top:1.6rem">
+          <div class="row"><span class="n">↕</span><div>Une seule colonne, lue en scroll continu.</div></div>
+          <div class="row"><span class="n">px</span><div>Jusqu'à <b>100 000 px</b> de hauteur pour un chapitre.</div></div>
+        </div>
+      </div>
+      <div class="glass" style="aspect-ratio:9/16; max-height:62vh; display:flex; align-items:center; justify-content:center; text-align:center; color:var(--text-3)">
+        <div>Lecture verticale<br><span style="font-size:.85rem">(GIF de scroll généré par DreamWeave)</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5 · Contexte marché -->
+  <section class="slide" data-type="hero">
+    <div class="kicker">Un marché installé</div>
+    <div class="hero-num">170&#8239;M</div>
+    <p class="hero-sub">lecteurs actifs par mois. Le public existe déjà.</p>
+    <div class="stat-line" style="margin-top:2.4rem">
+      <div class="stat"><span class="v">24&#8239;M</span><span class="l">créateurs</span></div>
+      <div class="stat"><span class="v peach">≈39&#8239;%</span><span class="l">des revenus = romance</span></div>
+      <div class="stat"><span class="v">76&#8239;%</span><span class="l">des lecteurs ont 18-33 ans</span></div>
+      <div class="stat"><span class="v mint">86&#8239;%</span><span class="l">des créateurs utilisent déjà l'IA</span></div>
+    </div>
+  </section>
+
+  <!-- 6 · TAM SAM SOM -->
+  <section class="slide" data-type="schema">
+    <div class="kicker">Dimensionnement</div>
+    <div class="split">
+      <div>
+        <h2>600 payants visés à 12 mois.</h2>
+        <div class="rows" style="margin-top:1.6rem">
+          <div class="row"><span class="n">TAM</span><div>~160&#8239;M de lecteurs webtoon</div></div>
+          <div class="row"><span class="n">SAM</span><div>5 à 10&#8239;M de créateurs / créateurs en devenir</div></div>
+          <div class="row hi"><span class="n">SOM</span><div>10&#8239;000 inscrits → <b>600 payants</b> · CAC &lt; 30&#8239;€ · LTV/CAC &gt; 3</div></div>
+        </div>
+      </div>
+      <div class="concentric">
+        <div class="c1">TAM</div><div class="c2">SAM</div><div class="c3">SOM</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7 · Personas -->
+  <section class="slide" data-type="list">
+    <div class="decision">D2</div>
+    <div class="kicker">Cibles</div>
+    <h2>Quatre profils, un même blocage.</h2>
+    <div class="grid-4" style="margin-top:1.7rem">
+      <div class="glass"><b style="font-family:var(--sans)">Luna</b><p class="foot" style="margin-top:.4rem">Créatrice · cible primaire · 8-15&#8239;€</p></div>
+      <div class="glass"><b style="font-family:var(--sans)">Marc</b><p class="foot" style="margin-top:.4rem">Amateur exigeant · 15-25&#8239;€</p></div>
+      <div class="glass"><b style="font-family:var(--sans)">Théo</b><p class="foot" style="margin-top:.4rem">Étudiant · prescripteur</p></div>
+      <div class="glass"><b style="font-family:var(--sans)">Élodie</b><p class="foot" style="margin-top:.4rem">Éditeur B2B · 49-150&#8239;€</p></div>
+    </div>
+    <p class="foot" style="margin-top:1.7rem"><b>Séquence :</b> B2C d'abord, B2B dès la V1 / T3 2026.</p>
+  </section>
+
+  <!-- 8 · Concurrence -->
+  <section class="slide" data-type="matrix">
+    <div class="kicker">Concurrence</div>
+    <div class="split">
+      <div>
+        <h2>Personne n'occupe « cohérence + accessibilité ».</h2>
+        <p class="lead" style="margin-top:1.1rem">Croisement automatisation IA × spécialisation webtoon. Le quadrant haut-droite est vide.</p>
+        <p class="foot">Dashtoon · Clip Studio · AI Comic Factory se partagent les trois autres coins.</p>
+      </div>
+      <div style="padding:0 1.5rem 1.5rem">
+        <div class="matrix">
+          <span class="qline qv"></span><span class="qline qh"></span>
+          <span class="axis-x">Spécialisation webtoon →</span>
+          <span class="axis-y">Automatisation IA →</span>
+          <span class="dot" style="left:24%; top:70%">AI Comic<br>Factory</span>
+          <span class="dot" style="left:74%; top:66%">Clip Studio</span>
+          <span class="dot" style="left:30%; top:30%">Dashtoon</span>
+          <span class="dot us" style="left:76%; top:26%">DreamWeave</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 9 · Décision fondatrice -->
+  <section class="slide" data-type="list">
+    <div class="decision">D1</div>
+    <div class="kicker">Décision fondatrice</div>
+    <h2>On attaque la cause de l'abandon, pas un symptôme.</h2>
+    <div class="rows" style="margin-top:1.7rem">
+      <div class="row"><span class="n strike">✕</span><div class="strike">Marketplace de webtoons</div></div>
+      <div class="row"><span class="n strike">✕</span><div class="strike">Outil de dessin assisté</div></div>
+      <div class="row"><span class="n strike">✕</span><div class="strike">Génération one-shot</div></div>
+      <div class="row hi"><span class="n" style="color:var(--mint)">✓</span><div><b class="keep">Pipeline complet</b> : de l'idée au webtoon publiable.</div></div>
+    </div>
+  </section>
+
+  <!-- 10 · Solution 4 étapes -->
+  <section class="slide" data-type="split">
+    <div class="kicker">La solution</div>
+    <h2>Un parcours guidé, des visuels cohérents en secondes.</h2>
+    <div class="grid-4" style="margin-top:1.8rem">
+      <div class="glass" style="text-align:center"><div class="hero-sub" style="margin:0">Style</div><p class="foot">Définir l'univers visuel</p></div>
+      <div class="glass" style="text-align:center"><div class="hero-sub" style="margin:0">Assets</div><p class="foot">Personnages, décors, objets</p></div>
+      <div class="glass" style="text-align:center"><div class="hero-sub" style="margin:0">Scénario</div><p class="foot">Écriture + découpage IA</p></div>
+      <div class="glass" style="text-align:center"><div class="hero-sub" style="margin:0">Éditeur</div><p class="foot">Composition des cases</p></div>
+    </div>
+    <p class="foot" style="margin-top:1.6rem">Captures réelles du POC, une par étape. Le produit tourne.</p>
+  </section>
+
+  <!-- 11 · Barrières → réponses -->
+  <section class="slide" data-type="list">
+    <div class="kicker">5 barrières → 5 réponses</div>
+    <h2>À chaque barrière, une réponse technique.</h2>
+    <div class="rows" style="margin-top:1.5rem">
+      <div class="row"><span class="n">1</span><div>Barrière artistique <span class="muted">→</span> <b>génération IA</b></div></div>
+      <div class="row hi"><span class="n">2</span><div>Incohérence des personnages <span class="muted">→</span> <b>Sheet System</b></div></div>
+      <div class="row"><span class="n">3</span><div>Fragmentation des outils <span class="muted">→</span> <b>tout-en-un</b></div></div>
+      <div class="row"><span class="n">4</span><div>Coût <span class="muted">→</span> <b>modèle à crédits</b></div></div>
+      <div class="row"><span class="n">5</span><div>Complexité <span class="muted">→</span> <b>onboarding progressif</b></div></div>
+    </div>
+  </section>
+
+  <!-- 12 · Onboarding -->
+  <section class="slide" data-type="split">
+    <div class="decision">D3</div>
+    <div class="split">
+      <div>
+        <div class="kicker">Onboarding</div>
+        <h2>Puissant sans être intimidant.</h2>
+        <div class="rows" style="margin-top:1.4rem">
+          <div class="row"><span class="n strike">✕</span><div class="strike">Tout exposer d'un coup</div></div>
+          <div class="row"><span class="n strike">✕</span><div class="strike">Wizard forcé</div></div>
+          <div class="row hi"><span class="n" style="color:var(--mint)">✓</span><div><b>Déblocage progressif</b> + Ariane + badges « New »</div></div>
+        </div>
+      </div>
+      <div style="text-align:center">
+        <div class="hero-num" style="font-size:clamp(3.5rem,9vw,7rem)">&lt;10 min</div>
+        <p class="hero-sub">Time-to-Value visé</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 13 · Sheet System -->
+  <section class="slide" data-type="split">
+    <div class="decision">D6</div>
+    <div class="split">
+      <div>
+        <div class="kicker">Cohérence · la brique clé</div>
+        <div class="hero-num" style="font-size:clamp(3rem,7vw,5.5rem)">~90&#8239;%</div>
+        <p class="hero-sub">du bénéfice d'un LoRA, pour une fraction du coût.</p>
+        <p class="foot" style="margin-top:1.4rem"><b>Problème :</b> même prompt, visage différent à chaque case.</p>
+      </div>
+      <div>
+        <div class="rows">
+          <div class="row"><span class="n strike">✕</span><div class="strike">Seed fixe</div></div>
+          <div class="row"><span class="n strike">✕</span><div class="strike">Un LoRA par personnage</div></div>
+          <div class="row hi"><span class="n" style="color:var(--mint)">✓</span><div><b>Fiche 4 angles</b> injectée via FLUX.2 Pro Edit</div></div>
+        </div>
+        <p class="foot">~20 itérations de prompt engineering pour la stabiliser.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 14 · Génération par bloc -->
+  <section class="slide" data-type="split">
+    <div class="decision">D7</div>
+    <div class="split">
+      <div>
+        <div class="kicker">Édition</div>
+        <h2>On régénère un bloc sans toucher aux autres.</h2>
+        <p class="lead" style="margin-top:1.1rem">Le layout est un <b>JSONB</b>. Chaque bloc est une unité indépendante.</p>
+        <div class="glass" style="margin-top:1.4rem; font-family:var(--body); color:var(--text-2); font-size:.95rem">
+          { id, x, y, w, h, prompt, asset_refs, image_url }
+        </div>
+      </div>
+      <div class="glass" style="aspect-ratio:3/4; max-height:56vh; display:grid; grid-template-rows:1fr 1fr 1fr; gap:.6rem; padding:.9rem">
+        <div style="border:1px solid var(--border); border-radius:10px"></div>
+        <div style="border:1px solid var(--lav); border-radius:10px; background:rgba(197,159,223,.14); display:flex; align-items:center; justify-content:center; color:var(--lav); font-size:.85rem">bloc en régénération</div>
+        <div style="border:1px solid var(--border); border-radius:10px"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 15 · NarraMind -->
+  <section class="slide" data-type="split">
+    <div class="decision">D8</div>
+    <div class="split">
+      <div>
+        <div class="kicker">Mémoire narrative</div>
+        <div class="hero-num" style="font-size:clamp(3rem,7vw,5.5rem)">~50</div>
+        <p class="hero-sub">tokens par chapitre, contre ~850 en brut.</p>
+        <div class="rows" style="margin-top:1.3rem">
+          <div class="row"><span class="n strike">✕</span><div class="strike">Tout injecter</div></div>
+          <div class="row"><span class="n strike">✕</span><div class="strike">Fenêtre glissante</div></div>
+          <div class="row hi"><span class="n" style="color:var(--mint)">✓</span><div><b>Compression + recherche vectorielle</b> (Gemini 768D, pgvector)</div></div>
+        </div>
+      </div>
+      <div class="glass" style="align-self:center">
+        <div class="kicker" style="margin-bottom:.7rem">Alerte Ariane</div>
+        <p style="color:var(--text); font-size:1.05rem">« Ce personnage est mort au chapitre 12. »</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 16 · Business Model Canvas -->
+  <section class="slide" data-type="schema">
+    <div class="kicker">Business Model Canvas</div>
+    <h2>Le modèle en une vue, un seul levier de marge.</h2>
+    <div class="grid-2" style="margin-top:1.6rem">
+      <div class="glass"><b style="font-family:var(--sans); color:var(--lav)">Partenaires</b><p class="foot" style="margin-top:.4rem">FAL.ai · Supabase · Vercel</p></div>
+      <div class="glass"><b style="font-family:var(--sans); color:var(--lav)">Ressources</b><p class="foot" style="margin-top:.4rem">FLUX.2 Pro · prompts système propriétaires · NarraMind</p></div>
+      <div class="glass"><b style="font-family:var(--sans); color:var(--mint)">Revenus</b><p class="foot" style="margin-top:.4rem">Abonnements · packs · marketplace 30&#8239;% · API B2B</p></div>
+      <div class="glass" style="border-color:rgba(240,201,168,.5); background:rgba(240,201,168,.07)"><b style="font-family:var(--sans); color:var(--peach)">Coûts · levier de marge</b><p class="foot" style="margin-top:.4rem">Fixes ~60&#8239;€/mois · variables ~0,065&#8239;€/génération</p></div>
+    </div>
+  </section>
+
+  <!-- 17 · Pricing -->
+  <section class="slide" data-type="list">
+    <div class="decision">D4</div>
+    <div class="kicker">Pricing · logique Spotify</div>
+    <div class="hero-num" style="font-size:clamp(2.6rem,6vw,4.6rem)">100&#8239;% des fonctions,<br>même en gratuit.</div>
+    <div class="grid-4" style="margin-top:1.8rem">
+      <div class="glass" style="text-align:center"><b style="font-family:var(--sans)">Libre</b><div class="hero-sub" style="margin:.3rem 0">0&#8239;€</div><p class="foot">20 crédits</p></div>
+      <div class="glass" style="text-align:center; border-color:rgba(197,159,223,.5)"><b style="font-family:var(--sans)">Créateur</b><div class="hero-sub" style="margin:.3rem 0">12,99&#8239;€</div><p class="foot">100 crédits</p></div>
+      <div class="glass" style="text-align:center"><b style="font-family:var(--sans)">Studio</b><div class="hero-sub" style="margin:.3rem 0">29,99&#8239;€</div><p class="foot">250 crédits</p></div>
+      <div class="glass" style="text-align:center"><b style="font-family:var(--sans)">Entreprise</b><div class="hero-sub" style="margin:.3rem 0">devis</div><p class="foot">sur mesure</p></div>
+    </div>
+    <p class="foot" style="margin-top:1.4rem">Même qualité <b>FLUX.2 Pro</b> pour tous : seul le volume de crédits change.</p>
+  </section>
+
+  <!-- 18 · Projections -->
+  <section class="slide" data-type="hero">
+    <div class="kicker">Projections An 1</div>
+    <div class="hero-num">10&#8239;–&#8239;15</div>
+    <p class="hero-sub">abonnés suffisent à atteindre le break-even.</p>
+    <div class="stat-line" style="margin-top:2.2rem">
+      <div class="stat"><span class="v peach">1-4 sem → 2-4&#8239;h</span><span class="l">temps par chapitre</span></div>
+      <div class="stat"><span class="v mint">300-1500&#8239;€ → &lt;5&#8239;€</span><span class="l">coût par chapitre</span></div>
+      <div class="stat"><span class="v">2&#8239;% → 6&#8239;%</span><span class="l">taux de conversion</span></div>
+      <div class="stat"><span class="v lav">~137&#8239;000&#8239;€</span><span class="l">ARR à 600 payants (M12)</span></div>
+    </div>
+  </section>
+
+  <!-- 19 · Organisation juridique -->
+  <section class="slide" data-type="list">
+    <div class="decision">D5</div>
+    <div class="kicker">Organisation &amp; juridique</div>
+    <h2>Une équipe minimale outillée par l'IA, un juridique par paliers.</h2>
+    <div class="arrow-flow" style="margin-top:1.8rem">
+      <span class="step">Auto-entrepreneur</span><span class="sep">→</span>
+      <span class="step">SASU <small>(30&#8239;k€ ou 1<sup>er</sup> salarié)</small></span><span class="sep">→</span>
+      <span class="step">SAS</span>
+    </div>
+    <p class="foot" style="margin-top:1.6rem">Recrutements P0 → P3 déclenchés par des seuils de revenus. Développement « 4 à 6 mois ».</p>
+  </section>
+
+  <!-- 20 · Go to market -->
+  <section class="slide" data-type="list">
+    <div class="kicker">Go To Market · 5 phases</div>
+    <h2>Construire la preuve avant de dépenser.</h2>
+    <div class="rows" style="margin-top:1.5rem">
+      <div class="row"><span class="n">1</span><div>Bêta fermée <span class="muted">·</span> 10 pilotes</div></div>
+      <div class="row"><span class="n">2</span><div>Lancement freemium public</div></div>
+      <div class="row"><span class="n">3</span><div>Content marketing SEO / tutos <span class="muted">·</span> Q4 2026</div></div>
+      <div class="row"><span class="n">4</span><div>Influence créateurs</div></div>
+      <div class="row"><span class="n">5</span><div>B2B studios</div></div>
+    </div>
+    <p class="foot" style="margin-top:1.3rem">Point critique = <b>l'activation</b> (effet « wow » en moins de 10 min).</p>
+  </section>
+
+  <!-- 21 · Stack -->
+  <section class="slide" data-type="list">
+    <div class="decision">D9-D12</div>
+    <div class="kicker">Stack · benchmark raisonné</div>
+    <h2>Maximiser ce qu'une seule personne peut livrer.</h2>
+    <div class="rows" style="margin-top:1.5rem">
+      <div class="row"><span class="n">DB</span><div><b>Supabase</b> <span class="muted">— RLS dès J0</span></div></div>
+      <div class="row"><span class="n">IA</span><div><b>FAL.ai / FLUX.2 Pro</b> <span class="muted">— multi-référence + couverture copyright</span></div></div>
+      <div class="row"><span class="n">LLM</span><div><b>Gemini Flash</b> + Groq en fallback <span class="muted">(429)</span></div></div>
+      <div class="row"><span class="n">FE</span><div><b>React / Vite / React Query</b> + Edge Functions</div></div>
+    </div>
+  </section>
+
+  <!-- 22 · Cadre juridique IA -->
+  <section class="slide" data-type="list">
+    <div class="kicker">Cadre juridique IA</div>
+    <h2>La conformité devient un argument.</h2>
+    <div class="grid-2" style="margin-top:1.7rem">
+      <div class="glass"><b style="font-family:var(--sans)">Intervention humaine créative</b><p class="foot" style="margin-top:.4rem">art. L.111-1 CPI</p></div>
+      <div class="glass"><b style="font-family:var(--sans)">Badge de transparence</b><p class="foot" style="margin-top:.4rem">« Créé avec DreamWeave » sur les exports</p></div>
+      <div class="glass" style="grid-column:1/-1"><b style="font-family:var(--sans)">Couverture copyright</b><p class="foot" style="margin-top:.4rem">héritée de FAL.ai</p></div>
+    </div>
+  </section>
+
+  <!-- 23 · Architecture de scale -->
+  <section class="slide" data-type="list">
+    <div class="kicker">Architecture de scale</div>
+    <h2>Les limites sont des choix de phase, pas des impasses.</h2>
+    <div class="rows" style="margin-top:1.5rem">
+      <div class="row"><span class="n">→</span><div>Chaque composant a sa limite actuelle et son évolution priorisée (P1 / P2 / P3) pour 10&#8239;000 MAU.</div></div>
+      <div class="row"><span class="n">LoRA</span><div>reste une <b>évolution de scale</b>, pas un prérequis du lancement.</div></div>
+    </div>
+    <p class="foot" style="margin-top:1.3rem">Tableau composant → limite → plan de dépassement (détaillé en annexe).</p>
+  </section>
+
+  <!-- 24 · Conclusion -->
+  <section class="slide" data-type="hero">
+    <div class="kicker">Conclusion</div>
+    <div class="hero-num">&lt;5&#8239;€</div>
+    <p class="hero-sub">le chapitre. Contre 300 à 1500&#8239;€ aujourd'hui.</p>
+    <div class="stat-line" style="margin-top:2.2rem">
+      <div class="stat"><span class="v lav">Marché</span><span class="l">grandit vite (+27&#8239;%/an)</span></div>
+      <div class="stat"><span class="v peach">Différenciateur</span><span class="l">personne ne résout la cohérence</span></div>
+      <div class="stat"><span class="v mint">Viabilité</span><span class="l">rentable dès 10-15 abonnés</span></div>
+    </div>
+    <p class="foot" style="margin-top:1.8rem; font-style:italic; color:var(--text-2)">« La solution suffisante et livrable bat la solution parfaite et inatteignable. »</p>
+  </section>
+
+  <!-- 25 · Sources -->
+  <section class="slide" data-type="schema">
+    <div class="kicker">Traçabilité</div>
+    <h2>Chaque chiffre est traçable.</h2>
+    <div class="split" style="margin-top:1.6rem; align-items:start">
+      <div>
+        <b style="font-family:var(--sans); color:var(--lav)">Sources externes</b>
+        <p class="foot" style="margin-top:.7rem; line-height:1.8">[1] Cho, Adkins &amp; Long · [2] SEC S-1 Webtoon · [3] Grand View Research · [4] Adobe Creators' Toolkit · [5] Dashtoon × KWIA · [6] Vox Illustration · Google Trends</p>
+      </div>
+      <div>
+        <b style="font-family:var(--sans); color:var(--mint)">Preuves de réflexion</b>
+        <p class="foot" style="margin-top:.7rem; line-height:1.8">WTP personas · 0,065&#8239;€/génération · ARR 137&#8239;000&#8239;€ · break-even · 50 tokens / 90&#8239;% LoRA</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 26 · Merci -->
+  <section class="slide" data-type="hero">
+    <div style="text-align:center">
+      <h1 style="font-size:clamp(2.4rem,5.5vw,4.5rem)">Merci<span class="grad-word">.</span></h1>
+      <p class="lead" style="margin:1.2rem auto 0; color:var(--text)">Des questions&#8239;?</p>
+      <p class="foot" style="margin-top:2.2rem">Louis Basnier · DreamWeave · WSF Promotion 2026</p>
+    </div>
+  </section>
+
+</div>
+
+<div class="nav">
+  <button id="prev" aria-label="Slide précédente">‹</button>
+  <button id="next" aria-label="Slide suivante">›</button>
+</div>
+<div class="hud"><b id="cur">1</b> / <span id="tot">26</span></div>
+<div class="hint" id="hint">← → pour naviguer · F plein écran</div>
+
+<script>
+(function(){
+  const slides=[...document.querySelectorAll('.slide')];
+  const prog=document.getElementById('prog');
+  const cur=document.getElementById('cur');
+  const hint=document.getElementById('hint');
+  document.getElementById('tot').textContent=slides.length;
+  let i=0;
+  function show(n){
+    i=Math.max(0,Math.min(slides.length-1,n));
+    slides.forEach((s,k)=>s.classList.toggle('active',k===i));
+    prog.style.width=((i+1)/slides.length*100)+'%';
+    cur.textContent=i+1;
+    if(location.hash!=='#'+(i+1)) history.replaceState(null,'','#'+(i+1));
+  }
+  function next(){show(i+1)} function prev(){show(i-1)}
+  document.getElementById('next').onclick=next;
+  document.getElementById('prev').onclick=prev;
+  addEventListener('keydown',e=>{
+    if(['ArrowRight','PageDown',' ','Enter'].includes(e.key)){e.preventDefault();next()}
+    else if(['ArrowLeft','PageUp'].includes(e.key)){e.preventDefault();prev()}
+    else if(e.key==='Home'){show(0)} else if(e.key==='End'){show(slides.length-1)}
+    else if(e.key==='f'||e.key==='F'){ if(!document.fullscreenElement) document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen(); else document.exitFullscreen&&document.exitFullscreen(); }
+  });
+  let x0=null;
+  addEventListener('touchstart',e=>x0=e.touches[0].clientX,{passive:true});
+  addEventListener('touchend',e=>{ if(x0===null)return; const dx=e.changedTouches[0].clientX-x0; if(Math.abs(dx)>50){dx<0?next():prev()} x0=null;},{passive:true});
+  const start=parseInt(location.hash.slice(1)); show(start>0?start-1:0);
+  setTimeout(()=>hint.style.opacity='0',4000);
+})();
+</script>

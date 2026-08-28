@@ -1,0 +1,379 @@
+<title>Grandir sans s'en apercevoir</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&family=Nunito:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+
+<style>
+  :root{
+    --bg:#F4F4F6; --paper:#FFFFFF;
+    --border:#D7D9E0; --border-soft:#E7E7EC;
+    --ink:#241C2C; --ink-2:#665A72; --ink-3:#948CA2;
+    --lav:#9D5FC9; --lav-soft:#AE75D7;
+    --peach:#E9A96A; --mint:#5FBFAF;
+    --sans:"Quicksand",Century Gothic,sans-serif;
+    --body:"Nunito","Calibri",system-ui,sans-serif;
+    --pad:clamp(2.4rem,7vw,7.5rem);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:var(--bg); color:var(--ink);
+    font-family:var(--body); overflow:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+  .deck{position:fixed; inset:0}
+
+  .slide{
+    position:absolute; inset:0;
+    display:flex; flex-direction:column; justify-content:center;
+    padding:var(--pad);
+    opacity:0; visibility:hidden;
+    transition:opacity .7s ease;
+    background:var(--bg);
+  }
+  .slide.active{opacity:1; visibility:visible}
+  .slide > *{max-width:1080px; width:100%; margin-inline:auto}
+
+  .chapter{
+    font-family:var(--sans); font-weight:600; font-size:clamp(.72rem,1.1vw,.9rem);
+    letter-spacing:.2em; text-transform:uppercase; color:var(--lav);
+    display:flex; align-items:center; gap:.7rem; margin-bottom:1.7rem;
+  }
+  .chapter::before{content:""; width:30px; height:2px; background:var(--lav); border-radius:2px}
+
+  h1,h2{font-family:var(--sans); font-weight:600; line-height:1.12; text-wrap:balance; color:var(--ink); letter-spacing:-.01em}
+  h1{font-size:clamp(2.3rem,5.2vw,4.2rem)}
+  h2{font-size:clamp(1.7rem,3.4vw,2.9rem)}
+  .lead{font-size:clamp(1.05rem,1.7vw,1.35rem); color:var(--ink-2); line-height:1.6; max-width:60ch; font-weight:400}
+  .accent{color:var(--lav); font-weight:600}
+  .foot{font-size:.9rem; color:var(--ink-3); line-height:1.7}
+
+  /* year triptych */
+  .year-wrap{display:grid; grid-template-columns:1fr auto; gap:clamp(1.5rem,4vw,4rem); align-items:center}
+  .tript{display:flex; flex-direction:column; gap:.5rem; max-width:52ch}
+  .step .label{font-family:var(--sans); font-weight:600; font-size:.78rem; letter-spacing:.14em; text-transform:uppercase}
+  .step .txt{font-size:clamp(1rem,1.6vw,1.25rem); color:var(--ink); line-height:1.5; margin-top:.2rem}
+  .step.think .label{color:var(--ink-3)}
+  .step.think .txt{font-style:italic; color:var(--ink-2)}
+  .step.arte .label{color:var(--peach)}
+  .step.shift .label{color:var(--lav)}
+  .step.shift .txt b{color:var(--lav); font-weight:700}
+  .down{color:var(--lav); font-size:1.1rem; margin:.15rem 0 .05rem; line-height:1}
+  .bignum{
+    font-family:var(--sans); font-weight:700; line-height:.85;
+    font-size:clamp(7rem,22vw,17rem);
+    background:linear-gradient(160deg,#AE75D7,#E9A96A); -webkit-background-clip:text; background-clip:text; color:transparent;
+    opacity:.9;
+  }
+
+  /* archive card (texte à 19 ans) */
+  .archive{
+    background:var(--paper); border:1px solid var(--border-soft); border-radius:16px;
+    padding:clamp(1.6rem,3vw,2.6rem); box-shadow:0 20px 50px -34px rgba(36,28,44,.4);
+    font-style:italic; color:var(--ink-2); font-size:clamp(1.05rem,1.8vw,1.45rem); line-height:1.65;
+    max-width:60ch; position:relative;
+  }
+  .archive::before{content:"«"; font-family:var(--sans); font-size:3rem; color:var(--lav); opacity:.35; position:absolute; top:.3rem; left:1rem}
+
+  .paper{background:var(--paper); border:1px solid var(--border-soft); border-radius:16px;
+         padding:clamp(1.3rem,2.2vw,2rem); box-shadow:0 18px 44px -34px rgba(36,28,44,.35)}
+
+  /* method 3 steps */
+  .method{display:grid; grid-template-columns:1fr auto 1fr auto 1fr; gap:1rem; align-items:stretch; margin-top:2rem}
+  .method .arr{align-self:center; color:var(--lav); font-size:1.6rem}
+  .m-card{background:var(--paper); border:1px solid var(--border-soft); border-radius:16px; padding:1.3rem; box-shadow:0 16px 40px -34px rgba(36,28,44,.35)}
+  .m-card .l{font-family:var(--sans); font-weight:600; font-size:.78rem; letter-spacing:.12em; text-transform:uppercase}
+  .m-card.a .l{color:var(--ink-3)} .m-card.b .l{color:var(--peach)} .m-card.c .l{color:var(--lav)}
+  .m-card .d{margin-top:.5rem; color:var(--ink); font-size:1rem; line-height:1.5}
+  @media(max-width:900px){.method{grid-template-columns:1fr} .method .arr{transform:rotate(90deg); justify-self:center}
+    .year-wrap{grid-template-columns:1fr} .bignum{font-size:8rem}}
+
+  /* fil rouge */
+  .thread{position:relative; margin-top:1.8rem; padding-left:2.2rem}
+  .thread::before{content:""; position:absolute; left:.55rem; top:.4rem; bottom:2.2rem; width:2px;
+    background:linear-gradient(180deg,var(--lav),var(--peach))}
+  .node{position:relative; padding:.55rem 0}
+  .node::before{content:""; position:absolute; left:-1.9rem; top:.85rem; width:11px; height:11px; border-radius:50%;
+    background:var(--paper); border:2px solid var(--lav)}
+  .node b{font-family:var(--sans); font-weight:600; color:var(--ink)}
+  .node span{color:var(--ink-2)}
+  .converge{margin-top:.6rem; font-family:var(--sans); font-weight:700; color:var(--lav); font-size:1.15rem; padding-left:.2rem}
+
+  /* two columns bilan */
+  .cols{display:grid; grid-template-columns:1fr 1fr; gap:1.4rem; margin-top:1.8rem}
+  .col h3{font-family:var(--sans); font-weight:600; font-size:1.05rem; margin-bottom:.9rem}
+  .col.know h3{color:var(--mint)} .col.notyet h3{color:var(--lav)}
+  .col ul{list-style:none; display:flex; flex-direction:column; gap:.7rem}
+  .col li{padding:.85rem 1.05rem; border-radius:12px; background:var(--paper); border:1px solid var(--border-soft); line-height:1.5}
+  @media(max-width:900px){.cols{grid-template-columns:1fr}}
+
+  /* two circles */
+  .venn{display:flex; justify-content:center; align-items:center; margin-top:1.5rem; min-height:34vh}
+  .venn .c{width:min(30vw,240px); aspect-ratio:1; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    text-align:center; font-family:var(--sans); font-weight:600; padding:1rem; font-size:1.05rem}
+  .venn .c1{background:rgba(174,117,215,.16); border:1.5px solid var(--lav); color:var(--ink); margin-right:-3rem}
+  .venn .c2{background:rgba(233,169,106,.16); border:1.5px solid var(--peach); color:var(--ink)}
+
+  .pipeline{display:flex; align-items:center; gap:.8rem; flex-wrap:wrap; margin-top:1.8rem}
+  .pipeline .p{font-family:var(--sans); font-weight:600; padding:.7rem 1.15rem; border-radius:12px;
+    background:var(--paper); border:1px solid var(--border-soft); box-shadow:0 14px 34px -30px rgba(36,28,44,.4)}
+  .pipeline .s{color:var(--lav); font-weight:700}
+
+  .cover-meta{font-family:var(--sans); font-weight:500; letter-spacing:.05em; color:var(--ink-2); font-size:clamp(.95rem,1.5vw,1.15rem); line-height:1.7}
+  .rule{width:56px; height:3px; background:var(--lav); border-radius:3px; margin:1.6rem 0}
+
+  /* progress + hud */
+  .progress{position:fixed; top:0; left:0; height:3px; background:linear-gradient(90deg,var(--lav),var(--peach)); z-index:40; transition:width .5s ease}
+  .hud{position:fixed; bottom:1.1rem; right:1.4rem; z-index:40; font-family:var(--sans); font-weight:600;
+       font-size:.85rem; color:var(--ink-3); letter-spacing:.05em; font-variant-numeric:tabular-nums}
+  .hud b{color:var(--lav)}
+  .nav{position:fixed; bottom:1rem; left:1.4rem; z-index:40; display:flex; gap:.5rem}
+  .nav button{width:38px; height:38px; border-radius:10px; border:1px solid var(--border); background:var(--paper);
+       color:var(--ink-2); cursor:pointer; font-size:1rem; transition:.2s; box-shadow:0 10px 26px -22px rgba(36,28,44,.5)}
+  .nav button:hover{border-color:var(--lav); color:var(--ink)}
+  .nav button:focus-visible{outline:2px solid var(--lav); outline-offset:2px}
+  .hint{position:fixed; bottom:1.3rem; left:50%; transform:translateX(-50%); z-index:40; color:var(--ink-3);
+        font-size:.8rem; letter-spacing:.04em; transition:opacity .6s; pointer-events:none}
+
+  @media (prefers-reduced-motion:reduce){.slide{transition:none} .progress{transition:none}}
+</style>
+
+<div class="progress" id="prog"></div>
+
+<div class="deck" id="deck">
+
+  <!-- 1 · Couverture -->
+  <section class="slide active">
+    <div style="text-align:center">
+      <h1>Grandir sans s'en apercevoir</h1>
+      <div class="rule" style="margin:1.6rem auto"></div>
+      <p class="cover-meta">Cinq années à la Web School Factory :<br>mon parcours, mes projets, et comment ma manière de penser a changé.</p>
+      <p class="foot" style="margin-top:2.2rem">Louis Basnier · Product Owner apprenti chez Naxos (Arche Groupe) · WSF Promotion 2026</p>
+    </div>
+  </section>
+
+  <!-- 2 · Pourquoi cet angle -->
+  <section class="slide">
+    <div class="chapter">Pourquoi cet angle</div>
+    <h2 style="margin-bottom:1.8rem">J'y reconnaissais chaque phrase, sans m'en souvenir.</h2>
+    <div class="year-wrap" style="grid-template-columns:1.1fr .9fr">
+      <div class="archive">Un texte écrit à 19 ans, retrouvé. Raconter non pas la liste de mes compétences, mais la façon dont ma pensée a changé, sans que je m'en aperçoive.</div>
+      <p class="lead"><span class="accent">« Sans concession »</span> : refuser la version marketing de soi.</p>
+    </div>
+  </section>
+
+  <!-- 3 · La méthode -->
+  <section class="slide">
+    <div class="chapter">La méthode</div>
+    <h2>Pas « j'ai fait X », mais « X a changé ma posture ».</h2>
+    <div class="method">
+      <div class="m-card a"><div class="l">Ce que je pensais</div><div class="d">la croyance de départ</div></div>
+      <div class="arr">→</div>
+      <div class="m-card b"><div class="l">L'artefact</div><div class="d">l'objet réellement produit</div></div>
+      <div class="arr">→</div>
+      <div class="m-card c"><div class="l">Le changement de posture</div><div class="d">le déplacement qu'il a produit</div></div>
+    </div>
+    <p class="foot" style="margin-top:1.7rem">Répété pour chacune des cinq années. <span class="accent">Cinq années, cinq objets, un même regard.</span></p>
+  </section>
+
+  <!-- 4 · Année 1 -->
+  <section class="slide">
+    <div class="chapter">Année 1 · Le choix</div>
+    <div class="year-wrap">
+      <div class="tript">
+        <div class="step think"><div class="label">Ce que je pensais</div><div class="txt">« Faire un site ou un produit, c'est uniquement le coder. »</div></div>
+        <div class="down">↓</div>
+        <div class="step arte"><div class="label">L'artefact</div><div class="txt">L'arrivée à la WSF, deux stages opposés : développement d'un côté, CRM / marketing de l'autre.</div></div>
+        <div class="down">↓</div>
+        <div class="step shift"><div class="label">Le déplacement</div><div class="txt">Découverte de l'UX. Ne pas trancher technique / business était <b>déjà le profil Product Owner</b>.</div></div>
+      </div>
+      <div class="bignum">1</div>
+    </div>
+  </section>
+
+  <!-- 5 · Année 2 -->
+  <section class="slide">
+    <div class="chapter">Année 2 · Le miroir</div>
+    <div class="year-wrap">
+      <div class="tript">
+        <div class="step think"><div class="label">Ce que je pensais</div><div class="txt">« Analyser une situation, c'est décrire ce que j'observe. »</div></div>
+        <div class="down">↓</div>
+        <div class="step arte"><div class="label">L'artefact</div><div class="txt">Une ethnographie sur les personnes sans-abri du métro parisien.</div></div>
+        <div class="down">↓</div>
+        <div class="step shift"><div class="label">Le déplacement</div><div class="txt">Se demander <b>d'où je regarde</b> avant de juger. La forme compte autant que le fond. L'IA entre discrètement dans ma vie.</div></div>
+      </div>
+      <div class="bignum">2</div>
+    </div>
+  </section>
+
+  <!-- 6 · Année 3 -->
+  <section class="slide">
+    <div class="chapter">Année 3 · Le saut</div>
+    <div class="year-wrap">
+      <div class="tript">
+        <div class="step think"><div class="label">Ce que je pensais</div><div class="txt">« Réussir un projet, c'est qu'il marche le jour de la démo. »</div></div>
+        <div class="down">↓</div>
+        <div class="step arte"><div class="label">L'artefact</div><div class="txt">L'année la plus technique — plusieurs projets de développement — et un semestre à Dublin.</div></div>
+        <div class="down">↓</div>
+        <div class="step shift"><div class="label">Le déplacement</div><div class="txt">Faire marcher une démo <b>n'est pas livrer un produit qui tient</b>. Dublin compte moins par les compétences que par la personne devenue.</div></div>
+      </div>
+      <div class="bignum">3</div>
+    </div>
+  </section>
+
+  <!-- 7 · Année 4 -->
+  <section class="slide">
+    <div class="chapter">Année 4 · Le terrain</div>
+    <div class="year-wrap">
+      <div class="tript">
+        <div class="step think"><div class="label">Ce que je pensais</div><div class="txt">« On apprend un métier en l'observant. »</div></div>
+        <div class="down">↓</div>
+        <div class="step arte"><div class="label">L'artefact</div><div class="txt">L'étude de cas John Deere, le début de l'alternance chez Naxos comme PO apprenti.</div></div>
+        <div class="down">↓</div>
+        <div class="step shift"><div class="label">Le déplacement</div><div class="txt">On apprend un métier <b>en produisant</b>, pas en l'observant. L'apprentissage, c'est un changement de rythme et de responsabilité.</div></div>
+      </div>
+      <div class="bignum">4</div>
+    </div>
+  </section>
+
+  <!-- 8 · Année 5 -->
+  <section class="slide">
+    <div class="chapter">Année 5 · L'outil</div>
+    <div class="year-wrap">
+      <div class="tript">
+        <div class="step think"><div class="label">Ce que je pensais</div><div class="txt">« L'IA va remplacer une partie de mes compétences. »</div></div>
+        <div class="down">↓</div>
+        <div class="step arte"><div class="label">L'artefact</div><div class="txt">Un rapport sur l'IA et le droit européen, un procès fictif, le vibe coding.</div></div>
+        <div class="down">↓</div>
+        <div class="step shift"><div class="label">Le déplacement</div><div class="txt">L'IA <b>démultiplie</b>, ne remplace pas. Le vibe coding devient mon point d'équilibre : assez technique pour construire, assez produit pour penser.</div></div>
+      </div>
+      <div class="bignum">5</div>
+    </div>
+  </section>
+
+  <!-- 9 · Projet miroir -->
+  <section class="slide">
+    <div class="chapter">Projet miroir · DreamWeave</div>
+    <div class="year-wrap" style="grid-template-columns:1.05fr .95fr">
+      <div>
+        <h2>Personne ne m'a donné ce sujet.</h2>
+        <p class="lead" style="margin-top:1.2rem">Un logiciel de création de webtoons par IA, construit seul. Un projet mené <span class="accent">par envie</span>, avant toute consigne — il en dit plus sur qui l'on est qu'un exercice imposé.</p>
+      </div>
+      <div class="paper" style="aspect-ratio:4/3; display:flex; align-items:center; justify-content:center; text-align:center; color:var(--ink-3)">
+        Une capture de DreamWeave<br><span style="font-size:.85rem">(sobre — ici, un révélateur de soi)</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 10 · Fil rouge -->
+  <section class="slide">
+    <div class="chapter">Fil rouge</div>
+    <h2>Cinq déplacements, une seule direction.</h2>
+    <div class="thread">
+      <div class="node"><b>1 ·</b> <span>ne pas choisir technique / business = Product Owner</span></div>
+      <div class="node"><b>2 ·</b> <span>d'où je regarde</span></div>
+      <div class="node"><b>3 ·</b> <span>la forme = le fond</span></div>
+      <div class="node"><b>4 ·</b> <span>une démo qui marche n'est pas un produit qui tient</span></div>
+      <div class="node"><b>5 ·</b> <span>l'IA démultiplie</span></div>
+    </div>
+    <div class="converge">↳ Product Owner / Product Builder</div>
+  </section>
+
+  <!-- 11 · Ce que DreamWeave prouve -->
+  <section class="slide">
+    <div class="chapter">Ce que DreamWeave prouve</div>
+    <h2>L'envie s'est traduite en compétence complète.</h2>
+    <div class="pipeline">
+      <span class="p">Besoin</span><span class="s">→</span>
+      <span class="p">Spécification</span><span class="s">→</span>
+      <span class="p">Système</span>
+    </div>
+    <p class="lead" style="margin-top:1.8rem">Tenir la chaîne de bout en bout, seul. Faire de l'IA un prolongement de soi. Un produit qui tourne, <span class="accent">pas une maquette</span>.</p>
+  </section>
+
+  <!-- 12 · Sans concession -->
+  <section class="slide">
+    <div class="chapter">Sans concession · Bilan</div>
+    <h2>Ma limite la mieux documentée n'est pas technique.</h2>
+    <div class="cols">
+      <div class="col know">
+        <h3>Ce que je sais faire</h3>
+        <ul><li>Tenir la chaîne besoin → spécification → système, de bout en bout.</li><li>Le faire seul, en m'appuyant sur l'IA.</li></ul>
+      </div>
+      <div class="col notyet">
+        <h3>Ce que je ne sais pas encore</h3>
+        <ul><li><b>La décision sans filet</b> : porter seul un choix qui coûterait cher.</li><li>Le vrai test viendra quand la supervision disparaîtra.</li></ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 13 · Conclusion -->
+  <section class="slide">
+    <div class="chapter">Conclusion</div>
+    <h2>Product Owner aujourd'hui, Product Builder au-delà.</h2>
+    <div class="venn">
+      <div class="c c1">Product<br>Owner</div>
+      <div class="c c2">Product<br>Builder</div>
+    </div>
+    <p class="foot" style="margin-top:1.4rem; text-align:center">PO = là où se rejoignent technique et produit. Product Builder = penser le produit et se donner les moyens de le construire. L'IA comme prolongement, pas comme béquille.</p>
+  </section>
+
+  <!-- 14 · Ouverture -->
+  <section class="slide">
+    <div style="text-align:center">
+      <div class="chapter" style="justify-content:center">Ouverture</div>
+      <h1 style="font-size:clamp(2rem,4.4vw,3.4rem)">Aujourd'hui, je choisis<br>consciemment la suite.</h1>
+      <p class="lead" style="margin:1.8rem auto 0; text-align:center">Ce que ce mémoire m'a fait comprendre, je veux le mettre au service d'un produit et d'une équipe.</p>
+    </div>
+  </section>
+
+  <!-- 15 · Merci -->
+  <section class="slide">
+    <div style="text-align:center">
+      <h1>Merci de votre écoute.</h1>
+      <div class="rule" style="margin:1.6rem auto"></div>
+      <p class="lead" style="margin:0 auto; text-align:center">Je suis prêt à répondre à vos questions.</p>
+      <p class="foot" style="margin-top:2rem">Louis Basnier · WSF Promotion 2026</p>
+    </div>
+  </section>
+
+</div>
+
+<div class="nav">
+  <button id="prev" aria-label="Slide précédente">‹</button>
+  <button id="next" aria-label="Slide suivante">›</button>
+</div>
+<div class="hud"><b id="cur">1</b> / <span id="tot">15</span></div>
+<div class="hint" id="hint">← → pour naviguer · F plein écran</div>
+
+<script>
+(function(){
+  const slides=[...document.querySelectorAll('.slide')];
+  const prog=document.getElementById('prog');
+  const cur=document.getElementById('cur');
+  const hint=document.getElementById('hint');
+  document.getElementById('tot').textContent=slides.length;
+  let i=0;
+  function show(n){
+    i=Math.max(0,Math.min(slides.length-1,n));
+    slides.forEach((s,k)=>s.classList.toggle('active',k===i));
+    prog.style.width=((i+1)/slides.length*100)+'%';
+    cur.textContent=i+1;
+    if(location.hash!=='#'+(i+1)) history.replaceState(null,'','#'+(i+1));
+  }
+  function next(){show(i+1)} function prev(){show(i-1)}
+  document.getElementById('next').onclick=next;
+  document.getElementById('prev').onclick=prev;
+  addEventListener('keydown',e=>{
+    if(['ArrowRight','PageDown',' ','Enter'].includes(e.key)){e.preventDefault();next()}
+    else if(['ArrowLeft','PageUp'].includes(e.key)){e.preventDefault();prev()}
+    else if(e.key==='Home'){show(0)} else if(e.key==='End'){show(slides.length-1)}
+    else if(e.key==='f'||e.key==='F'){ if(!document.fullscreenElement) document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen(); else document.exitFullscreen&&document.exitFullscreen(); }
+  });
+  let x0=null;
+  addEventListener('touchstart',e=>x0=e.touches[0].clientX,{passive:true});
+  addEventListener('touchend',e=>{ if(x0===null)return; const dx=e.changedTouches[0].clientX-x0; if(Math.abs(dx)>50){dx<0?next():prev()} x0=null;},{passive:true});
+  const start=parseInt(location.hash.slice(1)); show(start>0?start-1:0);
+  setTimeout(()=>hint.style.opacity='0',4000);
+})();
+</script>

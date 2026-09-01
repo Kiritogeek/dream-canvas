@@ -136,6 +136,20 @@
     font-size:clamp(1.12rem,2.7vh,1.6rem); line-height:1.45}
   .slide.posture .insights li::before{top:clamp(1.35rem,2.9vh,2rem); left:1.55rem; width:14px; height:14px}
 
+  /* Code-couleur par année, calé sur le dégradé du Fil rouge (annulable en un bloc) */
+  .slide.posture{--yc:var(--lav); --yct:var(--tint-lav)}
+  .slide.posture.p1{--yc:#7B45C8; --yct:#F3EEFB}
+  .slide.posture.p2{--yc:#9E4F9A; --yct:#F7EEF6}
+  .slide.posture.p3{--yc:#BF4A83; --yct:#FBEDF3}
+  .slide.posture.p4{--yc:#CB663B; --yct:#FBF0E9}
+  .slide.posture.p5{--yc:#C9701E; --yct:#FBF3EA}
+  .slide.posture .chapter{color:var(--yc)}
+  .slide.posture .chapter::before{background:var(--yc)}
+  .slide.posture .insights li{background:var(--yct); border-left:3px solid var(--yc)}
+  .slide.posture .insights li::before{background:var(--yc)}
+  .slide.posture .insights li b{color:var(--yc)}
+  .slide.posture .insights li .k{color:var(--yc)}
+
   .venn{display:flex; justify-content:center; align-items:center; margin-top:1.8rem; min-height:36vh}
   .venn .c{width:min(32vw,270px); aspect-ratio:1; border-radius:50%; display:flex; align-items:center; justify-content:center;
     text-align:center; font-family:var(--sans); font-weight:700; padding:1rem; font-size:clamp(1.1rem,1.7vw,1.4rem)}
@@ -212,7 +226,7 @@
       <div class="tript">
         <div class="step think"><div class="label">Ce que je pensais</div><div class="txt">« Faire un site ou un produit, c'est uniquement le coder. »</div></div>
         <div class="down">↓</div>
-        <div class="step arte"><div class="label">L'artefact</div><div class="txt">L'arrivée à la WSF, deux stages opposés : développement d'un côté, CRM / marketing de l'autre.</div></div>
+        <div class="step arte"><div class="label">L'artefact</div><div class="txt">L'arrivée à la WSF, et le premier exercice opposant l'UX à l'UI.</div></div>
         <div class="down">↓</div>
         <div class="step shift"><div class="label">Le déplacement</div><div class="txt">Découverte de l'UX.</div></div>
       </div>
@@ -221,7 +235,7 @@
   </section>
 
   <!-- 4b · Posture · Découverte de l'UX -->
-  <section class="slide posture">
+  <section class="slide posture p1">
     <div class="chapter">Changement de posture · Année 1</div>
     <h2>Découverte de l'UX.</h2>
     <ul class="insights">
@@ -247,7 +261,7 @@
   </section>
 
   <!-- 5b · Posture · D'où je regarde -->
-  <section class="slide posture">
+  <section class="slide posture p2">
     <div class="chapter">Changement de posture · Année 2</div>
     <h2>D'où je regarde.</h2>
     <ul class="insights">
@@ -274,15 +288,15 @@
   </section>
 
   <!-- 6b · Posture · Démo ≠ produit -->
-  <section class="slide posture">
+  <section class="slide posture p3">
     <div class="chapter">Changement de posture · Année 3</div>
     <h2>Une démo ne veut pas dire que le produit fonctionne.</h2>
-    <p class="lead" style="margin-bottom:.4rem">Faire marcher une démo prouve qu'une idée est possible. Faire <span class="accent">tenir un produit</span> demande de regarder ailleurs :</p>
+    <p class="lead" style="margin-bottom:.4rem">Faire marcher une démo prouve qu'une idée est possible. Faire <span class="accent">tenir un produit</span> demande de gérer tout ce qui ne se voit pas :</p>
     <ul class="insights">
-      <li><span class="k">Juridique</span> respecte-t-il le cadre légal : données, droit applicable, propriété ?</li>
-      <li><span class="k">Marketing</span> répond-il à un vrai besoin, trouve-t-il son public ?</li>
-      <li><span class="k">Retours utilisateurs</span> est-il compris, adopté, réutilisé dans la durée ?</li>
-      <li><span class="k">Preuve d'usage</span> au-delà de la démo, tourne-t-il vraiment entre de vraies mains ?</li>
+      <li><span class="k">L'invisible</span> gestion des états, navigation entre écrans : ce qu'une démo ne montre jamais.</li>
+      <li><span class="k">Les cas limites</span> tout ce qui plante dès que l'utilisateur sort du chemin prévu.</li>
+      <li><span class="k">L'usage réel</span> un prototype impressionne en cours ; un produit doit tenir entre de vraies mains.</li>
+      <li><span class="k">De bout en bout</span> tenir un projet de bout en bout, seul, apprend ce qu'aucun prototype de cours ne montre.</li>
     </ul>
   </section>
 
@@ -293,7 +307,7 @@
       <div class="tript">
         <div class="step think"><div class="label">Ce que je pensais</div><div class="txt">« On apprend un métier en l'observant. »</div></div>
         <div class="down">↓</div>
-        <div class="step arte"><div class="label">L'artefact</div><div class="txt">L'étude de cas John Deere, le début de l'alternance chez Naxos comme PO apprenti.</div></div>
+        <div class="step arte"><div class="label">L'artefact</div><div class="txt">Le début de l'alternance chez Naxos comme PO apprenti.</div></div>
         <div class="down">↓</div>
         <div class="step shift"><div class="label">Le déplacement</div><div class="txt">On apprend un métier <b>en produisant</b>, pas en l'observant. L'apprentissage, c'est un changement de rythme et de responsabilité.</div></div>
       </div>
@@ -302,14 +316,14 @@
   </section>
 
   <!-- 7b · Posture · Apprendre un métier en produisant -->
-  <section class="slide posture">
+  <section class="slide posture p4">
     <div class="chapter">Changement de posture · Année 4</div>
     <h2>Apprendre un métier en produisant.</h2>
     <ul class="insights">
       <li>Chez Naxos, pour recueillir le besoin, j'ai dû apprendre le métier de mes utilisateurs : <b>agent immobilier</b>.</li>
       <li>On ne spécifie bien que ce qu'on comprend <b>de l'intérieur</b> : le vocabulaire, les contraintes, le quotidien.</li>
-      <li>Comprendre le métier de l'utilisateur, c'est la condition pour traduire un besoin en <b>spécification juste</b>.</li>
-      <li>Et ce métier, on l'apprend <b>en produisant avec eux</b>, pas en l'observant de loin.</li>
+      <li><b>Mon erreur de départ</b> : je traduisais les demandes telles quelles en spécifications.</li>
+      <li>Ce sont les <b>retours de mes collègues, experts du métier</b>, qui corrigeaient ma vision. J'ai appris en me trompant, pas en l'observant.</li>
     </ul>
   </section>
 
@@ -329,7 +343,7 @@
   </section>
 
   <!-- 8b · Posture · Le vibe coding -->
-  <section class="slide posture">
+  <section class="slide posture p5">
     <div class="chapter">Changement de posture · Année 5</div>
     <h2>Le vibe coding.</h2>
     <ul class="insights">
@@ -396,9 +410,34 @@
       </div>
       <div class="col notyet">
         <h3>Ce que je ne sais pas encore</h3>
-        <ul><li><b>La décision sans filet</b> : porter seul un choix qui coûterait cher.</li><li>Le vrai test viendra quand la supervision disparaîtra.</li></ul>
+        <ul><li><b>La décision sans filet</b> : porter seul un choix qui coûterait cher.</li><li>Le vrai test viendra quand la supervision disparaîtra.</li><li><b>Ma dépendance à l'IA</b> : à l'aise en pilotage, moins en autonomie totale.</li></ul>
       </div>
     </div>
+  </section>
+
+  <!-- 12b · Dépendance à l'IA -->
+  <section class="slide">
+    <div class="chapter">Dépendance à l'IA</div>
+    <h2>L'IA exécute. Moi, je décide.</h2>
+    <div class="cols">
+      <div class="col notyet">
+        <h3>L'IA · exécute</h3>
+        <ul>
+          <li>Écrire le code, ligne par ligne.</li>
+          <li>Produire vite, à grande échelle.</li>
+          <li>Proposer une solution.</li>
+        </ul>
+      </div>
+      <div class="col know">
+        <h3>Moi · je décide</h3>
+        <ul>
+          <li>Comprendre le besoin, arbitrer le périmètre.</li>
+          <li>Traduire le besoin en <b>spécification</b>.</li>
+          <li>Juger si le résultat est <b>juste, ou fragile</b>.</li>
+        </ul>
+      </div>
+    </div>
+    <p class="foot" style="margin-top:1.6rem; max-width:82ch">Sans IA, je perds en vitesse, pas en capacité à décider quoi construire. Ce jugement, je l'ai appris chez Naxos, pas avec l'IA.</p>
   </section>
 
   <!-- 13 · Conclusion -->

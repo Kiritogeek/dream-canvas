@@ -65,7 +65,12 @@
   .split{display:grid; grid-template-columns:1.05fr .95fr; gap:clamp(1.6rem,3.5vw,3.8rem); align-items:center}
   .grid-2{display:grid; grid-template-columns:1fr 1fr; gap:1.1rem}
   .grid-4{display:grid; grid-template-columns:repeat(4,1fr); gap:1.1rem}
-  @media(max-width:900px){.split,.grid-2,.grid-4{grid-template-columns:1fr}}
+  /* Slides "étape" avec screenshot produit : image plus grande, texte de gauche inchangé */
+  .wide-media > *{max-width:1480px}
+  .wide-media{padding-left:clamp(1.6rem,3.2vw,3.2rem); padding-right:clamp(1.6rem,3.2vw,3.2rem)}
+  .wide-media .split{grid-template-columns:1fr 1.12fr; gap:clamp(1.3rem,2.6vw,2.6rem)}
+  .wide-media .glass{padding:.35rem}
+  @media(max-width:900px){.split,.grid-2,.grid-4,.wide-media .split{grid-template-columns:1fr}}
 
   .decision{
     position:absolute; top:clamp(1.4rem,2.6vw,2.2rem); right:clamp(1.4rem,2.6vw,2.2rem);
@@ -292,7 +297,7 @@
   <!-- 10 · Solution 4 étapes -->
   <section class="slide" data-type="split">
     <div class="kicker">La solution</div>
-    <h2>Un parcours guidé, des visuels cohérents en secondes.</h2>
+    <h2>Un parcours guidé, des visuels cohérents.</h2>
     <div style="display:grid; grid-template-columns:repeat(5,1fr); gap:.9rem; margin-top:2rem">
       <div class="glass" style="text-align:center"><div class="hero-sub" style="margin:0">Style</div><p class="foot">Définir l'univers visuel</p></div>
       <div class="glass" style="text-align:center"><div class="hero-sub" style="margin:0">Assets</div><p class="foot">Personnages, décors, objets</p></div>
@@ -326,7 +331,7 @@
   </section>
 
   <!-- Étape 1 · Style -->
-  <section class="slide" data-type="split">
+  <section class="slide wide-media" data-type="split">
     <div class="split">
       <div>
         <div class="kicker">Style · étape 1</div>
@@ -344,11 +349,11 @@
   </section>
 
   <!-- Étape 2a · Assets · ce qu'on peut faire -->
-  <section class="slide" data-type="split">
+  <section class="slide wide-media" data-type="split">
     <div class="split">
       <div>
         <div class="kicker">Assets · étape 2</div>
-        <h2>Un personnage, un objet, un lieu, en secondes.</h2>
+        <h2>Un personnage, un objet, un lieu.</h2>
         <p class="lead" style="margin-top:1.2rem">On décrit l'élément, DreamWeave le génère. Le <b>style du projet est injecté dans le prompt</b> de l'asset, pour que tout reste cohérent.</p>
         <div class="rows" style="margin-top:1.5rem">
           <div class="row"><span class="n">◆</span><div><b>Personnage</b>, <b>objet</b> ou <b>lieu</b> à partir d'une simple description.</div></div>
@@ -363,7 +368,7 @@
   </section>
 
   <!-- Étape 2b · Assets · cohérence visuelle (Sheet) -->
-  <section class="slide" data-type="split">
+  <section class="slide wide-media" data-type="split">
     <div class="split">
       <div>
         <div class="kicker">Assets · cohérence visuelle</div>
@@ -384,7 +389,7 @@
   </section>
 
   <!-- Étape 3 · Univers -->
-  <section class="slide" data-type="split">
+  <section class="slide wide-media" data-type="split">
     <div class="split">
       <div>
         <div class="kicker">Univers · étape 3</div>
@@ -402,7 +407,7 @@
   </section>
 
   <!-- Étape 4a · Scénario · fonctionnement -->
-  <section class="slide" data-type="split">
+  <section class="slide wide-media" data-type="split">
     <div class="split">
       <div>
         <div class="kicker">Scénario · étape 4</div>
@@ -441,7 +446,7 @@
   </section>
 
   <!-- Étape 5a · Édition · ce qu'on peut faire -->
-  <section class="slide" data-type="split">
+  <section class="slide wide-media" data-type="split">
     <div class="split">
       <div>
         <div class="kicker">Édition · étape 5</div>
@@ -460,7 +465,7 @@
   </section>
 
   <!-- Étape 5b · Édition · rendu cohérent -->
-  <section class="slide" data-type="split">
+  <section class="slide wide-media" data-type="split">
     <div class="split">
       <div>
         <div class="kicker">Édition · rendu cohérent</div>
@@ -627,7 +632,7 @@
     <div class="hero-num">&lt;5&#8239;€</div>
     <p class="hero-sub">le chapitre. Contre 300 à 1500&#8239;€ aujourd'hui.</p>
     <div class="stat-line" style="margin-top:2.4rem">
-      <div class="stat"><span class="v lav">Marché</span><span class="l">grandit vite (+27&#8239;%/an)</span></div>
+      <div class="stat"><span class="v lav">Marché</span><span class="l">grandit vite (× 4 d'ici 2030)</span></div>
       <div class="stat"><span class="v peach">Différenciateur</span><span class="l">personne ne résout la cohérence</span></div>
       <div class="stat"><span class="v mint">Viabilité</span><span class="l">rentable dès 10-15 abonnés</span></div>
     </div>

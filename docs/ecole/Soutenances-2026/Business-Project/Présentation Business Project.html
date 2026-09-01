@@ -173,13 +173,12 @@
   <!-- Le marché du Webtoon -->
   <section class="slide" data-type="hero">
     <div class="kicker">Le marché du Webtoon</div>
-    <div class="hero-num">45,3&#8239;Md$</div>
-    <p class="hero-sub">la taille visée du marché webtoon en 2030. Un marché en forte croissance.</p>
+    <div class="hero-num">11&#8239;Md$</div>
+    <p class="hero-sub">la taille du marché webtoon en 2025. Le public et l'argent sont déjà là.</p>
     <div class="stat-line" style="margin-top:2.6rem">
-      <div class="stat"><span class="v lav">+27&#8239;%/an</span><span class="l">8,28&#8239;Md$ (2023) → 45,3&#8239;Md$ (2030)</span></div>
       <div class="stat"><span class="v peach">+200&#8239;%</span><span class="l">recherches « AI webtoon maker » en 2 ans</span></div>
     </div>
-    <p class="foot">La demande explose, et elle se tourne déjà vers des outils IA.</p>
+    <p class="foot"><b>Environ 40&#8239;Md$ estimés en 2030.</b> La demande explose et se tourne déjà vers des outils IA.</p>
   </section>
 
   <!-- Un marché installé -->
@@ -208,7 +207,14 @@
   </section>
 
   <!-- 7 · Personas -->
-  <section class="slide" data-type="list">
+  <style>
+    .personas .glass > b{font-size:1.3rem !important}
+    .personas .glass > div{font-size:.94rem !important}
+    .personas .glass > p:not(.foot){font-size:1.02rem !important; line-height:1.42 !important}
+    .personas .glass > p:not(.foot) > span{font-size:.76rem !important}
+    .personas .glass > p.foot{font-size:.9rem !important}
+  </style>
+  <section class="slide personas" data-type="list">
     <div class="kicker">Cibles</div>
     <h2>Quatre profils, un même blocage.</h2>
     <div class="grid-4" style="margin-top:1.5rem">
@@ -241,7 +247,7 @@
         <p class="foot" style="margin-top:.7rem">B2B dès la V1 · <b style="color:var(--text-2)">49-150&#8239;€/mois</b></p>
       </div>
     </div>
-    <p class="foot" style="margin-top:1.6rem"><b>Décision :</b> commencer par le B2C (Luna + Marc), puis ouvrir le B2B dès la V1 / T3 2026.</p>
+    <p class="foot" style="margin-top:1.6rem"><b>Décision :</b> commencer par le B2C (Luna + Marc).</p>
   </section>
 
   <!-- 8 · Concurrence -->
@@ -249,7 +255,7 @@
     <div class="kicker">Concurrence</div>
     <div class="split">
       <div>
-        <h2>Personne n'occupe « cohérence + accessibilité ».</h2>
+        <h2>Un quadrant encore vide.</h2>
         <p class="lead" style="margin-top:1.2rem">Croisement automatisation IA × spécialisation webtoon. Le quadrant haut-droite est vide.</p>
         <div class="rows" style="margin-top:1.5rem">
           <div class="row"><span class="n">◆</span><div><b>Dashtoon</b> <span class="muted">· bon workflow, mais cohérence faible d'une case à l'autre</span></div></div>
@@ -297,6 +303,28 @@
     <p class="foot" style="margin-top:1.7rem">Captures réelles du POC, une par étape. Le produit tourne.</p>
   </section>
 
+  <!-- Onboarding (après la solution) -->
+  <section class="slide" data-type="split">
+    <div class="split">
+      <div>
+        <div class="kicker">Onboarding</div>
+        <h2>Puissant sans être intimidant.</h2>
+        <div class="rows" style="margin-top:1.5rem">
+          <div class="row"><span class="n strike">✕</span><div class="strike">Tout exposer d'un coup</div></div>
+          <div class="row"><span class="n strike">✕</span><div class="strike">Wizard forcé</div></div>
+          <div class="row hi"><span class="n" style="color:var(--mint)">✓</span><div><b>Déblocage progressif</b> + assistant + badges « New »</div></div>
+        </div>
+      </div>
+      <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:1.1rem">
+        <img src="ariane.png" alt="L'assistante de DreamWeave" style="max-height:46vh; max-width:100%; object-fit:contain; filter:drop-shadow(0 24px 60px rgba(177,140,240,.4))" />
+        <div>
+          <div class="hero-num" style="font-size:clamp(2.4rem,5vw,3.6rem)">&lt;10 min</div>
+          <p class="hero-sub" style="margin-top:.15rem">Time-to-Value, guidé pas à pas</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- Étape 1 · Style -->
   <section class="slide" data-type="split">
     <div class="split">
@@ -315,21 +343,42 @@
     </div>
   </section>
 
-  <!-- Étape 2 · Cohérence Visuelle (Assets) -->
+  <!-- Étape 2a · Assets · ce qu'on peut faire -->
   <section class="slide" data-type="split">
     <div class="split">
       <div>
-        <div class="kicker">Cohérence Visuelle · étape 2</div>
-        <div class="hero-num" style="font-size:clamp(2.6rem,6vw,4.6rem)">~90&#8239;%</div>
-        <p class="hero-sub">de la cohérence d'un LoRA (un modèle ré-entraîné pour chaque personnage), sans son coût ni sa lenteur.</p>
-        <p class="foot" style="margin-top:1.1rem"><b>Problème :</b> même prompt, visage différent à chaque case.</p>
-        <div class="rows" style="margin-top:1.1rem">
-          <div class="row"><span class="n strike">✕</span><div class="strike">Seed fixe · un LoRA par personnage</div></div>
-          <div class="row hi"><span class="n" style="color:var(--mint)">✓</span><div><b>Fiche 4 angles</b> injectée via FLUX.2 Pro Edit</div></div>
+        <div class="kicker">Assets · étape 2</div>
+        <h2>Un personnage, un objet, un lieu — en secondes.</h2>
+        <p class="lead" style="margin-top:1.2rem">On décrit l'élément, DreamWeave le génère. Le <b>style du projet est injecté dans le prompt</b> de l'asset, pour que tout reste cohérent.</p>
+        <div class="rows" style="margin-top:1.5rem">
+          <div class="row"><span class="n">◆</span><div><b>Personnage</b>, <b>objet</b> ou <b>lieu</b> à partir d'une simple description.</div></div>
+          <div class="row"><span class="n">◆</span><div>La <b>signature visuelle</b> du projet est réinjectée à chaque génération.</div></div>
+          <div class="row"><span class="n">◆</span><div>Génération via <b>FLUX</b>, dans une <b>Edge Function Supabase</b>.</div></div>
         </div>
       </div>
       <div class="glass" style="max-height:62vh; padding:.5rem; display:flex; align-items:center; justify-content:center; overflow:hidden">
-        <img src="assets.webp" alt="DreamWeave — Assets et cohérence des personnages" style="width:100%; border-radius:12px; display:block" />
+        <img src="assets.webp" alt="DreamWeave — Génération d'assets (personnages, objets, lieux)" style="width:100%; border-radius:12px; display:block" />
+      </div>
+    </div>
+  </section>
+
+  <!-- Étape 2b · Assets · cohérence visuelle (Sheet) -->
+  <section class="slide" data-type="split">
+    <div class="split">
+      <div>
+        <div class="kicker">Assets · cohérence visuelle</div>
+        <h2>Le Sheet garde le personnage identique.</h2>
+        <p class="lead" style="margin-top:1.2rem">Pour chaque asset, on génère un <b>Sheet</b> : une fiche composite <b>4 angles</b>. C'est lui qui servira à l'<b>Édition</b>.</p>
+        <div class="rows" style="margin-top:1.5rem">
+          <div class="row"><span class="n">◆</span><div>Le <b>Sheet</b> fige l'apparence de l'asset sous plusieurs angles.</div></div>
+          <div class="row"><span class="n">◆</span><div>Réinjecté à l'Édition, il garantit un <b>rendu identique de case en case</b>.</div></div>
+        </div>
+        <div class="glass" style="margin-top:1.5rem; font-family:var(--body); color:var(--text-2); font-size:1rem">
+          asset → Sheet (4 angles) → réutilisé à chaque case
+        </div>
+      </div>
+      <div class="glass" style="max-height:62vh; padding:.5rem; display:flex; align-items:center; justify-content:center; overflow:hidden">
+        <img src="assets.webp" alt="DreamWeave — Sheet composite 4 angles" style="width:100%; border-radius:12px; display:block" />
       </div>
     </div>
   </section>
@@ -340,10 +389,10 @@
       <div>
         <div class="kicker">Univers · étape 3</div>
         <h2>Cartographier ton monde, l'enrichir depuis ton histoire.</h2>
-        <p class="lead" style="margin-top:1.2rem">Personnages, lieux, objets et événements se relient dans un <b>graph de connaissances</b>. <b>Ariane</b> scanne le scénario et propose d'enrichir le lore.</p>
+        <p class="lead" style="margin-top:1.2rem">Personnages, lieux, objets et événements se relient dans un <b>graph de connaissances</b>, enrichi directement depuis ton histoire.</p>
         <div class="rows" style="margin-top:1.5rem">
           <div class="row"><span class="n">◆</span><div><b>Cartographie</b> : saisir et relier les éléments du monde.</div></div>
-          <div class="row"><span class="n">◆</span><div><b>Amélioration continue</b> : Ariane complète les fiches et propose des directions.</div></div>
+          <div class="row"><span class="n">◆</span><div><b>Amélioration continue</b> : les fiches se complètent depuis le scénario.</div></div>
         </div>
       </div>
       <div class="glass" style="max-height:62vh; padding:.5rem; display:flex; align-items:center; justify-content:center; overflow:hidden">
@@ -352,60 +401,78 @@
     </div>
   </section>
 
-  <!-- Étape 4 · Cohérence Scénaristique (Scénario) -->
+  <!-- Étape 4a · Scénario · fonctionnement -->
   <section class="slide" data-type="split">
     <div class="split">
       <div>
-        <div class="kicker">Cohérence Scénaristique · étape 4</div>
-        <div class="hero-num" style="font-size:clamp(3.2rem,7.5vw,6rem)">~50</div>
-        <p class="hero-sub">tokens par chapitre, contre ~850 en brut. L'histoire reste cohérente sur la durée.</p>
-        <div class="rows" style="margin-top:1.4rem">
-          <div class="row"><span class="n strike">✕</span><div class="strike">Tout injecter</div></div>
-          <div class="row"><span class="n strike">✕</span><div class="strike">Fenêtre glissante</div></div>
-          <div class="row hi"><span class="n" style="color:var(--mint)">✓</span><div><b>Compression + recherche vectorielle</b> (Gemini 768D, pgvector)</div></div>
+        <div class="kicker">Scénario · étape 4</div>
+        <h2>De ton texte aux cases, en quatre temps.</h2>
+        <p class="lead" style="margin-top:1.2rem">Le scénario n'est pas juste écrit : il est <b>compris</b> par l'IA, puis découpé en cases prêtes à composer.</p>
+        <div class="rows" style="margin-top:1.5rem">
+          <div class="row"><span class="n">1</span><div><b>Validation du texte</b> : le chapitre est écrit et confirmé.</div></div>
+          <div class="row"><span class="n">2</span><div><b>Détection d'assets</b> : l'IA repère personnages, lieux et objets cités.</div></div>
+          <div class="row"><span class="n">3</span><div><b>Validation d'assets</b> : on confirme les éléments à relier.</div></div>
+          <div class="row"><span class="n">4</span><div><b>Découpage IA</b> : le texte devient une suite de cases.</div></div>
         </div>
       </div>
       <div class="glass" style="max-height:62vh; padding:.5rem; display:flex; align-items:center; justify-content:center; overflow:hidden">
-        <img src="scenario.png" alt="DreamWeave — Scénario et mémoire narrative" style="width:100%; border-radius:12px; display:block" />
+        <img src="scenario.png" alt="DreamWeave — Scénario et découpage IA" style="width:100%; border-radius:12px; display:block" />
       </div>
     </div>
   </section>
 
-  <!-- Étape 5 · Édition -->
+  <!-- Étape 4b · Scénario · Ariane (cohérence scénaristique) -->
+  <section class="slide" data-type="split">
+    <div class="split">
+      <div>
+        <div class="kicker">Scénario · cohérence scénaristique</div>
+        <h2>Ariane enrichit l'histoire et repère les incohérences.</h2>
+        <p class="lead" style="margin-top:1.2rem"><b>Ariane</b> lit le scénario, propose de l'enrichir et <b>détecte les incohérences</b> scénaristiques sur toute la durée.</p>
+        <div class="rows" style="margin-top:1.4rem">
+          <div class="row"><span class="n">◆</span><div><b>Enrichissement</b> : suggestions de lore et de directions narratives.</div></div>
+          <div class="row hi"><span class="n" style="color:var(--mint)">✓</span><div><b>Détection d'incohérences</b> via mémoire narrative compressée <span class="foot" style="display:inline">(~50 tokens/chapitre vs ~850 · Gemini 768D, pgvector)</span></div></div>
+        </div>
+      </div>
+      <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:1.1rem">
+        <img src="ariane.png" alt="Ariane, l'assistante narrative de DreamWeave" style="max-height:52vh; max-width:100%; object-fit:contain; filter:drop-shadow(0 24px 60px rgba(177,140,240,.4))" />
+        <p class="hero-sub" style="margin:0">Ariane, gardienne de la <b style="color:var(--lav-bright)">cohérence narrative</b></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Étape 5a · Édition · ce qu'on peut faire -->
   <section class="slide" data-type="split">
     <div class="split">
       <div>
         <div class="kicker">Édition · étape 5</div>
-        <h2>On régénère un bloc sans toucher aux autres.</h2>
-        <p class="lead" style="margin-top:1.2rem">Le layout est un <b>JSONB</b>. Chaque bloc est une unité indépendante.</p>
-        <div class="glass" style="margin-top:1.5rem; font-family:var(--body); color:var(--text-2); font-size:1rem">
-          { id, x, y, w, h, prompt, asset_refs, image_url }
+        <h2>Composer chaque case, bloc par bloc.</h2>
+        <p class="lead" style="margin-top:1.2rem">La case se construit par blocs indépendants, que l'on ajoute et déplace librement.</p>
+        <div class="rows" style="margin-top:1.5rem">
+          <div class="row"><span class="n">◆</span><div><b>Bulles</b> de dialogue.</div></div>
+          <div class="row"><span class="n">◆</span><div><b>Blocs couleur</b> pour le fond et les aplats.</div></div>
+          <div class="row"><span class="n">◆</span><div><b>Blocs image</b> pilotés par un prompt.</div></div>
         </div>
       </div>
       <div class="glass" style="max-height:62vh; padding:.5rem; display:flex; align-items:center; justify-content:center; overflow:hidden">
-        <img src="edition.webp" alt="DreamWeave — Éditeur de cases" style="width:100%; border-radius:12px; display:block" />
+        <img src="edition.webp" alt="DreamWeave — Éditeur de cases (bulles, couleurs, blocs image)" style="width:100%; border-radius:12px; display:block" />
       </div>
     </div>
   </section>
 
-  <!-- Onboarding -->
+  <!-- Étape 5b · Édition · rendu cohérent -->
   <section class="slide" data-type="split">
     <div class="split">
       <div>
-        <div class="kicker">Onboarding</div>
-        <h2>Puissant sans être intimidant.</h2>
-        <div class="rows" style="margin-top:1.5rem">
-          <div class="row"><span class="n strike">✕</span><div class="strike">Tout exposer d'un coup</div></div>
-          <div class="row"><span class="n strike">✕</span><div class="strike">Wizard forcé</div></div>
-          <div class="row hi"><span class="n" style="color:var(--mint)">✓</span><div><b>Déblocage progressif</b> + Ariane + badges « New »</div></div>
+        <div class="kicker">Édition · rendu cohérent</div>
+        <h2>Le découpage IA place les visuels, les assets s'injectent.</h2>
+        <p class="lead" style="margin-top:1.2rem">L'Édition <b>reprend le découpage IA</b> du scénario, <b>détecte les assets</b> cités dans le prompt de chaque bloc et <b>injecte les visuels</b> correspondants.</p>
+        <div class="glass" style="margin-top:1.5rem; font-family:var(--body); color:var(--text-2); font-size:1rem">
+          { id, x, y, w, h, prompt, asset_refs, image_url }
         </div>
+        <p class="foot" style="margin-top:1rem">Résultat : un rendu <b>cohérent</b> de la première à la dernière case.</p>
       </div>
-      <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:1.1rem">
-        <img src="ariane.png" alt="Ariane, l'assistante de DreamWeave" style="max-height:46vh; max-width:100%; object-fit:contain; filter:drop-shadow(0 24px 60px rgba(177,140,240,.4))" />
-        <div>
-          <div class="hero-num" style="font-size:clamp(2.4rem,5vw,3.6rem)">&lt;10 min</div>
-          <p class="hero-sub" style="margin-top:.15rem">Time-to-Value, guidé par <b style="color:var(--lav-bright)">Ariane</b></p>
-        </div>
+      <div class="glass" style="max-height:62vh; padding:.5rem; display:flex; align-items:center; justify-content:center; overflow:hidden">
+        <img src="edition.webp" alt="DreamWeave — Rendu cohérent de l'éditeur" style="width:100%; border-radius:12px; display:block" />
       </div>
     </div>
   </section>
@@ -487,7 +554,7 @@
       <div>
         <p class="lead" style="max-width:46ch">Le pari : seul, outillé par l'IA de développement, je porte la complexité d'une <span class="accent">équipe de 3 à 5 développeurs</span>.</p>
         <div class="rows" style="margin-top:1.4rem">
-          <div class="row"><span class="n">RH</span><div>Les recrutements (P0 → P3) viennent ensuite, déclenchés par des <b>seuils de revenus</b>, pas à l'intuition.</div></div>
+          <div class="row"><span class="n">RH</span><div>Les recrutements viennent ensuite, déclenchés par des <b>seuils de revenus</b>, pas à l'intuition.</div></div>
           <div class="row"><span class="n">4-6</span><div><b>mois</b> de développement pour livrer le produit.</div></div>
         </div>
       </div>
@@ -500,7 +567,6 @@
           <span class="sep" style="align-self:center">↓</span>
           <span class="step">SAS <small style="color:var(--text-3); font-weight:400">· associés ou levée</small></span>
         </div>
-        <p class="foot" style="margin-top:1.4rem">Chaque passage est déclenché par un <b>fait concret</b>, jamais par le calendrier.</p>
       </div>
     </div>
   </section>
@@ -524,7 +590,7 @@
     <div class="kicker">Stack · benchmark raisonné</div>
     <h2>Maximiser ce qu'une seule personne peut livrer.</h2>
     <div class="rows" style="margin-top:1.7rem">
-      <div class="row"><span class="n">DB</span><div><b>Supabase</b> <span class="muted">— RLS dès J0</span></div></div>
+      <div class="row"><span class="n">DB</span><div><b>Supabase</b></div></div>
       <div class="row"><span class="n">IA</span><div><b>FAL.ai / FLUX.2 Pro</b> <span class="muted">— multi-référence + couverture copyright</span></div></div>
       <div class="row"><span class="n">LLM</span><div><b>Gemini Flash</b> + Groq en fallback <span class="muted">(429)</span></div></div>
       <div class="row"><span class="n">FE</span><div><b>React / Vite / React Query</b> + Edge Functions</div></div>
@@ -547,7 +613,6 @@
   <section class="slide" data-type="list">
     <div class="kicker">Architecture de scale</div>
     <h2>Chaque limite d'aujourd'hui a déjà son plan.</h2>
-    <p class="lead" style="margin-top:1.1rem">Exercice d'honnêteté : pour chaque brique technique, je nomme sa limite actuelle, puis le plan pour franchir 10&#8239;000 utilisateurs actifs/mois.</p>
     <div class="rows" style="margin-top:1.5rem">
       <div class="row"><span class="n">BDD</span><div><b>Supabase</b> <span class="muted">· gratuit jusqu'à ~10&#8239;000 utilisateurs → offre payante (100-500&#8239;€/mois) au-delà</span></div></div>
       <div class="row"><span class="n">IA</span><div><b>FAL.ai</b> <span class="muted">· aujourd'hui une API partagée, facturée à la génération → à gros volume, une infrastructure IA dédiée (nos propres serveurs de génération) fait baisser le coût unitaire</span></div></div>

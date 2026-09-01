@@ -104,6 +104,9 @@
   .node:nth-child(5)::before{background:#C9701E}
   .node b{font-family:var(--sans); font-weight:700; color:var(--lav)}
   .node span{color:var(--ink)}
+  .node .from{font-style:italic; color:var(--ink-3)}
+  .node .mv{font-family:var(--sans); font-weight:700; color:var(--lav); margin:0 .5rem; white-space:nowrap}
+  .node .to{color:var(--ink); font-weight:600}
   .converge{margin-top:.8rem; font-family:var(--sans); font-weight:700; font-size:clamp(1.3rem,2.1vw,1.7rem);
     background:var(--grad); -webkit-background-clip:text; background-clip:text; color:transparent; padding-left:.2rem}
 
@@ -115,6 +118,23 @@
   .col.know li{background:var(--tint-mint)} .col.notyet li{background:var(--tint-lav)}
   .col li b{color:var(--lav); font-weight:700}
   @media(max-width:900px){.cols{grid-template-columns:1fr}}
+
+  .insights{list-style:none; display:flex; flex-direction:column; gap:1rem; margin-top:2rem; max-width:74ch}
+  .insights li{position:relative; padding:1.1rem 1.4rem 1.1rem 3.1rem; border-radius:16px; background:var(--tint-lav);
+    border:1px solid var(--border); line-height:1.5; font-size:clamp(1.06rem,1.65vw,1.38rem); color:var(--ink);
+    box-shadow:0 18px 44px -38px rgba(43,37,57,.4)}
+  .insights li::before{content:""; position:absolute; left:1.3rem; top:1.5rem; width:12px; height:12px; border-radius:50%; background:var(--grad)}
+  .insights li b{color:var(--lav); font-weight:700}
+  .insights li .k{font-family:var(--sans); font-weight:700; color:var(--peach); margin-right:.5rem}
+
+  /* Slides "changement de posture" : agrandies, calées sur la hauteur d'écran */
+  .slide.posture .chapter{margin-bottom:clamp(.9rem,2.4vh,1.7rem)}
+  .slide.posture h2{font-size:clamp(1.9rem,4.6vh,3.1rem); line-height:1.12; margin-bottom:.5rem}
+  .slide.posture .lead{font-size:clamp(1.12rem,2.7vh,1.55rem); line-height:1.5; margin-top:.4rem; margin-bottom:0}
+  .slide.posture .insights{gap:clamp(.75rem,2vh,1.35rem); margin-top:clamp(1.1rem,2.6vh,1.9rem); max-width:88ch}
+  .slide.posture .insights li{padding:clamp(.95rem,2.3vh,1.55rem) 1.7rem clamp(.95rem,2.3vh,1.55rem) 3.3rem;
+    font-size:clamp(1.12rem,2.7vh,1.6rem); line-height:1.45}
+  .slide.posture .insights li::before{top:clamp(1.35rem,2.9vh,2rem); left:1.55rem; width:14px; height:14px}
 
   .venn{display:flex; justify-content:center; align-items:center; margin-top:1.8rem; min-height:36vh}
   .venn .c{width:min(32vw,270px); aspect-ratio:1; border-radius:50%; display:flex; align-items:center; justify-content:center;
@@ -194,10 +214,21 @@
         <div class="down">↓</div>
         <div class="step arte"><div class="label">L'artefact</div><div class="txt">L'arrivée à la WSF, deux stages opposés : développement d'un côté, CRM / marketing de l'autre.</div></div>
         <div class="down">↓</div>
-        <div class="step shift"><div class="label">Le déplacement</div><div class="txt">Découverte de l'UX. Ne pas trancher technique / business était <b>déjà le profil Product Owner</b>.</div></div>
+        <div class="step shift"><div class="label">Le déplacement</div><div class="txt">Découverte de l'UX.</div></div>
       </div>
       <div class="bignum">1</div>
     </div>
+  </section>
+
+  <!-- 4b · Posture · Découverte de l'UX -->
+  <section class="slide posture">
+    <div class="chapter">Changement de posture · Année 1</div>
+    <h2>Découverte de l'UX.</h2>
+    <ul class="insights">
+      <li>Faire un produit ne se résume pas à le coder : il existe toute une couche de réflexion sur <b>l'utilisateur</b>.</li>
+      <li>Ce qui m'a attiré dans l'UX : elle relie le <b>besoin réel</b> et la solution technique, au lieu de les opposer.</li>
+      <li>Penser d'abord <b>à qui va s'en servir</b>, avant de penser à comment le construire.</li>
+    </ul>
   </section>
 
   <!-- 5 · Année 2 -->
@@ -209,10 +240,22 @@
         <div class="down">↓</div>
         <div class="step arte"><div class="label">L'artefact</div><div class="txt">Une ethnographie sur les personnes sans-abri du métro parisien.</div></div>
         <div class="down">↓</div>
-        <div class="step shift"><div class="label">Le déplacement</div><div class="txt">Se demander <b>d'où je regarde</b> avant de juger. La forme compte autant que le fond. L'IA entre discrètement dans ma vie.</div></div>
+        <div class="step shift"><div class="label">Le déplacement</div><div class="txt">Se demander <b>d'où je regarde</b> avant de juger. L'IA entre discrètement dans ma vie.</div></div>
       </div>
       <div class="bignum">2</div>
     </div>
+  </section>
+
+  <!-- 5b · Posture · D'où je regarde -->
+  <section class="slide posture">
+    <div class="chapter">Changement de posture · Année 2</div>
+    <h2>D'où je regarde.</h2>
+    <ul class="insights">
+      <li>Avant de juger une situation, me demander <b>d'où je la regarde</b> : mes propres biais font partie de l'analyse.</li>
+      <li>Me <b>mettre à la place de l'utilisateur</b> plutôt que de lui projeter ma logique.</li>
+      <li>Reconnaître mon positionnement — <b>« qui suis-je pour aborder ce sujet ? »</b> — avant de conclure.</li>
+      <li>Ce réflexe, je m'en sers encore aujourd'hui chaque fois que j'écris une <b>spécification</b>.</li>
+    </ul>
   </section>
 
   <!-- 6 · Année 3 -->
@@ -224,10 +267,23 @@
         <div class="down">↓</div>
         <div class="step arte"><div class="label">L'artefact</div><div class="txt">L'année la plus technique — plusieurs projets de développement — et un semestre à Dublin.</div></div>
         <div class="down">↓</div>
-        <div class="step shift"><div class="label">Le déplacement</div><div class="txt">Faire marcher une démo <b>n'est pas livrer un produit qui tient</b>. Dublin compte moins par les compétences que par la personne devenue.</div></div>
+        <div class="step shift"><div class="label">Le déplacement</div><div class="txt">Faire marcher une démo <b>n'est pas livrer un produit qui tient</b>.</div></div>
       </div>
       <div class="bignum">3</div>
     </div>
+  </section>
+
+  <!-- 6b · Posture · Démo ≠ produit -->
+  <section class="slide posture">
+    <div class="chapter">Changement de posture · Année 3</div>
+    <h2>Une démo ne veut pas dire que le produit fonctionne.</h2>
+    <p class="lead" style="margin-bottom:.4rem">Faire marcher une démo prouve qu'une idée est possible. Faire <span class="accent">tenir un produit</span> demande de regarder ailleurs :</p>
+    <ul class="insights">
+      <li><span class="k">Juridique</span> respecte-t-il le cadre légal — données, droit applicable, propriété ?</li>
+      <li><span class="k">Marketing</span> répond-il à un vrai besoin, trouve-t-il son public ?</li>
+      <li><span class="k">Retours utilisateurs</span> est-il compris, adopté, réutilisé dans la durée ?</li>
+      <li><span class="k">Preuve d'usage</span> au-delà de la démo, tourne-t-il vraiment entre de vraies mains ?</li>
+    </ul>
   </section>
 
   <!-- 7 · Année 4 -->
@@ -245,6 +301,18 @@
     </div>
   </section>
 
+  <!-- 7b · Posture · Apprendre un métier en produisant -->
+  <section class="slide posture">
+    <div class="chapter">Changement de posture · Année 4</div>
+    <h2>Apprendre un métier en produisant.</h2>
+    <ul class="insights">
+      <li>Chez Naxos, pour recueillir le besoin, j'ai dû apprendre le métier de mes utilisateurs : <b>agent immobilier</b>.</li>
+      <li>On ne spécifie bien que ce qu'on comprend <b>de l'intérieur</b> : le vocabulaire, les contraintes, le quotidien.</li>
+      <li>Comprendre le métier de l'utilisateur, c'est la condition pour traduire un besoin en <b>spécification juste</b>.</li>
+      <li>Et ce métier, on l'apprend <b>en produisant avec eux</b>, pas en l'observant de loin.</li>
+    </ul>
+  </section>
+
   <!-- 8 · Année 5 -->
   <section class="slide">
     <div class="chapter">Année 5 · L'outil</div>
@@ -258,6 +326,18 @@
       </div>
       <div class="bignum">5</div>
     </div>
+  </section>
+
+  <!-- 8b · Posture · Le vibe coding -->
+  <section class="slide posture">
+    <div class="chapter">Changement de posture · Année 5</div>
+    <h2>Le vibe coding.</h2>
+    <ul class="insights">
+      <li>Aspect essentiel aujourd'hui : c'est mon <b>point d'équilibre</b> — assez technique pour construire, assez produit pour penser.</li>
+      <li>Attention : <b>ne jamais l'utiliser sans réfléchir</b>. L'IA exécute, c'est moi qui décide et qui garde la main.</li>
+      <li>L'IA <b>démultiplie</b> ce que je sais faire, elle ne pense pas à ma place.</li>
+      <li>C'est exactement ce qui me permet de devenir <b>Product Builder</b> : penser le produit et le construire seul.</li>
+    </ul>
   </section>
 
   <!-- 9 · Projet miroir -->
@@ -277,11 +357,11 @@
     <div class="chapter">Fil rouge</div>
     <h2>Cinq déplacements, une seule direction.</h2>
     <div class="thread">
-      <div class="node"><b>An 1 ·</b> <span>ne pas choisir technique / business = Product Owner</span></div>
-      <div class="node"><b>An 2 ·</b> <span>d'où je regarde · la forme compte autant que le fond</span></div>
-      <div class="node"><b>An 3 ·</b> <span>une démo qui marche n'est pas un produit qui tient</span></div>
-      <div class="node"><b>An 4 ·</b> <span>on apprend un métier en produisant, pas en l'observant</span></div>
-      <div class="node"><b>An 5 ·</b> <span>l'IA démultiplie, ne remplace pas</span></div>
+      <div class="node"><b>An 1 ·</b> <span class="to">Découverte de l'UX</span></div>
+      <div class="node"><b>An 2 ·</b> <span class="to">D'où je regarde</span></div>
+      <div class="node"><b>An 3 ·</b> <span class="to">Une démo ne veut pas dire que le produit fonctionne</span></div>
+      <div class="node"><b>An 4 ·</b> <span class="to">Apprendre un métier en produisant</span></div>
+      <div class="node"><b>An 5 ·</b> <span class="to">Le vibe coding</span></div>
     </div>
     <div class="converge">↳ Product Owner / Product Builder</div>
   </section>
@@ -308,7 +388,7 @@
   <!-- 12 · Sans concession -->
   <section class="slide">
     <div class="chapter">Sans concession · Bilan</div>
-    <h2>Ma limite la mieux documentée n'est pas technique.</h2>
+    <h2>Ma limite n'est pas technique.</h2>
     <div class="cols">
       <div class="col know">
         <h3>Ce que je sais faire</h3>

@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DreamWeave — Plan Marketing & Communication</title>
+<style>
+  :root{
+    --ink:#1c1b22; --soft:#55525e; --line:#e6e3ee; --bg:#f7f5fb; --card:#ffffff;
+    --lav:#6d5ae6; --lav-bg:#efecfb;
+    --peach:#d9713f; --peach-bg:#fbeee6;
+    --mint:#1f9d6b; --mint-bg:#e6f5ee;
+    --rose:#cc3f55; --rose-bg:#fbe9ec;
+    --amber:#b7791f; --amber-bg:#fbf3e0;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --ink:#ece9f5; --soft:#a9a4bb; --line:#2c2941; --bg:#141221; --card:#1c1930;
+      --lav-bg:#241f4a; --peach-bg:#3a271c; --mint-bg:#12301f; --rose-bg:#361822; --amber-bg:#33280f; }
+  }
+  *{box-sizing:border-box}
+  body{font-family:system-ui,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--ink);
+    line-height:1.55;margin:0;background:var(--bg);font-size:15px;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:940px;margin:0 auto;padding:26px 20px 60px}
+  a{color:var(--lav)}
+  h1{font-size:30px;margin:0 0 4px;letter-spacing:.2px}
+  h2{font-size:20px;margin:34px 0 12px;display:flex;align-items:center;gap:9px}
+  h2 .ic{width:26px;height:26px;flex:none;border-radius:8px;display:grid;place-items:center;background:var(--lav-bg);color:var(--lav);font-size:15px}
+  .cover{border-radius:20px;padding:30px 28px;background:linear-gradient(135deg,#efe9ff 0%,#f3ece9 55%,#e9f6f0 100%);border:1px solid var(--line)}
+  @media (prefers-color-scheme: dark){.cover{background:linear-gradient(135deg,#241f4a,#241a24 60%,#12241d)}}
+  .pill{display:inline-block;font-size:12px;font-weight:800;padding:4px 12px;border-radius:999px;background:var(--lav);color:#fff;letter-spacing:.3px}
+  .lede{color:var(--soft);font-size:14.5px;margin:12px 0 0;max-width:720px}
+  .cover .meta{margin-top:14px;font-size:12.5px;color:var(--soft)}
+  .cover .meta b{color:var(--ink)}
+
+  .locks{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px}
+  .lock{background:var(--card);border:1px solid var(--line);border-top:3px solid var(--rose);border-radius:14px;padding:14px 15px}
+  .lock .n{font-size:11px;font-weight:800;color:var(--rose);letter-spacing:.5px}
+  .lock h4{margin:4px 0 5px;font-size:14.5px}
+  .lock p{margin:0;font-size:12.5px;color:var(--soft)}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 17px;margin:11px 0}
+  table{width:100%;border-collapse:collapse;font-size:13px;margin-top:4px}
+  th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+  th{background:var(--lav-bg);color:var(--lav);font-size:11px;text-transform:uppercase;letter-spacing:.5px}
+  td b{color:var(--ink)}
+
+  /* phase tabs */
+  .tabs{display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 14px}
+  .tab{cursor:pointer;border:1px solid var(--line);background:var(--card);color:var(--soft);
+    padding:9px 15px;border-radius:11px;font-size:13px;font-weight:700;transition:transform .12s ease,box-shadow .12s ease}
+  .tab:hover{transform:translateY(-1px)}
+  .tab .t{font-size:10.5px;display:block;font-weight:800;letter-spacing:.4px;opacity:.75}
+  .tab.on{color:#fff;border-color:transparent;box-shadow:0 6px 16px -6px rgba(109,90,230,.55)}
+  .tab.on.p0{background:#8a7bde}.tab.on.p1{background:var(--mint)}.tab.on.p2{background:var(--peach)}.tab.on.p3{background:var(--rose)}
+  .phase{display:none;animation:fade .25s ease}
+  .phase.on{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+  .phase h3{margin:2px 0 4px;font-size:17px}
+  .phase .when{font-size:12px;font-weight:700;color:var(--soft);margin-bottom:10px}
+  .phase ul{margin:0;padding-left:20px}.phase li{margin:6px 0;font-size:13.5px}
+  .phase li b{color:var(--ink)}
+  .flag{margin-top:12px;font-size:12.5px;background:var(--amber-bg);color:var(--amber);border-radius:9px;padding:9px 12px;font-weight:600}
+
+  .pillars{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}
+  .pil{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:13px 14px;border-left:3px solid var(--lav)}
+  .pil .e{font-size:20px}.pil h4{margin:6px 0 3px;font-size:13.5px}.pil p{margin:0;font-size:12px;color:var(--soft)}
+
+  /* checklist */
+  .checkhead{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  .bar{flex:1;min-width:160px;height:9px;background:var(--line);border-radius:999px;overflow:hidden}
+  .bar > i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--lav),var(--mint));transition:width .3s ease}
+  .pct{font-size:12.5px;font-weight:800;color:var(--mint);font-variant-numeric:tabular-nums}
+  .chk{list-style:none;margin:12px 0 0;padding:0}
+  .chk li{margin:0}
+  .chk label{display:flex;gap:10px;align-items:flex-start;padding:9px 4px;border-bottom:1px solid var(--line);cursor:pointer;font-size:13.5px}
+  .chk li:last-child label{border-bottom:0}
+  .chk input{margin-top:3px;width:17px;height:17px;accent-color:var(--mint);flex:none;cursor:pointer}
+  .chk input:checked + span{color:var(--soft);text-decoration:line-through}
+
+  .kpis{display:flex;flex-wrap:wrap;gap:8px}
+  .kpi{background:var(--lav-bg);color:var(--lav);font-size:12px;font-weight:700;padding:6px 11px;border-radius:999px}
+  .north{margin-top:12px;background:var(--mint-bg);color:var(--mint);border-radius:11px;padding:11px 14px;font-size:13px;font-weight:700}
+
+  .note{font-size:12.5px;color:var(--soft);margin-top:8px}
+  .foot{margin-top:34px;padding-top:14px;border-top:1px solid var(--line);color:var(--soft);font-size:11.5px;text-align:center}
+  .tablewrap{overflow-x:auto}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="cover">
+    <span class="pill">Plan Marketing &amp; Communication</span>
+    <h1>DreamWeave — Go-to-market</h1>
+    <p class="lede">L'exécution démarre <b>après la validation V1</b> du produit. On met les moyens en place avant, on pousse ensuite. Une machine séquencée, pas une vidéo isolée.</p>
+    <div class="meta"><b>Cadré le 15/07/2026.</b> Source : <b>Produit/14_Plan_Marketing_Communication.md</b>. Complète le Business Model Canvas (canaux) et PostHog (mesure).</div>
+  </div>
+
+  <h2><span class="ic">🔒</span>Principe directeur — 3 verrous, dans l'ordre</h2>
+  <div class="locks">
+    <div class="lock"><div class="n">VERROU 1</div><h4>Qualité avant push</h4><p>Pas de marketing sur un produit non fixé. On verrouille la V1 (au-delà du MVP) d'abord.</p></div>
+    <div class="lock"><div class="n">VERROU 2</div><h4>Mesure avant amplification</h4><p>PostHog branché avant tout trafic. Sans mesure, on pousse à l'aveugle et on n'optimise rien.</p></div>
+    <div class="lock"><div class="n">VERROU 3</div><h4>Organique avant payant</h4><p>La pub amplifie un message prouvé, elle ne crée pas le PMF. Zéro euro tant que l'organique ne convertit pas.</p></div>
+  </div>
+
+  <h2><span class="ic">🎬</span>La vidéo, bon canal ? Oui, comme un mix</h2>
+  <div class="card tablewrap">
+    <table>
+      <thead><tr><th>Type</th><th>Rôle</th><th>Format</th></tr></thead>
+      <tbody>
+        <tr><td><b>Short-form vertical</b><br>TikTok d'abord, repurposé Reels + Shorts</td><td>Portée à froid, découverte</td><td>« Magic moment » : prompt → perso cohérent en 30s ; POV persona ; before/after</td></tr>
+        <tr><td><b>YouTube long-form</b></td><td>Profondeur, SEO evergreen, confiance, activation</td><td>Tutos « crée ton webtoon » + build-in-public / mise en production</td></tr>
+      </tbody>
+    </table>
+    <p class="note">Règle : 1 tournage → plusieurs formats → plusieurs canaux. La vidéo n'est pas le seul levier (voir communauté + payant dans les phases).</p>
+  </div>
+
+  <h2><span class="ic">🗺️</span>Les 4 phases (clique pour dérouler)</h2>
+  <div class="tabs" id="tabs">
+    <div class="tab p0 on" data-p="0"><span class="t">PHASE 0</span>Fondations</div>
+    <div class="tab p1" data-p="1"><span class="t">PHASE 1</span>Organique</div>
+    <div class="tab p2" data-p="2"><span class="t">PHASE 2</span>Lancement</div>
+    <div class="tab p3" data-p="3"><span class="t">PHASE 3</span>Payant</div>
+  </div>
+
+  <div class="card">
+    <div class="phase on" data-p="0">
+      <h3>Fondations — les moyens à mettre en place</h3>
+      <div class="when">MAINTENANT, en parallèle du re-test V1</div>
+      <ul>
+        <li><b>Quality Gate V1</b> : re-tester le parcours complet, fixer, verrouiller la V1.</li>
+        <li><b>Mesure</b> : brancher PostHog (funnel inscription → 1re image = TTV) + Sentry.</li>
+        <li><b>Destination</b> : landing / waitlist + 1 CTA unique (lien bio → /start). Capter les emails.</li>
+        <li><b>Marque</b> : handles cohérents (TikTok / Insta / X / YouTube), chaîne YouTube créée, mini brand kit.</li>
+        <li><b>Banque de preuves</b> : 5-10 webtoons / personnages générés = matière première du contenu.</li>
+      </ul>
+    </div>
+    <div class="phase" data-p="1">
+      <h3>Amorce organique</h3>
+      <div class="when">Dès V1 validée · 0-90 jours</div>
+      <ul>
+        <li><b>YouTube</b> : (a) tutos SEO evergreen ; (b) build-in-public / mise en production (coulisses solo, updates).</li>
+        <li><b>Short-form</b> : magic moment, POV persona (Luna), before/after. Batch de 5-6 par tournage.</li>
+        <li><b>Communauté ciblée</b> (pas « partout ») : r/webtoons, r/manga, Discord créateurs / AI art, Tapas, Webtoon Canvas, Indie Hackers. Value-first, jamais de spam.</li>
+      </ul>
+    </div>
+    <div class="phase" data-p="2">
+      <h3>Lancement public</h3>
+      <div class="when">Quand un message organique convertit</div>
+      <ul>
+        <li><b>Product Hunt</b> préparé (assets, séquence, soutiens).</li>
+        <li>Posts « lancement » coordonnés multi-canaux.</li>
+        <li><b>Outreach écoles d'art</b> (persona Théo = prescripteur, effet promo entière).</li>
+      </ul>
+    </div>
+    <div class="phase" data-p="3">
+      <h3>Payant</h3>
+      <div class="when">SEULEMENT après V1 + mesure + message gagnant</div>
+      <ul>
+        <li>Tests à budget maîtrisé (TikTok / Meta / YouTube Ads), 1 variable à la fois, CAC vs LTV.</li>
+        <li>Retargeting des visiteurs (pixel / PostHog).</li>
+      </ul>
+      <div class="flag">⚠️ Garde-fou : ne jamais lancer de pub avant un funnel qui convertit en organique. Amplifier un message qui ne convertit pas = brûler du cash plus vite.</div>
+    </div>
+  </div>
+
+  <h2><span class="ic">🧱</span>Piliers de contenu — des formats en série pour tenir</h2>
+  <div class="pillars">
+    <div class="pil"><div class="e">✨</div><h4>Magic moment</h4><p>Démos 30s du résultat instantané</p></div>
+    <div class="pil"><div class="e">🎓</div><h4>Tutos</h4><p>YouTube, SEO, « sans savoir dessiner »</p></div>
+    <div class="pil"><div class="e">🛠️</div><h4>Build-in-public</h4><p>Coulisses solo founder, updates</p></div>
+    <div class="pil"><div class="e">🫵</div><h4>POV persona</h4><p>« T'as une histoire mais tu sais pas dessiner »</p></div>
+    <div class="pil"><div class="e">🖼️</div><h4>Showcases</h4><p>Before/after, créations communauté</p></div>
+  </div>
+
+  <h2><span class="ic">📊</span>Cadence &amp; mesure</h2>
+  <div class="card">
+    <p style="margin:0 0 10px;font-size:13.5px"><b>Tenir à 100%</b> : batch-film (1 session = 5-6 shorts) · calendrier éditorial · 1 CTA par post · revue hebdo des chiffres (doubler ce qui marche, couper le reste).</p>
+    <div class="kpis">
+      <span class="kpi">Vues</span><span class="kpi">Complétion</span><span class="kpi">Clics bio</span>
+      <span class="kpi">Inscriptions (PostHog)</span><span class="kpi">Activation / TTV</span><span class="kpi">Rétention J30</span><span class="kpi">Conversion payant</span>
+    </div>
+    <div class="north">⭐ North star découverte : inscriptions/semaine issues du contenu.</div>
+  </div>
+
+  <h2><span class="ic">✅</span>Quality Gate V1 — condition de démarrage</h2>
+  <div class="card">
+    <div class="checkhead">
+      <strong style="font-size:13.5px">Le marketing démarre quand tout est coché</strong>
+      <div class="bar"><i id="bar-gate"></i></div><span class="pct" id="pct-gate">0%</span>
+    </div>
+    <ul class="chk" data-store="dw-gate">
+      <li><label><input type="checkbox"><span>Parcours complet re-testé (Style → Assets → Scénario → Éditeur → Export)</span></label></li>
+      <li><label><input type="checkbox"><span>0 bug bloquant</span></label></li>
+      <li><label><input type="checkbox"><span>Onboarding fluide (un inconnu s'inscrit et génère sa 1re image sans aide)</span></label></li>
+      <li><label><input type="checkbox"><span>Performance OK (pas de lag, temps de génération acceptables)</span></label></li>
+      <li><label><input type="checkbox"><span>Mesure branchée (PostHog + Sentry)</span></label></li>
+      <li><label><input type="checkbox"><span>Pages légales OK (CGU + Confidentialité + mention analytics)</span></label></li>
+    </ul>
+  </div>
+
+  <h2><span class="ic">🚀</span>À mettre en place MAINTENANT</h2>
+  <div class="card">
+    <div class="checkhead">
+      <strong style="font-size:13.5px">Les moyens, avant le push</strong>
+      <div class="bar"><i id="bar-now"></i></div><span class="pct" id="pct-now">0%</span>
+    </div>
+    <ul class="chk" data-store="dw-now">
+      <li><label><input type="checkbox"><span>Re-test V1 complet + fixes</span></label></li>
+      <li><label><input type="checkbox"><span>Brancher PostHog + Sentry</span></label></li>
+      <li><label><input type="checkbox"><span>Créer les handles TikTok / Insta / X + la chaîne YouTube</span></label></li>
+      <li><label><input type="checkbox"><span>Mini brand kit (avatar, bannière, couleurs)</span></label></li>
+      <li><label><input type="checkbox"><span>Landing / waitlist + 1 CTA (lien bio → /start)</span></label></li>
+      <li><label><input type="checkbox"><span>Banque de preuves : 5-10 webtoons/persos générés</span></label></li>
+    </ul>
+  </div>
+
+  <div class="foot">DreamWeave · Plan Marketing &amp; Communication · les cases cochées sont sauvegardées dans ce navigateur.</div>
+</div>
+
+<script>
+  // Phases
+  var tabs = document.querySelectorAll('#tabs .tab');
+  var phases = document.querySelectorAll('.phase');
+  tabs.forEach(function(tab){
+    tab.addEventListener('click', function(){
+      var p = tab.getAttribute('data-p');
+      tabs.forEach(function(t){ t.classList.toggle('on', t === tab); });
+      phases.forEach(function(ph){ ph.classList.toggle('on', ph.getAttribute('data-p') === p); });
+    });
+  });
+
+  // Checklists with localStorage + progress
+  document.querySelectorAll('.chk').forEach(function(list){
+    var key = list.getAttribute('data-store');
+    var boxes = list.querySelectorAll('input[type=checkbox]');
+    var barId = key === 'dw-gate' ? 'bar-gate' : 'bar-now';
+    var pctId = key === 'dw-gate' ? 'pct-gate' : 'pct-now';
+    var saved = [];
+    try { saved = JSON.parse(localStorage.getItem(key) || '[]'); } catch(e){}
+    boxes.forEach(function(b,i){ b.checked = !!saved[i]; });
+    function refresh(){
+      var done = 0;
+      boxes.forEach(function(b){ if(b.checked) done++; });
+      var pct = Math.round(done / boxes.length * 100);
+      document.getElementById(barId).style.width = pct + '%';
+      document.getElementById(pctId).textContent = pct + '%';
+    }
+    boxes.forEach(function(b,i){
+      b.addEventListener('change', function(){
+        var state = [];
+        boxes.forEach(function(x){ state.push(x.checked); });
+        try { localStorage.setItem(key, JSON.stringify(state)); } catch(e){}
+        refresh();
+      });
+    });
+    refresh();
+  });
+</script>
+</body>
+</html>

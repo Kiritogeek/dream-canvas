@@ -20,6 +20,7 @@
 | 03 | [Personas](./03_Personas_Utilisateurs.md) | 4 personas, WTP |
 | 05 | [Business Model](./05_Business_Model_Canvas.md) | Freemium, grille tarifaire, KPIs |
 | 06 | [Concurrentielle](./06_Analyse_Concurrentielle.md) | SWOT, différenciation |
+| 14 | [Plan Marketing & Com](./14_Plan_Marketing_Communication.md) | Go-to-market séquencé post-V1 : 3 verrous, 4 phases, canaux, cadence, mesure. Version interactive : [`../docs/marketing/Plan_Marketing_DreamWeave.html`](../docs/marketing/Plan_Marketing_DreamWeave.html) |
 
 ### Conception produit & UX
 
@@ -140,4 +141,4 @@ docs/
 
 ---
 
-*Dernière mise à jour : 16 juin 2026 — ajout `13_Specifications_Application_Mobile.md` (premières specs app compagnon PWA). Précédente : 13 juin 2026 (audit vérité 2) — ajout des docs manquants à l'index (NarraMind-Compass, NarraMind-Compass-Univers, Spec_Admin_KPI, 12_POC), phases réalignées sur l'état réel (Phase 2 livrée : Scénario + Édition + Univers/Compass + Stripe + export PNG), renvoi vers `docs/EDGE_FUNCTIONS_INDEX.md` (14 fonctions) et `02_Architecture §6.3` (communication entre features). Précédente : 2 mai 2026 — Benchmark.* 
+*Dernière mise à jour : 15 juillet 2026 — ajout `14_Plan_Marketing_Communication.md` (go-to-market séquencé post-V1) + version HTML interactive `docs/marketing/Plan_Marketing_DreamWeave.html`. Précédente : 16 juin 2026 — ajout `13_Specifications_Application_Mobile.md` (premières specs app compagnon PWA). Précédente : 13 juin 2026 (audit vérité 2) — ajout des docs manquants à l'index (NarraMind-Compass, NarraMind-Compass-Univers, Spec_Admin_KPI, 12_POC), phases réalignées sur l'état réel (Phase 2 livrée : Scénario + Édition + Univers/Compass + Stripe + export PNG), renvoi vers `docs/EDGE_FUNCTIONS_INDEX.md` (14 fonctions) et `02_Architecture §6.3` (communication entre features). Précédente : 2 mai 2026 — Benchmark.* 

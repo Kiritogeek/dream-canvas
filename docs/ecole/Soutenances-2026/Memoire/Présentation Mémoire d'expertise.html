@@ -20,14 +20,20 @@
   }
   *{box-sizing:border-box;margin:0;padding:0}
   html,body{height:100%}
-  body{background:var(--bg); color:var(--ink); font-family:var(--body); overflow:hidden; -webkit-font-smoothing:antialiased}
+  body{
+    background:
+      radial-gradient(1200px 820px at 8% 4%, rgba(155,109,255,.15), transparent 58%),
+      radial-gradient(1080px 760px at 94% 98%, rgba(240,168,104,.12), transparent 60%),
+      radial-gradient(940px 720px at 96% 8%, rgba(111,214,189,.10), transparent 56%),
+      var(--paper);
+    color:var(--ink); font-family:var(--body); overflow:hidden; -webkit-font-smoothing:antialiased}
   .deck{position:fixed; inset:0}
 
   .slide{
     position:absolute; inset:0;
     display:flex; flex-direction:column; justify-content:center;
     padding:var(--pady) var(--padx);
-    opacity:0; visibility:hidden; transition:opacity .7s ease; background:var(--bg);
+    opacity:0; visibility:hidden; transition:opacity .7s ease; background:transparent;
   }
   .slide.active{opacity:1; visibility:visible}
   .slide > *{max-width:1240px; width:100%; margin-inline:auto}
@@ -271,11 +277,11 @@
     <div class="chapter">Fil rouge</div>
     <h2>Cinq déplacements, une seule direction.</h2>
     <div class="thread">
-      <div class="node"><b>1 ·</b> <span>ne pas choisir technique / business = Product Owner</span></div>
-      <div class="node"><b>2 ·</b> <span>d'où je regarde</span></div>
-      <div class="node"><b>3 ·</b> <span>la forme = le fond</span></div>
-      <div class="node"><b>4 ·</b> <span>une démo qui marche n'est pas un produit qui tient</span></div>
-      <div class="node"><b>5 ·</b> <span>l'IA démultiplie</span></div>
+      <div class="node"><b>An 1 ·</b> <span>ne pas choisir technique / business = Product Owner</span></div>
+      <div class="node"><b>An 2 ·</b> <span>d'où je regarde · la forme compte autant que le fond</span></div>
+      <div class="node"><b>An 3 ·</b> <span>une démo qui marche n'est pas un produit qui tient</span></div>
+      <div class="node"><b>An 4 ·</b> <span>on apprend un métier en produisant, pas en l'observant</span></div>
+      <div class="node"><b>An 5 ·</b> <span>l'IA démultiplie, ne remplace pas</span></div>
     </div>
     <div class="converge">↳ Product Owner / Product Builder</div>
   </section>
@@ -284,12 +290,19 @@
   <section class="slide">
     <div class="chapter">Ce que DreamWeave prouve</div>
     <h2>L'envie s'est traduite en compétence complète.</h2>
-    <div class="pipeline">
-      <span class="p">Besoin</span><span class="s">→</span>
-      <span class="p">Spécification</span><span class="s">→</span>
-      <span class="p">Système</span>
+    <div class="year-wrap" style="margin-top:2.4rem">
+      <div>
+        <p class="lead" style="max-width:58ch; margin:0; font-size:clamp(1.2rem,1.9vw,1.55rem)">Tenir la chaîne de bout en bout, seul. Faire de l'IA un prolongement de soi. Un produit qui tourne, <span class="accent">pas une maquette</span>.</p>
+        <p class="lead" style="max-width:58ch; margin:1.3rem 0 0; font-size:clamp(1rem,1.5vw,1.28rem); color:var(--ink-2)">Cette posture, je ne l'ai pas apprise seul. Mon <span class="accent">alternance de Product Owner chez Naxos</span> m'a énormément appris : écrire une spécification, prioriser, penser produit avant de coder. C'est exactement ce que j'ai appliqué, seul, pour faire tenir DreamWeave de bout en bout.</p>
+      </div>
+      <div class="pipeline" style="flex-direction:column; align-items:stretch; gap:.7rem; margin-top:0; text-align:center; min-width:min(32vw,290px)">
+        <span class="p">Besoin</span>
+        <span class="s">↓</span>
+        <span class="p">Spécification</span>
+        <span class="s">↓</span>
+        <span class="p">Système</span>
+      </div>
     </div>
-    <p class="lead" style="margin-top:2rem; font-size:clamp(1.25rem,2vw,1.65rem)">Tenir la chaîne de bout en bout, seul. Faire de l'IA un prolongement de soi. Un produit qui tourne, <span class="accent">pas une maquette</span>.</p>
   </section>
 
   <!-- 12 · Sans concession -->

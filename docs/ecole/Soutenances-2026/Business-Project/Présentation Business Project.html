@@ -68,12 +68,12 @@
   @media(max-width:900px){.split,.grid-2,.grid-4{grid-template-columns:1fr}}
 
   .decision{
-    position:absolute; top:clamp(1.6rem,3vw,2.6rem); right:clamp(1.6rem,3vw,2.6rem);
-    font-family:var(--sans); font-weight:700; font-size:.9rem; letter-spacing:.04em;
-    color:var(--lav); background:rgba(177,140,240,.12); border:1px solid rgba(177,140,240,.4);
-    padding:.46rem 1rem; border-radius:999px; display:flex; align-items:center; gap:.55rem;
+    position:absolute; top:clamp(1.4rem,2.6vw,2.2rem); right:clamp(1.4rem,2.6vw,2.2rem);
+    font-family:var(--sans); font-weight:600; font-size:.72rem; letter-spacing:.06em;
+    color:var(--text-3); background:rgba(177,140,240,.05); border:1px solid rgba(177,140,240,.16);
+    padding:.24rem .58rem; border-radius:999px; display:flex; align-items:center; gap:.4rem; opacity:.72;
   }
-  .decision::before{content:""; width:8px; height:8px; border-radius:50%; background:var(--lav); box-shadow:0 0 14px var(--lav)}
+  .decision::before{content:""; width:5px; height:5px; border-radius:50%; background:var(--lav); opacity:.7}
 
   .rows{display:flex; flex-direction:column; gap:.8rem}
   .row{display:flex; align-items:flex-start; gap:1.1rem; padding:1.05rem 1.3rem; border:1px solid var(--border);
@@ -151,21 +151,7 @@
     </div>
   </section>
 
-  <!-- 2 · Une suite de décisions -->
-  <section class="slide" data-type="list">
-    <div class="kicker">Le fil rouge</div>
-    <h2>Ce deck ne liste pas des features. Il raconte des décisions.</h2>
-    <p class="lead" style="margin-top:1.2rem">Pour chaque choix structurant : le problème, les options écartées, la décision, sa justification.</p>
-    <div class="arrow-flow" style="margin-top:2.2rem">
-      <span class="step">Problème</span><span class="sep">→</span>
-      <span class="step">Options</span><span class="sep">→</span>
-      <span class="step">Décision</span><span class="sep">→</span>
-      <span class="step">Justification</span>
-    </div>
-    <p class="foot"><b>D1 → D12</b> · douze décisions fondatrices jalonnent la présentation.</p>
-  </section>
-
-  <!-- 3 · Le problème -->
+  <!-- Le problème -->
   <section class="slide" data-type="hero">
     <div class="kicker">Le problème</div>
     <div class="hero-num">300&#8239;–&#8239;1500&#8239;€</div>
@@ -183,7 +169,7 @@
     <div class="split">
       <div>
         <div class="kicker">Le format</div>
-        <h2>Un webtoon, ça se lit en scrollant.</h2>
+        <h2>Qu'est-ce qu'un webtoon&#8239;?</h2>
         <p class="lead" style="margin-top:1.2rem">Bande dessinée verticale née en Corée, pensée pour le mobile.</p>
         <div class="rows" style="margin-top:1.7rem">
           <div class="row"><span class="n">↕</span><div>Une seule colonne, lue en scroll continu.</div></div>
@@ -229,16 +215,35 @@
 
   <!-- 7 · Personas -->
   <section class="slide" data-type="list">
-    <div class="decision">D2</div>
     <div class="kicker">Cibles</div>
     <h2>Quatre profils, un même blocage.</h2>
-    <div class="grid-4" style="margin-top:1.9rem">
-      <div class="glass"><b style="font-family:var(--sans); font-size:1.2rem">Luna</b><p class="foot" style="margin-top:.5rem">Créatrice · cible primaire · 8-15&#8239;€</p></div>
-      <div class="glass"><b style="font-family:var(--sans); font-size:1.2rem">Marc</b><p class="foot" style="margin-top:.5rem">Amateur exigeant · 15-25&#8239;€</p></div>
-      <div class="glass"><b style="font-family:var(--sans); font-size:1.2rem">Théo</b><p class="foot" style="margin-top:.5rem">Étudiant · prescripteur</p></div>
-      <div class="glass"><b style="font-family:var(--sans); font-size:1.2rem">Élodie</b><p class="foot" style="margin-top:.5rem">Éditeur B2B · 49-150&#8239;€</p></div>
+    <div class="grid-4" style="margin-top:1.7rem">
+      <div class="glass">
+        <b style="font-family:var(--sans); font-size:1.12rem">Luna</b>
+        <div style="color:var(--lav-bright); font-size:.8rem; font-weight:600; margin-top:.15rem">22 ans · créatrice romance-fantasy</div>
+        <p style="color:var(--text-2); font-style:italic; font-size:.88rem; line-height:1.4; margin-top:.55rem">« Des histoires plein la tête, mais je ne sais pas dessiner. »</p>
+        <p class="foot" style="margin-top:.6rem">Cible primaire · <b style="color:var(--text-2)">8-15&#8239;€/mois</b></p>
+      </div>
+      <div class="glass">
+        <b style="font-family:var(--sans); font-size:1.12rem">Marc</b>
+        <div style="color:var(--peach); font-size:.8rem; font-weight:600; margin-top:.15rem">28 ans · dev &amp; scénariste amateur</div>
+        <p style="color:var(--text-2); font-style:italic; font-size:.88rem; line-height:1.4; margin-top:.55rem">« 300 à 1500&#8239;€ d'illustration par épisode, intenable. »</p>
+        <p class="foot" style="margin-top:.6rem">Fort potentiel de rétention · <b style="color:var(--text-2)">15-25&#8239;€/mois</b></p>
+      </div>
+      <div class="glass">
+        <b style="font-family:var(--sans); font-size:1.12rem">Théo</b>
+        <div style="color:var(--mint); font-size:.8rem; font-weight:600; margin-top:.15rem">20 ans · étudiant en école d'art</div>
+        <p style="color:var(--text-2); font-style:italic; font-size:.88rem; line-height:1.4; margin-top:.55rem">« Prototyper vite, sans maîtriser Procreate. »</p>
+        <p class="foot" style="margin-top:.6rem">Prescripteur viral (20-30/promo) · <b style="color:var(--text-2)">0-10&#8239;€/mois</b></p>
+      </div>
+      <div class="glass">
+        <b style="font-family:var(--sans); font-size:1.12rem">Élodie</b>
+        <div style="color:var(--pink); font-size:.8rem; font-weight:600; margin-top:.15rem">35 ans · studio d'édition numérique</div>
+        <p style="color:var(--text-2); font-style:italic; font-size:.88rem; line-height:1.4; margin-top:.55rem">« Passer de 6 mois à 6 semaines de production. »</p>
+        <p class="foot" style="margin-top:.6rem">B2B dès la V1 · <b style="color:var(--text-2)">49-150&#8239;€/mois</b></p>
+      </div>
     </div>
-    <p class="foot" style="margin-top:1.9rem"><b>Séquence :</b> B2C d'abord, B2B dès la V1 / T3 2026.</p>
+    <p class="foot" style="margin-top:1.6rem"><b>Décision :</b> commencer par le B2C (Luna + Marc), puis ouvrir le B2B dès la V1 / T3 2026.</p>
   </section>
 
   <!-- 8 · Concurrence -->
@@ -248,7 +253,11 @@
       <div>
         <h2>Personne n'occupe « cohérence + accessibilité ».</h2>
         <p class="lead" style="margin-top:1.2rem">Croisement automatisation IA × spécialisation webtoon. Le quadrant haut-droite est vide.</p>
-        <p class="foot">Dashtoon · Clip Studio · AI Comic Factory se partagent les trois autres coins.</p>
+        <div class="rows" style="margin-top:1.5rem">
+          <div class="row"><span class="n">◆</span><div><b>Dashtoon</b> <span class="muted">· bon workflow, mais cohérence faible d'une case à l'autre</span></div></div>
+          <div class="row"><span class="n">◆</span><div><b>Clip Studio</b> <span class="muted">· référence des pros, mais refuse l'IA et exige de savoir dessiner</span></div></div>
+          <div class="row"><span class="n">◆</span><div><b>AI Comic Factory</b> <span class="muted">· gratuit, mais rendu brut, pas un produit</span></div></div>
+        </div>
       </div>
       <div style="padding:0 1.5rem 1.5rem">
         <div class="matrix">
@@ -266,7 +275,6 @@
 
   <!-- 9 · Décision fondatrice -->
   <section class="slide" data-type="list">
-    <div class="decision">D1</div>
     <div class="kicker">Décision fondatrice</div>
     <h2>On attaque la cause de l'abandon, pas un symptôme.</h2>
     <div class="rows" style="margin-top:1.9rem">
@@ -290,22 +298,8 @@
     <p class="foot" style="margin-top:1.7rem">Captures réelles du POC, une par étape. Le produit tourne.</p>
   </section>
 
-  <!-- 11 · Barrières → réponses -->
-  <section class="slide" data-type="list">
-    <div class="kicker">5 barrières → 5 réponses</div>
-    <h2>À chaque barrière, une réponse technique.</h2>
-    <div class="rows" style="margin-top:1.7rem">
-      <div class="row"><span class="n">1</span><div>Barrière artistique <span class="muted">→</span> <b>génération IA</b></div></div>
-      <div class="row hi"><span class="n">2</span><div>Incohérence des personnages <span class="muted">→</span> <b>Sheet System</b></div></div>
-      <div class="row"><span class="n">3</span><div>Fragmentation des outils <span class="muted">→</span> <b>tout-en-un</b></div></div>
-      <div class="row"><span class="n">4</span><div>Coût <span class="muted">→</span> <b>modèle à crédits</b></div></div>
-      <div class="row"><span class="n">5</span><div>Complexité <span class="muted">→</span> <b>onboarding progressif</b></div></div>
-    </div>
-  </section>
-
   <!-- 12 · Onboarding -->
   <section class="slide" data-type="split">
-    <div class="decision">D3</div>
     <div class="split">
       <div>
         <div class="kicker">Onboarding</div>
@@ -325,7 +319,6 @@
 
   <!-- 13 · Sheet System -->
   <section class="slide" data-type="split">
-    <div class="decision">D6</div>
     <div class="split">
       <div>
         <div class="kicker">Cohérence · la brique clé</div>
@@ -346,7 +339,6 @@
 
   <!-- 14 · Génération par bloc -->
   <section class="slide" data-type="split">
-    <div class="decision">D7</div>
     <div class="split">
       <div>
         <div class="kicker">Édition</div>
@@ -366,7 +358,6 @@
 
   <!-- 15 · NarraMind -->
   <section class="slide" data-type="split">
-    <div class="decision">D8</div>
     <div class="split">
       <div>
         <div class="kicker">Mémoire narrative</div>
@@ -399,7 +390,6 @@
 
   <!-- 17 · Pricing -->
   <section class="slide" data-type="list">
-    <div class="decision">D4</div>
     <div class="kicker">Pricing · logique Spotify</div>
     <div class="hero-num" style="font-size:clamp(2.8rem,6.2vw,4.8rem)">100&#8239;% des fonctions,<br>même en gratuit.</div>
     <div class="grid-4" style="margin-top:2rem">
@@ -409,6 +399,19 @@
       <div class="glass" style="text-align:center"><b style="font-family:var(--sans); font-size:1.2rem">Entreprise</b><div class="hero-sub" style="margin:.4rem 0">devis</div><p class="foot">sur mesure</p></div>
     </div>
     <p class="foot" style="margin-top:1.5rem">Même qualité <b>FLUX.2 Pro</b> pour tous : seul le volume de crédits change.</p>
+  </section>
+
+  <!-- Barrières → réponses (après le pricing) -->
+  <section class="slide" data-type="list">
+    <div class="kicker">5 barrières → 5 réponses</div>
+    <h2>À chaque barrière, une réponse technique.</h2>
+    <div class="rows" style="margin-top:1.7rem">
+      <div class="row"><span class="n">1</span><div>Barrière artistique <span class="muted">→</span> <b>génération IA</b></div></div>
+      <div class="row hi"><span class="n">2</span><div>Incohérence des personnages <span class="muted">→</span> <b>Sheet System</b></div></div>
+      <div class="row"><span class="n">3</span><div>Fragmentation des outils <span class="muted">→</span> <b>tout-en-un</b></div></div>
+      <div class="row"><span class="n">4</span><div>Coût <span class="muted">→</span> <b>modèle à crédits</b></div></div>
+      <div class="row"><span class="n">5</span><div>Complexité <span class="muted">→</span> <b>onboarding progressif</b></div></div>
+    </div>
   </section>
 
   <!-- 18 · Projections -->
@@ -426,15 +429,15 @@
 
   <!-- 19 · Organisation juridique -->
   <section class="slide" data-type="list">
-    <div class="decision">D5</div>
     <div class="kicker">Organisation &amp; juridique</div>
-    <h2>Une équipe minimale outillée par l'IA, un juridique par paliers.</h2>
-    <div class="arrow-flow" style="margin-top:2rem">
+    <h2>Une personne outillée par l'IA, un statut qui grandit par paliers.</h2>
+    <p class="lead" style="margin-top:1.1rem">Le pari : une personne seule, outillée par l'IA de développement, porte la complexité d'une équipe de 3 à 5 développeurs. Les recrutements (P0 → P3) viennent ensuite, déclenchés par des seuils de revenus, pas à l'intuition.</p>
+    <div class="arrow-flow" style="margin-top:1.7rem">
       <span class="step">Auto-entrepreneur</span><span class="sep">→</span>
-      <span class="step">SASU <small>(30&#8239;k€ ou 1<sup>er</sup> salarié)</small></span><span class="sep">→</span>
-      <span class="step">SAS</span>
+      <span class="step">SASU <small>(1<sup>er</sup> salarié ou 30&#8239;k€ de CA)</small></span><span class="sep">→</span>
+      <span class="step">SAS <small>(associés ou levée)</small></span>
     </div>
-    <p class="foot" style="margin-top:1.7rem">Recrutements P0 → P3 déclenchés par des seuils de revenus. Développement « 4 à 6 mois ».</p>
+    <p class="foot" style="margin-top:1.5rem">Chaque passage de statut est déclenché par un fait concret (un salarié, un seuil de CA, une levée), jamais par le calendrier. Le développement du produit prend 4 à 6 mois.</p>
   </section>
 
   <!-- 20 · Go to market -->
@@ -453,7 +456,6 @@
 
   <!-- 21 · Stack -->
   <section class="slide" data-type="list">
-    <div class="decision">D9-D12</div>
     <div class="kicker">Stack · benchmark raisonné</div>
     <h2>Maximiser ce qu'une seule personne peut livrer.</h2>
     <div class="rows" style="margin-top:1.7rem">
@@ -468,22 +470,25 @@
   <section class="slide" data-type="list">
     <div class="kicker">Cadre juridique IA</div>
     <h2>La conformité devient un argument.</h2>
-    <div class="grid-2" style="margin-top:1.9rem">
-      <div class="glass"><b style="font-family:var(--sans); font-size:1.15rem">Intervention humaine créative</b><p class="foot" style="margin-top:.5rem">art. L.111-1 CPI</p></div>
-      <div class="glass"><b style="font-family:var(--sans); font-size:1.15rem">Badge de transparence</b><p class="foot" style="margin-top:.5rem">« Créé avec DreamWeave » sur les exports</p></div>
-      <div class="glass" style="grid-column:1/-1"><b style="font-family:var(--sans); font-size:1.15rem">Couverture copyright</b><p class="foot" style="margin-top:.5rem">héritée de FAL.ai</p></div>
+    <div class="grid-2" style="margin-top:1.7rem">
+      <div class="glass"><b style="font-family:var(--sans); font-size:1.15rem">Intervention humaine créative</b><p style="color:var(--text-2); font-size:.95rem; line-height:1.45; margin-top:.5rem">À chaque étape, un choix humain (style, prompt, composition) : c'est ce qui sécurise la propriété de l'œuvre en droit français.</p><p class="foot" style="margin-top:.4rem">art. L.111-1 CPI</p></div>
+      <div class="glass"><b style="font-family:var(--sans); font-size:1.15rem">Badge de transparence</b><p style="color:var(--text-2); font-size:.95rem; line-height:1.45; margin-top:.5rem">Mention « Créé avec DreamWeave » sur les exports : on anticipe l'obligation de déclaration qui arrive avec l'AI Act.</p><p class="foot" style="margin-top:.4rem">Transparence proactive</p></div>
+      <div class="glass" style="grid-column:1/-1"><b style="font-family:var(--sans); font-size:1.15rem">Couverture copyright</b><p style="color:var(--text-2); font-size:.95rem; line-height:1.45; margin-top:.5rem">Le fournisseur d'images (FAL.ai) garantit des droits d'usage commercial sur les visuels générés : le risque juridique est porté en amont, pas par le créateur.</p><p class="foot" style="margin-top:.4rem">héritée de FAL.ai</p></div>
     </div>
+    <p class="foot" style="margin-top:1.4rem">Objectif : faire de la conformité un argument commercial, face aux outils génériques non balisés.</p>
   </section>
 
   <!-- 23 · Architecture de scale -->
   <section class="slide" data-type="list">
     <div class="kicker">Architecture de scale</div>
-    <h2>Les limites sont des choix de phase, pas des impasses.</h2>
-    <div class="rows" style="margin-top:1.7rem">
-      <div class="row"><span class="n">→</span><div>Chaque composant a sa limite actuelle et son évolution priorisée (P1 / P2 / P3) pour 10&#8239;000 MAU.</div></div>
-      <div class="row"><span class="n">LoRA</span><div>reste une <b>évolution de scale</b>, pas un prérequis du lancement.</div></div>
+    <h2>Chaque limite d'aujourd'hui a déjà son plan.</h2>
+    <p class="lead" style="margin-top:1.1rem">Exercice d'honnêteté : pour chaque brique technique, je nomme sa limite actuelle, puis le plan pour franchir 10&#8239;000 utilisateurs actifs/mois.</p>
+    <div class="rows" style="margin-top:1.5rem">
+      <div class="row"><span class="n">BDD</span><div><b>Supabase</b> <span class="muted">· gratuit jusqu'à ~10&#8239;000 utilisateurs → offre payante (100-500&#8239;€/mois) au-delà</span></div></div>
+      <div class="row"><span class="n">IA</span><div><b>FAL.ai</b> <span class="muted">· coût par génération qui monte avec le volume → infra IA dédiée, coûts optimisés à l'échelle</span></div></div>
+      <div class="row"><span class="n">Style</span><div><b>Cohérence visuelle</b> <span class="muted">· aujourd'hui par références (Sheet System) → LoRA plus tard, en évolution de scale, pas au lancement</span></div></div>
     </div>
-    <p class="foot" style="margin-top:1.4rem">Tableau composant → limite → plan de dépassement (détaillé en annexe).</p>
+    <p class="foot" style="margin-top:1.4rem">Ce sont des choix de phase de lancement, pas des impasses. Le tableau complet est en annexe.</p>
   </section>
 
   <!-- 24 · Conclusion -->

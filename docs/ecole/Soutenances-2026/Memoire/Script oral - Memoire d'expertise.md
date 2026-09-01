@@ -64,13 +64,13 @@ Et cette évidence a un nom : DreamWeave. C'est un logiciel de création de webt
 
 ## Slide 10 — Fil rouge · *14:40*
 
-Si je mets ces cinq années côte à côte, je vois cinq changements de posture. Ne pas choisir entre technique et business : déjà Product Owner. Me demander d'où je regarde. Comprendre que la forme compte autant que le fond. Distinguer livrer de démontrer. Et voir dans l'IA un prolongement, pas un remplacement. Aucun n'était voulu sur le moment. Mis bout à bout, ils dessinent une seule direction. C'est exactement le sens du titre : j'ai grandi sans m'en apercevoir.
+Si je mets ces cinq années côte à côte, je vois cinq changements de posture, un par année. Année 1 : ne pas choisir entre technique et business, c'était déjà le profil Product Owner. Année 2 : me demander d'où je regarde, et comprendre que la forme compte autant que le fond. Année 3 : distinguer livrer de démontrer, une démo qui marche n'est pas un produit qui tient. Année 4 : on apprend un métier en le produisant, pas en l'observant. Année 5 : voir dans l'IA un prolongement qui démultiplie, pas un remplacement. Aucun n'était voulu sur le moment. Mis bout à bout, ils dessinent une seule direction. C'est exactement le sens du titre : j'ai grandi sans m'en apercevoir.
 
 ---
 
 ## Slide 11 — Ce que DreamWeave prouve · *15:35*
 
-Concrètement, qu'est-ce que DreamWeave prouve ? Que je sais tenir toute la chaîne, seul : du besoin, à la spécification, jusqu'au système qui fonctionne. Que je sais faire de l'IA un prolongement de moi, pas une béquille. Et que le résultat n'est pas une maquette : c'est un produit qui tourne. L'envie du départ s'est transformée en compétence.
+Concrètement, qu'est-ce que DreamWeave prouve ? Que je sais tenir toute la chaîne, seul : du besoin, à la spécification, jusqu'au système qui fonctionne. Que je sais faire de l'IA un prolongement de moi, pas une béquille. Et que le résultat n'est pas une maquette : c'est un produit qui tourne. L'envie du départ s'est transformée en compétence. Et je ne suis pas parti de zéro : mon alternance de Product Owner chez Naxos m'a énormément appris, écrire une spécification, prioriser, penser produit avant de coder, et c'est exactement cette posture que j'ai appliquée, seul, pour faire tenir DreamWeave de bout en bout.
 
 ---
 

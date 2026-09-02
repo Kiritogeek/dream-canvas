@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useNarraMindAlerts } from "@/hooks/useNarramindAlerts";
+import { useNarramindMissingAssets } from "@/hooks/useNarramindMissingAssets";
 import type { CompassProposal } from "@/types";
 
 export function useArianeSidebarNotifs(projectId: string | undefined) {
@@ -27,9 +28,10 @@ export function useArianeSidebarNotifs(projectId: string | undefined) {
   });
 
   const { data: scenarioAlerts } = useNarraMindAlerts(projectId);
+  const { data: missingAssets } = useNarramindMissingAssets(projectId);
 
   return {
     hasUniverseNotif: (loreProposals?.length ?? 0) > 0,
-    hasScenarioNotif: (scenarioAlerts?.length ?? 0) > 0,
+    hasScenarioNotif: (scenarioAlerts?.length ?? 0) > 0 || (missingAssets?.length ?? 0) > 0,
   };
 }

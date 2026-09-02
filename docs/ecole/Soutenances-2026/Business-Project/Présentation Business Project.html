@@ -330,64 +330,6 @@
     </div>
   </section>
 
-  <!-- Étape 1 · Style -->
-  <section class="slide wide-media" data-type="split">
-    <div class="split">
-      <div>
-        <div class="kicker">Style · étape 1</div>
-        <h2>Un seul style, tenu sur tout le webtoon.</h2>
-        <p class="lead" style="margin-top:1.2rem">On fixe un <b>univers visuel de référence</b> (couleurs, trait, ambiance) à partir d'images ou d'un template. Tout ce qui est généré ensuite s'y conforme.</p>
-        <div class="rows" style="margin-top:1.5rem">
-          <div class="row"><span class="n">1</span><div>Choisir un template (manga, manhwa, webtoon) ou ses propres références.</div></div>
-          <div class="row"><span class="n">2</span><div>Le style devient la <b>signature</b> réinjectée à chaque génération.</div></div>
-        </div>
-      </div>
-      <div class="glass" style="max-height:62vh; padding:.5rem; display:flex; align-items:center; justify-content:center; overflow:hidden">
-        <img src="style.webp" alt="DreamWeave ·Sélection de style" style="width:100%; border-radius:12px; display:block" />
-      </div>
-    </div>
-  </section>
-
-  <!-- Étape 2a · Assets · ce qu'on peut faire -->
-  <section class="slide wide-media" data-type="split">
-    <div class="split">
-      <div>
-        <div class="kicker">Assets · étape 2</div>
-        <h2>Un personnage, un objet, un lieu.</h2>
-        <p class="lead" style="margin-top:1.2rem">On décrit l'élément, DreamWeave le génère. Le <b>style du projet est injecté dans le prompt</b> de l'asset, pour que tout reste cohérent.</p>
-        <div class="rows" style="margin-top:1.5rem">
-          <div class="row"><span class="n">◆</span><div><b>Personnage</b>, <b>objet</b> ou <b>lieu</b> à partir d'une simple description.</div></div>
-          <div class="row"><span class="n">◆</span><div>La <b>signature visuelle</b> du projet est réinjectée à chaque génération.</div></div>
-          <div class="row"><span class="n">◆</span><div>Génération via <b>FLUX</b>, dans une <b>Edge Function Supabase</b>.</div></div>
-        </div>
-      </div>
-      <div class="glass" style="max-height:62vh; padding:.5rem; display:flex; align-items:center; justify-content:center; overflow:hidden">
-        <img src="assets.webp" alt="DreamWeave ·Génération d'assets (personnages, objets, lieux)" style="width:100%; border-radius:12px; display:block" />
-      </div>
-    </div>
-  </section>
-
-  <!-- Étape 2b · Assets · cohérence visuelle (Sheet) -->
-  <section class="slide wide-media" data-type="split">
-    <div class="split">
-      <div>
-        <div class="kicker">Assets · cohérence visuelle</div>
-        <h2>Le Sheet garde le personnage identique.</h2>
-        <p class="lead" style="margin-top:1.2rem">Pour chaque asset, on génère un <b>Sheet</b> : une fiche composite <b>4 angles</b>. C'est lui qui servira à l'<b>Édition</b>.</p>
-        <div class="rows" style="margin-top:1.5rem">
-          <div class="row"><span class="n">◆</span><div>Le <b>Sheet</b> fige l'apparence de l'asset sous plusieurs angles.</div></div>
-          <div class="row"><span class="n">◆</span><div>Réinjecté à l'Édition, il garantit un <b>rendu identique de case en case</b>.</div></div>
-        </div>
-        <div class="glass" style="margin-top:1.5rem; font-family:var(--body); color:var(--text-2); font-size:1rem">
-          asset → Sheet (4 angles) → réutilisé à chaque case
-        </div>
-      </div>
-      <div class="glass" style="max-height:62vh; padding:.5rem; display:flex; align-items:center; justify-content:center; overflow:hidden">
-        <img src="assets.webp" alt="DreamWeave ·Sheet composite 4 angles" style="width:100%; border-radius:12px; display:block" />
-      </div>
-    </div>
-  </section>
-
   <!-- Étape 3 · Univers -->
   <section class="slide wide-media" data-type="split">
     <div class="split">
@@ -402,26 +344,6 @@
       </div>
       <div class="glass" style="max-height:62vh; padding:.5rem; display:flex; align-items:center; justify-content:center; overflow:hidden">
         <img src="univers.png" alt="DreamWeave ·Univers et cartographie du monde" style="width:100%; border-radius:12px; display:block" />
-      </div>
-    </div>
-  </section>
-
-  <!-- Étape 4a · Scénario · fonctionnement -->
-  <section class="slide wide-media" data-type="split">
-    <div class="split">
-      <div>
-        <div class="kicker">Scénario · étape 4</div>
-        <h2>De ton texte aux cases, en quatre temps.</h2>
-        <p class="lead" style="margin-top:1.2rem">Le scénario n'est pas juste écrit : il est <b>compris</b> par l'IA, puis découpé en cases prêtes à composer.</p>
-        <div class="rows" style="margin-top:1.5rem">
-          <div class="row"><span class="n">1</span><div><b>Validation du texte</b> : le chapitre est écrit et confirmé.</div></div>
-          <div class="row"><span class="n">2</span><div><b>Détection d'assets</b> : l'IA repère personnages, lieux et objets cités.</div></div>
-          <div class="row"><span class="n">3</span><div><b>Validation d'assets</b> : on confirme les éléments à relier.</div></div>
-          <div class="row"><span class="n">4</span><div><b>Découpage IA</b> : le texte devient une suite de cases.</div></div>
-        </div>
-      </div>
-      <div class="glass" style="max-height:62vh; padding:.5rem; display:flex; align-items:center; justify-content:center; overflow:hidden">
-        <img src="scenario.png" alt="DreamWeave ·Scénario et découpage IA" style="width:100%; border-radius:12px; display:block" />
       </div>
     </div>
   </section>
@@ -441,43 +363,6 @@
       <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:1.1rem">
         <img src="ariane.png" alt="Ariane, l'assistante narrative de DreamWeave" style="max-height:52vh; max-width:100%; object-fit:contain; filter:drop-shadow(0 24px 60px rgba(177,140,240,.4))" />
         <p class="hero-sub" style="margin:0">Ariane, gardienne de la <b style="color:var(--lav-bright)">cohérence narrative</b></p>
-      </div>
-    </div>
-  </section>
-
-  <!-- Étape 5a · Édition · ce qu'on peut faire -->
-  <section class="slide wide-media" data-type="split">
-    <div class="split">
-      <div>
-        <div class="kicker">Édition · étape 5</div>
-        <h2>Composer chaque case, bloc par bloc.</h2>
-        <p class="lead" style="margin-top:1.2rem">La case se construit par blocs indépendants, que l'on ajoute et déplace librement.</p>
-        <div class="rows" style="margin-top:1.5rem">
-          <div class="row"><span class="n">◆</span><div><b>Bulles</b> de dialogue.</div></div>
-          <div class="row"><span class="n">◆</span><div><b>Blocs couleur</b> pour le fond et les aplats.</div></div>
-          <div class="row"><span class="n">◆</span><div><b>Blocs image</b> pilotés par un prompt.</div></div>
-        </div>
-      </div>
-      <div class="glass" style="max-height:62vh; padding:.5rem; display:flex; align-items:center; justify-content:center; overflow:hidden">
-        <img src="edition.webp" alt="DreamWeave ·Éditeur de cases (bulles, couleurs, blocs image)" style="width:100%; border-radius:12px; display:block" />
-      </div>
-    </div>
-  </section>
-
-  <!-- Étape 5b · Édition · rendu cohérent -->
-  <section class="slide wide-media" data-type="split">
-    <div class="split">
-      <div>
-        <div class="kicker">Édition · rendu cohérent</div>
-        <h2>Le découpage IA place les visuels, les assets s'injectent.</h2>
-        <p class="lead" style="margin-top:1.2rem">L'Édition <b>reprend le découpage IA</b> du scénario, <b>détecte les assets</b> cités dans le prompt de chaque bloc et <b>injecte les visuels</b> correspondants.</p>
-        <div class="glass" style="margin-top:1.5rem; font-family:var(--body); color:var(--text-2); font-size:1rem">
-          { id, x, y, w, h, prompt, asset_refs, image_url }
-        </div>
-        <p class="foot" style="margin-top:1rem">Résultat : un rendu <b>cohérent</b> de la première à la dernière case.</p>
-      </div>
-      <div class="glass" style="max-height:62vh; padding:.5rem; display:flex; align-items:center; justify-content:center; overflow:hidden">
-        <img src="edition.webp" alt="DreamWeave ·Rendu cohérent de l'éditeur" style="width:100%; border-radius:12px; display:block" />
       </div>
     </div>
   </section>
@@ -655,7 +540,7 @@
   <button id="prev" aria-label="Slide précédente">‹</button>
   <button id="next" aria-label="Slide suivante">›</button>
 </div>
-<div class="hud"><b id="cur">1</b> / <span id="tot">26</span></div>
+<div class="hud"><b id="cur">1</b> / <span id="tot">24</span></div>
 <div class="hint" id="hint">← → pour naviguer · F plein écran</div>
 
 <script>

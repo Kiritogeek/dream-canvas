@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Sparkles, Lock, CheckCircle2, XCircle, Loader2 } from "lucide-react";
+import { Lock, CheckCircle2, XCircle, Loader2 } from "lucide-react";
+import { LogoMark } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -196,7 +197,7 @@ export default function ResetPassword() {
           <div className="inline-flex items-center gap-2 mb-4 sm:mb-6">
             <ThemeToggle />
             <Link to="/" className="inline-flex items-center gap-2">
-              <Sparkles className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
+              <LogoMark className="h-6 w-auto sm:h-8 shrink-0" />
               <span className="font-display text-xl sm:text-2xl font-bold text-gradient">DreamWeave</span>
             </Link>
           </div>

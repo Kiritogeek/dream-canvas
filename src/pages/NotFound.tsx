@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion, useReducedMotion } from "framer-motion";
-import { Sparkles, Home, ArrowLeft, Search, Star } from "lucide-react";
+import { Home, ArrowLeft, Search, Star } from "lucide-react";
+import { LogoMark } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 
 const STAR_COLORS = [
@@ -176,7 +177,7 @@ const NotFound = () => {
         aria-label="DreamWeave, retour à l'accueil"
         className="absolute left-6 top-6 z-10 flex items-center gap-2 font-display text-lg font-bold"
       >
-        <Sparkles className="h-6 w-6 text-primary" />
+        <LogoMark className="h-6 w-auto shrink-0" />
         <span className="text-gradient">DreamWeave</span>
       </Link>
 

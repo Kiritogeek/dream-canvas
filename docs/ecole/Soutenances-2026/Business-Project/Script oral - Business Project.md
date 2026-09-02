@@ -7,7 +7,7 @@
 > **Rythme :** ~135 mots/minute, assuré mais pas récité. Respire entre les slides, regarde le jury.
 > **Règle d'or :** chaque chiffre est adossé à une source ou à une réflexion assumée. **Ne jamais citer de pourcentage d'abandon chiffré.**
 >
-> **Deck à 30 slides** — parcours produit détaillé : Solution → Onboarding → Style → Assets (×2) → Univers → Scénario (×2) → Édition (×2).
+> **Deck à 30 slides** : parcours produit détaillé, Solution → Onboarding → Style → Assets (×2) → Univers → Scénario (×2) → Édition (×2).
 
 ---
 
@@ -31,15 +31,15 @@ Le marché est déjà massif : environ **11 milliards de dollars en 2025**, et i
 
 ## Slide 4 — Un marché installé · *2:55*
 
-Le public existe déjà. La plateforme leader compte **170 millions de lecteurs actifs par mois** et **24 millions de créateurs** — et ce chiffre vient de son document réglementaire d'introduction en bourse, pas d'un blog. La romance pèse près de **40 % des revenus**, l'audience est jeune, **76 %** ont entre 18 et 33 ans. Et surtout : **86 % des créateurs utilisent déjà l'IA**. Le terrain est prêt.
+Le public existe déjà. La plateforme leader compte **170 millions de lecteurs actifs par mois** et **24 millions de créateurs**, et ce chiffre vient de son document réglementaire d'introduction en bourse, pas d'un blog. La romance pèse près de **40 % des revenus**, l'audience est jeune, **76 %** ont entre 18 et 33 ans. Et surtout : **86 % des créateurs utilisent déjà l'IA**. Le terrain est prêt.
 
 ---
 
 ## Slide 5 — Le problème · *3:40*
 
-Voici le goulot d'étranglement. Créer un seul chapitre coûte aujourd'hui **300 à 1 500 €** quand on ne sait pas dessiner, pour une à quatre semaines de travail — ou alors des mois pour apprendre à illustrer. Le blocage n'est pas l'envie : c'est le mur « savoir dessiner ». Sans cette compétence ni ce budget, beaucoup de créateurs abandonnent en cours de route.
+Voici le goulot d'étranglement. Créer un seul chapitre coûte aujourd'hui **300 à 1 500 €** quand on ne sait pas dessiner, pour une à quatre semaines de travail, ou alors des mois pour apprendre à illustrer. Le blocage n'est pas l'envie : c'est le mur « savoir dessiner ». Sans cette compétence ni ce budget, beaucoup de créateurs abandonnent en cours de route.
 
-*(⚠️ ne jamais citer de pourcentage d'abandon chiffré — parler de faits : coût, délai, compétence.)*
+*(⚠️ ne jamais citer de pourcentage d'abandon chiffré, parler de faits : coût, délai, compétence.)*
 
 ---
 
@@ -69,13 +69,13 @@ Voici la solution : un parcours guidé en cinq étapes, qui produit des visuels 
 
 ## Slide 10 — Onboarding · *7:30*
 
-Un éditeur complet montré d'un coup, c'est intimidant — donc un facteur d'abandon. J'ai écarté deux extrêmes : tout exposer, écrasant ; et le wizard forcé, frustrant. J'ai retenu le **déblocage progressif**, guidé pas à pas par un assistant, avec des badges « New ». On garde un time-to-value **sous dix minutes** sans sacrifier la profondeur.
+Un éditeur complet montré d'un coup, c'est intimidant, donc un facteur d'abandon. J'ai écarté deux extrêmes : tout exposer, écrasant ; et le wizard forcé, frustrant. J'ai retenu le **déblocage progressif**, guidé pas à pas par un assistant, avec des badges « New ». On garde un time-to-value **sous dix minutes** sans sacrifier la profondeur.
 
 ---
 
 ## Slide 11 — Étape 1 · Style · *8:05*
 
-Première étape : le **style**. On fixe un univers visuel de référence — couleurs, trait, ambiance — à partir d'images ou d'un template : manga, manhwa, webtoon. Ce style devient la **signature** du projet, réinjectée à chaque génération. Tout ce qui est produit ensuite s'y conforme.
+Première étape : le **style**. On fixe un univers visuel de référence, couleurs, trait, ambiance, à partir d'images ou d'un template : manga, manhwa, webtoon. Ce style devient la **signature** du projet, réinjectée à chaque génération. Tout ce qui est produit ensuite s'y conforme.
 
 ---
 
@@ -105,7 +105,7 @@ Quatrième étape : le **scénario**. Il n'est pas seulement écrit, il est **co
 
 ## Slide 16 — Scénario · cohérence scénaristique · *11:50*
 
-C'est ici qu'intervient **Ariane**, mon assistante narrative. Elle lit le scénario, propose de l'**enrichir** — du lore, des directions narratives — et surtout elle **détecte les incohérences** sur toute la durée de l'histoire. Sous le capot, une mémoire narrative **compressée** — une cinquantaine de tokens par chapitre au lieu de plusieurs centaines — avec recherche vectorielle. L'auteur ne voit que les alertes, jamais la plomberie.
+C'est ici qu'intervient **Ariane**, mon assistante narrative. Elle lit le scénario, propose de l'**enrichir**, du lore, des directions narratives, et surtout elle **détecte les incohérences** sur toute la durée de l'histoire. Sous le capot, une mémoire narrative **compressée** : une cinquantaine de tokens par chapitre au lieu de près de 900, avec recherche vectorielle en 768 dimensions et pgvector. L'auteur ne voit que les alertes, jamais la plomberie.
 
 ---
 
@@ -123,7 +123,7 @@ Et c'est là que tout se recolle. L'Édition **reprend le découpage IA** du sc�
 
 ## Slide 19 — Business Model Canvas · *13:45*
 
-Le modèle en une vue. Mes partenaires : FAL.ai, Supabase, Vercel. Mes ressources clés : FLUX.2 Pro, mes **prompts système propriétaires**, et NarraMind, ma mémoire narrative. Les revenus : abonnements et packs de crédits. Côté coûts, quelques charges fixes — Supabase Pro autour de 25 €, Vercel autour de 20 € — et surtout un coût **variable d'environ 6 centimes par génération**. Mon seul vrai levier de marge, c'est le ratio entre le prix de l'abonnement et le coût réel des générations.
+Le modèle en une vue. Mes partenaires : FAL.ai, Supabase, Vercel. Mes ressources clés : FLUX.2 Pro, mes **prompts système propriétaires**, et NarraMind, ma mémoire narrative. Les revenus : abonnements et packs de crédits. Côté coûts, quelques charges fixes, Supabase Pro autour de 25 €, Vercel autour de 20 €, et surtout un coût **variable d'environ 6 centimes par génération**. Mon seul vrai levier de marge, c'est le ratio entre le prix de l'abonnement et le coût réel des générations.
 
 ---
 
@@ -165,25 +165,25 @@ La mise sur le marché se fait en **cinq phases** : une bêta fermée avec une d
 
 ## Slide 26 — Stack technique · *18:15*
 
-Le prototype fonctionne, et chaque brique suit un même fil : **maximiser ce qu'une seule personne peut livrer**. **Supabase** pour la base, avec sécurité par utilisateur. **FAL.ai et FLUX.2 Pro** pour la génération : multi-référence native — sans elle, pas de Sheet System — et couverture copyright. **Gemini** pour le texte, avec un fallback **Groq** automatique. Et **React, Vite, React Query** plus des Edge Functions côté produit.
+Le prototype fonctionne, et chaque brique suit un même fil : **maximiser ce qu'une seule personne peut livrer**. **Supabase** pour la base, avec sécurité par utilisateur. **FAL.ai et FLUX.2 Pro** pour la génération : multi-référence native, sans elle pas de Sheet System, et couverture copyright. **Gemini** pour le texte, avec un fallback **Groq** automatique. Et **React, Vite, React Query** plus des Edge Functions côté produit.
 
 ---
 
 ## Slide 27 — Cadre juridique IA · *18:45*
 
-Un sujet que le jury attend : le droit de l'IA. Ma stratégie, c'est d'en faire un **argument**. Une **intervention humaine créative** à chaque étape — style, prompt, composition — qui sécurise la propriété de l'œuvre en droit français, au titre de l'article L.111-1 du Code de la propriété intellectuelle. Un **badge de transparence** « Créé avec DreamWeave » sur les exports, qui anticipe l'obligation de déclaration de l'AI Act. Et une **couverture copyright** héritée de FAL.ai, qui porte le risque en amont, pas sur le créateur.
+Un sujet que le jury attend : le droit de l'IA. Ma stratégie, c'est d'en faire un **argument**. Une **intervention humaine créative** à chaque étape, style, prompt, composition, qui sécurise la propriété de l'œuvre en droit français, au titre de l'article L.111-1 du Code de la propriété intellectuelle. Un **badge de transparence** « Créé avec DreamWeave » sur les exports, qui anticipe l'obligation de déclaration de l'AI Act. Et une **couverture copyright** héritée de FAL.ai, qui porte le risque en amont, pas sur le créateur.
 
 ---
 
 ## Slide 28 — Architecture de scale · *19:10*
 
-Et à l'échelle ? Pour chaque brique, je nomme sa limite actuelle et son plan. Supabase est gratuit jusqu'à ~10 000 utilisateurs, puis passe à une offre payante. L'infrastructure IA se dédie et s'optimise à gros volume. Et la cohérence, aujourd'hui portée par le Sheet System, pourra passer à un **modèle sur-mesure par personnage plus tard** — une évolution de scale, pas un prérequis au lancement. Ce sont des choix de phase de lancement, pas des impasses.
+Et à l'échelle ? Pour chaque brique, je nomme sa limite actuelle et son plan. Supabase est gratuit jusqu'à ~10 000 utilisateurs, puis passe à une offre payante. L'infrastructure IA se dédie et s'optimise à gros volume. Et la cohérence, aujourd'hui portée par le Sheet System, pourra passer plus tard à un **modèle sur-mesure par personnage**, une évolution de scale, pas un prérequis au lancement. Ce sont des choix de phase de lancement, pas des impasses.
 
 ---
 
 ## Slide 29 — Conclusion · *19:35*
 
-Pour conclure : le marché grandit vite, la majorité des créateurs utilisent déjà l'IA, et personne ne résout vraiment la cohérence. DreamWeave arrive au bon moment : de l'idée au chapitre publié, sans savoir dessiner, pour **moins de 5 € le chapitre** — contre 300 à 1 500 € aujourd'hui. Le prototype tourne, et le modèle est **rentable dès dix à quinze abonnés**. La phrase qui a guidé tous mes choix : **la solution suffisante et livrable bat la solution parfaite et inatteignable.**
+Pour conclure : le marché grandit vite, la majorité des créateurs utilisent déjà l'IA, et personne ne résout vraiment la cohérence. DreamWeave arrive au bon moment : de l'idée au chapitre publié, sans savoir dessiner, pour **moins de 5 € le chapitre**, contre 300 à 1 500 € aujourd'hui. Le prototype tourne, et le modèle est **rentable dès dix à quinze abonnés**. La phrase qui a guidé tous mes choix : **la solution suffisante et livrable bat la solution parfaite et inatteignable.**
 
 ---
 
@@ -197,6 +197,6 @@ Merci de votre attention. Je suis à votre disposition pour vos questions.
 - **Coûts** : fixes vs variables, sensibilité au prix FAL.ai, plan si hausse tarifaire.
 - **Dépendance FAL.ai** : réversibilité, alternatives, ce que ça coûterait de changer.
 - **CAC < 30 € / LTV/CAC > 3** : savoir définir les deux termes et défendre les hypothèses.
-- **Marché** : 11 Md$ (2025) sourcé, ~40 Md$ (2030) estimé — assumer que c'est une projection.
+- **Marché** : 11 Md$ (2025) sourcé, ~40 Md$ (2030) estimé, assumer que c'est une projection.
 - **Abandon** : faits sourcés (coût, délai, compétence), jamais de pourcentage chiffré.
 - **Copyright IA** : intervention humaine, AI Act, couverture FAL.ai.

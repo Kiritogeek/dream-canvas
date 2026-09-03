@@ -548,6 +548,42 @@
     <p class="foot" style="margin-top:1.4rem">Point critique = <b>l'activation</b> (effet « wow » en moins de 10 min).</p>
   </section>
 
+  <!-- KPIs · pilotage -->
+  <section class="slide" data-type="list">
+    <div class="kicker">KPIs · pilotage</div>
+    <h2>Ce que je mesure pour piloter.</h2>
+    <div class="glass" style="margin-top:1.4rem; border-color:rgba(111,214,189,.55); background:rgba(111,214,189,.09); text-align:center">
+      <span class="foot" style="letter-spacing:.09em">★ MÉTRIQUE PIVOT · NORTH STAR</span>
+      <div class="hero-num" style="font-size:clamp(1.9rem,4.4vw,3rem); color:var(--mint); margin-top:.15rem">Activation &gt; 60 %</div>
+      <p class="hero-sub" style="margin-top:.1rem">inscrits qui créent un premier projet : le « wow moment »</p>
+    </div>
+    <div class="split" style="margin-top:1.3rem">
+      <div class="rows">
+        <div class="row"><span class="n" style="color:var(--lav)">◆</span><div><b>CAC &lt; 30 €</b> <span class="muted">· coût d'acquisition client</span></div></div>
+        <div class="row"><span class="n" style="color:var(--peach)">◆</span><div><b>LTV &gt; 150 €</b> <span class="muted">· valeur vie client</span></div></div>
+        <div class="row"><span class="n" style="color:var(--mint)">◆</span><div><b>LTV / CAC &gt; 3:1</b> <span class="muted">· ratio valeur / coût</span></div></div>
+        <div class="row"><span class="n" style="color:var(--pink)">◆</span><div><b>Churn &lt; 8 %</b> <span class="muted">· désabonnement mensuel</span></div></div>
+      </div>
+      <div class="rows">
+        <div class="row"><span class="n" style="color:var(--lav-bright)">◆</span><div><b>Assiduité &gt; 30 %</b> <span class="muted">· part des utilisateurs mensuels qui reviennent chaque jour (DAU/MAU)</span></div></div>
+        <div class="row"><span class="n" style="color:var(--lav)">◆</span><div><b>Conversion &gt; 5 %</b> <span class="muted">· Libre → Créateur, à M12</span></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Architecture de scale -->
+  <section class="slide" data-type="list">
+    <div class="kicker">Architecture de scale</div>
+    <h2>Chaque limite d'aujourd'hui a déjà son plan.</h2>
+    <div class="rows" style="margin-top:1.5rem">
+      <div class="row"><span class="n" style="color:var(--lav)">BDD</span><div><b>Supabase</b> <span class="muted">· gratuit aujourd'hui → plan Pro 25&#8239;€/mois, puis 100-500&#8239;€/mois au-delà de ~10&#8239;000 utilisateurs actifs</span></div></div>
+      <div class="row"><span class="n" style="color:var(--peach)">IA</span><div><b>FAL.ai</b> <span class="muted">· aujourd'hui une API partagée, facturée à la génération → à gros volume, une infrastructure IA dédiée (nos propres serveurs de génération) fait baisser le coût unitaire</span></div></div>
+      <div class="row"><span class="n" style="color:var(--mint)">LLM</span><div><b>Gemini Flash</b> <span class="muted">· aujourd'hui palier gratuit + fallback Groq si saturation → à gros volume, quotas payants (~0,005&#8239;$/appel), marginaux face au coût des images</span></div></div>
+      <div class="row"><span class="n" style="color:var(--pink)">Style</span><div><b>Cohérence visuelle</b> <span class="muted">· aujourd'hui par références (Sheet System) → plus tard, un modèle entraîné sur mesure par personnage, en évolution de scale, pas au lancement</span></div></div>
+    </div>
+    <p class="foot" style="margin-top:1.4rem">Ce sont des choix de phase de lancement, pas des impasses. Le tableau complet est en annexe.</p>
+  </section>
+
   <!-- 22 · Cadre juridique IA -->
   <section class="slide" data-type="list">
     <div class="kicker">Cadre juridique IA</div>
@@ -595,29 +631,6 @@
     </div>
   </section>
 
-  <!-- ANNEXE · KPIs (Q&A, après le SWOT) -->
-  <section class="slide" data-type="list">
-    <div class="kicker">KPIs · pilotage</div>
-    <h2>Ce que je mesure pour piloter.</h2>
-    <div class="glass" style="margin-top:1.4rem; border-color:rgba(111,214,189,.55); background:rgba(111,214,189,.09); text-align:center">
-      <span class="foot" style="letter-spacing:.09em">★ MÉTRIQUE PIVOT · NORTH STAR</span>
-      <div class="hero-num" style="font-size:clamp(1.9rem,4.4vw,3rem); color:var(--mint); margin-top:.15rem">Activation &gt; 60 %</div>
-      <p class="hero-sub" style="margin-top:.1rem">inscrits qui créent un premier projet : le « wow moment »</p>
-    </div>
-    <div class="split" style="margin-top:1.3rem">
-      <div class="rows">
-        <div class="row"><span class="n" style="color:var(--lav)">◆</span><div><b>CAC &lt; 30 €</b> <span class="muted">· coût d'acquisition client</span></div></div>
-        <div class="row"><span class="n" style="color:var(--peach)">◆</span><div><b>LTV &gt; 150 €</b> <span class="muted">· valeur vie client</span></div></div>
-        <div class="row"><span class="n" style="color:var(--mint)">◆</span><div><b>LTV / CAC &gt; 3:1</b> <span class="muted">· ratio valeur / coût</span></div></div>
-        <div class="row"><span class="n" style="color:var(--pink)">◆</span><div><b>Churn &lt; 8 %</b> <span class="muted">· désabonnement mensuel</span></div></div>
-      </div>
-      <div class="rows">
-        <div class="row"><span class="n" style="color:var(--lav-bright)">◆</span><div><b>Assiduité &gt; 30 %</b> <span class="muted">· part des utilisateurs mensuels qui reviennent chaque jour (DAU/MAU)</span></div></div>
-        <div class="row"><span class="n" style="color:var(--lav)">◆</span><div><b>Conversion &gt; 5 %</b> <span class="muted">· Libre → Créateur, à M12</span></div></div>
-      </div>
-    </div>
-  </section>
-
   <!-- ANNEXE · Stack (Q&A, benchmark technique) -->
   <section class="slide" data-type="list">
     <div class="kicker">Stack · benchmark raisonné</div>
@@ -628,19 +641,6 @@
       <div class="row"><span class="n" style="color:var(--mint)">LLM</span><div><b>Gemini Flash</b> <span class="muted">· rapide, quasi gratuit et de bonne qualité. Si Gemini sature, Groq prend le relais tout seul.</span></div></div>
       <div class="row"><span class="n" style="color:var(--pink)">FE</span><div><b>React / Vite / React Query</b> <span class="muted">· outils web standards choisis pour la rapidité : l'appli reste fluide et les clés API restent protégées.</span></div></div>
     </div>
-  </section>
-
-  <!-- ANNEXE · Architecture de scale (Q&A, montée en charge) -->
-  <section class="slide" data-type="list">
-    <div class="kicker">Architecture de scale</div>
-    <h2>Chaque limite d'aujourd'hui a déjà son plan.</h2>
-    <div class="rows" style="margin-top:1.5rem">
-      <div class="row"><span class="n" style="color:var(--lav)">BDD</span><div><b>Supabase</b> <span class="muted">· gratuit aujourd'hui → plan Pro 25&#8239;€/mois, puis 100-500&#8239;€/mois au-delà de ~10&#8239;000 utilisateurs actifs</span></div></div>
-      <div class="row"><span class="n" style="color:var(--peach)">IA</span><div><b>FAL.ai</b> <span class="muted">· aujourd'hui une API partagée, facturée à la génération → à gros volume, une infrastructure IA dédiée (nos propres serveurs de génération) fait baisser le coût unitaire</span></div></div>
-      <div class="row"><span class="n" style="color:var(--mint)">LLM</span><div><b>Gemini Flash</b> <span class="muted">· aujourd'hui palier gratuit + fallback Groq si saturation → à gros volume, quotas payants (~0,005&#8239;$/appel), marginaux face au coût des images</span></div></div>
-      <div class="row"><span class="n" style="color:var(--pink)">Style</span><div><b>Cohérence visuelle</b> <span class="muted">· aujourd'hui par références (Sheet System) → plus tard, un modèle entraîné sur mesure par personnage, en évolution de scale, pas au lancement</span></div></div>
-    </div>
-    <p class="foot" style="margin-top:1.4rem">Ce sont des choix de phase de lancement, pas des impasses. Le tableau complet est en annexe.</p>
   </section>
 
 </div>

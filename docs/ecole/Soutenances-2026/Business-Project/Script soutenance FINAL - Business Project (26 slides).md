@@ -1,6 +1,6 @@
 # Script de soutenance — Business Project · DreamWeave
 
-> **Version finale** alignée sur le deck actuel : **26 slides présentés** (jusqu'au Merci) + **4 annexes Q&A** (SWOT, KPIs, Stack, Architecture de scale).
+> **Version finale** alignée sur le deck actuel : **28 slides présentés** (jusqu'au Merci) + **2 annexes Q&A** (SWOT, Stack).
 > Pour chaque slide : **Message clé** · **À dire** (les points à dérouler) · **💡 Le pourquoi** (le raisonnement) · **Si le jury creuse** (questions probables).
 > Le walkthrough produit (slides 11-16) remplace la démo live : tu déroules les **captures réelles** en narrant. Zéro risque, timing maîtrisé.
 
@@ -322,7 +322,39 @@
 
 ---
 
-## Slide 24 — Cadre juridique IA
+## Slide 24 — KPIs · pilotage
+
+**Message clé** : ce que je mesure pour piloter, avec une métrique pivot.
+
+**À dire :**
+- **North Star** : **Activation > 60 %** — les inscrits qui créent un premier projet (le « wow moment »).
+- Autour, 6 indicateurs : **CAC < 30 €**, **LTV > 150 €**, **LTV/CAC > 3:1**, **Churn < 8 %**, **Assiduité (DAU/MAU) > 30 %**, **Conversion Libre→Créateur > 5 %**.
+
+**💡 Le pourquoi** : l'activation est ma **métrique pivot** — elle capture la valeur délivrée (le wow moment) et prédit la croissance. C'est le « point critique » de mon go-to-market. Les autres KPIs montrent que je pilote un modèle **sain**.
+
+**Si le jury creuse :**
+- *« Assiduité (DAU/MAU) ? »* → sur 100 utilisateurs qui viennent dans le mois, combien reviennent chaque jour. 30 % = un produit « collant ».
+
+---
+
+## Slide 25 — Architecture de scale
+
+**Message clé** : chaque limite d'aujourd'hui a **déjà son plan** — des choix de phase de lancement, pas des impasses.
+
+**À dire :**
+- **Supabase** : gratuit aujourd'hui → Pro 25 €/mois → 100-500 €/mois au-delà de ~10 000 users.
+- **FAL.ai** : API partagée → infra IA dédiée à gros volume (baisse le coût unitaire).
+- **Gemini** : palier gratuit + fallback Groq → quotas payants marginaux à l'échelle.
+- **Cohérence** : Sheet System aujourd'hui → modèle sur-mesure par personnage plus tard.
+
+**💡 Le pourquoi** : ça désamorce l'objection « et si 100 000 users ? ». Je nomme la limite **ET** le plan pour chaque brique — je connais mes limites et j'ai un plan, sans sur-engineering inutile au lancement.
+
+**Si le jury creuse :**
+- *« Votre cohérence tiendra à l'échelle ? »* → le Sheet System suffit au lancement ; un modèle sur-mesure par personnage est une évolution, pas un prérequis.
+
+---
+
+## Slide 26 — Cadre juridique IA
 
 **Message clé** : je transforme le **risque juridique de l'IA** en **argument commercial**.
 
@@ -338,7 +370,7 @@
 
 ---
 
-## Slide 25 — Conclusion
+## Slide 27 — Conclusion
 
 **Message clé** : bon produit, bon moment, modèle rentable.
 
@@ -350,7 +382,7 @@
 
 ---
 
-## Slide 26 — Merci
+## Slide 28 — Merci
 
 **Message clé** : ouvrir les questions, avec assurance.
 
@@ -362,7 +394,7 @@
 
 # 📎 Annexes (Q&A) — à dégainer si le jury pose la question
 
-Ces 4 slides sont **après le Merci**. Tu n'en parles pas spontanément ; tu y sautes si on te pose la question.
+Ces 2 slides sont **après le Merci**. Tu n'en parles pas spontanément ; tu y sautes si on te pose la question.
 
 ### Annexe A — SWOT (positionnement)
 - **Forces** : Sheet System (cohérence unique), tout-en-un, Time-to-Value < 10 min, freemium FLUX.2 Pro, NarraMind, stack scalable.
@@ -370,21 +402,11 @@ Ces 4 slides sont **après le Merci**. Tu n'en parles pas spontanément ; tu y s
 - **Opportunités** : marché +27,3 %/an, IA en amélioration, peu de concurrents spécialisés, potentiel B2B, nouvelles plateformes.
 - **Menaces** : Adobe / Canva, Midjourney (cohérence native en dev), réglementations IA, dépendance FAL.ai.
 
-### Annexe B — KPIs · pilotage
-- **North Star** : **Activation > 60 %** (inscrits qui créent un premier projet = le wow moment).
-- CAC < 30 € · LTV > 150 € · LTV/CAC > 3:1 · Churn < 8 % · Assiduité (DAU/MAU) > 30 % · Conversion Libre→Créateur > 5 %.
-
-### Annexe C — Stack · benchmark raisonné
+### Annexe B — Stack · benchmark raisonné
 - **DB · Supabase** : un seul service (base, comptes, stockage, sécurité). Rien à monter soi-même.
 - **IA · FAL.ai / FLUX.2 Pro** : le seul à accepter plusieurs images de référence → personnage identique (Sheet System).
 - **LLM · Gemini Flash** : rapide, quasi gratuit, bonne qualité. Groq prend le relais si saturation.
 - **FE · React / Vite / React Query** : outils standards choisis pour la rapidité, clés API protégées.
-
-### Annexe D — Architecture de scale
-- **Supabase** : gratuit aujourd'hui → Pro 25 € → 100-500 € au-delà de ~10 000 users.
-- **FAL.ai** : API partagée → infra IA dédiée à gros volume.
-- **Gemini** : palier gratuit + Groq → quotas payants marginaux à l'échelle.
-- **Cohérence** : Sheet System aujourd'hui → modèle sur-mesure par personnage plus tard.
 
 ---
 

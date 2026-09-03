@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Trash2, Loader2, Sparkles, Coins } from "lucide-react";
+import { Trash2, Loader2, Sparkles, Coins, ChevronRight } from "lucide-react";
 import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   DreamWeaveColorPicker,
@@ -114,6 +114,16 @@ function ImageBlockToolbar(props: ImageVariant) {
     return ids.size;
   }, [pinnedAssetIds, detectedAssets]);
 
+  // Presets et références repliés par défaut — panneau moins intimidant à l'ouverture.
+  const [openSections, setOpenSections] = useState<Set<string>>(new Set());
+  const toggleSection = (label: string) =>
+    setOpenSections((prev) => {
+      const next = new Set(prev);
+      if (next.has(label)) next.delete(label);
+      else next.add(label);
+      return next;
+    });
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       {/* PopoverAnchor = toute la toolbar → la popup se centre dessus */}
@@ -221,46 +231,73 @@ function ImageBlockToolbar(props: ImageVariant) {
             />
 
             {/* Presets webtoon — cadrage / éclairage / ambiance, ajoutés au prompt en un clic */}
-            <div className="flex flex-col gap-2">
-              {PROMPT_PRESET_GROUPS.map((group) => (
-                <div key={group.label} className="flex flex-col gap-1">
-                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{group.label}</p>
-                  <div className="flex flex-wrap gap-1">
-                    {group.chips.map((chip) => {
-                      const active = promptDraft.toLowerCase().includes(chip.keywords.toLowerCase());
-                      return (
-                        <button
-                          key={chip.label}
-                          type="button"
-                          onClick={() => onPromptChange(appendPromptKeywords(promptDraft, chip.keywords))}
-                          title={chip.keywords}
-                          className={cn(
-                            "h-6 px-2 rounded-full text-[11px] font-medium border transition-all",
-                            active
-                              ? "bg-primary/10 border-primary/40 text-primary"
-                              : "bg-muted/40 border-border/60 text-muted-foreground hover:bg-muted/70 hover:text-foreground",
-                          )}
-                        >
-                          {chip.label}
-                        </button>
-                      );
-                    })}
+            <div className="flex flex-col gap-1.5">
+              {PROMPT_PRESET_GROUPS.map((group) => {
+                const sectionOpen = openSections.has(group.label);
+                const activeCount = group.chips.filter((c) =>
+                  promptDraft.toLowerCase().includes(c.keywords.toLowerCase()),
+                ).length;
+                return (
+                  <div key={group.label} className="rounded-lg border border-border/50 bg-muted/20 overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => toggleSection(group.label)}
+                      className="w-full flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      <ChevronRight className={cn("h-3 w-3 shrink-0 transition-transform", sectionOpen && "rotate-90")} />
+                      {group.label}
+                      {activeCount > 0 && (
+                        <span className="ml-auto text-[10px] font-medium text-primary normal-case tracking-normal">
+                          {activeCount} choisi{activeCount > 1 ? "s" : ""}
+                        </span>
+                      )}
+                    </button>
+                    {sectionOpen && (
+                      <div className="flex flex-wrap gap-1 px-2.5 pb-2 pt-0.5">
+                        {group.chips.map((chip) => {
+                          const active = promptDraft.toLowerCase().includes(chip.keywords.toLowerCase());
+                          return (
+                            <button
+                              key={chip.label}
+                              type="button"
+                              onClick={() => onPromptChange(appendPromptKeywords(promptDraft, chip.keywords))}
+                              title={chip.keywords}
+                              className={cn(
+                                "h-6 px-2 rounded-full text-[11px] font-medium border transition-all",
+                                active
+                                  ? "bg-primary/10 border-primary/40 text-primary"
+                                  : "bg-muted/40 border-border/60 text-muted-foreground hover:bg-muted/70 hover:text-foreground",
+                              )}
+                            >
+                              {chip.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {/* Sélecteur de références — assets envoyés à l'IA pour garder leur apparence.
                 Épingler (📌) découple la référence du texte du prompt : un asset non écrit
                 dans le prompt est quand même utilisé s'il est épinglé. */}
             {assets.length > 0 && (
-              <div className="flex flex-col gap-1.5">
-                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+              <div className="rounded-lg border border-border/50 bg-muted/20 overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => toggleSection("Références de la case")}
+                  className="w-full flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <ChevronRight className={cn("h-3 w-3 shrink-0 transition-transform", openSections.has("Références de la case") && "rotate-90")} />
                   Références de la case
-                  <span className="ml-1.5 text-primary normal-case font-medium tracking-normal">
-                    · {effectiveRefCount} envoyée{effectiveRefCount > 1 ? "s" : ""} à l'IA
+                  <span className="ml-auto text-primary normal-case font-medium tracking-normal">
+                    {effectiveRefCount} envoyée{effectiveRefCount > 1 ? "s" : ""} à l'IA
                   </span>
-                </p>
+                </button>
+                {openSections.has("Références de la case") && (
+                <div className="flex flex-col gap-1.5 px-2.5 pb-2 pt-0.5">
                 <div className="flex flex-wrap gap-1.5 max-h-[116px] overflow-y-auto pr-0.5">
                   {assets.map((asset) => {
                     const pinned = pinnedSet.has(asset.id);
@@ -308,6 +345,8 @@ function ImageBlockToolbar(props: ImageVariant) {
                 <p className="text-[10px] text-muted-foreground/70 leading-snug">
                   Style du projet appliqué automatiquement. Épingle (📌) les personnages et décors de cette case pour que l'IA réutilise leur apparence, même s'ils ne sont pas écrits dans le prompt.
                 </p>
+                </div>
+                )}
               </div>
             )}
 

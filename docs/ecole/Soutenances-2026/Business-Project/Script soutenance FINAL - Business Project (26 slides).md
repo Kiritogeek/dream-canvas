@@ -193,7 +193,7 @@
 - Ariane lit le scénario, **détecte les incohérences** et **propose d'enrichir l'univers**.
 - Deux mécanismes distincts :
   - 🛡️ **Détection d'incohérences** = **mémoire compressée** (~50 tokens/chapitre au lieu de ~850 en injection brute).
-  - 💡 **Enrichissement** (lore + directions narratives) = **vectorisation** (Gemini 768D, pgvector, top-5).
+  - 💡 **Enrichissement** (Univers + directions narratives) = **vectorisation** (Gemini 768D, pgvector, top-5).
 
 **💡 Le pourquoi — à savoir expliquer :**
 - **La mémoire compressée** : un LLM « oublie ». Réinjecter tout le texte fait grossir le contexte de ~850 tokens/chapitre (latence ×2 dès le 6e). On compresse chaque chapitre en résumé + fiches entités (~50 tokens) → cohérence tenable sur 50 chapitres. **Pas de vecteurs ici.**

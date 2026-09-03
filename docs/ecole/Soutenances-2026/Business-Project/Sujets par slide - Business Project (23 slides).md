@@ -131,14 +131,14 @@
 
 ## Slide 9 — La solution (transition vers la démo)
 
-**Message clé** : un parcours guidé en 5 étapes qui produit des visuels cohérents **en secondes** — et **ça tourne déjà**.
+**Message clé** : un parcours guidé en 5 étapes qui produit des visuels cohérents, et **ça tourne déjà**.
 
 **À aborder :**
 - Les 5 étapes : **Style → Assets → Univers → Scénario → Édition**.
 - Annoncer la **démo en direct** dans le produit.
 
 > ### 🎬 DÉMO LIVE — Style → Édition *(non scriptée ici, tu la fais dans l'app)*
-> Tu déroules le produit en vrai. **Objectif** : prouver le « wow moment » (visuels cohérents en secondes) et que le produit fonctionne réellement.
+> Tu déroules le produit en vrai. **Objectif** : prouver le « wow moment » (visuels cohérents) et que le produit fonctionne réellement.
 
 ---
 

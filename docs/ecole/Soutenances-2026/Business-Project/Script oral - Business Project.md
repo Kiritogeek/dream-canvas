@@ -63,7 +63,7 @@ Pourquoi ce produit, et pas un autre ? J'ai écarté trois options : une **marke
 
 ## Slide 9 — La solution · *6:55*
 
-Voici la solution : un parcours guidé en cinq étapes, qui produit des visuels cohérents **en secondes**. On définit un **Style**, on génère les **Assets**, on cartographie l'**Univers**, on écrit le **Scénario** qui se découpe en cases, et on compose dans l'**Édition**. Ce que vous allez voir tourne déjà : chaque capture vient du prototype.
+Voici la solution : un parcours guidé en cinq étapes, qui produit des visuels cohérents. On définit un **Style**, on génère les **Assets**, on cartographie l'**Univers**, on écrit le **Scénario** qui se découpe en cases, et on compose dans l'**Édition**. Ce que vous allez voir tourne déjà : chaque capture vient du prototype.
 
 ---
 
@@ -171,7 +171,7 @@ Le prototype fonctionne, et chaque brique suit un même fil : **maximiser ce qu'
 
 ## Slide 27 — Cadre juridique IA · *18:45*
 
-Un sujet que le jury attend : le droit de l'IA. Ma stratégie, c'est d'en faire un **argument**. Une **intervention humaine créative** à chaque étape, style, prompt, composition, qui sécurise la propriété de l'œuvre en droit français, au titre de l'article L.111-1 du Code de la propriété intellectuelle. Un **badge de transparence** « Créé avec DreamWeave » sur les exports, qui anticipe l'obligation de déclaration de l'AI Act. Et une **couverture copyright** héritée de FAL.ai, qui porte le risque en amont, pas sur le créateur.
+Un sujet que le jury attend : le droit de l'IA. Ma stratégie, c'est d'en faire un **argument**. Une **intervention humaine créative** à chaque étape, style, prompt, composition, qui sécurise la propriété de l'œuvre en droit français, au titre de l'article L.111-1 du Code de la propriété intellectuelle. Un **badge de transparence** « Créé avec DreamWeave » sur les exports, qui marque les contenus générés par IA, en ligne avec l'obligation de transparence de l'AI Act, en vigueur depuis août 2026. Et une **couverture copyright** héritée de FAL.ai, qui porte le risque en amont, pas sur le créateur.
 
 ---
 
